@@ -425,15 +425,15 @@ FontChanged(Widget widget, XtPointer closure, XtPointer call_data)
         XtpLog(XTP_LOG_INFO, "font", "callback renderer=%s cell=%ux%u grid=%ux%u",
                XtpVtRendererName(app->vt), change->cell_width, change->cell_height,
                XtpVtColumns(app->vt), XtpVtRows(app->vt));
+        if (app->pty != NULL &&
+            XtpPtyResize(app->pty, (uint16_t)XtpVtColumns(app->vt), (uint16_t)XtpVtRows(app->vt),
+                         change->cell_width, change->cell_height) != 0)
+                XBell(app->display, 0);
         if (XtpTerminalResize(app->terminal, (uint16_t)XtpVtColumns(app->vt),
                               (uint16_t)XtpVtRows(app->vt), change->cell_width,
                               change->cell_height) != 0) {
                 XBell(app->display, 0);
         }
-        if (app->pty != NULL &&
-            XtpPtyResize(app->pty, (uint16_t)XtpVtColumns(app->vt), (uint16_t)XtpVtRows(app->vt),
-                         change->cell_width, change->cell_height) != 0)
-                XBell(app->display, 0);
         UpdateGeometry(app);
         XtpMenusSetRenderFont(&app->menus, XtpVtUsingXft(app->vt), XtpVtXftAvailable(app->vt));
 }
@@ -447,13 +447,13 @@ SizeChanged(Widget widget, XtPointer closure, XtPointer call_data)
         (void)widget;
         XtpLog(XTP_LOG_INFO, "resize", "callback grid=%ux%u cell=%ux%u", change->columns,
                change->rows, change->cell_width, change->cell_height);
-        if (app->terminal != NULL &&
-            XtpTerminalResize(app->terminal, (uint16_t)change->columns, (uint16_t)change->rows,
-                              change->cell_width, change->cell_height) != 0)
-                XBell(app->display, 0);
         if (app->pty != NULL &&
             XtpPtyResize(app->pty, (uint16_t)change->columns, (uint16_t)change->rows,
                          change->cell_width, change->cell_height) != 0)
+                XBell(app->display, 0);
+        if (app->terminal != NULL &&
+            XtpTerminalResize(app->terminal, (uint16_t)change->columns, (uint16_t)change->rows,
+                              change->cell_width, change->cell_height) != 0)
                 XBell(app->display, 0);
 }
 

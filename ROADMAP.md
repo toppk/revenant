@@ -27,7 +27,7 @@ present, but the complete user-visible integration is not yet available.
 | Capability demonstrated by Ghostling | xterm+ status | Remaining integration |
 | --- | --- | --- |
 | PTY-backed shell and terminal effects | Present | Retain ordered backpressure coverage for the shared write queue and expand the effect surface. |
-| Resize with primary-screen reflow | Present | Retain geometry regression coverage across renderers and constrained screens. |
+| Resize with primary-screen reflow | Partial | Retain geometry regression coverage; track the wrapped-prompt failure reported in Ghostty [discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026). |
 | 24-bit and 256-color terminal output | Partial | Terminal colors render, but xterm `color0` through `color15` resource overrides are not all applied. |
 | Bold, italic, inverse, and decorations | Partial | Xft uses a real clipped bold face; bitmap bold remains synthetic, italic is incomplete, and style/color combinations need compatibility tests. |
 | Unicode and multi-codepoint graphemes | Partial | State and UTF-8 cross the backend boundary; Xft still lacks shaping, fallback faces, and color emoji. |

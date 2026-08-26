@@ -13,6 +13,18 @@ Revision 3 records the correctness-first rewrite. All seven recommended
 changes are implemented; the visual and performance acceptance items called
 out below still require deliberate runtime coverage.
 
+Revision 4 records two distinct resize failures found while repeatedly
+reflowing a large scrollback. Grid dimensions changed while the last-painted
+frame stayed valid, allowing Expose handling to paint an old-grid snapshot
+with new-grid geometry. Resize now invalidates that snapshot before callbacks
+or repaint. A separate wrapped Bash prompt failure remains open: libghostty
+reflows the live prompt and Readline redraws it after `SIGWINCH`, leaving their
+logical cursor positions inconsistent. The frame-cache fix does not address
+that backend/shell interaction. Ghostty
+[discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026)
+tracks the same failure in Ghostty 1.3.1's X11 backend with shell integration
+disabled.
+
 ## Summary
 
 xterm+ and xterm both draw directly to the window, immediately, as PTY
@@ -72,6 +84,8 @@ not atomicity.
 | Double flash on font change/redraw | Clear-generated Expose followed by another clear | Redraw calls the cache/full repaint directly |
 | Full repaint on every Expose | `Redisplay` ignored the damage region | Cached rows/columns intersecting damage are repainted |
 | No-newline output delayed | Incomplete lines held on an 8 ms timer | Every PTY read is fed and rendered immediately |
+| Stale rows painted with old geometry after resize | Grid changed while the old `frame_cells` snapshot remained valid | Resize invalidates the frame before callbacks and Expose |
+| Wrapped Bash prompt leaves cursor inside the prompt after shrink/grow | libghostty reflows the live prompt before Readline's `SIGWINCH` redraw | Open upstream as Ghostty [discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026); `just reflow-prompt` plus `just reflow-resize WINDOW-ID` reproduces it |
 
 The unused `XtpVtUpdateScrolled`, raw-byte helpers, content detector, and scroll
 branch of `RenderBegin` were deleted together.
@@ -89,6 +103,17 @@ branch of `RenderBegin` were deleted together.
   rectangle — never by asking libghostty for dirty rows. Cursor
   intersection and wide/grapheme cells straddling the exposed edge must
   be handled (repaint the whole cell group).
+- **Frame geometry must match widget geometry.** A cached frame is repaintable
+  only while its rows, columns, and cell geometry describe the current widget.
+  `ResizeWidget` invalidates `frame_cells` before publishing new grid
+  dimensions or invoking resize callbacks. The next terminal render or Expose
+  rebuilds the snapshot from libghostty's reflowed state; it must never map an
+  old snapshot onto a new grid.
+- **Resize is one ordered transaction.** Update the kernel PTY size first, then
+  resize/reflow terminal state before returning to the Xt event loop. Child
+  `SIGWINCH` output cannot be read and fed between those operations. This
+  matches Ghostty's `Termio.resize` ordering and ensures any subsequent shell
+  redraw is parsed against the new grid.
 - **Emulator is the only source of truth for content.** Nothing is
   painted from raw PTY bytes.
 
@@ -118,6 +143,11 @@ branch of `RenderBegin` were deleted together.
 7. **Done:** `Redisplay` repaints only rows/columns intersecting the exposed
    region from `frame_cells`. The extra `XClearArea` calls are removed from
    redraw and font switching.
+8. **Partial:** grid resize invalidates the last-painted frame before the grid
+   is changed, and the resize callback updates PTY geometry before terminal
+   reflow. `xtp-resize-loop` provides repeatable narrow/wide X11 coverage.
+   Wrapped live Bash prompts still expose a logical libghostty/Readline reflow
+   conflict even though the cached-frame geometry is now correct.
 
 The bitmap path retains its existing clipped synthetic-bold fallback until a
 separate xterm `boldFont` resource is wired.
@@ -137,6 +167,10 @@ separate xterm `boldFont` resource is wired.
   including wide cells at its edge.
 - Prompt and cursor-control output without a trailing newline appears
   without the 8 ms hold.
+- Repeated narrow/wide resize of large scrollback never paints prompt
+  fragments or stale rows from a previous grid. After returning to the live
+  bottom, editable input and its cursor remain intact. Exercise this with
+  `xtp-resize-loop` and a live Readline buffer.
 
 ## Cost caveat
 

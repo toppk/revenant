@@ -36,6 +36,18 @@ build-stub:
 test-stub: build-stub
     meson test -C {{stub_build}} --print-errorlogs
 
+# Repeatedly resize an xterm+ window to exercise reflow and expose handling
+resize-loop window cycles="4" delay_ms="100": build-gcc
+    ./{{gcc_build}}/xtp-resize-loop "{{window}}" "{{cycles}}" "{{delay_ms}}"
+
+# Open the fixed 45-column Bash prompt used by the wrapped-prompt reproducer
+reflow-prompt: build-gcc
+    ./{{gcc_build}}/xterm+ -debug -geometry 80x24 -e bash --noprofile --rcfile "{{justfile_directory()}}/tests/reflow-prompt.bash" -i
+
+# Cross the fixture prompt's wrap boundary once, using terminal grid sizes
+reflow-resize window: build-gcc
+    ./{{gcc_build}}/xtp-resize-loop "{{window}}" --grid 38 80 24 250
+
 # Build and test all supported compiler/backend combinations
 test: test-gcc test-clang test-stub
 

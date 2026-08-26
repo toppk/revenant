@@ -140,6 +140,13 @@ from the live bottom rather than freezing an absolute history row. For
 example, a view of rows 700–724 becomes 701–725 when one new row arrives. A
 true value jumps directly to the newest screen, matching xterm's behavior.
 
+Resize reflow can also change the number of display rows represented by saved
+history. A viewport that is not at the live bottom remains a historical view;
+its last visible row may resemble the current prompt without containing the
+current editable input. Scroll to the bottom before treating that as lost
+terminal data. Reflow must preserve the underlying text independently of the
+viewport position.
+
 If an application enables mouse reporting, buttons, motion, modifiers, and
 the wheel are encoded in its requested terminal protocol instead. Hold Shift
 to select or scroll locally while reporting is active. Ctrl+button 1, 2, and 3
@@ -181,6 +188,16 @@ XTerm*iconGeometry:   +0+0
 
 Font changes and window-manager resizes both keep the terminal's rows and
 columns coherent with the kernel PTY size, and the primary screen reflows.
+Each grid change invalidates the last-painted frame before Expose handling, so
+cached cells from the previous grid are never repainted with new geometry.
+
+One upstream libghostty/Ghostty limitation remains: on X11, shrinking an
+active Bash prompt across its wrap boundary and widening it again can leave
+the cursor inside the prompt. Ghostty
+[discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026)
+tracks a reproducer with shell integration disabled. Native Wayland did not
+reproduce in the reported environment; the reason for that backend difference
+is not yet confirmed.
 
 ## Cursor
 

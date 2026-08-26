@@ -68,7 +68,7 @@ xterm+ -debug 2> xterm-plus.log
 
 ## Regression helpers
 
-Three small X11 utilities are built alongside xterm+ but not installed. Give
+Four small X11 utilities are built alongside xterm+ but not installed. Give
 them the top-level window ID reported by the `shell: realized` log line:
 
 ```sh
@@ -78,11 +78,65 @@ them the top-level window ID reported by the `shell: realized` log line:
 ./build-ghostty/xtp-send-font-keys 0x4e00027 page-up 1
 ./build-ghostty/xtp-send-wheel 0x4e00027 up 4       # four wheel ticks
 ./build-ghostty/xtp-send-selection 0x4e00027 10 10 200 60
+./build-ghostty/xtp-resize-loop 0x4e00027            # four narrow/wide cycles
 ```
 
 Each press should produce one `action larger-vt-font` and one `font: select`
 record; each wheel tick reports the requested delta and the resulting
 viewport `{offset, length, total}`.
+
+The resize helper defaults to four `400x300` to `1000x700` cycles separated by
+100 ms. Override the cycle count and delay, or provide all four dimensions:
+
+```sh
+./build-ghostty/xtp-resize-loop WINDOW-ID CYCLES DELAY-MS
+./build-ghostty/xtp-resize-loop WINDOW-ID 10 20 320 240 1200 800
+```
+
+It can also resize in terminal cells. It reads the window's base size and cell
+increments from `WM_NORMAL_HINTS`, so this form is independent of the selected
+font and scrollbar width:
+
+```sh
+./build-ghostty/xtp-resize-loop WINDOW-ID --grid 38 80 24 250
+```
+
+### Wrapped Bash prompt reproducer
+
+The current Bash/Readline reflow defect needs only one resize across a prompt's
+wrap boundary; repeated dragging is not required. In one terminal, start the
+fixed 45-column prompt:
+
+```sh
+just reflow-prompt
+```
+
+Copy the top-level window ID from the `shell: realized window=...` debug line.
+In another terminal, perform one 80-to-38-to-80-column cycle:
+
+```sh
+just reflow-resize 0x4e00027
+```
+
+Before the resize the cursor is at column 45. The known failure leaves it at
+column 37 (over the `u` in `plus`) after the window returns to 80 columns. The
+fixture contains OSC 133 prompt/input marks and therefore reproduces the
+libghostty/Bash interaction without depending on the user's Bash files.
+
+The failure also reproduces in Ghostty 1.3.1's X11 backend without OSC 133 or
+shell integration:
+
+```sh
+PS1="someitnh rellayl logn so you can see" \
+  GDK_BACKEND=x11 ghostty --shell-integration=none -e bash --noprofile
+```
+
+It is tracked upstream as Ghostty
+[discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026).
+The equivalent native-Wayland run did not reproduce in the observed setup.
+The report records resize-event delivery/coalescing as a hypothesis for that
+backend difference, not a confirmed cause. Check the discussion when updating
+libghostty or revisiting this defect.
 
 ## CPU flamegraphs
 

@@ -340,6 +340,24 @@ optional tick count:
 With `-debug`, each tick reports the requested five-line delta and Ghostty's
 resulting `{offset, length, total}` viewport state.
 
+`xtp-resize-loop` repeatedly resizes the top-level window to exercise reflow
+and expose handling. It defaults to four `400x300` to `1000x700` cycles with a
+100 ms delay; the cycle count, delay, and both sizes are configurable:
+
+```sh
+./build-ghostty/xtp-resize-loop 0x4e00027
+./build-ghostty/xtp-resize-loop 0x4e00027 10 20 320 240 1200 800
+./build-ghostty/xtp-resize-loop 0x4e00027 --grid 38 80 24 250
+```
+
+For the deterministic wrapped-prompt case, run `just reflow-prompt`, copy the
+window ID from its debug output, then run `just reflow-resize WINDOW-ID` in a
+second terminal. This crosses a fixed 45-column Bash prompt from 80 to 38 and
+back to 80 columns once; hand-resizing and repeated cycles are unnecessary.
+The same logical failure reproduces in Ghostty 1.3.1's X11 backend with shell
+integration disabled and is tracked upstream in Ghostty
+[discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026).
+
 ## X resources
 
 xterm+ deliberately uses application class `XTerm`, instance `xterm`, and

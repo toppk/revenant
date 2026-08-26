@@ -1179,6 +1179,8 @@ ResizeWidget(Widget widget)
 
                 XtpLog(XTP_LOG_INFO, "resize", "VT100 grid changed %ux%u -> %ux%u",
                        (unsigned int)vt->vt.columns, (unsigned int)vt->vt.rows, columns, rows);
+                vt->vt.frame_valid = False;
+                vt->vt.last_cursor_visible = False;
                 vt->vt.columns = (int)columns;
                 vt->vt.rows = (int)rows;
                 changed.columns = columns;

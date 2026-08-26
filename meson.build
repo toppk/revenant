@@ -173,6 +173,13 @@ selection_test_tool = executable(
     install: false,
 )
 
+resize_test_tool = executable(
+    'xtp-resize-loop',
+    'tests/xtp-resize-loop.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
 test(
     'self-test',
     xterm_plus,
@@ -189,6 +196,7 @@ summary(
         'profiling frame pointers': get_option('profiling'),
         'font-key test tool': font_key_test_tool.full_path(),
         'selection test tool': selection_test_tool.full_path(),
+        'resize test tool': resize_test_tool.full_path(),
         'wheel test tool': wheel_test_tool.full_path(),
     },
     section: 'xterm+ configuration',

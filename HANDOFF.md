@@ -94,6 +94,26 @@ terminal adapter must still deliver begin/end callbacks and current cursor
 state, while the VT widget treats its frame cache as the last pixels actually
 painted. Do not infer cursor or viewport damage solely from dirty cells.
 
+The frame cache is valid only for the widget grid that produced it. Invalidate
+it before publishing new rows or columns; otherwise Expose can map an old-grid
+snapshot onto new geometry and leave stale rows painted at the wrong cells.
+Resize updates the kernel PTY first and libghostty terminal state second within
+one Xt callback, matching Ghostty's ordering, so child `SIGWINCH` redraw bytes
+cannot be fed between those operations.
+
+Do not conflate that fixed cache lifetime bug with the open wrapped-prompt
+failure. A 45-column OSC 133-marked Bash prompt resized 80→38→80 ends with its
+cursor at column 37 rather than 45. At 38 columns, libghostty reflow plus
+Readline's `SIGWINCH` redraw produces 83 graphemes (38 retained cells plus a
+45-cell redraw). Installed Ghostty 1.3.1 with its X11 backend exhibits the same
+behavior. Run `just reflow-prompt`, copy the logged top-level window ID, then
+run `just reflow-resize WINDOW_ID`; one cycle is sufficient. The upstream
+report is Ghostty
+[discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026).
+Check that discussion before attempting a local workaround or updating the
+pinned libghostty revision. Its plain Bash reproducer disables shell
+integration, so OSC 133 is not required for the underlying failure.
+
 ## Implemented behavior
 
 - Real PTY-backed shell with libghostty parsing, mode-aware basic keyboard
@@ -106,7 +126,8 @@ painted. Do not infer cursor or viewport damage solely from dirty cells.
   autolinefeed, application cursor keys, and application keypad mode.
 - Progressive output rendering, a last-painted cell cache, and cursor-only
   repaint support when libghostty reports no cell damage.
-- Primary-screen resize reflow and synchronized terminal/kernel PTY geometry.
+- Primary-screen resize reflow, synchronized terminal/kernel PTY geometry,
+  and pre-Expose invalidation of frames captured at the previous grid size.
 - Xterm application and widget identities with real Athena popup menus.
 - Xlib bitmap and Xft/fontconfig renderers with runtime `renderFont` toggling.
 - Xft point sizes resolved with the active display and screen defaults,
@@ -242,6 +263,9 @@ Useful runtime checks:
 ./build-agent-gcc/xterm+ -report-config
 ./build-agent-gcc/xtp-send-font-keys WINDOW_ID + 4
 ./build-agent-gcc/xtp-send-font-keys WINDOW_ID - 4
+just resize-loop WINDOW_ID 8 20
+just reflow-prompt
+just reflow-resize WINDOW_ID
 ```
 
 The current self-test has focused backend checks for rendering, cursor state,
