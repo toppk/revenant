@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+usage: tools/flamegraph [--no-build] [--] [COMMAND [ARG...]]
+
+Build a profiler-friendly xterm+, record COMMAND inside it, and create:
+
+  profiles/TIMESTAMP/perf.data
+  profiles/TIMESTAMP/perf.folded
+  profiles/TIMESTAMP/perf-report.txt
+  profiles/TIMESTAMP/flamegraph.svg
+
+COMMAND defaults to ten passes of `cat /tmp/lsasdf` so short captures contain
+enough samples for a useful graph.
+
+Environment overrides:
+  XTP_PROFILE_BUILD_DIR   Meson build directory (default: build-profile)
+  XTP_PROFILE_OUTPUT_DIR  capture parent directory (default: profiles)
+  XTP_PROFILE_FREQUENCY   samples per second (default: 997)
+  XTP_PROFILE_CALL_GRAPH  perf unwinder (default: dwarf,16384)
+EOF
+}
+
+readonly source_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+build_dir=${XTP_PROFILE_BUILD_DIR:-"$source_dir/build-profile"}
+output_parent=${XTP_PROFILE_OUTPUT_DIR:-"$source_dir/profiles"}
+frequency=${XTP_PROFILE_FREQUENCY:-997}
+call_graph=${XTP_PROFILE_CALL_GRAPH:-dwarf,16384}
+build=true
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-build)
+            build=false
+            shift
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [[ $# -eq 0 ]]; then
+    command=(
+        sh
+        -c
+        'i=0; while [ "$i" -lt 10 ]; do cat /tmp/lsasdf; i=$((i + 1)); done'
+    )
+else
+    command=("$@")
+fi
+
+required_programs=(perf flamegraph.pl)
+if [[ $build == true ]]; then
+    required_programs+=(meson)
+fi
+for program in "${required_programs[@]}"; do
+    if ! command -v "$program" >/dev/null 2>&1; then
+        echo "tools/flamegraph: required program not found: $program" >&2
+        exit 1
+    fi
+done
+
+perf_exec_path=$(perf --exec-path)
+readonly stackcollapser="$perf_exec_path/scripts/python/stackcollapse.py"
+if [[ ! -f "$stackcollapser" ]]; then
+    echo "tools/flamegraph: perf stack collapser not found: $stackcollapser" >&2
+    exit 1
+fi
+
+if [[ $build == true ]]; then
+    if [[ -f "$build_dir/meson-private/coredata.dat" ]]; then
+        meson setup --reconfigure "$build_dir" "$source_dir" \
+            --buildtype=debugoptimized \
+            -Db_lto=false \
+            -Dlibghostty=enabled \
+            -Dprofiling=true
+    else
+        meson setup "$build_dir" "$source_dir" \
+            --buildtype=debugoptimized \
+            -Db_lto=false \
+            -Dlibghostty=enabled \
+            -Dprofiling=true
+    fi
+    meson compile -C "$build_dir"
+fi
+
+readonly executable="$build_dir/xterm+"
+if [[ ! -x "$executable" ]]; then
+    echo "tools/flamegraph: executable not found: $executable" >&2
+    echo "Run without --no-build, or set XTP_PROFILE_BUILD_DIR." >&2
+    exit 1
+fi
+
+mkdir -p -- "$output_parent"
+stamp=$(date '+%Y%m%d-%H%M%S')
+capture_dir="$output_parent/$stamp"
+suffix=0
+while [[ -e "$capture_dir" ]]; do
+    suffix=$((suffix + 1))
+    capture_dir="$output_parent/$stamp-$suffix"
+done
+mkdir -- "$capture_dir"
+
+data="$capture_dir/perf.data"
+folded="$capture_dir/perf.folded"
+report="$capture_dir/perf-report.txt"
+svg="$capture_dir/flamegraph.svg"
+
+printf 'Recording:'
+printf ' %q' "$executable" -e "${command[@]}"
+printf '\n'
+
+if ! perf record \
+    --freq "$frequency" \
+    --call-graph "$call_graph" \
+    --output "$data" \
+    -- "$executable" -e "${command[@]}"; then
+    cat >&2 <<EOF
+tools/flamegraph: perf recording failed.
+On Fedora, check /proc/sys/kernel/perf_event_paranoid and whether your user is
+allowed to collect performance counters. Partial output is in $capture_dir.
+EOF
+    exit 1
+fi
+
+perf report \
+    --input "$data" \
+    --stdio \
+    --no-children \
+    --sort overhead,comm,dso,symbol >"$report"
+
+perf script --input "$data" -s "$stackcollapser" >"$folded"
+flamegraph.pl \
+    --title 'xterm+ CPU flamegraph' \
+    --subtitle "${command[*]}" \
+    --countname samples \
+    "$folded" >"$svg"
+
+cat <<EOF
+Capture complete:
+  $svg
+  $report
+  $data
+EOF

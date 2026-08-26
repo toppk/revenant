@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# usage: packaging/install-zig VERSION DESTDIR  -> installs zig into DESTDIR/zig, verified against ziglang.org index
+set -euo pipefail
+version=${1:?version}
+dest=${2:?destdir}
+arch=$(uname -m)
+index=$(curl -fsSL https://ziglang.org/download/index.json)
+url=$(jq -er --arg v "$version" --arg k "$arch-linux" '.[$v][$k].tarball' <<<"$index")
+sum=$(jq -er --arg v "$version" --arg k "$arch-linux" '.[$v][$k].shasum' <<<"$index")
+tmp=$(mktemp -d)
+curl -fsSL -o "$tmp/zig.tar.xz" "$url"
+echo "$sum  $tmp/zig.tar.xz" | sha256sum -c -
+mkdir -p "$dest"
+rm -rf "$dest/zig"
+tar -xJf "$tmp/zig.tar.xz" -C "$tmp"
+mv "$tmp"/zig-*/ "$dest/zig"
+rm -rf "$tmp"
+"$dest/zig/zig" version

@@ -1,0 +1,113 @@
+#!/bin/sh
+
+Usage()
+{
+        cat <<'EOF'
+usage: tools/sendcsi COMMAND [COMMAND ...]
+       tools/sendcsi list
+
+Send named cursor control sequences to standard output. Multiple commands are
+sent in order.
+
+Cursor style:
+  default             DECSCUSR 0: emulator-default block
+  blink-block         DECSCUSR 1: blinking block
+  steady-block        DECSCUSR 2: steady block
+  blink-underline     DECSCUSR 3: blinking underline
+  steady-underline    DECSCUSR 4: steady underline
+  blink-bar           DECSCUSR 5: blinking bar
+  steady-bar          DECSCUSR 6: steady bar
+
+Cursor state:
+  blink-on            DEC mode 12 set: enable blinking
+  blink-off           DEC mode 12 reset: disable blinking
+  blink-steady        alias for blink-off
+  show                 DEC mode 25 set: show cursor
+  hide                 DEC mode 25 reset: hide cursor
+
+Examples:
+  tools/sendcsi steady-block
+  tools/sendcsi blink-bar show
+  tools/sendcsi default
+EOF
+}
+
+ValidCommand()
+{
+        case "$1" in
+        default | blink-block | steady-block | blink-underline | steady-underline | blink-bar | \
+            steady-bar | blink-on | blink-off | blink-steady | show | hide)
+                return 0
+                ;;
+        *)
+                return 1
+                ;;
+        esac
+}
+
+SendCommand()
+{
+        case "$1" in
+        default)
+                printf '\033[0 q'
+                ;;
+        blink-block)
+                printf '\033[1 q'
+                ;;
+        steady-block)
+                printf '\033[2 q'
+                ;;
+        blink-underline)
+                printf '\033[3 q'
+                ;;
+        steady-underline)
+                printf '\033[4 q'
+                ;;
+        blink-bar)
+                printf '\033[5 q'
+                ;;
+        steady-bar)
+                printf '\033[6 q'
+                ;;
+        blink-on)
+                printf '\033[?12h'
+                ;;
+        blink-off | blink-steady)
+                printf '\033[?12l'
+                ;;
+        show)
+                printf '\033[?25h'
+                ;;
+        hide)
+                printf '\033[?25l'
+                ;;
+        esac
+}
+
+if [ "$#" -eq 0 ]; then
+        Usage >&2
+        exit 2
+fi
+
+case "$1" in
+help | --help | -h | list | --list)
+        if [ "$#" -ne 1 ]; then
+                printf '%s\n' "sendcsi: $1 cannot be combined with cursor commands" >&2
+                exit 2
+        fi
+        Usage
+        exit 0
+        ;;
+esac
+
+for command do
+        if ! ValidCommand "$command"; then
+                printf '%s\n' "sendcsi: unknown command: $command" >&2
+                printf '%s\n' "run 'tools/sendcsi list' for available commands" >&2
+                exit 2
+        fi
+done
+
+for command do
+        SendCommand "$command"
+done

@@ -1,0 +1,65 @@
+#!/bin/sh
+# Send named OSC sequences to the terminal.
+
+Usage()
+{
+        cat <<'USAGE'
+usage: tools/sendosc COMMAND [ARGS]
+       tools/sendosc list
+
+Commands:
+  title TEXT              OSC 0: set window and icon title
+  push-title              CSI 22 ; 0 t: push title (XTWINOPS)
+  pop-title               CSI 23 ; 0 t: pop title
+  link URI TEXT           OSC 8 hyperlink around TEXT
+  copy TEXT               OSC 52 ; c: write TEXT to the clipboard
+  paste-query             OSC 52 ; c ; ?: request clipboard contents
+  cwd [PATH]              OSC 7 file://HOST/PATH (default: $PWD)
+  notify TITLE BODY       OSC 777 ; notify (urxvt form)
+  notify9 TEXT            OSC 9 (iTerm2 form)
+  progress STATE [PCT]    OSC 9 ; 4 (ConEmu form); STATE 0-4
+  mark A|B|C|D [EXIT]     OSC 133 shell-integration mark
+  bg COLOR                OSC 11: set background, e.g. '#202020' or rgb:20/20/20
+  fg COLOR                OSC 10: set foreground
+  cursor-color COLOR      OSC 12: set cursor color
+  palette N COLOR         OSC 4: set palette entry N
+  reset-colors            OSC 104 ; OSC 110 ; OSC 111 ; OSC 112
+  pointer SHAPE           OSC 22: pointer shape (xterm)
+
+Sequences end with ST (ESC \). Set OSC_BEL=1 to end with BEL instead.
+USAGE
+}
+
+st()
+{
+        if [ -n "$OSC_BEL" ]; then printf '\007'; else printf '\033\\'; fi
+}
+
+b64()
+{
+        printf '%s' "$1" | base64 | tr -d '\n'
+}
+
+[ "$#" -eq 0 ] && { Usage >&2; exit 2; }
+cmd=$1; shift
+case "$cmd" in
+list | help | -h | --help) Usage ;;
+title) printf '\033]0;%s' "$*"; st ;;
+push-title) printf '\033[22;0t' ;;
+pop-title) printf '\033[23;0t' ;;
+link) uri=$1; shift; printf '\033]8;;%s' "$uri"; st; printf '%s' "$*"; printf '\033]8;;'; st; printf '\n' ;;
+copy) printf '\033]52;c;%s' "$(b64 "$*")"; st ;;
+paste-query) printf '\033]52;c;?'; st ;;
+cwd) printf '\033]7;file://%s%s' "$(hostname)" "${1:-$PWD}"; st ;;
+notify) printf '\033]777;notify;%s;%s' "$1" "$2"; st ;;
+notify9) printf '\033]9;%s' "$*"; st ;;
+progress) printf '\033]9;4;%s;%s' "$1" "${2:-0}"; st ;;
+mark) if [ -n "$2" ]; then printf '\033]133;%s;%s' "$1" "$2"; else printf '\033]133;%s' "$1"; fi; st ;;
+bg) printf '\033]11;%s' "$1"; st ;;
+fg) printf '\033]10;%s' "$1"; st ;;
+cursor-color) printf '\033]12;%s' "$1"; st ;;
+palette) printf '\033]4;%s;%s' "$1" "$2"; st ;;
+reset-colors) printf '\033]104'; st; printf '\033]110'; st; printf '\033]111'; st; printf '\033]112'; st ;;
+pointer) printf '\033]22;%s' "$1"; st ;;
+*) printf 'sendosc: unknown command: %s\n' "$cmd" >&2; exit 2 ;;
+esac

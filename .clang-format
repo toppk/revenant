@@ -1,0 +1,26 @@
+BasedOnStyle: LLVM
+
+# X11 private headers have dependency-sensitive ordering (IntrinsicP before
+# CoreP before CompositeP), so includes remain manually grouped and ordered.
+SortIncludes: Never
+
+IndentWidth: 8
+TabWidth: 8
+UseTab: Never
+
+ColumnLimit: 100
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  AfterControlStatement: false
+  AfterStruct: true
+  AfterEnum: true
+  AfterUnion: true
+
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
+
+PointerAlignment: Right
+
+BreakAfterReturnType: AllDefinitions

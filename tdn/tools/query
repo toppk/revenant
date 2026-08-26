@@ -1,0 +1,129 @@
+#!/bin/sh
+# Send raw bytes to the terminal and print any reply with control bytes shown.
+
+Usage()
+{
+        cat <<'USAGE'
+usage: tools/query [-t TENTHS] [-r] SEQUENCE [SEQUENCE ...]
+       tools/query list
+       tools/query NAME
+
+Write SEQUENCE (a printf format, so \033 and \\ work) to the terminal, wait
+for a reply, and print it with ESC shown as ^[ and other controls in cat -v
+form. -t sets the wait in tenths of a second (default 5). -r prints the raw
+reply bytes instead.
+
+Named queries:
+  da1          CSI c            primary device attributes
+  da2          CSI > c          secondary device attributes
+  da3          CSI = c          tertiary device attributes
+  version      CSI > 0 q        XTVERSION
+  cursor       CSI 6 n          cursor position report
+  status       CSI 5 n          device status
+  mode N       CSI ? N $ p      DECRQM for private mode N
+  kitty        CSI ? u          Kitty keyboard flags
+  cellsize     CSI 16 t         cell size in pixels
+  winsize      CSI 18 t         window size in cells
+  pixsize      CSI 14 t         text area size in pixels
+  bg           OSC 11 ; ? ST    background color
+  fg           OSC 10 ; ? ST    foreground color
+  decrqss S    DCS $ q S ST     request setting S, e.g. 'decrqss " q'
+  tcap NAME    XTGETTCAP for terminfo capability NAME, e.g. 'tcap RGB'
+  sixel        CSI ? 2 ; 1 ; 0 S  XTSMGRAPHICS color registers
+USAGE
+}
+
+Hex()
+{
+        printf '%s' "$1" | od -An -tx1 | tr -d ' \n'
+}
+
+Named()
+{
+        case "$1" in
+        da1) printf '\033[c' ;;
+        da2) printf '\033[>c' ;;
+        da3) printf '\033[=c' ;;
+        version) printf '\033[>0q' ;;
+        cursor) printf '\033[6n' ;;
+        status) printf '\033[5n' ;;
+        mode) printf '\033[?%s$p' "$2" ;;
+        kitty) printf '\033[?u' ;;
+        cellsize) printf '\033[16t' ;;
+        winsize) printf '\033[18t' ;;
+        pixsize) printf '\033[14t' ;;
+        bg) printf '\033]11;?\033\\' ;;
+        fg) printf '\033]10;?\033\\' ;;
+        decrqss) printf '\033P$q%s\033\\' "$2" ;;
+        tcap) printf '\033P+q%s\033\\' "$(Hex "$2")" ;;
+        sixel) printf '\033[?2;1;0S' ;;
+        *) return 1 ;;
+        esac
+}
+
+tenths=5
+raw=0
+while [ "$#" -gt 0 ]; do
+        case "$1" in
+        -t) tenths=$2; shift 2 ;;
+        -r) raw=1; shift ;;
+        -h | --help | help | list) Usage; exit 0 ;;
+        --) shift; break ;;
+        -*) Usage >&2; exit 2 ;;
+        *) break ;;
+        esac
+done
+[ "$#" -eq 0 ] && { Usage >&2; exit 2; }
+
+if [ ! -t 0 ] || [ ! -t 1 ]; then
+        printf '%s\n' "query: standard input and output must be a terminal" >&2
+        exit 1
+fi
+
+payload=$(
+        while [ "$#" -gt 0 ]; do
+                case "$1" in
+                mode | decrqss | tcap) Named "$1" "$2"; shift 2 ;;
+                *) Named "$1" 2>/dev/null || printf "$1"; shift ;;
+                esac
+        done
+        printf x
+)
+payload=${payload%x}
+
+saved=$(stty -g) || exit 1
+tty_changed=true
+
+Cleanup()
+{
+        if [ "$tty_changed" = true ]; then
+                stty "$saved"
+                tty_changed=false
+        fi
+}
+
+Abort()
+{
+        Cleanup
+        exit 130
+}
+
+trap Cleanup EXIT
+trap Abort HUP INT QUIT TERM
+stty raw -echo min 0 time "$tenths" || exit 1
+printf '%s' "$payload"
+reply=$(dd bs=4096 2>/dev/null; printf x)
+reply=${reply%x}
+Cleanup
+trap - EXIT HUP INT QUIT TERM
+
+if [ -z "$reply" ]; then
+        printf '%s\n' "(no reply within ${tenths}/10 s)" >&2
+        exit 3
+fi
+if [ "$raw" -eq 1 ]; then
+        printf '%s' "$reply"
+else
+        printf '%s' "$reply" | cat -v
+        printf '\n'
+fi

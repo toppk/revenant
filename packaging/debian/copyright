@@ -1,0 +1,8 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: xterm-plus
+Source: https://github.com/toppk/xterm-plus
+
+Files: *
+Copyright: Kenneth Topp
+License: MIT
+ See LICENSES/xterm.txt in the source tree for the xterm-derived material.

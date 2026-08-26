@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 4 ]]; then
+    echo "usage: build-libghostty ZIG SOURCE OUTPUT BUILDTYPE" >&2
+    exit 2
+fi
+
+readonly zig=$1
+readonly source=$2
+readonly output=$3
+readonly buildtype=$4
+readonly output_dir=$(dirname -- "$output")
+readonly prefix="$output_dir/libghostty-prefix"
+readonly cache_dir="$output_dir/libghostty-zig-cache"
+readonly global_cache_dir="$output_dir/libghostty-zig-global-cache"
+
+case "$buildtype" in
+    debug)
+        optimize=Debug
+        ;;
+    debugoptimized)
+        optimize=ReleaseSafe
+        ;;
+    minsize)
+        optimize=ReleaseSmall
+        ;;
+    *)
+        optimize=ReleaseFast
+        ;;
+esac
+
+"$zig" build \
+    --build-file "$source/build.zig" \
+    --cache-dir "$cache_dir" \
+    --global-cache-dir "$global_cache_dir" \
+    --prefix "$prefix" \
+    -Demit-lib-vt \
+    -Doptimize="$optimize"
+
+cp "$prefix/lib/libghostty-vt.a" "$output"
+

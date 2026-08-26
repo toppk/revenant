@@ -1,0 +1,72 @@
+site_name: xterm+
+site_description: An xterm-compatible X11 terminal with a modern libghostty core.
+site_url: https://toppk.github.io/xterm-plus/docs/
+repo_url: https://github.com/toppk/xterm-plus
+repo_name: toppk/xterm-plus
+edit_uri: edit/master/docs/
+docs_dir: docs
+site_dir: site
+copyright: xterm+ documentation is MIT licensed. xterm-derived material is covered by the xterm license.
+
+theme:
+  name: material
+  logo: assets/xterm-plus.svg
+  favicon: assets/xterm-plus.png
+  features:
+    - navigation.sections
+    - navigation.footer
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.keys
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Install: getting-started/install.md
+      - First run: getting-started/first-run.md
+  - Configuration:
+      - X resources, explained: configuration/xresources.md
+      - Configuring xterm+: configuration/xterm-plus.md
+      - Command-line options: configuration/command-line.md
+  - Reference:
+      - Diagnostics: reference/diagnostics.md
+  - Compatibility:
+      - Default VT bindings: compatibility/default-bindings.md
+      - Command-line feasibility: compatibility/command-line-feasibility.md
+      - Popup-menu feasibility: compatibility/menu-feasibility.md
+      - Rendering review: compatibility/rendering-review.md
+  - Maintainers:
+      - Releasing: maintainers/releasing.md
+  - Terminal Developers Network: https://toppk.github.io/xterm-plus/tdn/

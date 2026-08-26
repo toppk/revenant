@@ -1,0 +1,26 @@
+Source: xterm-plus
+Section: x11
+Priority: optional
+Maintainer: Kenneth Topp <toppk@bllue.org>
+Build-Depends: debhelper-compat (= 13),
+               meson (>= 1.3),
+               ninja-build,
+               pkgconf,
+               python3,
+               libx11-dev,
+               libxt-dev,
+               libxaw7-dev,
+               libxmu-dev,
+               libx11-xcb-dev,
+               libfontconfig-dev,
+               libxft-dev
+Standards-Version: 4.6.2
+Homepage: https://github.com/toppk/xterm-plus
+Rules-Requires-Root: no
+
+Package: xterm-plus
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: xterm-compatible X11 terminal emulator built on libghostty-vt
+ xterm+ preserves xterm's Xt/Athena user interface and X resource contract
+ while using libghostty-vt as its terminal core.

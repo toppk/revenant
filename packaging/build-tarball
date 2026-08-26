@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# usage: packaging/build-tarball VERSION  -> dist/xterm-plus-VERSION-linux-ARCH.tar.gz
+set -euo pipefail
+version=${1:?version}
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+arch=$(uname -m)
+name="xterm-plus-$version-linux-$arch"
+build="$root/build-release"
+stage="$root/dist/stage/$name"
+
+meson setup "$build" --reconfigure -Dlibghostty=enabled -Dbuildtype=release
+meson compile -C "$build"
+meson test -C "$build" --print-errorlogs
+rm -rf "$stage" && mkdir -p "$stage"
+cp "$build/xterm+" "$stage/"
+strip "$stage/xterm+"
+cp "$root/README.md" "$stage/"
+cp -r "$root/LICENSES" "$stage/"
+tar -C "$root/dist/stage" -czf "$root/dist/$name.tar.gz" "$name"
+rm -rf "$root/dist/stage"
+echo "wrote dist/$name.tar.gz"

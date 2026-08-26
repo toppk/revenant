@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Compile the checked xterm resource ledger into a small C table."""
+
+from pathlib import Path
+import sys
+
+
+SCOPES = {
+    "application": "XTP_RESOURCE_APPLICATION",
+    "vt100": "XTP_RESOURCE_VT100",
+    "tek4014": "XTP_RESOURCE_TEK4014",
+    "font-subresource": "XTP_RESOURCE_FONT_SUBRESOURCE",
+    "application-conditional": "XTP_RESOURCE_APPLICATION_CONDITIONAL",
+    "vt100-conditional": "XTP_RESOURCE_VT100_CONDITIONAL",
+    "tek4014-conditional": "XTP_RESOURCE_TEK4014_CONDITIONAL",
+}
+
+
+def c_string(value: str | None) -> str:
+    if value is None:
+        return "NULL"
+    escaped = (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\t", "\\t")
+    )
+    return f'"{escaped}"'
+
+
+def main() -> int:
+    if len(sys.argv) != 5:
+        print(
+            f"usage: {sys.argv[0]} RESOURCES.tsv ACTIONS.txt APP_DEFAULTS.txt OUTPUT.c",
+            file=sys.stderr,
+        )
+        return 2
+
+    source = Path(sys.argv[1])
+    action_source = Path(sys.argv[2])
+    app_default_source = Path(sys.argv[3])
+    target = Path(sys.argv[4])
+    entries: list[tuple[str, str, str, str | None]] = []
+    for line_number, raw in enumerate(source.read_text().splitlines(), 1):
+        if not raw or raw.startswith("#"):
+            continue
+        fields = raw.split("\t")
+        if len(fields) != 4:
+            raise ValueError(f"{source}:{line_number}: expected four tab-separated fields")
+        scope, name, class_name, default = fields
+        if scope not in SCOPES:
+            raise ValueError(f"{source}:{line_number}: unknown scope {scope!r}")
+        entries.append((scope, name, class_name, None if default == "<unset>" else default))
+
+    lines = [
+        '#include "resource_catalog.h"',
+        "",
+        "const XtpResourceCatalogEntry xtp_xterm_410_resources[] = {",
+    ]
+    for scope, name, class_name, default in entries:
+        lines.append(
+            "    {%s, %s, %s, %s},"
+            % (SCOPES[scope], c_string(name), c_string(class_name), c_string(default))
+        )
+    lines.extend(
+        [
+            "};",
+            "",
+            "const size_t xtp_xterm_410_resource_count =",
+            "    sizeof(xtp_xterm_410_resources) / sizeof(xtp_xterm_410_resources[0]);",
+            "",
+            "const char *const xtp_xterm_410_actions[] = {",
+        ]
+    )
+    for raw in action_source.read_text().splitlines():
+        if raw and not raw.startswith("#"):
+            lines.append(f"    {c_string(raw)},")
+    lines.extend(
+        [
+            "};",
+            "",
+            "const size_t xtp_xterm_410_action_count =",
+            "    sizeof(xtp_xterm_410_actions) / sizeof(xtp_xterm_410_actions[0]);",
+            "",
+            "const char *const xtp_xterm_410_app_defaults[] = {",
+        ]
+    )
+    for raw in app_default_source.read_text().splitlines():
+        if raw and not raw.startswith("#"):
+            lines.append(f"    {c_string(raw)},")
+    lines.extend(
+        [
+            "};",
+            "",
+            "const size_t xtp_xterm_410_app_default_count =",
+            "    sizeof(xtp_xterm_410_app_defaults) /",
+            "    sizeof(xtp_xterm_410_app_defaults[0]);",
+            "",
+        ]
+    )
+    target.write_text("\n".join(lines))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

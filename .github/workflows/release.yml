@@ -1,0 +1,137 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing git tag to release, e.g. v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  ZIG_VERSION: 0.16.0
+  DEBIAN_FRONTEND: noninteractive
+
+jobs:
+  prepare:
+    name: Check tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: git ls-remote --exit-code --tags origin "refs/tags/${{ inputs.tag }}"
+      - id: version
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ inputs.tag }}
+
+  tarball:
+    name: tar.gz (${{ matrix.arch }})
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential meson ninja-build pkgconf python3 jq \
+            libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
+            libfontconfig-dev libxft-dev
+      - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+      - run: tools/fetch-libghostty
+      - run: packaging/build-tarball "${{ needs.prepare.outputs.version }}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tarball-${{ matrix.arch }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 3
+
+  deb:
+    name: deb (ubuntu-latest, x86_64)
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential debhelper meson ninja-build pkgconf python3 jq \
+            libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
+            libfontconfig-dev libxft-dev
+      - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+      - run: tools/fetch-libghostty
+      - run: packaging/build-deb "${{ needs.prepare.outputs.version }}"
+      - run: sudo apt-get install -y ./dist/*.deb && xterm+ --version
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deb-x86_64
+          path: dist/*.deb
+          if-no-files-found: error
+          retention-days: 3
+
+  rpm:
+    name: rpm (fedora-latest, x86_64)
+    needs: prepare
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - run: |
+          dnf install -y git rpm-build gcc meson ninja-build python3 jq xz \
+            libX11-devel libXt-devel libXaw-devel libXmu-devel libxcb-devel \
+            fontconfig-devel libXft-devel
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - run: git config --global --add safe.directory '*'
+      - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+      - run: tools/fetch-libghostty
+      - run: packaging/build-rpm "${{ needs.prepare.outputs.version }}"
+      - run: dnf install -y ./dist/*.rpm && xterm+ --version
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rpm-x86_64
+          path: dist/*.rpm
+          if-no-files-found: error
+          retention-days: 3
+
+  release:
+    name: GitHub release
+    needs: [prepare, tarball, deb, rpm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - run: ls -l dist
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: xterm+ ${{ needs.prepare.outputs.version }}
+          files: dist/*
+          fail_on_unmatched_files: true
+      - name: Delete build artifacts
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+            -q '.artifacts[].id' |
+          xargs -I{} gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/{}"
+        env:
+          GH_TOKEN: ${{ github.token }}

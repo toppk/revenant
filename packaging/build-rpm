@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# usage: packaging/build-rpm VERSION  -> dist/xterm-plus-VERSION-1.DIST.ARCH.rpm
+set -euo pipefail
+version=${1:?version}
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$root"
+
+rpmbuild -bb --build-in-place \
+    --define "version $version" \
+    --define "_topdir $root/build-rpm" \
+    packaging/xterm-plus.spec
+mkdir -p dist
+find build-rpm/RPMS -name "xterm-plus-$version-*.rpm" -exec mv {} dist/ \;
+ls dist/*.rpm

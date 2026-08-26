@@ -1,0 +1,128 @@
+site_name: Terminal Developers Network
+site_description: A reference for terminal protocols, emulator behavior, and compatibility.
+site_url: https://toppk.github.io/xterm-plus/tdn/
+repo_url: https://github.com/toppk/xterm-plus
+repo_name: toppk/xterm-plus
+edit_uri: edit/master/tdn/docs/
+docs_dir: docs
+site_dir: site
+copyright: TDN content is CC BY-SA 4.0. Probe tools are MIT licensed.
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.footer
+    - navigation.top
+    - navigation.indexes
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - def_list
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.keys
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Conventions: conventions.md
+  - Environment and detection: environment.md
+  - Control characters and ESC: escape.md
+  - Glossary: glossary.md
+  - Terminals:
+      - Landscape: terminals/index.md
+      - xterm: terminals/xterm.md
+      - VTE (GNOME Terminal): terminals/vte.md
+      - Konsole: terminals/konsole.md
+      - kitty: terminals/kitty.md
+      - WezTerm: terminals/wezterm.md
+      - Ghostty: terminals/ghostty.md
+      - foot: terminals/foot.md
+      - Alacritty: terminals/alacritty.md
+      - Contour: terminals/contour.md
+      - rxvt-unicode: terminals/urxvt.md
+      - st: terminals/st.md
+      - mintty: terminals/mintty.md
+      - PuTTY: terminals/putty.md
+      - Windows Terminal: terminals/windows-terminal.md
+      - Apple Terminal: terminals/apple-terminal.md
+      - iTerm2: terminals/iterm2.md
+      - xterm.js: terminals/xtermjs.md
+      - tmux: terminals/tmux.md
+  - CSI:
+      - Overview: csi/index.md
+      - Anatomy and parsing: csi/anatomy.md
+      - Cursor controls: csi/cursor.md
+      - Erase and edit: csi/erase.md
+      - SGR: csi/sgr.md
+      - Scrolling and margins: csi/scrolling.md
+      - Modes: csi/modes.md
+      - Queries and reports: csi/queries.md
+      - Window operations: csi/window-ops.md
+  - OSC:
+      - Overview: osc/index.md
+      - Titles: osc/title.md
+      - Hyperlinks: osc/hyperlinks.md
+      - Colors: osc/colors.md
+      - Clipboard: osc/clipboard.md
+      - Working directory: osc/cwd.md
+      - Shell integration: osc/shell-integration.md
+      - Notifications and progress: osc/notifications.md
+      - Other OSC: osc/misc.md
+  - DCS:
+      - Overview: dcs/index.md
+      - DECRQSS: dcs/decrqss.md
+      - XTGETTCAP: dcs/xtgettcap.md
+      - XTVERSION: dcs/xtversion.md
+      - Other DCS: dcs/misc.md
+  - Input:
+      - Overview: input/index.md
+      - Legacy keyboard encoding: input/keyboard-legacy.md
+      - modifyOtherKeys: input/modify-other-keys.md
+      - Kitty keyboard protocol: input/kitty-keyboard.md
+      - win32-input-mode: input/win32-input-mode.md
+      - Mouse and focus: input/mouse.md
+      - Bracketed paste: input/bracketed-paste.md
+  - Text:
+      - Overview: text/index.md
+      - Encoding and charsets: text/encoding.md
+      - Character width: text/width.md
+      - Grapheme clusters: text/graphemes.md
+      - Text sizing: text/sizing.md
+      - Rendering: text/rendering.md
+  - Graphics:
+      - Overview: graphics/index.md
+      - Sixel: graphics/sixel.md
+      - Kitty graphics: graphics/kitty.md
+      - iTerm2 inline images: graphics/iterm2.md
+      - ReGIS and Tektronix: graphics/legacy.md
+  - xterm+ project: https://toppk.github.io/xterm-plus/

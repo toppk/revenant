@@ -1,0 +1,20 @@
+option(
+    'libghostty',
+    type: 'feature',
+    value: 'auto',
+    description: 'Build the terminal adapter against a pinned libghostty-vt checkout',
+)
+
+option(
+    'libghostty-source',
+    type: 'string',
+    value: 'upstream/ghostty',
+    description: 'Path to the Ghostty source tree used to build libghostty-vt',
+)
+
+option(
+    'profiling',
+    type: 'boolean',
+    value: false,
+    description: 'Keep frame pointers for profiler call stacks',
+)

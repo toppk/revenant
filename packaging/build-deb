@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# usage: packaging/build-deb VERSION  -> dist/xterm-plus_VERSION-1_ARCH.deb
+set -euo pipefail
+version=${1:?version}
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$root"
+
+rm -rf debian && cp -r packaging/debian debian
+trap 'rm -rf "$root/debian"' EXIT
+cat > debian/changelog <<CHANGELOG
+xterm-plus ($version-1) unstable; urgency=medium
+
+  * Release $version.
+
+ -- Kenneth Topp <toppk@bllue.org>  $(date -R)
+CHANGELOG
+
+dpkg-buildpackage -b -us -uc
+mkdir -p dist
+mv ../xterm-plus_"$version"-1_*.deb dist/
+rm -f ../xterm-plus_"$version"-1_*.{buildinfo,changes}
+ls dist/*.deb

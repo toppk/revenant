@@ -1,0 +1,9 @@
+/build/
+/build-*/
+/upstream/
+/profiles/
+/compile_commands.json
+/site/
+/tdn/site/
+/dist/
+/debian/

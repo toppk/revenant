@@ -1,0 +1,69 @@
+#!/bin/sh
+
+Usage()
+{
+        cat <<'EOF'
+usage: tools/testfocus
+
+Enable terminal focus reporting, then capture one focus-out and one focus-in
+report. Run this directly inside the terminal being tested. When prompted,
+focus another window and then return to this one.
+EOF
+}
+
+case "${1-}" in
+help | --help | -h)
+        if [ "$#" -ne 1 ]; then
+                Usage >&2
+                exit 2
+        fi
+        Usage
+        exit 0
+        ;;
+esac
+
+if [ "$#" -ne 0 ]; then
+        Usage >&2
+        exit 2
+fi
+if [ ! -t 0 ] || [ ! -t 1 ]; then
+        printf '%s\n' "testfocus: standard input and output must be the terminal under test" >&2
+        exit 2
+fi
+
+saved_tty=$(stty -g) || exit 1
+tty_changed=true
+
+Cleanup()
+{
+        if [ "$tty_changed" = true ]; then
+                printf '\033[?1004l'
+                stty "$saved_tty"
+                tty_changed=false
+        fi
+}
+
+Abort()
+{
+        exit 130
+}
+
+trap Cleanup EXIT
+trap Abort HUP INT QUIT TERM TSTP
+
+printf '%s\n' "Focus reporting is enabled. Focus another window, then return here."
+stty -echo -icanon min 1 time 0 || exit 1
+printf '\033[?1004h'
+bytes=$(dd bs=1 count=6 2>/dev/null | od -An -tx1)
+
+Cleanup
+trap - EXIT HUP INT QUIT TERM TSTP
+
+actual=$(printf '%s\n' "$bytes" | awk '{$1 = $1; print}')
+expected='1b 5b 4f 1b 5b 49'
+printf 'Received: %s\n' "$actual"
+if [ "$actual" != "$expected" ]; then
+        printf '%s\n' "FAIL: expected CSI O (focus out), then CSI I (focus in)" >&2
+        exit 1
+fi
+printf '%s\n' "PASS: received CSI O (focus out), then CSI I (focus in)"
