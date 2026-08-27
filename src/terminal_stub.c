@@ -295,6 +295,19 @@ XtpTerminalSelectionText(XtpTerminal *terminal, uint8_t **bytes, size_t *length)
 }
 
 int
+XtpTerminalHyperlinkAt(XtpTerminal *terminal, uint16_t column, uint16_t row, uint8_t **uri,
+                       size_t *length)
+{
+        (void)column;
+        (void)row;
+        if (terminal == NULL || uri == NULL || length == NULL)
+                return -1;
+        *uri = NULL;
+        *length = 0;
+        return 0;
+}
+
+int
 XtpTerminalEncodePaste(XtpTerminal *terminal, const uint8_t *bytes, size_t length,
                        uint8_t **encoded, size_t *encoded_length)
 {

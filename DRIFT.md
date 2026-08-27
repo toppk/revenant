@@ -46,6 +46,21 @@ live screen. The xterm+ result was 243 rows short because the final libghostty
 prune removed a complete page. This is a deliberate compatibility tradeoff for
 the current backend API, not evidence that the X resource was ignored.
 
+### OSC 8 hyperlinks
+
+Upstream xterm deliberately does not implement OSC 8 hyperlinks because the
+visible label can differ from the target URI. xterm+ implements OSC 8 as a
+modern terminal capability supplied by `libghostty-vt` and exposes it through
+an explicit local gesture: Shift-hover underlines linked cells and
+Shift+Button 1 activates a link.
+
+Activation is intentionally narrower than many terminal emulators. xterm+
+directly executes `xdg-open` with one URI argument only for `http://` and
+`https://` targets. Other schemes remain visible on Shift-hover but are inert;
+ordinary text is never promoted to a link heuristically. This is an
+intentional extension to the patch-410 interaction contract, including when
+Shift overrides application mouse reporting.
+
 ### Structured diagnostic logging
 
 xterm+ emits `hh:mm:ss subsystem: message` diagnostics on standard error.

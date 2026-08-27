@@ -173,6 +173,13 @@ selection_test_tool = executable(
     install: false,
 )
 
+shift_click_test_tool = executable(
+    'xtp-send-shift-click',
+    'tests/xtp-send-shift-click.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
 selection_reader_tool = executable(
     'xtp-read-selection',
     'tests/xtp-read-selection.c',
@@ -204,6 +211,7 @@ if build_with_ghostty and xvfb.found()
             xterm_plus.full_path(),
             selection_test_tool.full_path(),
             selection_reader_tool.full_path(),
+            shift_click_test_tool.full_path(),
         ],
         timeout: 30,
     )
@@ -220,6 +228,7 @@ summary(
         'font-key test tool': font_key_test_tool.full_path(),
         'selection test tool': selection_test_tool.full_path(),
         'selection reader tool': selection_reader_tool.full_path(),
+        'Shift-click test tool': shift_click_test_tool.full_path(),
         'Xvfb selection test': build_with_ghostty and xvfb.found(),
         'resize test tool': resize_test_tool.full_path(),
         'wheel test tool': wheel_test_tool.full_path(),

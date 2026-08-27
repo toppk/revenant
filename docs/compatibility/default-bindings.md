@@ -43,6 +43,13 @@ translation route. Local key actions share an event-identity guard so paste,
 paging, and font changes run once per X event without suppressing genuine
 auto-repeat.
 
+Shift+Button 1 on an OSC 8 hyperlink is an intentional xterm+ extension, not
+one of patch 410's default bindings. Shift-hover underlines the target;
+pressing and releasing on the same target launches only HTTP or HTTPS links.
+On a cell without an OSC 8 target, the same gesture falls through to ordinary
+selection. The extension and its scheme policy are documented in
+[OSC 8 hyperlinks](../usage/hyperlinks.md) and `DRIFT.md`.
+
 Changes to the upstream baseline require re-reading `VTInitTranslations()` and
 updating this table. Missing bindings are compatibility work, not intentional
 drift.

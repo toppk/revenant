@@ -2,9 +2,9 @@
 
 set -eu
 
-if test "$#" -ne 4
+if test "$#" -ne 5
 then
-    echo "usage: $0 XVFB XTERM-PLUS SEND-SELECTION READ-SELECTION" >&2
+    echo "usage: $0 XVFB XTERM-PLUS SEND-SELECTION READ-SELECTION SEND-SHIFT-CLICK" >&2
     exit 2
 fi
 
@@ -12,6 +12,7 @@ xvfb=$1
 terminal=$2
 sender=$3
 reader=$4
+shift_click=$5
 test_dir=$(mktemp -d)
 xvfb_pid=
 terminal_pid=
@@ -106,3 +107,70 @@ run_case()
 
 run_case false PRIMARY
 run_case true CLIPBOARD
+
+mkdir "$test_dir/bin"
+cat >"$test_dir/bin/xdg-open" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$1" >>"$XTP_XDG_OPEN_LOG"
+EOF
+chmod +x "$test_dir/bin/xdg-open"
+XTP_XDG_OPEN_LOG=$test_dir/xdg-open.log
+PATH=$test_dir/bin:$PATH
+export XTP_XDG_OPEN_LOG PATH
+
+hyperlink_log=$test_dir/xterm-hyperlink.log
+"$terminal" -debug +sb \
+    -e sh -c 'printf "\033]8;;http://example.com\033\\HTTP\033]8;;\033\\ \033]8;;file:///tmp/inert\033\\FILE\033]8;;\033\\\r\n"; sleep 20' \
+    >"$test_dir/xterm-hyperlink.out" 2>"$hyperlink_log" &
+terminal_pid=$!
+attempt=0
+while ! grep -q 'shell: realized window=' "$hyperlink_log" 2>/dev/null
+do
+    attempt=$((attempt + 1))
+    if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
+    then
+        echo "xterm+ did not become ready for hyperlink test" >&2
+        sed -n '1,180p' "$hyperlink_log" >&2
+        exit 1
+    fi
+    sleep 0.05
+done
+window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$hyperlink_log" | tail -1)
+cell=$(sed -n 's/.*config: VT100 resolved renderer=.* cell=\([0-9][0-9]*x[0-9][0-9]*\).*/\1/p' "$hyperlink_log" | tail -1)
+cell_width=${cell%x*}
+cell_height=${cell#*x}
+http_x=$((2 + cell_width / 2))
+file_x=$((2 + 5 * cell_width + cell_width / 2))
+row_y=$((2 + cell_height / 2))
+"$shift_click" "$window" "$http_x" "$row_y" >/dev/null
+attempt=0
+while ! test -s "$XTP_XDG_OPEN_LOG"
+do
+    attempt=$((attempt + 1))
+    if test "$attempt" -ge 100
+    then
+        echo "HTTP OSC 8 link did not invoke xdg-open" >&2
+        sed -n '1,240p' "$hyperlink_log" >&2
+        exit 1
+    fi
+    sleep 0.05
+done
+if test "$(sed -n '1p' "$XTP_XDG_OPEN_LOG")" != http://example.com
+then
+    echo "xdg-open received the wrong HTTP URI" >&2
+    exit 1
+fi
+"$shift_click" "$window" "$file_x" "$row_y" >/dev/null
+sleep 0.1
+if test "$(wc -l <"$XTP_XDG_OPEN_LOG")" -ne 1
+then
+    echo "non-HTTP OSC 8 link unexpectedly invoked xdg-open" >&2
+    exit 1
+fi
+if ! grep -q 'hyperlink: hover bytes=.*http://example.com' "$hyperlink_log" || \
+   ! grep -q 'hyperlink: blocked bytes=.*file:///tmp/inert' "$hyperlink_log"
+then
+    echo "hyperlink hover or blocked-scheme diagnostics missing" >&2
+    sed -n '1,260p' "$hyperlink_log" >&2
+    exit 1
+fi

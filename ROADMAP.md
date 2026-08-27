@@ -37,6 +37,7 @@ present, but the complete user-visible integration is not yet available.
 | Wheel behavior and draggable scrollbar | Present | Retain local-history versus application-reporting coverage and extend Xaw styling tests. |
 | Mouse tracking and reporting formats | Present | Add Xvfb event-routing coverage and the remaining xterm mouse-policy resources. |
 | Focus reporting | Present | Retain exact `CSI I`/`CSI O` encoding and X focus-transition coverage while DEC private mode 1004 is enabled. |
+| OSC 8 hyperlinks | Present | Retain backend URI lookup and Xvfb Shift-hover/click coverage; keep non-HTTP schemes inert unless policy is deliberately revised. |
 | Kitty graphics | Missing | Add terminal-boundary image placement data and an X11 rendering path, with resource limits and safe image decoding. |
 | Dynamic title and bell | Present | Continue the xterm resource/permission audit for title, icon, visual bell, and urgency behavior. |
 
@@ -68,7 +69,8 @@ translations, security expectations, and progressive rendering behavior.
 - Test styles, cursor state, terminal effects, key modes, resize/reflow, and
   Unicode grapheme preservation against libghostty.
 - Retain the Xvfb named-selection test for `selectToClipboard`, PRIMARY,
-  CLIPBOARD, and `CUT_BUFFER0`; extend Xvfb coverage to widget identity,
+  CLIPBOARD, and `CUT_BUFFER0`, plus the OSC 8 test that permits HTTP and
+  blocks a non-HTTP scheme; extend Xvfb coverage to widget identity,
   resources, menus, font switching, checkmarks, geometry, and scrollback.
 - Test both stub and libghostty builds with strict GCC and Clang settings.
 - Validate that menu sensitivity, registered actions, resource support
@@ -107,7 +109,8 @@ the first small harness, then grow it with every parity slice.
   private mode 1004, with one report per real X focus transition.
 - Preserve Ctrl+button menu grabs and selection gestures without leaking those
   UI events to terminal applications. Retain Shift as the local-selection and
-  scrollback override while application tracking is active.
+  scrollback override while application tracking is active, including the
+  Shift-hover and Shift+Button-1 OSC 8 gesture.
 
 ### 4. Selection, copy, and paste
 

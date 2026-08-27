@@ -52,6 +52,18 @@ cannot be made safe for the visible-text/target mismatch. Programs that gate
 on `TERM=xterm*` to decide whether to emit links will therefore be wrong in
 both directions.
 
+### xterm+ interaction policy
+
+xterm+ is distinct from upstream xterm and does implement OSC 8 through its
+`libghostty-vt` terminal core. Hold Shift while hovering to underline linked
+cells, then use Shift+Button 1 to activate a target. The press and release must
+occur on the same target while Shift remains held.
+
+Only `http://` and `https://` targets are passed to `xdg-open`. Other schemes
+still receive hover feedback but are inert. xterm+ invokes the opener directly
+with the URI as one argument, without a shell, and does not recognize plain
+URL-looking text as a link.
+
 ## Compatibility
 
 <!-- markdownlint-disable MD013 -->
@@ -76,6 +88,7 @@ printf '\033]8;;javascript:alert(1)\033\\should not open\033]8;;\033\\\n'
 ```
 
 Hover or click the output. The third line tests the scheme allowlist.
+In xterm+, hold Shift while hovering or clicking; only the first link opens.
 
 ## Sources
 

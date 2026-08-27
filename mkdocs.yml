@@ -58,6 +58,7 @@ nav:
       - First run: getting-started/first-run.md
   - Using xterm+:
       - Copy and paste on X11: usage/copy-paste.md
+      - OSC 8 hyperlinks: usage/hyperlinks.md
   - Configuration:
       - X resources, explained: configuration/xresources.md
       - Configuring xterm+: configuration/xterm-plus.md

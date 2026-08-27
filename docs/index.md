@@ -40,6 +40,10 @@ and every menu entry and command-line option is classified in the
   buffers](usage/copy-paste.md), which one mouse selection uses, and what
   Shift+Insert actually pastes.
 
+- **Opening terminal hyperlinks**
+  Learn how [OSC 8 links](usage/hyperlinks.md) use Shift-hover and
+  Shift+Button 1, and why only HTTP and HTTPS targets launch.
+
 - **Coming from xterm?**
   Go straight to [Configuring xterm+](configuration/xterm-plus.md) and
   the [command-line feasibility](compatibility/command-line-feasibility.md)
@@ -65,7 +69,7 @@ xterm+ is early. Today it runs a real PTY-backed shell, renders the
 libghostty grid through Xlib bitmap fonts or Xft, handles resize with reflow,
 scrollback with the real Athena scrollbar, font switching from the font menu
 or Shift+keypad, [named X11 selection with middle-button
-paste](usage/copy-paste.md),
+paste](usage/copy-paste.md), [OSC 8 hyperlinks](usage/hyperlinks.md),
 application mouse and focus reporting, and the mode toggles in the main and VT
 menus. Startup cursor-shape resources, palette resources, and Kitty graphics
 are on the roadmap. Application-selected block, underline, and bar

@@ -58,6 +58,7 @@ typedef struct
         bool faint;
         bool inverse;
         bool invisible;
+        bool hyperlink;
         bool selected;
         bool strikethrough;
         bool overline;
@@ -312,6 +313,8 @@ int XtpTerminalSelectionExtendActive(XtpTerminal *terminal, uint16_t column, uin
 void XtpTerminalSelectionExtendEnd(XtpTerminal *terminal);
 void XtpTerminalSelectionClear(XtpTerminal *terminal);
 int XtpTerminalSelectionText(XtpTerminal *terminal, uint8_t **bytes, size_t *length);
+int XtpTerminalHyperlinkAt(XtpTerminal *terminal, uint16_t column, uint16_t row, uint8_t **uri,
+                           size_t *length);
 int XtpTerminalEncodePaste(XtpTerminal *terminal, const uint8_t *bytes, size_t length,
                            uint8_t **encoded, size_t *encoded_length);
 bool XtpTerminalMouseTracking(XtpTerminal *terminal);

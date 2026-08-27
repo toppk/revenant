@@ -396,6 +396,14 @@ SGR, URxvt, or SGR-pixel format. Hold Shift to override application tracking
 for local selection or scrollback. Ctrl+button 1, 2, and 3 remain reserved for
 the xterm popup menus.
 
+OSC 8 hyperlinks are exposed as a separate local Shift gesture. Hold Shift
+over linked cells to underline them, then use Shift+button 1 to open an
+`http://` or `https://` target through `xdg-open`. Other OSC 8 schemes retain
+the hover indication but do not launch anything. Ordinary button 1 remains
+selection, Ctrl+buttons remain the popup menus, and xterm+ does not turn plain
+URL-looking text into links. See [OSC 8 hyperlinks](docs/usage/hyperlinks.md)
+for the complete interaction and security policy.
+
 When a child enables DEC private mode 1004, real X focus transitions produce
 the standard `CSI I` focus-in and `CSI O` focus-out reports. No focus sequences
 are sent unless the child requests them. Run `tdn/tools/testfocus`, focus

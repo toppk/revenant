@@ -11,14 +11,19 @@
 #include <X11/Xft/Xft.h>
 #include <X11/Xaw/Scrollbar.h>
 #include <X11/Xmu/Converters.h>
+#include <X11/keysym.h>
 
 #include <ctype.h>
+#include <errno.h>
 #include <float.h>
 #include <limits.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #define XTP_FONT_SLOTS 8
 #define XTP_COLOR_CACHE_SIZE 512
@@ -168,6 +173,10 @@ typedef struct
         int selection_pointer_x;
         int selection_pointer_y;
         Boolean selection_rectangle;
+        uint8_t *hovered_hyperlink;
+        size_t hovered_hyperlink_length;
+        uint8_t *pressed_hyperlink;
+        size_t pressed_hyperlink_length;
         unsigned int reported_mouse_buttons;
         Time last_button_up_time;
         unsigned int last_button;
@@ -250,16 +259,22 @@ static void InsertSelectionAction(Widget widget, XEvent *event, String *params,
                                   Cardinal *num_params);
 static void MousePressAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void MouseMotionAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+static void HyperlinkStartAction(Widget widget, XEvent *event, String *params,
+                                 Cardinal *num_params);
+static void HyperlinkEvent(Widget widget, XtPointer closure, XEvent *event,
+                           Boolean *continue_dispatch);
+static Boolean HyperlinkUriEqualsCell(Vt100Rec *vt, const XtpRenderCell *cell);
 static void ClassInitialize(void);
 
 static XtActionsRec actions[] = {
-    {"larger-vt-font", LargerFontAction},     {"smaller-vt-font", SmallerFontAction},
-    {"set-render-font", SetRenderFontAction}, {"set-select", SetSelectAction},
-    {"popup-menu", PopupMenuAction},          {"scroll-back", ScrollBackAction},
-    {"scroll-forw", ScrollForwardAction},     {"select-start", SelectStartAction},
-    {"select-extend", SelectExtendAction},    {"select-end", SelectEndAction},
-    {"start-extend", StartExtendAction},      {"insert-selection", InsertSelectionAction},
-    {"mouse-press", MousePressAction},        {"mouse-motion", MouseMotionAction},
+    {"larger-vt-font", LargerFontAction},      {"smaller-vt-font", SmallerFontAction},
+    {"set-render-font", SetRenderFontAction},  {"set-select", SetSelectAction},
+    {"popup-menu", PopupMenuAction},           {"scroll-back", ScrollBackAction},
+    {"scroll-forw", ScrollForwardAction},      {"select-start", SelectStartAction},
+    {"select-extend", SelectExtendAction},     {"select-end", SelectEndAction},
+    {"start-extend", StartExtendAction},       {"insert-selection", InsertSelectionAction},
+    {"mouse-press", MousePressAction},         {"mouse-motion", MouseMotionAction},
+    {"hyperlink-start", HyperlinkStartAction},
 };
 
 /*
@@ -286,6 +301,7 @@ static char translations[] = "Shift~Ctrl <KeyPress> KP_Add: larger-vt-font()\n"
                              "!Lock Ctrl <Btn3Down>: popup-menu(fontMenu)\n"
                              "!Lock Ctrl @Num_Lock <Btn3Down>: popup-menu(fontMenu)\n"
                              "! @Num_Lock Ctrl <Btn3Down>: popup-menu(fontMenu)\n"
+                             "Shift ~Ctrl ~Meta <Btn1Down>: hyperlink-start()\n"
                              "~Meta <Btn1Down>: select-start()\n"
                              "Meta <Btn1Down>: select-start(block)\n"
                              "~Ctrl ~Meta <Btn2Down>: mouse-press()\n"
@@ -1065,6 +1081,10 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
         vt->vt.selection_pointer_x = 0;
         vt->vt.selection_pointer_y = 0;
         vt->vt.selection_rectangle = False;
+        vt->vt.hovered_hyperlink = NULL;
+        vt->vt.hovered_hyperlink_length = 0;
+        vt->vt.pressed_hyperlink = NULL;
+        vt->vt.pressed_hyperlink_length = 0;
         vt->vt.reported_mouse_buttons = 0;
         vt->vt.last_button_up_time = 0;
         vt->vt.last_button = 0;
@@ -1121,6 +1141,9 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
                 vt->core.height = XtpVtNaturalHeight(new_widget);
 
         CreateGc(new_widget);
+        XtAddEventHandler(new_widget,
+                          PointerMotionMask | KeyPressMask | KeyReleaseMask | LeaveWindowMask,
+                          False, HyperlinkEvent, vt);
 }
 
 static void
@@ -1143,6 +1166,8 @@ Destroy(Widget widget)
         free(vt->vt.pending_cells);
         free(vt->vt.selection_text);
         free(vt->vt.owned_selections);
+        free(vt->vt.hovered_hyperlink);
+        free(vt->vt.pressed_hyperlink);
         for (color = 0; color < vt->vt.color_count; ++color) {
                 if (vt->vt.colors[color].used && vt->vt.colors[color].owned) {
                         Pixel pixel = vt->vt.colors[color].pixel;
@@ -1363,7 +1388,7 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
                 }
         }
         visual.bold = cell->bold;
-        visual.underline = cell->underline != 0;
+        visual.underline = cell->underline != 0 || HyperlinkUriEqualsCell(vt, cell);
         visual.strikethrough = cell->strikethrough;
         visual.overline = cell->overline;
         return visual;
@@ -2693,6 +2718,209 @@ SelectionCell(Vt100Rec *vt, int x, int y, uint16_t *column, uint16_t *row)
 }
 
 static Boolean
+SameUri(const uint8_t *left, size_t left_length, const uint8_t *right, size_t right_length)
+{
+        return left_length == right_length &&
+               (left_length == 0 || memcmp(left, right, left_length) == 0);
+}
+
+static Boolean
+HyperlinkAtPointer(Vt100Rec *vt, int x, int y, uint8_t **uri, size_t *length)
+{
+        uint16_t column;
+        uint16_t row;
+
+        *uri = NULL;
+        *length = 0;
+        return vt->vt.terminal != NULL && SelectionCell(vt, x, y, &column, &row) &&
+               XtpTerminalHyperlinkAt(vt->vt.terminal, column, row, uri, length) == 0 &&
+               *length != 0;
+}
+
+static Boolean
+HyperlinkUriEqualsCell(Vt100Rec *vt, const XtpRenderCell *cell)
+{
+        uint8_t *uri = NULL;
+        size_t length = 0;
+        Boolean matches = False;
+
+        if (!cell->hyperlink || vt->vt.hovered_hyperlink == NULL || vt->vt.terminal == NULL)
+                return False;
+        if (XtpTerminalHyperlinkAt(vt->vt.terminal, cell->column, cell->row, &uri, &length) == 0)
+                matches =
+                    SameUri(uri, length, vt->vt.hovered_hyperlink, vt->vt.hovered_hyperlink_length);
+        free(uri);
+        return matches;
+}
+
+static void
+SetHoveredHyperlink(Vt100Rec *vt, int x, int y, unsigned int state)
+{
+        uint8_t *uri = NULL;
+        size_t length = 0;
+        Boolean found = False;
+
+        if ((state & ShiftMask) != 0)
+                found = HyperlinkAtPointer(vt, x, y, &uri, &length);
+        if (!found) {
+                free(uri);
+                uri = NULL;
+                length = 0;
+        }
+        if (SameUri(uri, length, vt->vt.hovered_hyperlink, vt->vt.hovered_hyperlink_length)) {
+                free(uri);
+                return;
+        }
+        free(vt->vt.hovered_hyperlink);
+        vt->vt.hovered_hyperlink = uri;
+        vt->vt.hovered_hyperlink_length = length;
+        if (uri != NULL)
+                XtpLogBytePreview(XTP_LOG_DEBUG, "hyperlink", "hover", uri, length);
+        else
+                XtpLog(XTP_LOG_DEBUG, "hyperlink", "hover cleared");
+        if (XtIsRealized((Widget)vt) && vt->vt.terminal != NULL) {
+                if (RenderTerminal(vt, True) != 0)
+                        XtpLog(XTP_LOG_ERROR, "hyperlink", "hover repaint failed");
+                XFlush(XtDisplay((Widget)vt));
+        }
+}
+
+static Boolean
+IsShiftKey(const XKeyEvent *event)
+{
+        KeySym key = XLookupKeysym((XKeyEvent *)event, 0);
+
+        return key == XK_Shift_L || key == XK_Shift_R;
+}
+
+static void
+HyperlinkEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch)
+{
+        Vt100Rec *vt = closure;
+
+        (void)widget;
+        (void)continue_dispatch;
+        if (event->type == MotionNotify) {
+                SetHoveredHyperlink(vt, event->xmotion.x, event->xmotion.y, event->xmotion.state);
+        } else if ((event->type == KeyPress || event->type == KeyRelease) &&
+                   IsShiftKey(&event->xkey) && XtIsRealized((Widget)vt)) {
+                Window root;
+                Window child;
+                int root_x;
+                int root_y;
+                int x;
+                int y;
+                unsigned int state;
+
+                if (XQueryPointer(XtDisplay((Widget)vt), XtWindow((Widget)vt), &root, &child,
+                                  &root_x, &root_y, &x, &y, &state)) {
+                        if (event->type == KeyPress)
+                                state |= ShiftMask;
+                        else
+                                state &= ~ShiftMask;
+                        SetHoveredHyperlink(vt, x, y, state);
+                }
+        } else if (event->type == LeaveNotify) {
+                SetHoveredHyperlink(vt, 0, 0, 0);
+        }
+}
+
+static Boolean
+HttpUri(const uint8_t *uri, size_t length)
+{
+        static const char http[] = "http://";
+        static const char https[] = "https://";
+
+        return (length >= sizeof(http) - 1U &&
+                strncasecmp((const char *)uri, http, sizeof(http) - 1U) == 0) ||
+               (length >= sizeof(https) - 1U &&
+                strncasecmp((const char *)uri, https, sizeof(https) - 1U) == 0);
+}
+
+static int
+OpenHttpUri(const uint8_t *uri, size_t length)
+{
+        pid_t child;
+        int status;
+
+        if (!HttpUri(uri, length) || memchr(uri, '\0', length) != NULL)
+                return 1;
+        child = fork();
+        if (child < 0)
+                return -1;
+        if (child == 0) {
+                pid_t opener = fork();
+
+                if (opener < 0)
+                        _exit(127);
+                if (opener != 0)
+                        _exit(0);
+                (void)setsid();
+                execlp("xdg-open", "xdg-open", (const char *)uri, (char *)NULL);
+                _exit(127);
+        }
+        while (waitpid(child, &status, 0) < 0) {
+                if (errno != EINTR)
+                        return -1;
+        }
+        return WIFEXITED(status) && WEXITSTATUS(status) == 0 ? 0 : -1;
+}
+
+static void
+HyperlinkStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
+{
+        Vt100Rec *vt = AsVt(widget);
+        uint8_t *uri = NULL;
+        size_t length = 0;
+
+        if (event == NULL || event->type != ButtonPress || event->xbutton.button != Button1)
+                return;
+        if (HyperlinkAtPointer(vt, event->xbutton.x, event->xbutton.y, &uri, &length)) {
+                free(vt->vt.pressed_hyperlink);
+                vt->vt.pressed_hyperlink = uri;
+                vt->vt.pressed_hyperlink_length = length;
+                SetHoveredHyperlink(vt, event->xbutton.x, event->xbutton.y,
+                                    event->xbutton.state | ShiftMask);
+                XtpLogBytePreview(XTP_LOG_DEBUG, "hyperlink", "press", uri, length);
+                return;
+        }
+        free(uri);
+        SelectStartAction(widget, event, params, num_params);
+}
+
+static Boolean
+FinishHyperlinkPress(Vt100Rec *vt, const XButtonEvent *event)
+{
+        uint8_t *uri = NULL;
+        size_t length = 0;
+        Boolean matches;
+        int opened;
+
+        if (vt->vt.pressed_hyperlink == NULL || event->button != Button1)
+                return False;
+        matches = (event->state & ShiftMask) != 0 &&
+                  HyperlinkAtPointer(vt, event->x, event->y, &uri, &length) &&
+                  SameUri(uri, length, vt->vt.pressed_hyperlink, vt->vt.pressed_hyperlink_length);
+        if (matches) {
+                opened = OpenHttpUri(uri, length);
+                if (opened == 0) {
+                        XtpLogBytePreview(XTP_LOG_INFO, "hyperlink", "opened", uri, length);
+                } else if (opened > 0) {
+                        XtpLogBytePreview(XTP_LOG_INFO, "hyperlink", "blocked", uri, length);
+                } else {
+                        XtpLog(XTP_LOG_ERROR, "hyperlink", "cannot launch xdg-open");
+                        XBell(XtDisplay((Widget)vt), 0);
+                }
+        }
+        free(uri);
+        free(vt->vt.pressed_hyperlink);
+        vt->vt.pressed_hyperlink = NULL;
+        vt->vt.pressed_hyperlink_length = 0;
+        SetHoveredHyperlink(vt, event->x, event->y, event->state);
+        return True;
+}
+
+static Boolean
 SelectionCellClamped(Vt100Rec *vt, int x, int y, uint16_t *column, uint16_t *row)
 {
         int grid_x = x - TerminalX(vt);
@@ -3207,6 +3435,8 @@ SelectEndAction(Widget widget, XEvent *event, String *params, Cardinal *num_para
         size_t length = 0;
 
         if (event == NULL || event->type != ButtonRelease)
+                return;
+        if (FinishHyperlinkPress(vt, &event->xbutton))
                 return;
         if (!vt->vt.selection_dragging &&
             ReportMouseButton(vt, &event->xbutton, XTP_MOUSE_ACTION_RELEASE))

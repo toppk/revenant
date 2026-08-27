@@ -74,7 +74,7 @@ xterm+ -debug 2> xterm-plus.log
 
 ## Regression helpers
 
-Four small X11 utilities are built alongside xterm+ but not installed. Give
+Five small X11 utilities are built alongside xterm+ but not installed. Give
 them the top-level window ID reported by the `shell: realized` log line:
 
 ```sh
@@ -84,12 +84,17 @@ them the top-level window ID reported by the `shell: realized` log line:
 ./build-ghostty/xtp-send-font-keys 0x4e00027 page-up 1
 ./build-ghostty/xtp-send-wheel 0x4e00027 up 4       # four wheel ticks
 ./build-ghostty/xtp-send-selection 0x4e00027 10 10 200 60
+./build-ghostty/xtp-send-shift-click 0x4e00027 15 15
 ./build-ghostty/xtp-resize-loop 0x4e00027            # four narrow/wide cycles
 ```
 
 Each press should produce one `action larger-vt-font` and one `font: select`
 record; each wheel tick reports the requested delta and the resulting
 viewport `{offset, length, total}`.
+
+The Shift-click helper sends a Shift-modified motion, Button-1 press, and
+Button-1 release at one pixel coordinate. It is useful for exercising OSC 8
+hover and activation policy without a physical pointer.
 
 The resize helper defaults to four `400x300` to `1000x700` cycles separated by
 100 ms. Override the cycle count and delay, or provide all four dimensions:

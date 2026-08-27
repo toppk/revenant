@@ -1126,6 +1126,7 @@ typedef struct
         size_t begin_calls;
         size_t end_calls;
         Boolean saw_styled_cell;
+        Boolean saw_hyperlink_cell;
         Boolean saw_wide_cell;
         Boolean saw_wide_tail;
         Boolean saw_selected_cell;
@@ -1153,6 +1154,8 @@ SelfTestCell(const XtpRenderCell *cell, void *closure)
                 ++render->nonempty_cells;
         if (cell->foreground.kind != XTP_COLOR_DEFAULT)
                 render->saw_styled_cell = True;
+        if (cell->hyperlink)
+                render->saw_hyperlink_cell = True;
         if (cell->width == 2)
                 render->saw_wide_cell = True;
         if (cell->width == 0)
@@ -1276,6 +1279,47 @@ SelfTestCursorStyles(const XtpRenderer *renderer)
                 goto done;
         result = 0;
 done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestHyperlinks(const XtpRenderer *renderer)
+{
+        static const uint8_t content[] =
+            "\033]8;;http://example.com\033\\This is a link\033]8;;\033\\ plain";
+        static const uint8_t expected[] = "http://example.com";
+        XtpTerminal *terminal;
+        SelfTestRender render = {0};
+        uint8_t *uri = NULL;
+        size_t length = 0;
+        int result = -1;
+
+        if (strcmp(XtpTerminalBackend(), "libghostty-vt") != 0)
+                return 0;
+        terminal = XtpTerminalNew(30, 2, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalFeed(terminal, content, sizeof(content) - 1U);
+        if (XtpTerminalHyperlinkAt(terminal, 0, 0, &uri, &length) != 0 ||
+            length != sizeof(expected) - 1U || memcmp(uri, expected, length) != 0 ||
+            XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            !render.saw_hyperlink_cell) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "OSC 8 URI length=%zu rendered=%s", length,
+                       render.saw_hyperlink_cell ? "true" : "false");
+                goto done;
+        }
+        free(uri);
+        uri = NULL;
+        length = 0;
+        if (XtpTerminalHyperlinkAt(terminal, 14, 0, &uri, &length) != 0 || uri != NULL ||
+            length != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "OSC 8 terminator left URI length=%zu", length);
+                goto done;
+        }
+        result = 0;
+done:
+        free(uri);
         XtpTerminalFree(terminal);
         return result;
 }
@@ -1892,8 +1936,9 @@ SelfTest(void)
               XtpTerminalGetScrollbar(terminal, &after) != 0 || after.offset != before.offset)) ||
             SelfTestCursorOnly(terminal, &renderer, &render) != 0 || SelfTestModes(terminal) != 0 ||
             SelfTestCursorStyles(&renderer) != 0 || SelfTestSelection(&renderer) != 0 ||
-            SelfTestScrollbackLimit() != 0 || SelfTestSelectionScrollback() != 0 ||
-            SelfTestScrollTtyOutput() != 0 || SelfTestFocus() != 0 || SelfTestMouse() != 0 ||
+            SelfTestHyperlinks(&renderer) != 0 || SelfTestScrollbackLimit() != 0 ||
+            SelfTestSelectionScrollback() != 0 || SelfTestScrollTtyOutput() != 0 ||
+            SelfTestFocus() != 0 || SelfTestMouse() != 0 ||
             XtpTerminalResize(terminal, 100, 30, 9, 18) != 0) {
                 XtpTerminalFree(terminal);
                 return EXIT_FAILURE;

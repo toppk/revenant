@@ -1440,6 +1440,40 @@ XtpTerminalSelectionText(XtpTerminal *terminal, uint8_t **bytes, size_t *length)
 }
 
 int
+XtpTerminalHyperlinkAt(XtpTerminal *terminal, uint16_t column, uint16_t row, uint8_t **uri,
+                       size_t *length)
+{
+        GhosttyGridRef ref;
+        GhosttyResult result;
+        uint8_t *value;
+        size_t required = 0;
+
+        if (terminal == NULL || uri == NULL || length == NULL)
+                return -1;
+        *uri = NULL;
+        *length = 0;
+        if (SelectionRef(terminal, column, row, &ref) != GHOSTTY_SUCCESS)
+                return -1;
+        result = ghostty_grid_ref_hyperlink_uri(&ref, NULL, 0, &required);
+        if (result == GHOSTTY_SUCCESS && required == 0)
+                return 0;
+        if (result != GHOSTTY_OUT_OF_SPACE || required == SIZE_MAX)
+                return -1;
+        value = malloc(required + 1U);
+        if (value == NULL)
+                return -1;
+        result = ghostty_grid_ref_hyperlink_uri(&ref, value, required, &required);
+        if (result != GHOSTTY_SUCCESS) {
+                free(value);
+                return -1;
+        }
+        value[required] = '\0';
+        *uri = value;
+        *length = required;
+        return 0;
+}
+
+int
 XtpTerminalEncodePaste(XtpTerminal *terminal, const uint8_t *bytes, size_t length,
                        uint8_t **encoded, size_t *encoded_length)
 {
@@ -1659,6 +1693,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                         GhosttyStyle style = GHOSTTY_INIT_SIZED(GhosttyStyle);
                         GhosttyCell raw = 0;
                         GhosttyCellWide wide = GHOSTTY_CELL_WIDE_NARROW;
+                        bool hyperlink = false;
                         XtpRenderCell cell = {0};
                         uint8_t *allocated = NULL;
                         GhosttyResult result;
@@ -1684,6 +1719,8 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                                 terminal->cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_RAW, &raw) !=
                                 GHOSTTY_SUCCESS ||
                             ghostty_cell_get(raw, GHOSTTY_CELL_DATA_WIDE, &wide) !=
+                                GHOSTTY_SUCCESS ||
+                            ghostty_cell_get(raw, GHOSTTY_CELL_DATA_HAS_HYPERLINK, &hyperlink) !=
                                 GHOSTTY_SUCCESS) {
                                 free(allocated);
                                 return -1;
@@ -1703,6 +1740,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                         cell.faint = style.faint;
                         cell.inverse = style.inverse;
                         cell.invisible = style.invisible;
+                        cell.hyperlink = hyperlink;
                         cell.selected = row_selected && column >= selection.start_x &&
                                         column <= selection.end_x;
                         cell.strikethrough = style.strikethrough;

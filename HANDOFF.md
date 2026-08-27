@@ -179,6 +179,11 @@ diagnosis, upstream links, version boundary, and fixed-build checks are in
 - Application focus reporting through libghostty when the child enables DEC
   private mode 1004. Real X focus transitions emit exactly one `CSI I` or
   `CSI O`; ordinary shells receive no focus bytes.
+- OSC 8 hyperlink targets exposed through the backend-neutral terminal API.
+  Shift-hover underlines linked cells and Shift+Button 1 directly launches
+  only HTTP or HTTPS targets with `xdg-open`; other schemes are deliberately
+  inert. Ordinary selection and the Ctrl+button menus keep their established
+  gestures.
 - Patch-410 default VT bindings are audited in
   `docs/compatibility/default-bindings.md`. Shift+Insert now owns the key event
   and pastes `SELECT` instead of also emitting modified Insert; paging and
@@ -283,7 +288,9 @@ focus encoding, resize, PTY setup, and write backpressure without byte loss,
 but it remains one in-process harness. When Xvfb is available, Meson also runs
 an X11 integration test which drags across real terminal cells, verifies the
 selected bytes through a separate X client, checks PRIMARY versus CLIPBOARD
-resolution for both `selectToClipboard` policies, and checks `CUT_BUFFER0`.
+resolution for both `selectToClipboard` policies, checks `CUT_BUFFER0`, and
+uses a fake `xdg-open` to prove that Shift-click launches an HTTP OSC 8 target
+while leaving a `file:` target inert.
 Split the remaining harness into focused tests and grow Xvfb coverage; do not
 treat either test alone as evidence of full UI compatibility.
 
