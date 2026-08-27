@@ -2,7 +2,7 @@ option(
     'libghostty',
     type: 'feature',
     value: 'auto',
-    description: 'Build the terminal adapter against a pinned libghostty-vt checkout',
+    description: 'Build the terminal adapter against the selected libghostty-vt checkout',
 )
 
 option(

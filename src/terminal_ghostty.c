@@ -1618,7 +1618,8 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
         if (terminal == NULL || renderer == NULL ||
             ghostty_render_state_update(terminal->render_state, terminal->handle) !=
                 GHOSTTY_SUCCESS ||
-            ghostty_render_state_colors_get(terminal->render_state, &colors) != GHOSTTY_SUCCESS ||
+            ghostty_render_state_get(terminal->render_state, GHOSTTY_RENDER_STATE_DATA_COLORS,
+                                     &colors) != GHOSTTY_SUCCESS ||
             ghostty_render_state_get(terminal->render_state, GHOSTTY_RENDER_STATE_DATA_COLS,
                                      &frame.columns) != GHOSTTY_SUCCESS ||
             ghostty_render_state_get(terminal->render_state, GHOSTTY_RENDER_STATE_DATA_ROWS,

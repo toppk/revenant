@@ -5,7 +5,7 @@ xterm+ has two simultaneous product requirements:
 1. Preserve xterm's visible X11/Xt/Athena experience and compatibility
    contract wherever practical.
 2. Promote every advertised Ghostling capability through the real X11
-   interface when the pinned `libghostty-vt` supplies the underlying facility,
+   interface when the selected `libghostty-vt` supplies the underlying facility,
    then exceed that floor with the xterm daily-driver experience.
 
 The first requirement defines how xterm+ should look, configure, and behave at
@@ -52,7 +52,7 @@ present, but the complete user-visible integration is not yet available.
 <!-- markdownlint-enable MD013 -->
 
 Selection is an xterm+ requirement even though the reviewed Ghostling feature
-list does not make it a baseline item. The pinned libghostty API already
+list does not make it a baseline item. The selected libghostty API already
 provides selection gestures, history-safe grid references, row selection
 ranges, and formatted selection text. xterm+ now renders those ranges, owns
 named X11 selections, supports xterm-style Button-3 extension, and sends

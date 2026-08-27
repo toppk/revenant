@@ -5,7 +5,7 @@ Every option in xterm patch-410's `-help` output (`xtermOptions[]` in
 does behind it, whether libghostty-vt or plain X11 supplies the mechanism,
 and how approachable it is for xterm+. Companion to the
 [popup-menu study](menu-feasibility.md); reviewed against `src/main.c` and
-the pinned libghostty headers on 2026-08-25.
+the then-selected libghostty headers on 2026-08-25.
 
 Status key: **DONE** implemented; **XT** parsed and applied by the X Toolkit
 without xterm+ code; **ACCEPTED** parsed into a resource that the code does
@@ -53,7 +53,7 @@ Two structural gaps come first, because they affect every row:
 | `-name string` | Override instance name (`xterm.` resources, icon, title) | Same pre-scan; currently `"xterm"` is passed explicitly so Xt never sees `-name` | Same change as `-class`; Roadmap #6 names it explicitly | READY |
 | `-/+ls` | `loginShell`: prefix `argv[0]` with `-` | `pty.c` exec | One line at exec time | READY |
 | `-tn name` | `termName`: `TERM` for the child | `pty.c` environment; libghostty `OPT_TERMINFO_NAME` should match for XTGETTCAP | Set env; also feed the name to libghostty | READY |
-| `-ti termid` | `decTerminalID`: DA responses (vt100/220/…) | libghostty answers DA itself; no terminal-ID option in the pinned API | Needs an ID option or DA callback | BLOCKED |
+| `-ti termid` | `decTerminalID`: DA responses (vt100/220/…) | libghostty answers DA itself; no terminal-ID option in the reviewed API | Needs an ID option or DA callback | BLOCKED |
 | `-tm string` | `ttyModes`: stty-style keywords for the PTY | `pty.c` termios | Parse the small keyword language, apply with `tcsetattr` | READY |
 | `-/+ie` | `ptyInitialErase`: take erase char from the PTY | `pty.c` termios | Read `VERASE`, feed backarrow mode | READY |
 | `-/+im` | `useInsertMode`: termcap capability tweak | Only affects xterm's `TERMCAP` export | No TERMCAP export in xterm+ | SKIP |
@@ -165,7 +165,7 @@ Two structural gaps come first, because they affect every row:
 | --- | --- | --- | --- | --- |
 | `-/+u8` / `-/+wc` | UTF-8 and wide-character mode | libghostty is UTF-8 only | Accept `-u8`/`-wc`; `+u8`/`+wc` would need iconv; recommend permanently on (DRIFT) | BLOCKED |
 | `-/+lc` / `-lcc path` | Run the child through `luit` | Exec wrapper in `pty.c` | Spawn `luit` in front of the command | READY |
-| `-/+mk_width` / `-/+cjk_width` / `-/+emoji_width` | Width conventions | libghostty owns width tables; no option in the pinned API | Needs width-policy option | BLOCKED |
+| `-/+mk_width` / `-/+cjk_width` / `-/+emoji_width` | Width conventions | libghostty owns width tables; no option in the reviewed API | Needs width-policy option | BLOCKED |
 
 ## Logging and printing
 

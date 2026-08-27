@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly revision=f64f4aca2c29b554d111b36c3d946a9bddd159ff
+readonly reference=main
 readonly repository=https://github.com/ghostty-org/ghostty.git
 readonly project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 readonly destination="$project_root/upstream/ghostty"
@@ -12,13 +12,13 @@ if [[ -e "$destination/.git" ]]; then
         echo "refusing to replace changes in $destination" >&2
         exit 1
     fi
-    git -C "$destination" fetch origin "$revision"
 else
     mkdir -p "$(dirname -- "$destination")"
     git clone "$repository" "$destination"
 fi
 
+git -C "$destination" fetch origin "$reference"
+readonly revision=$(git -C "$destination" rev-parse FETCH_HEAD)
 git -C "$destination" checkout --detach "$revision"
 test "$(git -C "$destination" rev-parse HEAD)" = "$revision"
-printf 'libghostty source pinned at %s\n' "$revision"
-
+printf 'libghostty source selected from %s at %s\n' "$reference" "$revision"

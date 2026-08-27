@@ -271,7 +271,7 @@ The `justfile` creates or reconfigures private build directories and never
 touches `build/`. Run the complete pre-push suite with:
 
 ```sh
-tools/fetch-libghostty              # once, or whenever the pin changes
+tools/fetch-libghostty              # once, or whenever the tracked reference advances
 just check-all
 ```
 

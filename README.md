@@ -141,7 +141,7 @@ sudo dnf install perf flamegraph
 
 `tools/flamegraph` configures and compiles a separate `build-profile/` using
 Meson's `debugoptimized` build type, disables link-time optimization, and keeps
-C frame pointers. The pinned libghostty build also retains symbols and frame
+C frame pointers. The selected libghostty build also retains symbols and frame
 pointers in this configuration. It then records xterm+ with `perf`'s DWARF
 unwinder and writes the raw capture, collapsed stacks, a text report, and an
 interactive SVG under ignored `profiles/`:

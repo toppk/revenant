@@ -29,8 +29,11 @@ commit, then dispatches the workflow against that tag.
 - **Check tag** fails immediately if the tag does not exist on `origin`, and
   derives the package version by stripping the leading `v` (`v0.2.0` →
   `0.2.0`).
-- Every build job checks out the tag itself, so the packaging scripts and
-  the pinned libghostty revision come from the tagged commit, not `master`.
+- Every build job checks out the xterm+ tag itself, so its packaging scripts
+  come from that tagged commit. While `tools/fetch-libghostty` temporarily
+  follows Ghostty `main`, however, separate jobs can resolve different Ghostty
+  commits. Replace `main` with the Ghostty 1.4 release tag before publishing an
+  xterm+ release.
 - **tar.gz** builds on x86_64 and aarch64 runners:
   `xterm-plus-<version>-linux-<arch>.tar.gz` containing a stripped `xterm+`,
   `README.md`, and `LICENSES/`.

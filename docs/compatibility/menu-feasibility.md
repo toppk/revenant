@@ -3,7 +3,7 @@
 Every entry from xterm patch-410's `mainMenu` (Ctrl-Button1), `vtMenu`
 (Ctrl-Button2) and `fontMenu` (Ctrl-Button3): what xterm does behind it,
 how much of that lives in libghostty-vt, and how approachable it is for
-xterm+. Reviewed against the pinned libghostty headers on 2026-08-25.
+xterm+. Reviewed against the then-selected libghostty headers on 2026-08-25.
 
 Status key: **DONE** implemented; **READY** can be wired now with no new
 subsystem; **ROADMAP** waits on a planned
