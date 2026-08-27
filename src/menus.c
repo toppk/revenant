@@ -72,7 +72,7 @@ static const MenuSpec vt_specs[] = {
     ITEM("allow132", False),
     ITEM("keepSelection", False),
     ITEM("keepClipboard", False),
-    ITEM("selectToClipboard", False),
+    ITEM("selectToClipboard", True),
     ITEM("visualbell", False),
     ITEM("bellIsUrgent", False),
     ITEM("poponbell", False),

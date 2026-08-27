@@ -35,6 +35,11 @@ and every menu entry and command-line option is classified in the
   Start with [X resources, explained](configuration/xresources.md). It is
   written for people who have never seen a `.Xresources` file.
 
+- **Copying and pasting**
+  Learn why X11 has [PRIMARY, CLIPBOARD, and cut
+  buffers](usage/copy-paste.md), which one mouse selection uses, and what
+  Shift+Insert actually pastes.
+
 - **Coming from xterm?**
   Go straight to [Configuring xterm+](configuration/xterm-plus.md) and
   the [command-line feasibility](compatibility/command-line-feasibility.md)
@@ -59,7 +64,8 @@ and every menu entry and command-line option is classified in the
 xterm+ is early. Today it runs a real PTY-backed shell, renders the
 libghostty grid through Xlib bitmap fonts or Xft, handles resize with reflow,
 scrollback with the real Athena scrollbar, font switching from the font menu
-or Shift+keypad, mouse selection with X11 `PRIMARY` and middle-button paste,
+or Shift+keypad, [named X11 selection with middle-button
+paste](usage/copy-paste.md),
 application mouse and focus reporting, and the mode toggles in the main and VT
 menus. Startup cursor-shape resources, palette resources, and Kitty graphics
 are on the roadmap. Application-selected block, underline, and bar

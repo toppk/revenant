@@ -55,9 +55,15 @@ severity; redirected output is plain, and `NO_COLOR` is honoured.
 
 With debug on, startup logs the full command line, compiled defaults, the
 relevant `RESOURCE_MANAGER` entries, merged values after precedence, and the
-selected backend. Runtime logs cover the PTY lifecycle and byte counts,
+selected backend. Runtime logs cover the PTY lifecycle and byte previews,
 terminal effects, key encoding, menus, font choices, scrollbar changes,
-resizes, and rendered-frame summaries. PTY *contents* are never logged.
+resizes, and rendered-frame summaries. Each PTY read previews at most 256
+input bytes. Control and non-ASCII bytes use backslash escapes (`\\e` for
+Escape and `\\xNN` otherwise), and a truncated preview reports the number of
+omitted bytes explicitly.
+
+PTY previews can contain application data. Review or redact a debug log before
+sharing it if the terminal displayed sensitive output.
 
 Keeping debug off also keeps synchronous per-key and per-frame logging out
 of the rendering path, so leave it off unless you are reproducing something:
@@ -101,11 +107,11 @@ font and scrollbar width:
 ./build-ghostty/xtp-resize-loop WINDOW-ID --grid 38 80 24 250
 ```
 
-### Wrapped Bash prompt reproducer
+### Readline 8.3 wrapped-prompt reproducer
 
-The current Bash/Readline reflow defect needs only one resize across a prompt's
-wrap boundary; repeated dragging is not required. In one terminal, start the
-fixed 45-column prompt:
+The known Readline 8.3 regression needs only one resize across a prompt's wrap
+boundary; repeated dragging is not required. In one terminal, start the fixed
+45-column OSC 133-marked prompt:
 
 ```sh
 just reflow-prompt
@@ -118,25 +124,36 @@ In another terminal, perform one 80-to-38-to-80-column cycle:
 just reflow-resize 0x4e00027
 ```
 
-Before the resize the cursor is at column 45. The known failure leaves it at
-column 37 (over the `u` in `plus`) after the window returns to 80 columns. The
-fixture contains OSC 133 prompt/input marks and therefore reproduces the
-libghostty/Bash interaction without depending on the user's Bash files.
+Before the resize the cursor is at column 45. Released Readline 8.3 leaves it
+at column 37 (over the `u` in `plus`) after the window returns to 80 columns:
+it has dropped the final eight-byte invisible OSC run from its cursor
+calculation. Bash development commit `1e9f5e10b2` should restore column 45.
+The fixture supplies its own Bash startup file and therefore does not depend
+on the user's Bash files.
 
-The failure also reproduces in Ghostty 1.3.1's X11 backend without OSC 133 or
-shell integration:
+An early Ghostty 1.3.1 X11 reproducer disabled Ghostty's automatic shell
+integration but used `--noprofile` without `--norc`:
 
 ```sh
 PS1="someitnh rellayl logn so you can see" \
   GDK_BACKEND=x11 ghostty --shell-integration=none -e bash --noprofile
 ```
 
-It is tracked upstream as Ghostty
+That observation is tracked as Ghostty
 [discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026).
-The equivalent native-Wayland run did not reproduce in the observed setup.
-The report records resize-event delivery/coalescing as a hypothesis for that
-backend difference, not a confirmed cause. Check the discussion when updating
-libghostty or revisiting this defect.
+The user's `.bashrc` still loaded in that command and changed the exported
+`PS1` from a plain prompt to one containing OSC 133 marks. Controlled xterm+
+tests now show that a plain long Bash prompt recovers correctly, while both
+OSC-marked and ordinary SGR-styled prompts can finish with the cursor inside
+the visible prompt. An equivalent native-Wayland manual run did not reproduce,
+but the upstream terminal-independent PTY fixture needs only one
+`TIOCSWINSZ`; recheck whether that manual prompt actually wrapped before it
+was widened.
+
+See the complete
+[Readline 8.3 wrapped-prompt diagnosis](bash-readline-resize.md) for the
+terminal/PTY background, exact controls, cursor-offset arithmetic, upstream
+fix, and local-build validation. Do not add a libghostty or xterm+ workaround.
 
 ## CPU flamegraphs
 

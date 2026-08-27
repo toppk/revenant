@@ -54,10 +54,11 @@ plugins:
 
 nav:
   - Home: index.md
-  - Conventions: conventions.md
-  - Environment and detection: environment.md
-  - Control characters and ESC: escape.md
-  - Glossary: glossary.md
+  - Foundations:
+      - Conventions: conventions.md
+      - Glossary: glossary.md
+      - Environment and detection: environment.md
+      - Standards and specifications: standards.md
   - Terminals:
       - Landscape: terminals/index.md
       - xterm: terminals/xterm.md
@@ -78,9 +79,11 @@ nav:
       - iTerm2: terminals/iterm2.md
       - xterm.js: terminals/xtermjs.md
       - tmux: terminals/tmux.md
+  - Control characters and ESC: escape.md
   - CSI:
       - Overview: csi/index.md
       - Anatomy and parsing: csi/anatomy.md
+      - Catalog: csi/catalog.md
       - Cursor controls: csi/cursor.md
       - Erase and edit: csi/erase.md
       - SGR: csi/sgr.md
@@ -90,6 +93,8 @@ nav:
       - Window operations: csi/window-ops.md
   - OSC:
       - Overview: osc/index.md
+      - Anatomy and parsing: osc/anatomy.md
+      - Catalog: osc/catalog.md
       - Titles: osc/title.md
       - Hyperlinks: osc/hyperlinks.md
       - Colors: osc/colors.md
@@ -125,4 +130,7 @@ nav:
       - Kitty graphics: graphics/kitty.md
       - iTerm2 inline images: graphics/iterm2.md
       - ReGIS and Tektronix: graphics/legacy.md
+  - Practices:
+      - Overview: practices/index.md
+      - Multiplexers: practices/multiplexers.md
   - xterm+ project: https://toppk.github.io/xterm-plus/

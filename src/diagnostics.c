@@ -9,6 +9,11 @@
 static int debug_enabled;
 static int quiet_enabled;
 
+enum
+{
+        BYTE_PREVIEW_LIMIT = 256,
+};
+
 void
 XtpLogSetDebug(int enabled)
 {
@@ -76,4 +81,82 @@ XtpLog(XtpLogLevel level, const char *subsystem, const char *format, ...)
         fputc('\n', stderr);
         fflush(stderr);
         funlockfile(stderr);
+}
+
+void
+XtpLogBytePreview(XtpLogLevel level, const char *subsystem, const char *event, const void *bytes,
+                  size_t length)
+{
+        static const char hex[] = "0123456789abcdef";
+        const unsigned char *input = bytes;
+        char preview[BYTE_PREVIEW_LIMIT * 4U + 1U];
+        size_t shown = length < BYTE_PREVIEW_LIMIT ? length : BYTE_PREVIEW_LIMIT;
+        size_t input_offset;
+        size_t output_offset = 0;
+
+        if (quiet_enabled || (level == XTP_LOG_DEBUG && !debug_enabled))
+                return;
+        if (input == NULL && length != 0) {
+                XtpLog(level, subsystem, "%s bytes=%zu preview=<invalid-null-buffer>", event,
+                       length);
+                return;
+        }
+
+        for (input_offset = 0; input_offset < shown; ++input_offset) {
+                unsigned char byte = input[input_offset];
+                const char *escape = NULL;
+
+                switch (byte) {
+                case '\a':
+                        escape = "\\a";
+                        break;
+                case '\b':
+                        escape = "\\b";
+                        break;
+                case '\t':
+                        escape = "\\t";
+                        break;
+                case '\n':
+                        escape = "\\n";
+                        break;
+                case '\v':
+                        escape = "\\v";
+                        break;
+                case '\f':
+                        escape = "\\f";
+                        break;
+                case '\r':
+                        escape = "\\r";
+                        break;
+                case 0x1b:
+                        escape = "\\e";
+                        break;
+                case '\\':
+                        escape = "\\\\";
+                        break;
+                case '"':
+                        escape = "\\\"";
+                        break;
+                default:
+                        break;
+                }
+                if (escape != NULL) {
+                        preview[output_offset++] = escape[0];
+                        preview[output_offset++] = escape[1];
+                } else if (byte >= 0x20U && byte <= 0x7eU) {
+                        preview[output_offset++] = (char)byte;
+                } else {
+                        preview[output_offset++] = '\\';
+                        preview[output_offset++] = 'x';
+                        preview[output_offset++] = hex[byte >> 4U];
+                        preview[output_offset++] = hex[byte & 0x0fU];
+                }
+        }
+        preview[output_offset] = '\0';
+
+        if (shown < length)
+                XtpLog(level, subsystem, "%s bytes=%zu preview=\"%s\" omitted=%zu", event, length,
+                       preview, length - shown);
+        else
+                XtpLog(level, subsystem, "%s bytes=%zu preview=\"%s\"", event, length, preview);
 }

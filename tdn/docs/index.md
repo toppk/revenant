@@ -17,23 +17,46 @@ An observation is not promoted to a standard because several terminals share
 it. An old specification does not erase useful modern behavior. Where
 sources disagree, the page says so and marks the feature **Disputed**.
 
-## Sections
+## How the site is organized
+
+The sections run from the general to the specific and from the codified to
+the merely conventional. Read them in order the first time; afterwards the
+catalogs are the fastest way in.
 
 <!-- markdownlint-disable MD013 -->
+
+**Foundations** — vocabulary and context every page assumes.
 
 | Section | What it covers |
 | --- | --- |
 | [Conventions](conventions.md) | Notation, status vocabulary, the compatibility legend, the page template |
-| [Terminals](terminals/index.md) | The emulators, multiplexers, and engines that appear in every compatibility table, with identity and documentation links |
+| [Glossary](glossary.md) | Terms used across the site |
 | [Environment and detection](environment.md) | `TERM`, terminfo, environment variables, and how to ask the terminal what it can do |
+| [Standards and specifications](standards.md) | ECMA-35/48, the DEC manuals, xterm `ctlseqs`, terminfo, terminal-wg, Unicode: what each defines and which pages derive from it |
+| [Terminals](terminals/index.md) | The emulators, multiplexers, and engines that appear in every compatibility table, with identity and documentation links |
+
+**Control sequence families** — organized by wire syntax, in the order a parser meets them. Each family has an anatomy page (grammar and parsing), a catalog (every function in numeric or final-byte order), and feature pages.
+
+| Section | What it covers |
+| --- | --- |
 | [Control characters and ESC](escape.md) | C0, C1, and two-byte escape commands |
-| [CSI](csi/index.md) | Cursor, erase, SGR, scrolling, modes, queries, window operations |
-| [OSC](osc/index.md) | Titles, hyperlinks, colors, clipboard, working directory, shell integration, notifications |
+| [CSI](csi/index.md) | [Anatomy](csi/anatomy.md), [catalog](csi/catalog.md); cursor, erase, SGR, scrolling, modes, queries, window operations |
+| [OSC](osc/index.md) | [Anatomy](osc/anatomy.md), [catalog](osc/catalog.md); titles, hyperlinks, colors, clipboard, working directory, shell integration, notifications |
 | [DCS](dcs/index.md) | DECRQSS, XTGETTCAP, XTVERSION, and other device-control strings |
+
+**Protocols** — features that span several families or none.
+
+| Section | What it covers |
+| --- | --- |
 | [Input](input/index.md) | Keyboard encodings from VT100 to the Kitty protocol, mouse, focus, bracketed paste |
 | [Text](text/index.md) | UTF-8, character width, grapheme clusters, text sizing, rendering |
 | [Graphics](graphics/index.md) | Sixel, Kitty graphics, iTerm2 inline images, ReGIS |
-| [Glossary](glossary.md) | Terms used across the site |
+
+**Practices** — behavior no standard codifies.
+
+| Section | What it covers |
+| --- | --- |
+| [Practices](practices/index.md) | Multiplexer passthrough, and techniques that work because everyone converged on them |
 
 <!-- markdownlint-enable MD013 -->
 

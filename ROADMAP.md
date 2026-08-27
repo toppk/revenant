@@ -27,7 +27,7 @@ present, but the complete user-visible integration is not yet available.
 | Capability demonstrated by Ghostling | xterm+ status | Remaining integration |
 | --- | --- | --- |
 | PTY-backed shell and terminal effects | Present | Retain ordered backpressure coverage for the shared write queue and expand the effect surface. |
-| Resize with primary-screen reflow | Partial | Retain geometry regression coverage; track the wrapped-prompt failure reported in Ghostty [discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026). |
+| Resize with primary-screen reflow | Partial | Retain geometry regression coverage; the [Readline 8.3 wrapped-prompt regression](docs/reference/bash-readline-resize.md) is fixed upstream and requires no terminal workaround. |
 | 24-bit and 256-color terminal output | Partial | Terminal colors render, but xterm `color0` through `color15` resource overrides are not all applied. |
 | Bold, italic, inverse, and decorations | Partial | Xft uses a real clipped bold face; bitmap bold remains synthetic, italic is incomplete, and style/color combinations need compatibility tests. |
 | Unicode and multi-codepoint graphemes | Partial | State and UTF-8 cross the backend boundary; Xft still lacks shaping, fallback faces, and color emoji. |
@@ -46,11 +46,12 @@ Selection is an xterm+ requirement even though the reviewed Ghostling feature
 list does not make it a baseline item. The pinned libghostty API already
 provides selection gestures, history-safe grid references, row selection
 ranges, and formatted selection text. xterm+ now renders those ranges, owns
-X11 `PRIMARY`, supports xterm-style Button-3 extension, and sends Button-2
-paste through Ghostty's bracketed-paste encoder. Selection autoscroll preserves
-tracked endpoints across deep history for both Button-1 drag and Button-3
-extension. `CLIPBOARD` and the remaining xterm selection-policy resources are
-still open.
+named X11 selections, supports xterm-style Button-3 extension, and sends
+Button-2 paste through Ghostty's bracketed-paste encoder. Selection autoscroll
+preserves tracked endpoints across deep history for both Button-1 drag and
+Button-3 extension. `selectToClipboard`, ordered named action arguments, and
+legacy cut buffers are implemented; the remaining xterm selection-policy
+resources are still open.
 
 Parity means equivalent semantic capability, not identical implementation.
 Every integration must still fit the xterm resource model, menu surface,
@@ -66,8 +67,9 @@ translations, security expectations, and progressive rendering behavior.
 - Split the current smoke test into focused terminal-adapter and PTY tests.
 - Test styles, cursor state, terminal effects, key modes, resize/reflow, and
   Unicode grapheme preservation against libghostty.
-- Add Xvfb integration tests for widget identity, resources, menus, font
-  switching, checkmarks, geometry, and later scrollback and selection.
+- Retain the Xvfb named-selection test for `selectToClipboard`, PRIMARY,
+  CLIPBOARD, and `CUT_BUFFER0`; extend Xvfb coverage to widget identity,
+  resources, menus, font switching, checkmarks, geometry, and scrollback.
 - Test both stub and libghostty builds with strict GCC and Clang settings.
 - Validate that menu sensitivity, registered actions, resource support
   classifications, and documentation describe the same capabilities.
@@ -109,13 +111,17 @@ the first small harness, then grow it with every parity slice.
 
 ### 4. Selection, copy, and paste
 
+The [X11 copy/paste survey](docs/usage/copy-paste.md) records patch-410
+semantics and describes the implemented named-selection path.
+
 - Retain the libghostty gesture/grid-reference implementation across live and
   historical rows, including cell, word, line, drag, rectangular, whitespace,
   and Button-3 extension behavior.
 - Retain selection autoscroll coverage and add the remaining xterm
   selection-policy resources.
-- Extend the implemented highlighting, X11 `PRIMARY`, and Button-2 paste path
-  with `CLIPBOARD` policy and additional ICCCM targets.
+- Retain `PRIMARY`/`CLIPBOARD`/`SECONDARY`, dynamic `SELECT`, ordered named
+  action arguments, and `CUT_BUFFER0` through `CUT_BUFFER7`; add the remaining
+  ICCCM text targets.
 - Extend the implemented bracketed-paste/control-byte encoding with the
   remaining xterm paste controls.
 - Define OSC clipboard policy explicitly; protocol requests must not bypass

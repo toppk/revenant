@@ -60,6 +60,19 @@ typedef struct
 
 typedef enum
 {
+        XTP_SELECTION_SOURCE_ATOM,
+        XTP_SELECTION_SOURCE_CUT_BUFFER,
+} XtpSelectionSourceKind;
+
+typedef struct
+{
+        XtpSelectionSourceKind kind;
+        Atom atom;
+        int cut_buffer;
+} XtpSelectionSource;
+
+typedef enum
+{
         XTP_CURSOR_BLINK_DEFAULT_FALSE,
         XTP_CURSOR_BLINK_DEFAULT_TRUE,
         XTP_CURSOR_BLINK_ALWAYS,
@@ -123,6 +136,7 @@ typedef struct
         Boolean right_scroll_bar;
         Boolean scroll_key;
         Boolean scroll_tty_output;
+        Boolean select_to_clipboard;
         Dimension scroll_bar_border;
         Boolean always_highlight;
         XtCallbackList font_changed_callback;
@@ -145,7 +159,9 @@ typedef struct
         uint8_t *selection_text;
         size_t selection_text_length;
         Time selection_time;
-        Boolean owns_primary;
+        Atom *owned_selections;
+        Cardinal owned_selection_count;
+        Boolean disowning_selections;
         Boolean selection_dragging;
         Boolean selection_extending;
         XtIntervalId selection_autoscroll_timer;
@@ -222,6 +238,7 @@ static Boolean SetValues(Widget current, Widget request, Widget new_widget, ArgL
 static void LargerFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void SmallerFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void SetRenderFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+static void SetSelectAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void PopupMenuAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void ScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void ScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
@@ -236,19 +253,13 @@ static void MouseMotionAction(Widget widget, XEvent *event, String *params, Card
 static void ClassInitialize(void);
 
 static XtActionsRec actions[] = {
-    {"larger-vt-font", LargerFontAction},
-    {"smaller-vt-font", SmallerFontAction},
-    {"set-render-font", SetRenderFontAction},
-    {"popup-menu", PopupMenuAction},
-    {"scroll-back", ScrollBackAction},
-    {"scroll-forw", ScrollForwardAction},
-    {"select-start", SelectStartAction},
-    {"select-extend", SelectExtendAction},
-    {"select-end", SelectEndAction},
-    {"start-extend", StartExtendAction},
-    {"insert-selection", InsertSelectionAction},
-    {"mouse-press", MousePressAction},
-    {"mouse-motion", MouseMotionAction},
+    {"larger-vt-font", LargerFontAction},     {"smaller-vt-font", SmallerFontAction},
+    {"set-render-font", SetRenderFontAction}, {"set-select", SetSelectAction},
+    {"popup-menu", PopupMenuAction},          {"scroll-back", ScrollBackAction},
+    {"scroll-forw", ScrollForwardAction},     {"select-start", SelectStartAction},
+    {"select-extend", SelectExtendAction},    {"select-end", SelectEndAction},
+    {"start-extend", StartExtendAction},      {"insert-selection", InsertSelectionAction},
+    {"mouse-press", MousePressAction},        {"mouse-motion", MouseMotionAction},
 };
 
 /*
@@ -361,6 +372,8 @@ static XtResource resources[] = {
      (XtPointer)False},
     {"scrollTtyOutput", "ScrollCond", XtRBoolean, sizeof(Boolean), OFFSET(scroll_tty_output),
      XtRImmediate, (XtPointer)True},
+    {"selectToClipboard", "SelectToClipboard", XtRBoolean, sizeof(Boolean),
+     OFFSET(select_to_clipboard), XtRImmediate, (XtPointer)False},
     {"scrollBarBorder", "ScrollBarBorder", XtRDimension, sizeof(Dimension),
      OFFSET(scroll_bar_border), XtRImmediate, (XtPointer)1},
     {"alwaysHighlight", "AlwaysHighlight", XtRBoolean, sizeof(Boolean), OFFSET(always_highlight),
@@ -989,10 +1002,11 @@ LogInitialFont(Vt100Rec *vt)
                background.blue >> 8, vt->vt.cursor_color);
         XtpLog(XTP_LOG_INFO, "config",
                "VT100 resolved grid=%dx%d internalBorder=%u saveLines=%d scrollBar=%s "
-               "rightScrollBar=%s alwaysHighlight=%s",
+               "rightScrollBar=%s alwaysHighlight=%s selectToClipboard=%s",
                vt->vt.columns, vt->vt.rows, vt->vt.internal_border, vt->vt.save_lines,
                vt->vt.scroll_bar ? "true" : "false", vt->vt.right_scroll_bar ? "true" : "false",
-               vt->vt.always_highlight ? "true" : "false");
+               vt->vt.always_highlight ? "true" : "false",
+               vt->vt.select_to_clipboard ? "true" : "false");
         for (slot = 1; slot < XTP_FONT_SLOTS; ++slot) {
                 XtpLog(XTP_LOG_INFO, "config", "VT100 resolved font%d=%s", slot,
                        vt->vt.font_names[slot] != NULL ? vt->vt.font_names[slot] : "(null)");
@@ -1042,7 +1056,9 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
         vt->vt.selection_text = NULL;
         vt->vt.selection_text_length = 0;
         vt->vt.selection_time = CurrentTime;
-        vt->vt.owns_primary = False;
+        vt->vt.owned_selections = NULL;
+        vt->vt.owned_selection_count = 0;
+        vt->vt.disowning_selections = False;
         vt->vt.selection_dragging = False;
         vt->vt.selection_extending = False;
         vt->vt.selection_autoscroll_timer = (XtIntervalId)0;
@@ -1126,6 +1142,7 @@ Destroy(Widget widget)
         free(vt->vt.frame_cells);
         free(vt->vt.pending_cells);
         free(vt->vt.selection_text);
+        free(vt->vt.owned_selections);
         for (color = 0; color < vt->vt.color_count; ++color) {
                 if (vt->vt.colors[color].used && vt->vt.colors[color].owned) {
                         Pixel pixel = vt->vt.colors[color].pixel;
@@ -2193,6 +2210,9 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                        new_vt->vt.right_scroll_bar ? "right" : "left");
                 changed = True;
         }
+        if (old_vt->vt.select_to_clipboard != new_vt->vt.select_to_clipboard)
+                XtpLog(XTP_LOG_INFO, "selection", "selectToClipboard=%s",
+                       new_vt->vt.select_to_clipboard ? "true" : "false");
         if (changed)
                 LayoutScrollbar(new_vt);
         if (changed) {
@@ -2380,6 +2400,28 @@ SetRenderFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_
 }
 
 static void
+SetSelectAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
+{
+        Boolean enabled = XtpVtSelectToClipboard(widget);
+
+        (void)event;
+        if (*num_params == 0 || strcmp(params[0], "toggle") == 0) {
+                enabled = !enabled;
+        } else if (*num_params == 1 &&
+                   (strcmp(params[0], "on") == 0 || strcmp(params[0], "true") == 0)) {
+                enabled = True;
+        } else if (*num_params == 1 &&
+                   (strcmp(params[0], "off") == 0 || strcmp(params[0], "false") == 0)) {
+                enabled = False;
+        } else {
+                XtpLog(XTP_LOG_WARNING, "selection", "set-select expects on, off, or toggle");
+                XBell(XtDisplay(widget), 0);
+                return;
+        }
+        XtpVtSetSelectToClipboard(widget, enabled);
+}
+
+static void
 PopupMenuAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
 {
         XtpPopupMenu popup;
@@ -2395,8 +2437,131 @@ PopupMenuAction(Widget widget, XEvent *event, String *params, Cardinal *num_para
 }
 
 static Boolean
-ConvertPrimary(Widget widget, Atom *selection, Atom *target, Atom *type_return,
-               XtPointer *value_return, unsigned long *length_return, int *format_return)
+OwnsSelection(const Vt100Rec *vt, Atom selection)
+{
+        Cardinal index;
+
+        for (index = 0; index < vt->vt.owned_selection_count; ++index) {
+                if (vt->vt.owned_selections[index] == selection)
+                        return True;
+        }
+        return False;
+}
+
+static XtpSelectionSource
+ResolveSelectionSource(Vt100Rec *vt, const char *name)
+{
+        XtpSelectionSource source = {XTP_SELECTION_SOURCE_ATOM, None, -1};
+
+        if (name == NULL || *name == '\0')
+                return source;
+        if (strncmp(name, "CUT_BUFFER", 10) == 0) {
+                if (name[10] >= '0' && name[10] <= '7' && name[11] == '\0') {
+                        source.kind = XTP_SELECTION_SOURCE_CUT_BUFFER;
+                        source.cut_buffer = name[10] - '0';
+                } else {
+                        XtpLog(XTP_LOG_WARNING, "selection", "invalid cut-buffer name=%s", name);
+                }
+                return source;
+        }
+        if (strcmp(name, "SELECT") == 0)
+                name = vt->vt.select_to_clipboard ? "CLIPBOARD" : "PRIMARY";
+        if (strcmp(name, "PRIMARY") == 0)
+                source.atom = XA_PRIMARY;
+        else if (strcmp(name, "SECONDARY") == 0)
+                source.atom = XA_SECONDARY;
+        else
+                source.atom = XInternAtom(XtDisplay((Widget)vt), name, False);
+        return source;
+}
+
+static uint32_t
+DecodeUtf8(const uint8_t *bytes, size_t length, size_t *consumed)
+{
+        uint32_t codepoint;
+        size_t need;
+        size_t index;
+
+        *consumed = 1;
+        if (length == 0)
+                return '?';
+        if (bytes[0] < 0x80)
+                return bytes[0];
+        if (bytes[0] >= 0xc2 && bytes[0] <= 0xdf) {
+                codepoint = bytes[0] & 0x1fU;
+                need = 2;
+        } else if (bytes[0] >= 0xe0 && bytes[0] <= 0xef) {
+                codepoint = bytes[0] & 0x0fU;
+                need = 3;
+        } else if (bytes[0] >= 0xf0 && bytes[0] <= 0xf4) {
+                codepoint = bytes[0] & 0x07U;
+                need = 4;
+        } else {
+                return '?';
+        }
+        if (length < need)
+                return '?';
+        for (index = 1; index < need; ++index) {
+                if ((bytes[index] & 0xc0U) != 0x80U)
+                        return '?';
+                codepoint = (codepoint << 6) | (bytes[index] & 0x3fU);
+        }
+        if ((need == 3 && codepoint < 0x800U) || (need == 4 && codepoint < 0x10000U) ||
+            codepoint > 0x10ffffU || (codepoint >= 0xd800U && codepoint <= 0xdfffU))
+                return '?';
+        *consumed = need;
+        return codepoint;
+}
+
+static uint8_t *
+Utf8ToLatin1(const uint8_t *bytes, size_t length, size_t *result_length)
+{
+        uint8_t *result = malloc(length + 1U);
+        size_t input = 0;
+        size_t output = 0;
+
+        if (result == NULL)
+                return NULL;
+        while (input < length) {
+                size_t consumed;
+                uint32_t codepoint = DecodeUtf8(bytes + input, length - input, &consumed);
+
+                result[output++] = codepoint <= UINT8_MAX ? (uint8_t)codepoint : (uint8_t)'?';
+                input += consumed;
+        }
+        result[output] = '\0';
+        *result_length = output;
+        return result;
+}
+
+static uint8_t *
+Latin1ToUtf8(const uint8_t *bytes, size_t length, size_t *result_length)
+{
+        uint8_t *result;
+        size_t input;
+        size_t output = 0;
+
+        if (length > (SIZE_MAX - 1U) / 2U)
+                return NULL;
+        result = malloc(length * 2U + 1U);
+        if (result == NULL)
+                return NULL;
+        for (input = 0; input < length; ++input) {
+                if (bytes[input] < 0x80) {
+                        result[output++] = bytes[input];
+                } else {
+                        result[output++] = (uint8_t)(0xc0U | (bytes[input] >> 6));
+                        result[output++] = (uint8_t)(0x80U | (bytes[input] & 0x3fU));
+                }
+        }
+        result[output] = '\0';
+        *result_length = output;
+        return result;
+}
+
+static Boolean
+ConvertSelection(Widget widget, Atom *selection, Atom *target, Atom *type_return,
+                 XtPointer *value_return, unsigned long *length_return, int *format_return)
 {
         Vt100Rec *vt = AsVt(widget);
         Display *display = XtDisplay(widget);
@@ -2405,7 +2570,7 @@ ConvertPrimary(Widget widget, Atom *selection, Atom *target, Atom *type_return,
         Atom utf8 = XInternAtom(display, "UTF8_STRING", False);
         Atom text = XInternAtom(display, "TEXT", False);
 
-        if (*selection != XA_PRIMARY || vt->vt.selection_text == NULL)
+        if (!OwnsSelection(vt, *selection) || vt->vt.selection_text == NULL)
                 return False;
         if (*target == targets) {
                 Atom *available = (Atom *)XtMalloc(5U * sizeof(*available));
@@ -2431,13 +2596,30 @@ ConvertPrimary(Widget widget, Atom *selection, Atom *target, Atom *type_return,
                 *format_return = 32;
                 return True;
         }
-        if (*target == utf8 || *target == text || *target == XA_STRING) {
+        if (*target == XA_STRING) {
+                size_t converted_length;
+                uint8_t *converted = Utf8ToLatin1(vt->vt.selection_text,
+                                                  vt->vt.selection_text_length, &converted_length);
+                uint8_t *value;
+
+                if (converted == NULL)
+                        return False;
+                value = (uint8_t *)XtMalloc(converted_length + 1U);
+                memcpy(value, converted, converted_length + 1U);
+                free(converted);
+                *type_return = XA_STRING;
+                *value_return = value;
+                *length_return = (unsigned long)converted_length;
+                *format_return = 8;
+                return True;
+        }
+        if (*target == utf8 || *target == text) {
                 uint8_t *value = (uint8_t *)XtMalloc(vt->vt.selection_text_length + 1U);
 
                 if (vt->vt.selection_text_length != 0)
                         memcpy(value, vt->vt.selection_text, vt->vt.selection_text_length);
                 value[vt->vt.selection_text_length] = '\0';
-                *type_return = *target == XA_STRING ? XA_STRING : utf8;
+                *type_return = utf8;
                 *value_return = value;
                 *length_return = (unsigned long)vt->vt.selection_text_length;
                 *format_return = 8;
@@ -2447,18 +2629,52 @@ ConvertPrimary(Widget widget, Atom *selection, Atom *target, Atom *type_return,
 }
 
 static void
-LosePrimary(Widget widget, Atom *selection)
+LoseSelection(Widget widget, Atom *selection)
 {
         Vt100Rec *vt = AsVt(widget);
+        Cardinal index;
+        char *name;
 
-        (void)selection;
-        vt->vt.owns_primary = False;
+        if (vt->vt.disowning_selections)
+                return;
+        for (index = 0; index < vt->vt.owned_selection_count; ++index) {
+                if (vt->vt.owned_selections[index] == *selection) {
+                        memmove(&vt->vt.owned_selections[index],
+                                &vt->vt.owned_selections[index + 1U],
+                                (vt->vt.owned_selection_count - index - 1U) * sizeof(Atom));
+                        --vt->vt.owned_selection_count;
+                        break;
+                }
+        }
+        name = XGetAtomName(XtDisplay(widget), *selection);
+        XtpLog(XTP_LOG_INFO, "selection", "lost %s ownership remaining=%u",
+               name != NULL ? name : "(unknown)", (unsigned int)vt->vt.owned_selection_count);
+        if (name != NULL)
+                XFree(name);
+        if (vt->vt.owned_selection_count != 0)
+                return;
         free(vt->vt.selection_text);
         vt->vt.selection_text = NULL;
         vt->vt.selection_text_length = 0;
-        XtpTerminalSelectionClear(vt->vt.terminal);
+        if (vt->vt.terminal != NULL)
+                XtpTerminalSelectionClear(vt->vt.terminal);
         XtpVtUpdate(widget);
-        XtpLog(XTP_LOG_INFO, "selection", "lost PRIMARY ownership");
+}
+
+static void
+DisownSelections(Vt100Rec *vt, Time time)
+{
+        Atom *owned = vt->vt.owned_selections;
+        Cardinal count = vt->vt.owned_selection_count;
+        Cardinal index;
+
+        vt->vt.owned_selections = NULL;
+        vt->vt.owned_selection_count = 0;
+        vt->vt.disowning_selections = True;
+        for (index = 0; index < count; ++index)
+                XtDisownSelection((Widget)vt, owned[index], time);
+        vt->vt.disowning_selections = False;
+        free(owned);
 }
 
 static Boolean
@@ -2899,6 +3115,88 @@ StartExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_pa
 }
 
 static void
+StoreCutBuffer(Vt100Rec *vt, int cut_buffer)
+{
+        size_t converted_length;
+        uint8_t *converted =
+            Utf8ToLatin1(vt->vt.selection_text, vt->vt.selection_text_length, &converted_length);
+        unsigned long request_words = XMaxRequestSize(XtDisplay((Widget)vt));
+        unsigned long request_limit = request_words > 8U ? request_words * 4U - 32U : 0U;
+        int stored_length;
+
+        if (converted == NULL) {
+                XtpLog(XTP_LOG_ERROR, "selection", "cannot encode CUT_BUFFER%d", cut_buffer);
+                return;
+        }
+        if (converted_length > request_limit || converted_length > INT_MAX) {
+                XtpLog(XTP_LOG_WARNING, "selection",
+                       "CUT_BUFFER%d bytes=%zu exceeds X request limit=%lu; not stored", cut_buffer,
+                       converted_length, request_limit);
+                free(converted);
+                return;
+        }
+        stored_length = (int)converted_length;
+        XStoreBuffer(XtDisplay((Widget)vt), (const char *)converted, stored_length, cut_buffer);
+        XtpLog(XTP_LOG_INFO, "selection", "CUT_BUFFER%d bytes=%d stored=true", cut_buffer,
+               stored_length);
+        free(converted);
+}
+
+static void
+PublishSelection(Vt100Rec *vt, String *params, Cardinal num_params)
+{
+        Cardinal index;
+
+        vt->vt.owned_selections = calloc(num_params, sizeof(*vt->vt.owned_selections));
+        if (num_params != 0 && vt->vt.owned_selections == NULL) {
+                XtpLog(XTP_LOG_ERROR, "selection", "cannot allocate selection owner list");
+                return;
+        }
+        for (index = 0; index < num_params; ++index) {
+                XtpSelectionSource source = ResolveSelectionSource(vt, params[index]);
+                Boolean duplicate = False;
+                Cardinal owned;
+
+                if (source.kind == XTP_SELECTION_SOURCE_CUT_BUFFER) {
+                        StoreCutBuffer(vt, source.cut_buffer);
+                        continue;
+                }
+                if (source.atom == None) {
+                        XtpLog(XTP_LOG_WARNING, "selection", "ignored empty selection name");
+                        continue;
+                }
+                for (owned = 0; owned < vt->vt.owned_selection_count; ++owned) {
+                        if (vt->vt.owned_selections[owned] == source.atom) {
+                                duplicate = True;
+                                break;
+                        }
+                }
+                if (duplicate)
+                        continue;
+                {
+                        Boolean owned_now =
+                            XtOwnSelection((Widget)vt, source.atom, vt->vt.selection_time,
+                                           ConvertSelection, LoseSelection, NULL);
+                        char *atom_name = XGetAtomName(XtDisplay((Widget)vt), source.atom);
+
+                        XtpLog(owned_now ? XTP_LOG_INFO : XTP_LOG_WARNING, "selection",
+                               "publish source=%s selection=%s bytes=%zu owned=%s", params[index],
+                               atom_name != NULL ? atom_name : "(unknown)",
+                               vt->vt.selection_text_length, owned_now ? "true" : "false");
+                        if (atom_name != NULL)
+                                XFree(atom_name);
+                        if (owned_now)
+                                vt->vt.owned_selections[vt->vt.owned_selection_count++] =
+                                    source.atom;
+                }
+        }
+        if (num_params != 0 && vt->vt.owned_selection_count == 0) {
+                XtpTerminalSelectionClear(vt->vt.terminal);
+                XtpVtUpdate((Widget)vt);
+        }
+}
+
+static void
 SelectEndAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
 {
         Vt100Rec *vt = AsVt(widget);
@@ -2908,8 +3206,6 @@ SelectEndAction(Widget widget, XEvent *event, String *params, Cardinal *num_para
         uint8_t *text = NULL;
         size_t length = 0;
 
-        (void)params;
-        (void)num_params;
         if (event == NULL || event->type != ButtonRelease)
                 return;
         if (!vt->vt.selection_dragging &&
@@ -2932,19 +3228,14 @@ SelectEndAction(Widget widget, XEvent *event, String *params, Cardinal *num_para
         vt->vt.last_button_up_time = event->xbutton.time;
         vt->vt.last_button = event->xbutton.button;
         if (XtpTerminalSelectionText(vt->vt.terminal, &text, &length) == 0) {
+                DisownSelections(vt, event->xbutton.time);
                 free(vt->vt.selection_text);
                 vt->vt.selection_text = text;
                 vt->vt.selection_text_length = length;
                 vt->vt.selection_time = event->xbutton.time;
-                vt->vt.owns_primary = XtOwnSelection(widget, XA_PRIMARY, vt->vt.selection_time,
-                                                     ConvertPrimary, LosePrimary, NULL);
-                XtpLog(XTP_LOG_INFO, "selection", "PRIMARY bytes=%zu owned=%s", length,
-                       vt->vt.owns_primary ? "true" : "false");
+                PublishSelection(vt, params, *num_params);
         } else {
-                if (vt->vt.owns_primary) {
-                        vt->vt.owns_primary = False;
-                        XtDisownSelection(widget, XA_PRIMARY, event->xbutton.time);
-                }
+                DisownSelections(vt, event->xbutton.time);
                 free(vt->vt.selection_text);
                 vt->vt.selection_text = NULL;
                 vt->vt.selection_text_length = 0;
@@ -2954,7 +3245,10 @@ SelectEndAction(Widget widget, XEvent *event, String *params, Cardinal *num_para
 typedef struct
 {
         Time time;
+        Cardinal source_count;
+        Cardinal source_index;
         Boolean tried_string;
+        XtpSelectionSource sources[];
 } PasteRequest;
 
 static void
@@ -2969,6 +3263,31 @@ DeliverPaste(Widget widget, const void *bytes, size_t length)
 }
 
 static void
+FinishPaste(Widget widget, PasteRequest *request, const uint8_t *bytes, size_t length,
+            Boolean latin1)
+{
+        uint8_t *converted = NULL;
+
+        if (latin1) {
+                size_t converted_length;
+
+                converted = Latin1ToUtf8(bytes, length, &converted_length);
+                if (converted == NULL) {
+                        XBell(XtDisplay(widget), 0);
+                        free(request);
+                        return;
+                }
+                bytes = converted;
+                length = converted_length;
+        }
+        DeliverPaste(widget, bytes, length);
+        free(converted);
+        free(request);
+}
+
+static void RequestNextPasteSource(Widget widget, PasteRequest *request);
+
+static void
 SelectionReceived(Widget widget, XtPointer closure, Atom *selection, Atom *type, XtPointer value,
                   unsigned long *length, int *format)
 {
@@ -2976,7 +3295,21 @@ SelectionReceived(Widget widget, XtPointer closure, Atom *selection, Atom *type,
 
         (void)selection;
         if (*type != XT_CONVERT_FAIL && value != NULL && *format == 8) {
-                DeliverPaste(widget, value, (size_t)*length);
+                Boolean latin1 = *type == XA_STRING;
+
+                if (latin1) {
+                        uint8_t *converted;
+                        size_t converted_length;
+
+                        converted = Latin1ToUtf8(value, (size_t)*length, &converted_length);
+                        if (converted != NULL)
+                                DeliverPaste(widget, converted, converted_length);
+                        else
+                                XBell(XtDisplay(widget), 0);
+                        free(converted);
+                } else {
+                        DeliverPaste(widget, value, (size_t)*length);
+                }
                 XtFree(value);
                 free(request);
                 return;
@@ -2985,36 +3318,73 @@ SelectionReceived(Widget widget, XtPointer closure, Atom *selection, Atom *type,
                 XtFree(value);
         if (!request->tried_string) {
                 request->tried_string = True;
-                XtGetSelectionValue(widget, XA_PRIMARY, XA_STRING, SelectionReceived, request,
-                                    request->time);
+                XtGetSelectionValue(widget, request->sources[request->source_index].atom, XA_STRING,
+                                    SelectionReceived, request, request->time);
                 return;
         }
-        {
-                int length_return = 0;
-                char *buffer = XFetchBuffer(XtDisplay(widget), &length_return, 0);
+        ++request->source_index;
+        request->tried_string = False;
+        RequestNextPasteSource(widget, request);
+}
 
-                if (buffer != NULL && length_return > 0)
-                        DeliverPaste(widget, buffer, (size_t)length_return);
-                else
-                        XBell(XtDisplay(widget), 0);
-                if (buffer != NULL)
-                        XFree(buffer);
+static void
+RequestNextPasteSource(Widget widget, PasteRequest *request)
+{
+        Atom utf8 = XInternAtom(XtDisplay(widget), "UTF8_STRING", False);
+
+        while (request->source_index < request->source_count) {
+                XtpSelectionSource *source = &request->sources[request->source_index];
+
+                if (source->kind == XTP_SELECTION_SOURCE_ATOM) {
+                        XtGetSelectionValue(widget, source->atom, utf8, SelectionReceived, request,
+                                            request->time);
+                        return;
+                }
+                {
+                        int length_return = 0;
+                        char *buffer =
+                            XFetchBuffer(XtDisplay(widget), &length_return, source->cut_buffer);
+
+                        if (buffer != NULL) {
+                                FinishPaste(widget, request, (const uint8_t *)buffer,
+                                            length_return > 0 ? (size_t)length_return : 0U, True);
+                                XFree(buffer);
+                                return;
+                        }
+                }
+                ++request->source_index;
         }
+        XBell(XtDisplay(widget), 0);
         free(request);
 }
 
 static void
-RequestPrimaryPaste(Widget widget, Time time)
+RequestNamedPaste(Widget widget, Time time, String *params, Cardinal num_params)
 {
-        Atom utf8 = XInternAtom(XtDisplay(widget), "UTF8_STRING", False);
-        PasteRequest *request = calloc(1, sizeof(*request));
+        static String defaults[] = {"SELECT", "CUT_BUFFER0"};
+        Vt100Rec *vt = AsVt(widget);
+        PasteRequest *request;
+        Cardinal index;
+
+        if (num_params == 0) {
+                params = defaults;
+                num_params = XtNumber(defaults);
+        }
+        request = calloc(1, sizeof(*request) + num_params * sizeof(request->sources[0]));
 
         if (request == NULL) {
                 XBell(XtDisplay(widget), 0);
                 return;
         }
         request->time = time;
-        XtGetSelectionValue(widget, XA_PRIMARY, utf8, SelectionReceived, request, time);
+        for (index = 0; index < num_params; ++index) {
+                XtpSelectionSource source = ResolveSelectionSource(vt, params[index]);
+
+                if (source.kind == XTP_SELECTION_SOURCE_ATOM && source.atom == None)
+                        continue;
+                request->sources[request->source_count++] = source;
+        }
+        RequestNextPasteSource(widget, request);
 }
 
 static void
@@ -3023,8 +3393,6 @@ InsertSelectionAction(Widget widget, XEvent *event, String *params, Cardinal *nu
         Vt100Rec *vt = AsVt(widget);
         Time time = XtLastTimestampProcessed(XtDisplay(widget));
 
-        (void)params;
-        (void)num_params;
         if (event != NULL && event->type == ButtonRelease &&
             ReportMouseButton(vt, &event->xbutton, XTP_MOUSE_ACTION_RELEASE))
                 return;
@@ -3035,7 +3403,7 @@ InsertSelectionAction(Widget widget, XEvent *event, String *params, Cardinal *nu
                 time = event->xbutton.time;
         else if (event != NULL && event->type == KeyPress)
                 time = event->xkey.time;
-        RequestPrimaryPaste(widget, time);
+        RequestNamedPaste(widget, time, params, *num_params);
 }
 
 static void
@@ -3284,6 +3652,23 @@ Boolean
 XtpVtScrollTtyOutput(Widget widget)
 {
         return AsVt(widget)->vt.scroll_tty_output;
+}
+
+Boolean
+XtpVtSelectToClipboard(Widget widget)
+{
+        return AsVt(widget)->vt.select_to_clipboard;
+}
+
+void
+XtpVtSetSelectToClipboard(Widget widget, Boolean enabled)
+{
+        Vt100Rec *vt = AsVt(widget);
+
+        vt->vt.select_to_clipboard = enabled ? True : False;
+        XtpLog(XTP_LOG_INFO, "selection", "selectToClipboard=%s SELECT=%s",
+               vt->vt.select_to_clipboard ? "true" : "false",
+               vt->vt.select_to_clipboard ? "CLIPBOARD" : "PRIMARY");
 }
 
 void

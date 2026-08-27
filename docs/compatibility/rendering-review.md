@@ -17,13 +17,13 @@ Revision 4 records two distinct resize failures found while repeatedly
 reflowing a large scrollback. Grid dimensions changed while the last-painted
 frame stayed valid, allowing Expose handling to paint an old-grid snapshot
 with new-grid geometry. Resize now invalidates that snapshot before callbacks
-or repaint. A separate wrapped Bash prompt failure remains open: libghostty
-reflows the live prompt and Readline redraws it after `SIGWINCH`, leaving their
-logical cursor positions inconsistent. The frame-cache fix does not address
-that backend/shell interaction. Ghostty
-[discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026)
-tracks the same failure in Ghostty 1.3.1's X11 backend with shell integration
-disabled.
+or repaint. The separate wrapped Bash prompt failure is an identified Readline
+8.3 regression. After widening, stale per-screen-line invisible-prompt
+metadata moves the cursor left by the final invisible run's byte length. Bash
+development commit `1e9f5e10b2` fixes it by refreshing expanded prompt
+metadata after every `SIGWINCH`; the frame-cache fix and libghostty reflow are
+not involved. See the
+[source diagnosis](../reference/bash-readline-resize.md).
 
 ## Summary
 
@@ -85,7 +85,7 @@ not atomicity.
 | Full repaint on every Expose | `Redisplay` ignored the damage region | Cached rows/columns intersecting damage are repainted |
 | No-newline output delayed | Incomplete lines held on an 8 ms timer | Every PTY read is fed and rendered immediately |
 | Stale rows painted with old geometry after resize | Grid changed while the old `frame_cells` snapshot remained valid | Resize invalidates the frame before callbacks and Expose |
-| Wrapped Bash prompt leaves cursor inside the prompt after shrink/grow | libghostty reflows the live prompt before Readline's `SIGWINCH` redraw | Open upstream as Ghostty [discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026); `just reflow-prompt` plus `just reflow-resize WINDOW-ID` reproduces it |
+| Wrapped Bash prompt leaves cursor inside the prompt after shrink/grow | Readline 8.3 retains stale `local_prompt_invis_chars[]` metadata when widening | Fixed in Bash development commit `1e9f5e10b2`; keep the fixture as external-component coverage and do not work around it in xterm+ |
 
 The unused `XtpVtUpdateScrolled`, raw-byte helpers, content detector, and scroll
 branch of `RenderBegin` were deleted together.
@@ -146,8 +146,9 @@ branch of `RenderBegin` were deleted together.
 8. **Partial:** grid resize invalidates the last-painted frame before the grid
    is changed, and the resize callback updates PTY geometry before terminal
    reflow. `xtp-resize-loop` provides repeatable narrow/wide X11 coverage.
-   Wrapped live Bash prompts still expose a logical libghostty/Readline reflow
-   conflict even though the cached-frame geometry is now correct.
+   The wrapped-prompt fixture also distinguishes released Readline 8.3 from
+   the upstream-fixed build while confirming cached-frame geometry remains
+   correct.
 
 The bitmap path retains its existing clipped synthetic-bold fallback until a
 separate xterm `boldFont` resource is wired.

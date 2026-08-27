@@ -76,7 +76,7 @@ toggle still needs defined transitions between configured and forced policy.
 | allow132 | Allow DECCOLM resize | `GHOSTTY_MODE_ENABLE_MODE_3` (?40); no mode-change callback, poll `DATA_COLS` after feed | Mode flip + small poll | READY |
 | keepSelection | Keep highlight after loss | None | Roadmap #4 | ROADMAP |
 | keepClipboard | Don't clear CLIPBOARD | None | Roadmap #4 | ROADMAP |
-| selectToClipboard | Selection owns CLIPBOARD | None | Roadmap #4 | ROADMAP |
+| selectToClipboard | Selection owns CLIPBOARD | Xt named-selection ownership | Resource, `set-select`, and menu policy | DONE |
 | visualbell | Flash | Bell callback exists | Invert + timer | READY |
 | bellIsUrgent | WM urgency hint | Bell callback | `XUrgencyHint` | READY |
 | poponbell | Raise window | Bell callback | `XRaiseWindow` | READY |

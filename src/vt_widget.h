@@ -80,6 +80,8 @@ Boolean XtpVtScrollKey(Widget widget);
 void XtpVtSetScrollKey(Widget widget, Boolean enabled);
 Boolean XtpVtScrollTtyOutput(Widget widget);
 void XtpVtSetScrollTtyOutput(Widget widget, Boolean enabled);
+Boolean XtpVtSelectToClipboard(Widget widget);
+void XtpVtSetSelectToClipboard(Widget widget, Boolean enabled);
 void XtpVtScrollOnKeypress(Widget widget);
 void XtpVtSetTerminal(Widget widget, XtpTerminal *terminal);
 void XtpVtSetFocus(Widget widget, Boolean focused);

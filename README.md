@@ -354,9 +354,11 @@ For the deterministic wrapped-prompt case, run `just reflow-prompt`, copy the
 window ID from its debug output, then run `just reflow-resize WINDOW-ID` in a
 second terminal. This crosses a fixed 45-column Bash prompt from 80 to 38 and
 back to 80 columns once; hand-resizing and repeated cycles are unnecessary.
-The same logical failure reproduces in Ghostty 1.3.1's X11 backend with shell
-integration disabled and is tracked upstream in Ghostty
-[discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026).
+The fixture exposes a Readline 8.3 regression fixed by Bash development commit
+`1e9f5e10b2`: after widening, stale invisible-prompt metadata moves the cursor
+left by the byte length of the final nonprinting run. It is terminal-independent
+and requires no xterm+ workaround. See the
+[complete diagnosis](docs/reference/bash-readline-resize.md).
 
 ## X resources
 
@@ -366,13 +368,17 @@ xterm resources can therefore apply directly. The `-name` compatibility option
 will be added before the command-line surface is declared complete.
 
 Saved-history navigation uses libghostty's viewport and history state.
-`saveLines`/`-sl` set its line limit; `scrollBar`, `-sb`, and `+sb` control the
-real Athena scrollbar; and `rightScrollBar`, `-rightbar`, and `-leftbar` select
-its side. The wheel scrolls five rows per tick when the child has not enabled
-mouse tracking, and the classic Xaw thumb supports both dragging and xterm's
-button-based scrolling. Shift+Page Up and Shift+Page Down use xterm's default
-half-page navigation. The complete patch-410 gesture inventory is in the
-[default VT bindings audit](docs/compatibility/default-bindings.md).
+`saveLines`/`-sl` set its line limit and remove libghostty's separate default
+byte cap so that a large xterm history setting is not silently truncated;
+`scrollBar`, `-sb`, and `+sb` control the real Athena scrollbar; and
+`rightScrollBar`, `-rightbar`, and `-leftbar` select its side. libghostty
+prunes history in whole internal pages, so the retained physical-row count is
+an estimate within one page rather than xterm's exact allocation. The wheel
+scrolls five rows per tick when the child has not enabled mouse tracking, and
+the classic Xaw thumb supports both dragging and xterm's button-based
+scrolling. Shift+Page Up and Shift+Page Down use xterm's default half-page
+navigation. The complete patch-410 gesture inventory is in the [default VT
+bindings audit](docs/compatibility/default-bindings.md).
 `scrollbar.width` and `scrollbar.thickness` remain ordinary Athena child
 resources. Attempts to scroll past either history boundary do not schedule
 redundant terminal renders, and wheel bursts within one display frame are
@@ -402,9 +408,14 @@ of an existing selection using that selection's cell, word, or line unit.
 Crossing the opposite endpoint switches the extension side. Dragging either a
 new selection or a Button-3 extension beyond the top or bottom edge scrolls
 through saved history while keeping the stationary endpoint attached to its
-original terminal row. Selected cells are highlighted and exported as X11
-`PRIMARY`; Button 2 pastes `PRIMARY` through Ghostty's control-byte filtering
-and bracketed-paste encoder. Shift+Insert uses the same paste path.
+original terminal row. Selected cells are highlighted and exported through
+xterm's named-selection policy. By default `SELECT` means X11 `PRIMARY`; set
+`XTerm*selectToClipboard: true`, use the VT-menu toggle, or invoke
+`set-select(on)` to make it mean `CLIPBOARD`. Explicit `PRIMARY`, `CLIPBOARD`,
+`SECONDARY`, other atom names, and `CUT_BUFFER0` through `CUT_BUFFER7` are
+honored in `select-end` and `insert-selection` action arguments. Button 2 and
+Shift+Insert use the default `insert-selection(SELECT, CUT_BUFFER0)` path
+through Ghostty's control-byte filtering and bracketed-paste encoder.
 `multiClickTime` defaults to 250 milliseconds and can be set with `-mc
 milliseconds`; as in xterm, it measures from the previous button release to
 the next press.

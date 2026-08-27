@@ -101,18 +101,17 @@ Resize updates the kernel PTY first and libghostty terminal state second within
 one Xt callback, matching Ghostty's ordering, so child `SIGWINCH` redraw bytes
 cannot be fed between those operations.
 
-Do not conflate that fixed cache lifetime bug with the open wrapped-prompt
-failure. A 45-column OSC 133-marked Bash prompt resized 80→38→80 ends with its
-cursor at column 37 rather than 45. At 38 columns, libghostty reflow plus
-Readline's `SIGWINCH` redraw produces 83 graphemes (38 retained cells plus a
-45-cell redraw). Installed Ghostty 1.3.1 with its X11 backend exhibits the same
-behavior. Run `just reflow-prompt`, copy the logged top-level window ID, then
-run `just reflow-resize WINDOW_ID`; one cycle is sufficient. The upstream
-report is Ghostty
-[discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026).
-Check that discussion before attempting a local workaround or updating the
-pinned libghostty revision. Its plain Bash reproducer disables shell
-integration, so OSC 133 is not required for the underlying failure.
+Do not conflate that fixed cache lifetime bug with the Readline 8.3
+wrapped-prompt regression. A 45-column OSC 133-marked prompt resized
+80→38→80 ends at column 37 because Readline drops the final eight-byte
+nonprinting run from its cursor calculation; the SGR control lands at column
+41 after dropping a four-byte run. Bash development commit `1e9f5e10b2`
+unconditionally refreshes the affected prompt metadata after `SIGWINCH`.
+xterm+ executes the resulting bytes correctly and must not add a terminal-side
+workaround. Run `just reflow-prompt`, copy the logged top-level window ID, then
+run `just reflow-resize WINDOW_ID`; one cycle is sufficient. The source
+diagnosis, upstream links, version boundary, and fixed-build checks are in
+`docs/reference/bash-readline-resize.md`.
 
 ## Implemented behavior
 
@@ -128,6 +127,11 @@ integration, so OSC 133 is not required for the underlying failure.
   repaint support when libghostty reports no cell damage.
 - Primary-screen resize reflow, synchronized terminal/kernel PTY geometry,
   and pre-Expose invalidation of frames captured at the previous grid size.
+- `saveLines` controls libghostty's line limit and clears its independent
+  default byte cap when positive. Keep the large-history self-test: without
+  that clearing step, `XTerm*saveLines: 16500` retains far fewer rows despite
+  resolving and logging the correct X resource value. libghostty's remaining
+  whole-page pruning granularity is documented rather than presented as exact.
 - Xterm application and widget identities with real Athena popup menus.
 - Xlib bitmap and Xft/fontconfig renderers with runtime `renderFont` toggling.
 - Xft point sizes resolved with the active display and screen defaults,
@@ -146,9 +150,12 @@ integration, so OSC 133 is not required for the underlying failure.
   explicit application blink requests. Focused blocks are filled and unfocused
   blocks are outlined.
 - History-safe mouse selection with visible ranges, `multiClickTime`,
-  whitespace double-click, unit-preserving Button-3 extension, X11 `PRIMARY`,
-  and Button-2 paste through Ghostty's bracketed-paste encoder. Multi-click
-  timing follows xterm's release-to-next-press interval.
+  whitespace double-click, unit-preserving Button-3 extension, named X11
+  selection ownership, and Button-2 paste through Ghostty's bracketed-paste
+  encoder. `SELECT` follows the `selectToClipboard` resource/menu/action
+  policy; explicit atoms and `CUT_BUFFER0` through `CUT_BUFFER7` are honored in
+  action order. Multi-click timing follows xterm's release-to-next-press
+  interval.
 - xterm-compatible Unicode character classes for word selection, including
   the `charClass` resource and `-cc` range syntax. This is implemented above
   Ghostty's binary word-boundary API so distinct punctuation classes remain
@@ -174,7 +181,7 @@ integration, so OSC 133 is not required for the underlying failure.
   `CSI O`; ordinary shells receive no focus bytes.
 - Patch-410 default VT bindings are audited in
   `docs/compatibility/default-bindings.md`. Shift+Insert now owns the key event
-  and pastes `PRIMARY` instead of also emitting modified Insert; paging and
+  and pastes `SELECT` instead of also emitting modified Insert; paging and
   font-selection keys likewise remain local-only. Four action-level gaps are
   recorded explicitly.
 - Consolidated `-report-config` inventory for resources, app-defaults,
@@ -182,10 +189,10 @@ integration, so OSC 133 is not required for the underlying failure.
 - Structured diagnostics and CPU flamegraph tooling.
 
 The authoritative missing-capability order is `ROADMAP.md`. Basic scrollback,
-its Xaw scrollbar, historical selection, `PRIMARY`, and middle-button paste
-are wired, along with application mouse and focus reporting. Selection
-clipboard policy and Kitty graphics remain incomplete even though libghostty
-exposes much of the required machinery.
+its Xaw scrollbar, historical and named selection, cut-buffer fallback, and
+middle-button paste are wired, along with application mouse and focus
+reporting. Selection-retention policy and Kitty graphics remain incomplete
+even though libghostty exposes much of the required machinery.
 
 ## Immediate continuation order
 
@@ -203,11 +210,13 @@ exposes much of the required machinery.
 3. Make xterm+ usable as the maintainer's daily terminal. `scrollKey` and
    `scrollTtyOutput` policies are implemented as resources, command-line
    options, and VT menu toggles. Historical mouse selection, visible
-   highlighting, X11 `PRIMARY`, Button-3 extension, and middle-button paste are
-   also implemented, including edge-drag autoscroll through deep history.
+   highlighting, named X11 selections, Button-3 extension, and middle-button
+   paste are also implemented, including edge-drag autoscroll through deep
+   history. `selectToClipboard`, `set-select`, named action arguments, and cut
+   buffers are wired.
    Application mouse reporting preserves Shift selection and the Ctrl+button
    popup menus, and focus reporting follows DEC private mode 1004. Next, add
-   the remaining selection/clipboard policies.
+   the remaining selection-retention and paste-control policies.
 
 Do not interpret Ghostling parity as the finish line. Ghostling is the minimum
 engine-integration floor; xterm remains the behavioral oracle for the daily-use
@@ -271,9 +280,12 @@ just reflow-resize WINDOW_ID
 The current self-test has focused backend checks for rendering, cursor state,
 modes, selection and deep scrollback, tty-output viewport anchoring, mouse and
 focus encoding, resize, PTY setup, and write backpressure without byte loss,
-but it remains one in-process harness. Split it into focused tests and add Xvfb
-integration coverage. Do not treat a passing self-test as evidence of full UI
-compatibility.
+but it remains one in-process harness. When Xvfb is available, Meson also runs
+an X11 integration test which drags across real terminal cells, verifies the
+selected bytes through a separate X client, checks PRIMARY versus CLIPBOARD
+resolution for both `selectToClipboard` policies, and checks `CUT_BUFFER0`.
+Split the remaining harness into focused tests and grow Xvfb coverage; do not
+treat either test alone as evidence of full UI compatibility.
 
 ## Performance and longer-term direction
 

@@ -20,6 +20,8 @@ private markers, parameters, defaults, and responses differ.
 
 - [Anatomy and parsing](anatomy.md) explains the wire grammar and how to read
   notation such as `CSI ? 1004 h` and `CSI 2 SP q`.
+- [Catalog](catalog.md) lists every function by final byte with its origin
+  and the page that documents it.
 - [Cursor controls](cursor.md) covers style, blinking, and visibility, including
   the disputed meaning of DECSCUSR parameter 0.
 - [Modes](modes.md) covers set/reset commands, DEC private modes, and common

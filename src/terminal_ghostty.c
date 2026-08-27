@@ -384,9 +384,23 @@ XtpTerminalResize(XtpTerminal *terminal, uint16_t columns, uint16_t rows, uint32
 int
 XtpTerminalSetScrollbackLines(XtpTerminal *terminal, size_t lines)
 {
+        GhosttyResult result;
+
         if (terminal == NULL)
                 return -1;
-        XtpLog(XTP_LOG_INFO, "scrollback", "history limit lines=%zu", lines);
+        XtpLog(XTP_LOG_INFO, "scrollback", "history limit lines=%zu bytes=%s", lines,
+               lines == 0 ? "zero" : "unlimited");
+        if (lines == 0) {
+                size_t bytes = 0;
+
+                result = ghostty_terminal_set(terminal->handle,
+                                              GHOSTTY_TERMINAL_OPT_SCROLLBACK_MAX_BYTES, &bytes);
+        } else {
+                result = ghostty_terminal_set(terminal->handle,
+                                              GHOSTTY_TERMINAL_OPT_SCROLLBACK_MAX_BYTES, NULL);
+        }
+        if (result != GHOSTTY_SUCCESS)
+                return -1;
         return ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_SCROLLBACK_MAX_LINES,
                                     &lines) == GHOSTTY_SUCCESS
                    ? 0

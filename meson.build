@@ -173,6 +173,13 @@ selection_test_tool = executable(
     install: false,
 )
 
+selection_reader_tool = executable(
+    'xtp-read-selection',
+    'tests/xtp-read-selection.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
 resize_test_tool = executable(
     'xtp-resize-loop',
     'tests/xtp-resize-loop.c',
@@ -186,6 +193,22 @@ test(
     args: ['--self-test'],
 )
 
+xvfb = find_program('Xvfb', required: false)
+if build_with_ghostty and xvfb.found()
+    test(
+        'xvfb-selection',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-selection.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            selection_test_tool.full_path(),
+            selection_reader_tool.full_path(),
+        ],
+        timeout: 30,
+    )
+endif
+
 summary(
     {
         'executable': 'xterm+',
@@ -196,6 +219,8 @@ summary(
         'profiling frame pointers': get_option('profiling'),
         'font-key test tool': font_key_test_tool.full_path(),
         'selection test tool': selection_test_tool.full_path(),
+        'selection reader tool': selection_reader_tool.full_path(),
+        'Xvfb selection test': build_with_ghostty and xvfb.found(),
         'resize test tool': resize_test_tool.full_path(),
         'wheel test tool': wheel_test_tool.full_path(),
     },

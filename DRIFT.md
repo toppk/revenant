@@ -24,6 +24,28 @@ core, including preservation and reflow of text across width changes and full
 UTF-8 grapheme state, are intentional even where historical xterm behaves
 differently.
 
+### Page-granular `saveLines`
+
+xterm treats `saveLines` as the exact number of historical rows to retain.
+libghostty exposes a maximum-line constraint but allocates and removes history
+in whole internal pages. Once history exceeds the configured maximum, removing
+the oldest complete page can leave fewer than `saveLines` historical rows
+until more output accumulates. The shortfall is bounded by one libghostty page
+but varies with terminal width and page contents.
+
+xterm+ accepts this page-granular result rather than maintaining a second
+history store or depending on libghostty's private page layout. It does remove
+libghostty's independent default byte cap whenever `saveLines` is positive;
+without that correction, the byte cap can truncate history thousands of rows
+before the requested line constraint. `saveLines: 0` still disables history.
+
+Observed at 80×24 with `XTerm*saveLines: 16500` after `seq 1000000`, the oldest
+visible sequence line was `983478` in xterm and `983721` in xterm+. The xterm
+result is exact: 16,500 historical rows plus the 23 sequence rows still on the
+live screen. The xterm+ result was 243 rows short because the final libghostty
+prune removed a complete page. This is a deliberate compatibility tradeoff for
+the current backend API, not evidence that the X resource was ignored.
+
 ### Structured diagnostic logging
 
 xterm+ emits `hh:mm:ss subsystem: message` diagnostics on standard error.

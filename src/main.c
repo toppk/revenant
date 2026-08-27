@@ -479,6 +479,8 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
         }
         XtpMenusSetChecked(&app->menus, "vtMenu", "scrollkey", XtpVtScrollKey(app->vt));
         XtpMenusSetChecked(&app->menus, "vtMenu", "scrollttyoutput", XtpVtScrollTtyOutput(app->vt));
+        XtpMenusSetChecked(&app->menus, "vtMenu", "selectToClipboard",
+                           XtpVtSelectToClipboard(app->vt));
         XtpLog(XTP_LOG_INFO, "menu", "popup requested name=%s", popup->name);
         XtpMenusPopup(&app->menus, popup->name, popup->event);
 }
@@ -570,6 +572,10 @@ MenuDispatch(Widget source, const char *menu_name, const char *entry_name, XtPoi
                         XtpVtSetScrollTtyOutput(app->vt, !XtpVtScrollTtyOutput(app->vt));
                         XtpMenusSetChecked(&app->menus, menu_name, entry_name,
                                            XtpVtScrollTtyOutput(app->vt));
+                } else if (strcmp(entry_name, "selectToClipboard") == 0) {
+                        XtpVtSetSelectToClipboard(app->vt, !XtpVtSelectToClipboard(app->vt));
+                        XtpMenusSetChecked(&app->menus, menu_name, entry_name,
+                                           XtpVtSelectToClipboard(app->vt));
                 }
                 return;
         }
@@ -833,7 +839,7 @@ PtyReady(XtPointer closure, int *source, XtInputId *input_id)
         } while (amount < 0 && errno == EINTR);
 
         if (amount > 0) {
-                XtpLog(XTP_LOG_DEBUG, "pty", "read bytes=%zd", amount);
+                XtpLogBytePreview(XTP_LOG_DEBUG, "pty", "read", buffer, (size_t)amount);
                 if (XtpTerminalFeedOutput(app->terminal, buffer, (size_t)amount,
                                           XtpVtScrollTtyOutput(app->vt) != False) != 0)
                         XtpLog(XTP_LOG_WARNING, "scrollback",
@@ -1532,6 +1538,65 @@ done:
 }
 
 static int
+SelfTestScrollbackLimit(void)
+{
+        enum
+        {
+                configured_lines = 16500,
+                emitted_lines = 20000,
+                bytes_per_line = 8,
+        };
+        XtpTerminal *terminal;
+        XtpTerminalScrollbar scrollbar = {0};
+        char *content;
+        int line;
+        int result = -1;
+
+        if (strcmp(XtpTerminalBackend(), "libghostty-vt") != 0)
+                return 0;
+        terminal = XtpTerminalNew(80, 24, 8, 16);
+        content = malloc((size_t)emitted_lines * bytes_per_line + 1U);
+        if (terminal == NULL || content == NULL)
+                goto done;
+        for (line = 0; line < emitted_lines; ++line) {
+                int length = snprintf(content + (size_t)line * bytes_per_line, bytes_per_line + 1U,
+                                      "L%05d\r\n", line);
+
+                if (length != bytes_per_line)
+                        goto done;
+        }
+        if (XtpTerminalSetScrollbackLines(terminal, configured_lines) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)content, (size_t)emitted_lines * bytes_per_line);
+        /*
+         * libghostty prunes whole pages, so its documented line limit is an
+         * estimate rather than an exact retained-row count. This lower bound
+         * is deliberately loose enough for one page of granularity while
+         * still catching the independent default byte cap.
+         */
+        if (XtpTerminalGetScrollbar(terminal, &scrollbar) != 0 ||
+            scrollbar.total < configured_lines * 3U / 4U || scrollbar.total >= emitted_lines) {
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "saveLines not retained configured=%d emitted=%d total=%" PRIu64,
+                       configured_lines, emitted_lines, scrollbar.total);
+                goto done;
+        }
+        if (XtpTerminalSetScrollbackLines(terminal, 0) != 0 ||
+            XtpTerminalGetScrollbar(terminal, &scrollbar) != 0 ||
+            scrollbar.total != scrollbar.length) {
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "saveLines zero retained history total=%" PRIu64 " length=%" PRIu64,
+                       scrollbar.total, scrollbar.length);
+                goto done;
+        }
+        result = 0;
+done:
+        free(content);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 SelfTestSelectionScrollback(void)
 {
         static const char expected[] = "L00\nL01\nL02\nL03\nL04\nL05\nL06\nL07\nL08\nL09\nL10\nL11";
@@ -1827,8 +1892,8 @@ SelfTest(void)
               XtpTerminalGetScrollbar(terminal, &after) != 0 || after.offset != before.offset)) ||
             SelfTestCursorOnly(terminal, &renderer, &render) != 0 || SelfTestModes(terminal) != 0 ||
             SelfTestCursorStyles(&renderer) != 0 || SelfTestSelection(&renderer) != 0 ||
-            SelfTestSelectionScrollback() != 0 || SelfTestScrollTtyOutput() != 0 ||
-            SelfTestFocus() != 0 || SelfTestMouse() != 0 ||
+            SelfTestScrollbackLimit() != 0 || SelfTestSelectionScrollback() != 0 ||
+            SelfTestScrollTtyOutput() != 0 || SelfTestFocus() != 0 || SelfTestMouse() != 0 ||
             XtpTerminalResize(terminal, 100, 30, 9, 18) != 0) {
                 XtpTerminalFree(terminal);
                 return EXIT_FAILURE;
@@ -1975,6 +2040,8 @@ main(int argc, char **argv)
         XtpMenusCreate(&app.menus, app.shell, resources.menu_locale, MenuDispatch, &app);
         XtpMenusSetScrollbar(&app.menus, XtpVtScrollbarVisible(app.vt));
         XtpMenusSetRenderFont(&app.menus, XtpVtUsingXft(app.vt), XtpVtXftAvailable(app.vt));
+        XtpMenusSetChecked(&app.menus, "vtMenu", "selectToClipboard",
+                           XtpVtSelectToClipboard(app.vt));
 
         app.terminal = XtpTerminalNew((uint16_t)XtpVtColumns(app.vt), (uint16_t)XtpVtRows(app.vt),
                                       XtpVtCellWidth(app.vt), XtpVtCellHeight(app.vt));

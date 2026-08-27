@@ -565,12 +565,12 @@ static bool
 KnownTranslationAction(const char *action)
 {
         return strcmp(action, "larger-vt-font") == 0 || strcmp(action, "smaller-vt-font") == 0 ||
-               strcmp(action, "set-render-font") == 0 || strcmp(action, "popup-menu") == 0 ||
-               strcmp(action, "scroll-back") == 0 || strcmp(action, "scroll-forw") == 0 ||
-               strcmp(action, "select-start") == 0 || strcmp(action, "select-extend") == 0 ||
-               strcmp(action, "select-end") == 0 || strcmp(action, "start-extend") == 0 ||
-               strcmp(action, "insert-selection") == 0 || strcmp(action, "mouse-press") == 0 ||
-               strcmp(action, "mouse-motion") == 0;
+               strcmp(action, "set-render-font") == 0 || strcmp(action, "set-select") == 0 ||
+               strcmp(action, "popup-menu") == 0 || strcmp(action, "scroll-back") == 0 ||
+               strcmp(action, "scroll-forw") == 0 || strcmp(action, "select-start") == 0 ||
+               strcmp(action, "select-extend") == 0 || strcmp(action, "select-end") == 0 ||
+               strcmp(action, "start-extend") == 0 || strcmp(action, "insert-selection") == 0 ||
+               strcmp(action, "mouse-press") == 0 || strcmp(action, "mouse-motion") == 0;
 }
 
 static bool
@@ -731,9 +731,10 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "cursorOffTime") == 0 || strcmp(name, "saveLines") == 0 ||
             strcmp(name, "scrollBar") == 0 || strcmp(name, "scrollBarBorder") == 0 ||
             strcmp(name, "rightScrollBar") == 0 || strcmp(name, "scrollKey") == 0 ||
-            strcmp(name, "scrollTtyOutput") == 0 || strcmp(name, "multiClickTime") == 0 ||
-            strcmp(name, "charClass") == 0 || strcmp(name, "renderFont") == 0 ||
-            strcmp(name, "faceName") == 0 || strncmp(name, "faceSize", 8) == 0)
+            strcmp(name, "scrollTtyOutput") == 0 || strcmp(name, "selectToClipboard") == 0 ||
+            strcmp(name, "multiClickTime") == 0 || strcmp(name, "charClass") == 0 ||
+            strcmp(name, "renderFont") == 0 || strcmp(name, "faceName") == 0 ||
+            strncmp(name, "faceSize", 8) == 0)
                 return "supported";
         if (strcmp(name, "cursorBlinkXOR") == 0 || strcmp(name, "faceNameDoublesize") == 0 ||
             strncmp(name, "color", 5) == 0 || strcmp(name, "pointerColor") == 0 ||
@@ -1134,14 +1135,15 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database)
             {"xterm.vt100.rightScrollBar", "XTerm.VT100.RightScrollBar", "false"},
             {"xterm.vt100.scrollKey", "XTerm.VT100.ScrollCond", "false"},
             {"xterm.vt100.scrollTtyOutput", "XTerm.VT100.ScrollCond", "true"},
+            {"xterm.vt100.selectToClipboard", "XTerm.VT100.SelectToClipboard", "false"},
             {"xterm.vt100.multiClickTime", "XTerm.VT100.MultiClickTime", "250"},
             {"xterm.vt100.charClass", "XTerm.VT100.CharClass", ""},
             {"xterm.debug", "XTerm.Debug", "false"},
         };
         static const char *const behavior_names[] = {
-            "XTerm*saveLines", "XTerm*scrollBar",       "XTerm*rightScrollBar",
-            "XTerm*scrollKey", "XTerm*scrollTtyOutput", "XTerm*multiClickTime",
-            "XTerm*charClass", "XTerm*debug",
+            "XTerm*saveLines",      "XTerm*scrollBar",       "XTerm*rightScrollBar",
+            "XTerm*scrollKey",      "XTerm*scrollTtyOutput", "XTerm*selectToClipboard",
+            "XTerm*multiClickTime", "XTerm*charClass",       "XTerm*debug",
         };
         static const char *const behavior_help[] = {
             "Maximum saved-history lines retained by libghostty.",
@@ -1149,12 +1151,13 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database)
             "Place the scrollbar on the right rather than the traditional left.",
             "Scroll to the active screen after an encoded keypress.",
             "Scroll to the active screen when PTY output arrives.",
+            "Resolve the SELECT action token to CLIPBOARD rather than PRIMARY.",
             "Milliseconds allowed between clicks in a multi-click selection gesture.",
             "Override character classes used for double-click word selection.",
             "High-volume diagnostic logging.",
         };
         static const char *const behavior_support[] = {
-            "supported", "supported", "supported", "supported",
+            "supported", "supported", "supported", "supported", "supported",
             "supported", "supported", "supported", "supported",
         };
         XrmDatabase merged = XtDatabase(display);

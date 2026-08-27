@@ -56,12 +56,15 @@ nav:
   - Getting started:
       - Install: getting-started/install.md
       - First run: getting-started/first-run.md
+  - Using xterm+:
+      - Copy and paste on X11: usage/copy-paste.md
   - Configuration:
       - X resources, explained: configuration/xresources.md
       - Configuring xterm+: configuration/xterm-plus.md
       - Command-line options: configuration/command-line.md
   - Reference:
       - Diagnostics: reference/diagnostics.md
+      - Readline 8.3 resize regression: reference/bash-readline-resize.md
   - Compatibility:
       - Default VT bindings: compatibility/default-bindings.md
       - Command-line feasibility: compatibility/command-line-feasibility.md

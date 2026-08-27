@@ -135,6 +135,13 @@ it in xterm — width, thickness, foreground, background, border — works
 through the `scrollbar` path. The wheel scrolls five lines per tick;
 Shift+Page Up/Down scroll by half a page.
 
+`saveLines` is the active libghostty line constraint. xterm+ removes
+libghostty's independent default byte constraint when `saveLines` is positive;
+otherwise that byte limit can truncate a large configured history long before
+the requested row count. A zero value disables history. libghostty removes
+history in whole internal pages, so a positive limit is approximate within one
+page rather than an exact xterm-style row allocation.
+
 With `scrollTtyOutput: false`, new output preserves the viewport's distance
 from the live bottom rather than freezing an absolute history row. For
 example, a view of rows 700–724 becomes 701–725 when one new row arrives. A
@@ -176,6 +183,12 @@ drag beyond the top or bottom edge to scroll through saved history. The fixed
 endpoint remains attached to its original terminal row rather than to a
 viewport coordinate, including across multiple pages of scrollback.
 
+Selection uses xterm's named action policy: `SELECT` means X11 `PRIMARY` by
+default and `CLIPBOARD` when `selectToClipboard` is true. Button 2 and
+Shift+Insert try `SELECT`, then `CUT_BUFFER0`; explicit atom and cut-buffer
+arguments are also honored. The [copy and paste guide](../usage/copy-paste.md)
+explains X11's multiple selections, action ordering, and legacy cut buffers.
+
 ## Window
 
 ```xrdb
@@ -191,13 +204,13 @@ columns coherent with the kernel PTY size, and the primary screen reflows.
 Each grid change invalidates the last-painted frame before Expose handling, so
 cached cells from the previous grid are never repainted with new geometry.
 
-One upstream libghostty/Ghostty limitation remains: on X11, shrinking an
-active Bash prompt across its wrap boundary and widening it again can leave
-the cursor inside the prompt. Ghostty
-[discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026)
-tracks a reproducer with shell integration disabled. Native Wayland did not
-reproduce in the reported environment; the reason for that backend difference
-is not yet confirmed.
+Readline 8.3 has a known wrapped-prompt regression: after a prompt with two or
+more nonprinting runs wraps, widening the terminal can leave the cursor inside
+the prompt. It affects OSC 133 and ordinary SGR prompt regions alike. Bash
+development commit `1e9f5e10b2` fixes Readline's stale per-line invisible-byte
+metadata; xterm+ requires no workaround. See the
+[Readline 8.3 resize regression](../reference/bash-readline-resize.md) for the
+source diagnosis, exact cursor-offset proof, and fixed-build validation.
 
 ## Cursor
 
@@ -263,9 +276,10 @@ XTerm*vt100.translations: #override \n\
     <Btn5Down>:              scroll-forw(5,line)
 ```
 
-Actions currently implemented include `insert-selection`, `scroll-back`,
-`scroll-forw`, `larger-vt-font`, `smaller-vt-font`, `set-render-font`, and the
-popup actions. The report labels each action *supported* or *unsupported*.
+Actions currently implemented include `insert-selection`, `select-end`,
+`set-select`, `scroll-back`, `scroll-forw`, `larger-vt-font`,
+`smaller-vt-font`, `set-render-font`, and the popup actions. The report labels
+each action *supported* or *unsupported*.
 The [default VT bindings audit](../compatibility/default-bindings.md) accounts
 for every patch-410 group and records the remaining action-level gaps.
 

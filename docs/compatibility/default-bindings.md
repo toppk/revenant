@@ -14,7 +14,7 @@ options in that function; it does not include user overrides from X resources.
 | xterm group | Default gesture or event | xterm+ status | Notes |
 | --- | --- | --- | --- |
 | select | Shift+Select | Missing | Keyboard-driven selection needs `select-cursor-start` and `select-cursor-end`. |
-| select | Shift+Insert | Done | Pastes X11 `PRIMARY` through `insert-selection(SELECT, CUT_BUFFER0)` and the bracketed-paste encoder. |
+| select | Shift+Insert | Done | Uses `insert-selection(SELECT, CUT_BUFFER0)` and the bracketed-paste encoder; `SELECT` follows `selectToClipboard`, and named arguments are tried in order. |
 | fullscreen | Alt+Return | Missing | Requires the fullscreen window-manager action. |
 | scroll-lock | Scroll Lock release | Missing | Requires the scroll-lock policy and action. |
 | shift-fonts | Shift/Ctrl+keypad plus and Shift+keypad minus | Done | Uses xterm's historical larger/smaller direction, including Shift+Ctrl+keypad plus. |
@@ -46,3 +46,7 @@ auto-repeat.
 Changes to the upstream baseline require re-reading `VTInitTranslations()` and
 updating this table. Missing bindings are compatibility work, not intentional
 drift.
+
+See [Copy and paste on X11](../usage/copy-paste.md) for the distinction between
+xterm's `SELECT` token, the X11 `PRIMARY` and `CLIPBOARD` selections, and its
+legacy `CUT_BUFFER0` fallback.

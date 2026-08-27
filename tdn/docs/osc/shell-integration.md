@@ -27,6 +27,7 @@ implementations added `;`-separated `key=value` parameters after the letter:
 | `cl=line` | A | Which prompt line follows: `line` (default), `m` first of many, `n` continuation |
 | `k=kind` | A | Prompt kind: `i` initial, `r` right, `c` continuation, `s` secondary |
 | `redraw=0` | A | The shell will not redraw its prompt; the emulator should not trigger one |
+| `redraw=1` | A | The shell will redraw its prompt after resize; the emulator may erase the marked prompt first |
 | `err=text` | D | Human-readable error description |
 
 Parameter support varies; VTE's specification (the "semantic prompt"
@@ -88,6 +89,20 @@ Emulators either ship shell scripts to source or inject them at startup:
 Nested shells, `ssh`, and `sudo -s` generally lose integration unless the
 inner shell is set up too.
 
+### Ghostty application and embedding defaults
+
+Prompt redraw is partly an integration policy, not just parser support.
+Ghostty's native terminal state defaults to assuming a marked prompt can be
+redrawn. The `libghostty-vt` C constructor deliberately changes that default
+to false because an embedding application may not install Ghostty's shell
+integration. A marked prompt can opt the embedded session back in with
+`OSC 133 ; A ; redraw=1 ST`; `redraw=0` opts out.
+
+Consequently, a terminal embedding libghostty-vt can behave differently from
+the Ghostty application during resize even when both use the same terminal
+parser and reflow implementation. This is a Ghostty implementation detail,
+not a requirement of OSC 133.
+
 ## Compatibility
 
 <!-- markdownlint-disable MD013 -->
@@ -121,6 +136,8 @@ Ghostty and WezTerm via configurable actions) to confirm the mark landed.
 - [iTerm2 proprietary escape codes](https://iterm2.com/documentation-escape-codes.html)
 - [kitty: shell integration](https://sw.kovidgoyal.net/kitty/shell-integration/)
 - [Ghostty: shell integration](https://ghostty.org/docs/features/shell-integration)
+- [Ghostty terminal prompt-redraw default](https://github.com/ghostty-org/ghostty/blob/f64f4aca2c29b554d111b36c3d946a9bddd159ff/src/terminal/Terminal.zig#L99)
+- [libghostty-vt embedding default](https://github.com/ghostty-org/ghostty/blob/f64f4aca2c29b554d111b36c3d946a9bddd159ff/src/terminal/c/terminal.zig#L673)
 - [WezTerm: shell integration](https://wezterm.org/shell-integration.html)
 - [foot README: shell integration](https://codeberg.org/dnkl/foot#shell-integration)
 - [Windows Terminal: shell integration](https://learn.microsoft.com/en-us/windows/terminal/tutorials/shell-integration)
