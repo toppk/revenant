@@ -67,6 +67,7 @@ nav:
       - Diagnostics: reference/diagnostics.md
       - Readline 8.3 resize regression: reference/bash-readline-resize.md
   - Compatibility:
+      - Ghostling feature parity: compatibility/ghostling-parity.md
       - Default VT bindings: compatibility/default-bindings.md
       - Command-line feasibility: compatibility/command-line-feasibility.md
       - Popup-menu feasibility: compatibility/menu-feasibility.md

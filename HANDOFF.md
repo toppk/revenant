@@ -11,13 +11,20 @@ xterm+ is a faithful, sustainable X11 replacement for xterm's visible user
 experience with a modern terminal engine underneath. It has two product bars:
 
 - preserve the xterm/Xt/Athena skin and compatibility contract;
-- expose at least the terminal functionality demonstrated by Ghostling when
-  the pinned libghostty C API already supplies the core facility.
+- promote every advertised Ghostling capability through the X11 boundary,
+  then exceed that floor with the xterm daily-driver experience.
 
 The second bar corrects an earlier imbalance. Pixel similarity, resources,
 menus, and geometry remain essential, but they do not justify leaving
 scrollback, mouse protocols, focus reporting, graphics, or other baseline
 terminal capabilities unwired.
+
+The checklist in `docs/compatibility/ghostling-parity.md` is an explicit MVP
+gate. Kitty keyboard remains Partial until the progressive flags, stack,
+legacy fallback, modifiers, composition, and real press/repeat/release events
+are covered end to end. Kitty graphics remains Missing until images render;
+libghostty parser state alone does not count as promotion. Maintainer-reported
+Kitty keyboard application failures should become named regression fixtures.
 
 Intentional architectural or behavioral differences from xterm belong in
 `DRIFT.md`. Missing features belong in `ROADMAP.md`, not in the drift ledger.

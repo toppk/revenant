@@ -4,8 +4,9 @@ xterm+ has two simultaneous product requirements:
 
 1. Preserve xterm's visible X11/Xt/Athena experience and compatibility
    contract wherever practical.
-2. Expose at least the terminal capability demonstrated by Ghostling when the
-   pinned `libghostty-vt` already provides the underlying facility.
+2. Promote every advertised Ghostling capability through the real X11
+   interface when the pinned `libghostty-vt` supplies the underlying facility,
+   then exceed that floor with the xterm daily-driver experience.
 
 The first requirement defines how xterm+ should look, configure, and behave at
 its X11 boundary. The second is a functional floor. Pixel fidelity and obscure
@@ -15,6 +16,12 @@ Ghostling is a deliberately minimal demo rather than a complete product. Its
 single-file architecture and Raylib UI are not models for xterm+. Its use of
 the libghostty C API is the comparison point. See `UPSTREAM.md` for checkout
 roles and revision policy.
+
+The [Ghostling feature-parity gate](docs/compatibility/ghostling-parity.md) is
+an MVP gate, not an aspirational comparison. MVP requires every advertised
+item to be Present at the user-visible boundary, including Kitty keyboard and
+Kitty graphics, while retaining the xterm features that make xterm+ a daily
+driver rather than a differently skinned Ghostling.
 
 ## Capability baseline
 
@@ -31,7 +38,7 @@ present, but the complete user-visible integration is not yet available.
 | 24-bit and 256-color terminal output | Partial | Terminal colors render, but xterm `color0` through `color15` resource overrides are not all applied. |
 | Bold, italic, inverse, and decorations | Partial | Xft uses a real clipped bold face; bitmap bold remains synthetic, italic is incomplete, and style/color combinations need compatibility tests. |
 | Unicode and multi-codepoint graphemes | Partial | State and UTF-8 cross the backend boundary; Xft still lacks shaping, fallback faces, and color emoji. |
-| Mode-aware keyboard input and modifiers | Partial | Basic mapping and libghostty encoding exist. Expand key coverage and test application modes and Kitty keyboard behavior. |
+| Mode-aware keyboard input and modifiers | Partial | Basic mapping and libghostty encoding exist. Complete the Kitty keyboard acceptance backlog, key-release/repeat delivery, and application-mode coverage. |
 | Default VT bindings | Partial | The patch-410 binding groups are audited; add Shift+Select, Alt+Return fullscreen, Scroll Lock, and clear-saved-lines as their actions become available. |
 | Scrollback viewport | Present | Add saved-line clearing and retain deep-selection regression coverage. |
 | Wheel behavior and draggable scrollbar | Present | Retain local-history versus application-reporting coverage and extend Xaw styling tests. |
@@ -111,6 +118,15 @@ the first small harness, then grow it with every parity slice.
   UI events to terminal applications. Retain Shift as the local-selection and
   scrollback override while application tracking is active, including the
   Shift-hover and Shift+Button-1 OSC 8 gesture.
+
+### 3a. Kitty keyboard promotion
+
+The exact acceptance matrix lives in the
+[Ghostling feature-parity gate](docs/compatibility/ghostling-parity.md). Treat
+real maintainer application failures as high-value fixtures. Full promotion
+requires query/set/push/pop state, every progressive-enhancement flag, legacy
+fallback, modifiers, XIM text, and real press/repeat/release delivery through
+the PTY. Parser support or press-only encoding does not satisfy this item.
 
 ### 4. Selection, copy, and paste
 
