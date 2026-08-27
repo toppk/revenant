@@ -14,10 +14,11 @@ xterm options must not indefinitely outrank basic modern terminal capability.
 
 Ghostling is a deliberately minimal demo rather than a complete product. Its
 single-file architecture and Raylib UI are not models for xterm+. Its use of
-the libghostty C API is the comparison point. See `UPSTREAM.md` for checkout
+the libghostty C API is the comparison point. See the
+[upstream reference guide](upstream.md) for checkout
 roles and revision policy.
 
-The [Ghostling feature-parity gate](docs/compatibility/ghostling-parity.md) is
+The [Ghostling feature-parity gate](../compatibility/ghostling-parity.md) is
 an MVP gate, not an aspirational comparison. MVP requires every advertised
 item to be Present at the user-visible boundary, including Kitty keyboard and
 Kitty graphics, while retaining the xterm features that make xterm+ a daily
@@ -34,11 +35,11 @@ present, but the complete user-visible integration is not yet available.
 | Capability demonstrated by Ghostling | xterm+ status | Remaining integration |
 | --- | --- | --- |
 | PTY-backed shell and terminal effects | Present | Retain ordered backpressure coverage for the shared write queue and expand the effect surface. |
-| Resize with primary-screen reflow | Partial | Retain geometry regression coverage; the [Readline 8.3 wrapped-prompt regression](docs/reference/bash-readline-resize.md) is fixed upstream and requires no terminal workaround. |
+| Resize with primary-screen reflow | Partial | Retain geometry regression coverage; the [Readline 8.3 wrapped-prompt regression](../reference/bash-readline-resize.md) is fixed upstream and requires no terminal workaround. |
 | 24-bit and 256-color terminal output | Partial | Terminal colors render, but xterm `color0` through `color15` resource overrides are not all applied. |
 | Bold, italic, inverse, and decorations | Partial | Xft uses a real clipped bold face; bitmap bold remains synthetic, italic is incomplete, and style/color combinations need compatibility tests. |
 | Unicode and multi-codepoint graphemes | Partial | State and UTF-8 cross the backend boundary; Xft still lacks shaping, fallback faces, and color emoji. |
-| Mode-aware keyboard input and modifiers | Partial | Basic mapping and libghostty encoding exist. Complete the Kitty keyboard acceptance backlog, key-release/repeat delivery, and application-mode coverage. |
+| Mode-aware keyboard input and modifiers | Partial | Kitty keyboard flags and press/repeat/release delivery are promoted. Complete the remaining X11 key map and application-mode matrix. |
 | Default VT bindings | Partial | The patch-410 binding groups are audited; add Shift+Select, Alt+Return fullscreen, Scroll Lock, and clear-saved-lines as their actions become available. |
 | Scrollback viewport | Present | Add saved-line clearing and retain deep-selection regression coverage. |
 | Wheel behavior and draggable scrollbar | Present | Retain local-history versus application-reporting coverage and extend Xaw styling tests. |
@@ -122,7 +123,7 @@ the first small harness, then grow it with every parity slice.
 ### 3a. Kitty keyboard promotion
 
 The exact acceptance matrix lives in the
-[Ghostling feature-parity gate](docs/compatibility/ghostling-parity.md). Treat
+[Ghostling feature-parity gate](../compatibility/ghostling-parity.md). Treat
 real maintainer application failures as high-value fixtures. Full promotion
 requires query/set/push/pop state, every progressive-enhancement flag, legacy
 fallback, modifiers, XIM text, and real press/repeat/release delivery through
@@ -130,7 +131,7 @@ the PTY. Parser support or press-only encoding does not satisfy this item.
 
 ### 4. Selection, copy, and paste
 
-The [X11 copy/paste survey](docs/usage/copy-paste.md) records patch-410
+The [X11 copy/paste survey](../usage/copy-paste.md) records patch-410
 semantics and describes the implemented named-selection path.
 
 - Retain the libghostty gesture/grid-reference implementation across live and
@@ -179,5 +180,6 @@ semantics and describes the implemented named-selection path.
   widgets, X11 selections, renderer, window-manager behavior, and policy.
 - Extract focused modules as capabilities grow; avoid making `main.c` and
   `vt_widget.c` the permanent home of every integration.
-- Keep `-report-config`, menu sensitivity, tests, `DRIFT.md`, and this roadmap
+- Keep `-report-config`, menu sensitivity, tests, the
+  [xterm differences ledger](../compatibility/drift.md), and this roadmap
   honest whenever a capability changes state.

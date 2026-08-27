@@ -123,8 +123,9 @@ visibility remain under application control in every case.
 
 This behavior intentionally differs from xterm's cursor-blink policy.
 `cursorBlinkXOR` is accepted for resource-file compatibility but has no effect.
-The [TDN cursor-controls reference](tdn/docs/csi/cursor.md) documents the wire
-controls, the xterm+ policy, the xterm policy reference, and versioned
+The [TDN cursor-controls
+reference](https://toppk.github.io/xterm-plus/tdn/csi/cursor/) documents the
+wire controls, the xterm+ policy, the xterm policy reference, and versioned
 observations from other terminals.
 
 ## Transitional gaps, not intended differences
@@ -161,4 +162,5 @@ design decisions:
   most are explicitly classified unsupported and still need implementations
   and compatibility tests.
 
-Detailed compatibility classifications live in [`compat/README.md`](compat/README.md).
+Detailed compatibility classifications live in the repository's
+[`compat/README.md`](https://github.com/toppk/xterm-plus/blob/master/compat/README.md).

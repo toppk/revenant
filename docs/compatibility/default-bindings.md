@@ -48,7 +48,8 @@ one of patch 410's default bindings. Shift-hover underlines the target;
 pressing and releasing on the same target launches only HTTP or HTTPS links.
 On a cell without an OSC 8 target, the same gesture falls through to ordinary
 selection. The extension and its scheme policy are documented in
-[OSC 8 hyperlinks](../usage/hyperlinks.md) and `DRIFT.md`.
+[OSC 8 hyperlinks](../usage/hyperlinks.md) and the
+[xterm differences ledger](drift.md).
 
 Changes to the upstream baseline require re-reading `VTInitTranslations()` and
 updating this table. Missing bindings are compatibility work, not intentional

@@ -6,9 +6,10 @@ how much of that lives in libghostty-vt, and how approachable it is for
 xterm+. Reviewed against the pinned libghostty headers on 2026-08-25.
 
 Status key: **DONE** implemented; **READY** can be wired now with no new
-subsystem; **ROADMAP** waits on a planned `ROADMAP.md` slice; **BLOCKED**
-needs a libghostty change; **SKIP** recommend not planning (record in
-`DRIFT.md`).
+subsystem; **ROADMAP** waits on a planned
+[roadmap](../maintainers/roadmap.md) slice; **BLOCKED** needs a libghostty
+change; **SKIP** recommend not planning (record in the
+[xterm differences ledger](drift.md)).
 
 Totals over 85 entries: 23 done, 21 ready, 17 roadmap, 13 blocked, 11 skip.
 
@@ -134,7 +135,7 @@ xterm+ would have to intercept bytes before `XtpTerminalFeed`, own a Tek
 state machine and display list, and add a widget with its own `tekMenu`.
 libghostty contributes nothing. xterm's own `--disable-tek4014` builds leave
 the three items insensitive, which is what xterm+ does today. Recommendation:
-record "Tek 4014 not planned" in `DRIFT.md`.
+record "Tek 4014 not planned" in the [xterm differences ledger](drift.md).
 
 ## Suggested order
 
@@ -149,5 +150,5 @@ record "Tek 4014 not planned" in `DRIFT.md`.
 4. Upstream asks, by value: unknown OSC/CSI passthrough (fontescape,
    print-redir, full XTWINOPS); permanently-reset mode (titeInhibit);
    XTGETTCAP toggle. Not worth asking: DECDHL, sixel, DECDLD, S8C1T.
-5. `DRIFT.md` entries: Tek 4014, toolbar, activeicon, legacy keyboard
+5. Drift-ledger entries: Tek 4014, toolbar, activeicon, legacy keyboard
    tables/sunKeyboard, UTF-8-only, 8-bit controls, soft fonts.

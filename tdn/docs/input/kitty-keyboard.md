@@ -133,7 +133,7 @@ example, Ctrl-I sends `CSI 105 ; 5 u`, while Tab remains `0x09`. Seeing one of
 these sequences does not mean that an application enabled Kitty flags; query
 `CSI ? u` to determine the active protocol state. Traditional xterm collapses
 these pairs instead. xterm+ records this substantial default-input difference
-in its `DRIFT.md`.
+in `docs/compatibility/drift.md`.
 
 ## Compatibility
 

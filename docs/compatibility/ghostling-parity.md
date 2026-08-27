@@ -47,7 +47,8 @@ following maintained checks:
 - [x] Preserve the legacy encoding when no flags are active.
 - [x] Preserve libghostty's default fixterms exception to legacy encoding:
   Ctrl-I is `CSI 105;5 u` while Tab is `0x09`, even before Kitty flags are
-  enabled. This intentional xterm incompatibility is recorded in `DRIFT.md`.
+  enabled. This intentional xterm incompatibility is recorded in the
+  [xterm differences ledger](drift.md).
 - [x] Flag `1`: disambiguate Escape, Ctrl/Alt combinations, Tab, Enter, and
   Backspace.
 - [x] Flag `2`: distinguish press, autorepeat, and release. The X11 adapter

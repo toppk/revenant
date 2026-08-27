@@ -68,6 +68,7 @@ nav:
       - Interactive probes: reference/probes.md
       - Readline 8.3 resize regression: reference/bash-readline-resize.md
   - Compatibility:
+      - Recorded xterm differences: compatibility/drift.md
       - Keyboard input differences: compatibility/keyboard-input.md
       - Ghostling feature parity: compatibility/ghostling-parity.md
       - Default VT bindings: compatibility/default-bindings.md
@@ -75,5 +76,8 @@ nav:
       - Popup-menu feasibility: compatibility/menu-feasibility.md
       - Rendering review: compatibility/rendering-review.md
   - Maintainers:
+      - Roadmap: maintainers/roadmap.md
+      - Upstream references: maintainers/upstream.md
+      - C style guide: maintainers/style.md
       - Releasing: maintainers/releasing.md
   - Terminal Developers Network: https://toppk.github.io/xterm-plus/tdn/

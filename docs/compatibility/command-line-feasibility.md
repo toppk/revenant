@@ -10,9 +10,9 @@ the pinned libghostty headers on 2026-08-25.
 Status key: **DONE** implemented; **XT** parsed and applied by the X Toolkit
 without xterm+ code; **ACCEPTED** parsed into a resource that the code does
 not act on yet; **READY** can be wired now with no new subsystem;
-**ROADMAP** waits on a `ROADMAP.md` slice (number given); **BLOCKED** needs
-a libghostty change; **SKIP** recommend not implementing (record in
-`DRIFT.md`).
+**ROADMAP** waits on a [roadmap](../maintainers/roadmap.md) slice (number
+given); **BLOCKED** needs a libghostty change; **SKIP** recommend not
+implementing (record in the [xterm differences ledger](drift.md)).
 
 Totals over 96 rows (grouped where xterm's help lists one family several
 ways): 16 done, 5 Xt-handled, 1 accepted, 41 ready, 15 roadmap, 5 blocked,
@@ -209,5 +209,5 @@ Two structural gaps come first, because they affect every row:
 6. **Upstream asks**: terminal-ID/DA option (`-ti`), C1-printable parser
    option (`-k8`), width-convention options. Not worth asking: Latin-1 mode
    and sixel.
-7. **`DRIFT.md` entries**: legacy keyboard tables, Tek, toolbar, active icon,
+7. **Drift-ledger entries**: legacy keyboard tables, Tek, toolbar, active icon,
    `-S`, `-C`, `-im`, `-cu`, `-s`, `-rca`, UTF-8-only.

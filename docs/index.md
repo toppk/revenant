@@ -23,8 +23,10 @@ project keeps both honest:
    leaving a basic capability unwired.
 
 Where the two conflict, the difference is written down rather than hidden:
-intentional departures live in `DRIFT.md`, unfinished work in `ROADMAP.md`,
-and every menu entry and command-line option is classified in the
+intentional departures live in the [xterm differences
+ledger](compatibility/drift.md), unfinished work in the
+[roadmap](maintainers/roadmap.md), and every menu entry and command-line option
+is classified in the
 [compatibility](compatibility/command-line-feasibility.md) section.
 
 ## Where to go

@@ -9,7 +9,7 @@ contract, while the capabilities demonstrated by Ghostling define a minimum
 functional baseline for libghostty integration. xterm fidelity should shape
 how a feature is exposed; it should not leave xterm+ less capable than a
 minimal libghostty example. The current comparison and implementation order
-are maintained in [`ROADMAP.md`](ROADMAP.md).
+are maintained in the [project roadmap](docs/maintainers/roadmap.md).
 
 The project is intentionally early. The current libghostty build runs a real
 PTY-backed shell, parses its output, renders the visible libghostty grid, sends
@@ -21,7 +21,8 @@ Menu entries not implemented yet remain visible but insensitive so the
 compatibility scope stays honest.
 
 Intentional behavioral and architectural differences from the current xterm
-patch-410 reference are maintained in [`DRIFT.md`](DRIFT.md).
+patch-410 reference are maintained in the
+[xterm differences ledger](docs/compatibility/drift.md).
 One major user-visible difference is default keyboard encoding: xterm+ follows
 libghostty's fixterms behavior and distinguishes Ctrl-I from Tab, Ctrl-M from
 Enter, and Ctrl-[ from Escape even before an application enables Kitty
@@ -29,8 +30,8 @@ keyboard flags. See the
 [keyboard compatibility warning](docs/compatibility/keyboard-input.md).
 The roles and update policy for local Ghostty, Ghostling, xterm snapshot, and
 xterm.dev checkouts under ignored `upstream/` are documented in
-[`UPSTREAM.md`](UPSTREAM.md). Maintainer working agreements and architecture
-are summarized in [`HANDOFF.md`](HANDOFF.md).
+[upstream reference guide](docs/maintainers/upstream.md). Maintainer working
+agreements and architecture are summarized in [`HANDOFF.md`](HANDOFF.md).
 
 The published site has three parts, all built by `.github/workflows/docs.yml`:
 a landing page from [`www/`](www/), the xterm+ documentation from
@@ -76,7 +77,8 @@ terminal data.
 
 ## Formatting
 
-C sources and headers use the living conventions in [`STYLE.md`](STYLE.md)
+C sources and headers use the living conventions in the
+[C style guide](docs/maintainers/style.md)
 and the checked-in `.clang-format`. Format and verify them with:
 
 ```sh

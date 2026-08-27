@@ -1,8 +1,9 @@
 # xterm+ maintainer guide
 
 This is the durable continuation brief for maintainers. Current feature
-priorities and the Ghostling capability comparison live in `ROADMAP.md`;
-external checkout roles live in `UPSTREAM.md`. Avoid recording an uncommitted
+priorities and the Ghostling capability comparison live in the
+[roadmap](docs/maintainers/roadmap.md); external checkout roles live in the
+[upstream reference guide](docs/maintainers/upstream.md). Avoid recording an uncommitted
 file list or a single transient commit as project state here.
 
 ## Mission
@@ -19,15 +20,17 @@ menus, and geometry remain essential, but they do not justify leaving
 scrollback, mouse protocols, focus reporting, graphics, or other baseline
 terminal capabilities unwired.
 
-The checklist in `docs/compatibility/ghostling-parity.md` is an explicit MVP
-gate. Kitty keyboard remains Partial until the progressive flags, stack,
+The [Ghostling parity checklist](docs/compatibility/ghostling-parity.md) is an
+explicit MVP gate. Kitty keyboard is Present with progressive flags, stack,
 legacy fallback, modifiers, composition, and real press/repeat/release events
-are covered end to end. Kitty graphics remains Missing until images render;
+covered end to end. Kitty graphics remains Missing until images render;
 libghostty parser state alone does not count as promotion. Maintainer-reported
-Kitty keyboard application failures should become named regression fixtures.
+keyboard application failures should continue to become named regression
+fixtures.
 
-Intentional architectural or behavioral differences from xterm belong in
-`DRIFT.md`. Missing features belong in `ROADMAP.md`, not in the drift ledger.
+Intentional architectural or behavioral differences from xterm belong in the
+[xterm differences ledger](docs/compatibility/drift.md). Missing features belong
+in the [roadmap](docs/maintainers/roadmap.md), not in the drift ledger.
 
 ## Working agreements
 
@@ -65,7 +68,8 @@ behavioral oracle. The checked-in compatibility material is:
 Those portions are covered by `LICENSES/xterm.txt`. Consult xterm to reproduce
 external behavior; do not copy its terminal engine wholesale.
 
-See `UPSTREAM.md` for the ignored Ghostty, Ghostling, xterm snapshot, and
+See the [upstream reference guide](docs/maintainers/upstream.md) for the ignored Ghostty,
+Ghostling, xterm snapshot, and
 xterm.dev checkouts and their update rules. Ghostling is now the minimum
 functional comparison, while xterm remains the UI and compatibility oracle.
 
@@ -146,7 +150,8 @@ diagnosis, upstream links, version boundary, and fixed-build checks are in
 - Shift+keypad font selection, proportional window resizing, WM resize
   increments, and grid-preserving renderer switches.
 - True color, palette terminal values, inverse, bold, underline, overline, and
-  strikeout rendering, subject to the gaps recorded in `ROADMAP.md`.
+  strikeout rendering, subject to the gaps recorded in the
+  [roadmap](docs/maintainers/roadmap.md).
 - Full UTF-8 grapheme bytes at the renderer boundary; the Xft primary face can
   draw supported glyphs without fallback or shaping.
 - Application-selected DECSCUSR block, underline, and bar cursor presentation,
@@ -200,7 +205,7 @@ diagnosis, upstream links, version boundary, and fixed-build checks are in
   inherited Xt/Athena resources, translations, and actions.
 - Structured diagnostics and CPU flamegraph tooling.
 
-The authoritative missing-capability order is `ROADMAP.md`. Basic scrollback,
+The authoritative missing-capability order is the [roadmap](docs/maintainers/roadmap.md). Basic scrollback,
 its Xaw scrollbar, historical and named selection, cut-buffer fallback, and
 middle-button paste are wired, along with application mouse and focus
 reporting. Selection-retention policy and Kitty graphics remain incomplete
@@ -217,7 +222,7 @@ even though libghostty exposes much of the required machinery.
    DECSTBM/alternate-screen output, xtrace ordering, and scroll throughput
    before treating the renderer as settled.
 2. Reach semantic parity with the pinned Ghostling skeleton, following the
-   capability matrix in `ROADMAP.md`. Add focused tests with each slice so
+   capability matrix in the [roadmap](docs/maintainers/roadmap.md). Add focused tests with each slice so
    parity does not depend on manual demonstrations alone.
 3. Make xterm+ usable as the maintainer's daily terminal. `scrollKey` and
    `scrollTtyOutput` policies are implemented as resources, command-line
@@ -244,7 +249,8 @@ problem quickly.
   alone is insufficient.
 - Menu items remain insensitive until behavior and compatibility tests exist.
 - Keep `-report-config`, the catalogs, menu sensitivity, translations,
-  `DRIFT.md`, and `ROADMAP.md` synchronized.
+  the [xterm differences ledger](docs/compatibility/drift.md), and the
+  [roadmap](docs/maintainers/roadmap.md) synchronized.
 - When moving beyond patch 410, update all three compatibility catalogs and
   record the new oracle together.
 - Do not install this repository's `XTerm` app-default over a distributor's
@@ -252,7 +258,8 @@ problem quickly.
 
 ## Style
 
-`STYLE.md` is the adopted classic-X style. Use the checked-in `.clang-format`
+The [C style guide](docs/maintainers/style.md) is the adopted classic-X style. Use the
+checked-in `.clang-format`
 for C sources and headers. Functions use mixed case, public interfaces retain
 the `Xtp` prefix, important types are capitalized, and eight-column indentation
 gives the code its traditional vertical rhythm. Keep formatting-only changes

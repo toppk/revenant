@@ -53,7 +53,8 @@ from the Ctrl-I result.
 Applications that parse modern CSI-u input benefit from the extra distinction.
 Programs that assume xterm's aliases without negotiating a protocol can behave
 differently under xterm+. This is an intentional current product decision and
-is recorded in the repository's `DRIFT.md`, not an implementation gap.
+is recorded in the [xterm differences ledger](drift.md), not an implementation
+gap.
 
 The protocol mechanics and the zero-flags exception are covered in the
 [TDN Kitty keyboard reference](https://toppk.github.io/xterm-plus/tdn/input/kitty-keyboard/).

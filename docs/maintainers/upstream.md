@@ -7,7 +7,9 @@ xterm+, and their presence is not required for a stub build.
 Only the Ghostty revision selected by `tools/fetch-libghostty` is a reproducible
 build input. The other checkouts are working references: inspect their current
 revision before relying on a behavior or API, and record any resulting xterm+
-compatibility decision in `DRIFT.md` or `ROADMAP.md`.
+compatibility decision in the
+[xterm differences ledger](../compatibility/drift.md) or
+[roadmap](roadmap.md).
 
 ## Checkouts
 
@@ -33,9 +35,10 @@ even when `upstream/xterm-snapshots` contains a newer patch.
 - When Ghostty changes its C API, keep `src/terminal.h` backend-neutral rather
   than leaking Ghostty handles into the Xt widget or application layer.
 - When Ghostling adds a user-visible terminal capability, review the parity
-  matrix in `ROADMAP.md`.
+  matrix in the [roadmap](roadmap.md).
 - When advancing the xterm oracle, update all three `compat/xterm-410-*`
-  catalogs (and rename them for the new patch), `DRIFT.md`, and documentation
+  catalogs (and rename them for the new patch), the
+  [xterm differences ledger](../compatibility/drift.md), and documentation
   in one compatibility checkpoint.
 
 Useful inspection commands:

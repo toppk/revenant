@@ -12,9 +12,11 @@ option, menu entry, translation, and geometry behavior should be classified as:
 The behavioral oracle is the patch-410 xterm tree in the neighboring `xterm`
 repository. The first implementation preserves all three VT popup-menu entry
 names, but deliberately disables entries which have not been implemented yet.
-Intentional departures from that oracle are recorded in [`../DRIFT.md`](../DRIFT.md);
+Intentional departures from that oracle are recorded in the
+[xterm differences ledger](../docs/compatibility/drift.md);
 this inventory tracks the compatibility surface and implementation status.
-Compatibility is one of two product bars: [`../ROADMAP.md`](../ROADMAP.md)
+Compatibility is one of two product bars: the
+[project roadmap](../docs/maintainers/roadmap.md)
 tracks the parallel requirement that xterm+ expose at least the functional
 terminal baseline demonstrated by Ghostling.
 
@@ -45,7 +47,8 @@ must also be implemented and is reported separately.
 
 The baseline is intentionally tied to the active patch-410 build configuration.
 Changing the xterm reference or its compile-time feature set requires updating
-all three catalogs and recording the new oracle in `DRIFT.md`.
+all three catalogs and recording the new oracle in
+`docs/compatibility/drift.md`.
 
 ## Current classifications
 
