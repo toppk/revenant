@@ -34,8 +34,16 @@ main(int argc, char **argv)
         KeyCode keycode;
         XEvent event = {0};
 
-        if (argc != 3 || (strcmp(argv[2], "ctrl-i") != 0 && strcmp(argv[2], "tab") != 0)) {
-                fprintf(stderr, "usage: %s WINDOW-ID {ctrl-i|tab}\n", argv[0]);
+        if (argc != 3 ||
+            (strcmp(argv[2], "ctrl-i") != 0 && strcmp(argv[2], "tab") != 0 &&
+             strcmp(argv[2], "a-cycle") != 0 && strcmp(argv[2], "shift-a-cycle") != 0 &&
+             strcmp(argv[2], "ctrl-cycle") != 0 && strcmp(argv[2], "up-cycle") != 0 &&
+             strcmp(argv[2], "shift-insert-cycle") != 0)) {
+                fprintf(stderr,
+                        "usage: %s WINDOW-ID "
+                        "{ctrl-i|tab|a-cycle|shift-a-cycle|ctrl-cycle|up-cycle|"
+                        "shift-insert-cycle}\n",
+                        argv[0]);
                 return EXIT_FAILURE;
         }
         if (ParseWindow(argv[1], &target) != 0) {
@@ -45,6 +53,21 @@ main(int argc, char **argv)
         if (strcmp(argv[2], "ctrl-i") == 0) {
                 keysym = XK_i;
                 state = ControlMask;
+        } else if (strcmp(argv[2], "a-cycle") == 0) {
+                keysym = XK_a;
+                state = 0;
+        } else if (strcmp(argv[2], "shift-a-cycle") == 0) {
+                keysym = XK_a;
+                state = ShiftMask;
+        } else if (strcmp(argv[2], "ctrl-cycle") == 0) {
+                keysym = XK_Control_L;
+                state = ControlMask;
+        } else if (strcmp(argv[2], "up-cycle") == 0) {
+                keysym = XK_Up;
+                state = 0;
+        } else if (strcmp(argv[2], "shift-insert-cycle") == 0) {
+                keysym = XK_Insert;
+                state = ShiftMask;
         } else {
                 keysym = XK_Tab;
                 state = 0;
@@ -83,6 +106,8 @@ main(int argc, char **argv)
         event.xkey.same_screen = True;
         event.xkey.type = KeyPress;
         (void)XSendEvent(display, target, True, KeyPressMask, &event);
+        if (strstr(argv[2], "-cycle") != NULL)
+                (void)XSendEvent(display, target, True, KeyPressMask, &event);
         event.xkey.type = KeyRelease;
         (void)XSendEvent(display, target, True, KeyReleaseMask, &event);
         XSync(display, False);

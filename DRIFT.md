@@ -92,6 +92,14 @@ The X11 adapter must pass both the base key identity and printable logical
 text to libghostty. It must not forward Xlib's already-collapsed C0 byte as the
 text value or drop the event entirely.
 
+xterm+ also supports application-negotiated Kitty keyboard flags, including
+press/repeat/release events, shifted and base-layout alternatives, bare
+modifier keys, all-keys-as-escape encoding, associated UTF-8 text, and nested
+flag stacks. This is a major capability extension beyond xterm's keyboard
+protocol surface. Except for the default fixterms distinctions described
+above, those extra event forms are emitted only after an application requests
+the corresponding Kitty flags.
+
 ### Structured diagnostic logging
 
 xterm+ emits `hh:mm:ss subsystem: message` diagnostics on standard error.

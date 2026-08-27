@@ -122,8 +122,17 @@ typedef enum
         XTP_KEY_QUOTE,
         XTP_KEY_SEMICOLON,
         XTP_KEY_SLASH,
+        XTP_KEY_ALT_LEFT,
+        XTP_KEY_ALT_RIGHT,
         XTP_KEY_BACKSPACE,
+        XTP_KEY_CAPS_LOCK,
+        XTP_KEY_CONTROL_LEFT,
+        XTP_KEY_CONTROL_RIGHT,
         XTP_KEY_ENTER,
+        XTP_KEY_META_LEFT,
+        XTP_KEY_META_RIGHT,
+        XTP_KEY_SHIFT_LEFT,
+        XTP_KEY_SHIFT_RIGHT,
         XTP_KEY_SPACE,
         XTP_KEY_TAB,
         XTP_KEY_DELETE,
@@ -136,6 +145,7 @@ typedef enum
         XTP_KEY_ARROW_LEFT,
         XTP_KEY_ARROW_RIGHT,
         XTP_KEY_ARROW_UP,
+        XTP_KEY_NUM_LOCK,
         XTP_KEY_NUMPAD_0,
         XTP_KEY_NUMPAD_1,
         XTP_KEY_NUMPAD_2,
@@ -175,8 +185,16 @@ typedef enum
 #define XTP_MOD_CAPS_LOCK (1U << 4)
 #define XTP_MOD_NUM_LOCK (1U << 5)
 
+typedef enum
+{
+        XTP_KEY_ACTION_PRESS,
+        XTP_KEY_ACTION_REPEAT,
+        XTP_KEY_ACTION_RELEASE,
+} XtpKeyAction;
+
 typedef struct
 {
+        XtpKeyAction action;
         XtpKey key;
         unsigned int modifiers;
         const char *utf8;

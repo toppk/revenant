@@ -21,7 +21,7 @@ not finished the user-visible integration or acceptance coverage.
 | Bold, italic, and inverse styles | Partial | Add an italic Xft face/path and complete style-combination coverage. |
 | Unicode and multi-codepoint graphemes, without shaping or layout | Partial | Full grapheme bytes reach Xft; add fallback faces and acceptance coverage for unsupported glyphs, combining text, and emoji. |
 | Keyboard input with Shift, Ctrl, Alt, and Super | Partial | Complete the X11 key map and exact modifier/application-mode regression matrix. |
-| Kitty keyboard protocol | Partial | Complete the acceptance backlog below, especially repeat and release events. |
+| Kitty keyboard protocol | Present | Retain exact state-stack and X11 press/repeat/release fixtures; expand non-US XIM coverage as layouts become available in CI. |
 | Kitty graphics protocol | Missing | Expose image placement/lifecycle through `terminal.h` and safely composite it in X11. Parser state alone is not promotion. |
 | X10, normal, button-event, and any-event mouse tracking | Present | Retain backend and Xvfb routing coverage. |
 | SGR, URxvt, UTF-8, and X10 mouse reports | Present | Retain exact encoding coverage; xterm+ also supports SGR-pixel reports. |
@@ -31,37 +31,45 @@ not finished the user-visible integration or acceptance coverage.
 
 <!-- markdownlint-enable MD013 -->
 
-Current total: **7 Present, 4 Partial, 1 Missing**.
+Current total: **8 Present, 3 Partial, 1 Missing**.
 
 ## Kitty keyboard acceptance backlog
 
-The terminal core already parses Kitty keyboard configuration and its encoder
-consults current terminal state. That is not sufficient for parity. Promotion
-requires real X key events to exercise all of the following through the PTY:
+The terminal core parses Kitty keyboard configuration and its encoder consults
+current terminal state. xterm+ now also preserves X11 press, detectable
+autorepeat, and release actions at that boundary. Promotion is backed by the
+following maintained checks:
 
-- Query current flags with `CSI ? u`, including correct ordering with a
+- [x] Query current flags with `CSI ? u`, including correct ordering with a
   following device-attributes query.
-- Set, augment, and clear flags with all three `CSI = flags ; mode u` modes.
-- Push and pop nested flag sets, restoring the outer application's state.
-- Preserve the legacy encoding when no flags are active.
-- Preserve libghostty's default fixterms exception to legacy encoding:
+- [x] Set, augment, and clear flags with all three `CSI = flags ; mode u` modes.
+- [x] Push and pop nested flag sets, restoring the outer application's state.
+- [x] Preserve the legacy encoding when no flags are active.
+- [x] Preserve libghostty's default fixterms exception to legacy encoding:
   Ctrl-I is `CSI 105;5 u` while Tab is `0x09`, even before Kitty flags are
   enabled. This intentional xterm incompatibility is recorded in `DRIFT.md`.
-- Flag `1`: disambiguate Escape, Ctrl/Alt combinations, Tab, Enter, and
+- [x] Flag `1`: disambiguate Escape, Ctrl/Alt combinations, Tab, Enter, and
   Backspace.
-- Flag `2`: distinguish press, autorepeat, and release. xterm+ currently
-  forwards only the press-side event and therefore does not satisfy this
-  flag yet.
-- Flag `4`: report shifted and base-layout alternatives.
-- Flag `8`: encode ordinary printable keys as escape sequences and verify its
+- [x] Flag `2`: distinguish press, autorepeat, and release. The X11 adapter
+  uses XKB detectable autorepeat when available and the conventional paired
+  release/press fallback on older servers.
+- [x] Flag `4`: report shifted and base-layout alternatives.
+- [x] Flag `8`: encode ordinary printable keys as escape sequences and verify its
   interaction with DECCKM and keypad modes.
-- Flag `16`: report associated text, including composed/XIM UTF-8 input.
-- Preserve Shift, Ctrl, Alt, Super, Caps Lock, and Num Lock modifiers in the
+- [x] Flag `16`: report associated text, including composed/XIM UTF-8 input.
+- [x] Preserve Shift, Ctrl, Alt, Super, Caps Lock, and Num Lock modifiers in the
   combinations representable by X11.
-- Keep bracketed paste, mouse reports, xterm local bindings, popup menus, and
+- [x] Keep bracketed paste, mouse reports, xterm local bindings, popup menus, and
   the OSC 8 Shift gesture outside the keyboard protocol.
-- Turn real application failures reported by the maintainer into named,
+- [x] Turn real application failures reported by the maintainer into named,
   reproducible fixtures with exact expected PTY bytes.
+
+`tests/xvfb-keyboard.sh` protects the zero-flags Ctrl-I/Tab split.
+`tests/xvfb-kitty-keyboard.sh` drives real X key events and compares exact PTY
+bytes for press, repeat, release, shifted alternatives, associated text, and a
+bare modifier. The backend self-test protects query ordering, every set mode,
+and nested stack restoration. Non-US layouts and composed XIM input remain
+useful matrix expansion, but are no longer missing protocol plumbing.
 
 The wire format and manual probes are documented in the
 [TDN Kitty keyboard reference](https://toppk.github.io/xterm-plus/tdn/input/kitty-keyboard/).

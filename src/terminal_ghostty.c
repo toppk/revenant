@@ -91,8 +91,17 @@ static const GhosttyKey key_map[XTP_KEY_COUNT] = {
     [XTP_KEY_QUOTE] = GHOSTTY_KEY_QUOTE,
     [XTP_KEY_SEMICOLON] = GHOSTTY_KEY_SEMICOLON,
     [XTP_KEY_SLASH] = GHOSTTY_KEY_SLASH,
+    [XTP_KEY_ALT_LEFT] = GHOSTTY_KEY_ALT_LEFT,
+    [XTP_KEY_ALT_RIGHT] = GHOSTTY_KEY_ALT_RIGHT,
     [XTP_KEY_BACKSPACE] = GHOSTTY_KEY_BACKSPACE,
+    [XTP_KEY_CAPS_LOCK] = GHOSTTY_KEY_CAPS_LOCK,
+    [XTP_KEY_CONTROL_LEFT] = GHOSTTY_KEY_CONTROL_LEFT,
+    [XTP_KEY_CONTROL_RIGHT] = GHOSTTY_KEY_CONTROL_RIGHT,
     [XTP_KEY_ENTER] = GHOSTTY_KEY_ENTER,
+    [XTP_KEY_META_LEFT] = GHOSTTY_KEY_META_LEFT,
+    [XTP_KEY_META_RIGHT] = GHOSTTY_KEY_META_RIGHT,
+    [XTP_KEY_SHIFT_LEFT] = GHOSTTY_KEY_SHIFT_LEFT,
+    [XTP_KEY_SHIFT_RIGHT] = GHOSTTY_KEY_SHIFT_RIGHT,
     [XTP_KEY_SPACE] = GHOSTTY_KEY_SPACE,
     [XTP_KEY_TAB] = GHOSTTY_KEY_TAB,
     [XTP_KEY_DELETE] = GHOSTTY_KEY_DELETE,
@@ -105,6 +114,7 @@ static const GhosttyKey key_map[XTP_KEY_COUNT] = {
     [XTP_KEY_ARROW_LEFT] = GHOSTTY_KEY_ARROW_LEFT,
     [XTP_KEY_ARROW_RIGHT] = GHOSTTY_KEY_ARROW_RIGHT,
     [XTP_KEY_ARROW_UP] = GHOSTTY_KEY_ARROW_UP,
+    [XTP_KEY_NUM_LOCK] = GHOSTTY_KEY_NUM_LOCK,
     [XTP_KEY_NUMPAD_0] = GHOSTTY_KEY_NUMPAD_0,
     [XTP_KEY_NUMPAD_1] = GHOSTTY_KEY_NUMPAD_1,
     [XTP_KEY_NUMPAD_2] = GHOSTTY_KEY_NUMPAD_2,
@@ -1779,14 +1789,26 @@ int
 XtpTerminalEncodeKey(XtpTerminal *terminal, const XtpKeyEvent *event, char *buffer, size_t capacity,
                      size_t *written)
 {
+        GhosttyKeyAction action = GHOSTTY_KEY_ACTION_PRESS;
         GhosttyMods mods;
 
         if (terminal == NULL || event == NULL || event->key >= XTP_KEY_COUNT)
                 return -1;
         mods = ConvertModifiers(event->modifiers);
+        switch (event->action) {
+        case XTP_KEY_ACTION_PRESS:
+                action = GHOSTTY_KEY_ACTION_PRESS;
+                break;
+        case XTP_KEY_ACTION_REPEAT:
+                action = GHOSTTY_KEY_ACTION_REPEAT;
+                break;
+        case XTP_KEY_ACTION_RELEASE:
+                action = GHOSTTY_KEY_ACTION_RELEASE;
+                break;
+        }
 
         ghostty_key_encoder_setopt_from_terminal(terminal->key_encoder, terminal->handle);
-        ghostty_key_event_set_action(terminal->keyEvent, GHOSTTY_KEY_ACTION_PRESS);
+        ghostty_key_event_set_action(terminal->keyEvent, action);
         ghostty_key_event_set_key(terminal->keyEvent, key_map[event->key]);
         ghostty_key_event_set_mods(terminal->keyEvent, mods);
         ghostty_key_event_set_consumed_mods(terminal->keyEvent, 0);
@@ -1797,8 +1819,9 @@ XtpTerminalEncodeKey(XtpTerminal *terminal, const XtpKeyEvent *event, char *buff
                                        written) != GHOSTTY_SUCCESS)
                 return -1;
         XtpLog(XTP_LOG_DEBUG, "input",
-               "encoded key=%d modifiers=0x%x text-bytes=%zu output-bytes=%zu", (int)event->key,
-               event->modifiers, event->utf8_length, written != NULL ? *written : 0U);
+               "encoded key=%d action=%d modifiers=0x%x text-bytes=%zu output-bytes=%zu",
+               (int)event->key, (int)event->action, event->modifiers, event->utf8_length,
+               written != NULL ? *written : 0U);
         return 0;
 }
 

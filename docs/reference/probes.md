@@ -31,3 +31,9 @@ The probes deliberately do not decide pass or fail from screenshots or visual
 output. Stable machine assertions belong in the automated test suite. The
 keyboard probe is the exception for protocol parsing: its noninteractive
 `--self-test` validates the decoder used to explain captured bytes.
+
+Machine acceptance for keyboard delivery lives separately in
+`tests/xvfb-keyboard.sh` and `tests/xvfb-kitty-keyboard.sh`. The latter checks
+exact press, repeat, release, alternate-key, associated-text, and modifier
+bytes through a real X server and PTY; it is not a replacement for testing a
+human keyboard layout or input method with `probe-keymodes.py`.

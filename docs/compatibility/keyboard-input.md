@@ -58,6 +58,25 @@ is recorded in the repository's `DRIFT.md`, not an implementation gap.
 The protocol mechanics and the zero-flags exception are covered in the
 [TDN Kitty keyboard reference](https://toppk.github.io/xterm-plus/tdn/input/kitty-keyboard/).
 
+## Negotiated Kitty keyboard input
+
+xterm+ implements the five Kitty keyboard flags through its real X11 input
+path. Applications can query, set, augment, clear, push, and pop flag sets.
+When event reporting is active, a held key is distinguished as an initial
+press, one or more repeats, and a release. Shifted/base-layout alternatives,
+all-keys-as-escapes, associated UTF-8 text, bare modifier keys, and the X11
+Shift, Ctrl, Alt, Super, Caps Lock, and Num Lock states are passed to
+libghostty's encoder.
+
+XKB detectable autorepeat is enabled when the X server supports it. On an
+older server, xterm+ recognizes the traditional adjacent release/press pair
+with the same keycode and timestamp. Losing focus clears the pressed-key set
+so a missing release cannot turn a later press into a false repeat.
+
+Xt-owned gestures remain local. In particular, Shift+Insert paste,
+Shift+PageUp/PageDown history navigation, popup menus, mouse reporting, and
+OSC 8 Shift-click do not leak partial keyboard-protocol events to the child.
+
 ## Interactive acceptance probe
 
 The repository includes `tools/probe-keymodes.py` for comparing cooked input, raw
@@ -77,5 +96,6 @@ python3 tools/probe-keymodes.py --kitty-only
 The Kitty stage requests flags `1|2|4|8|16`, prints every exact input byte
 sequence alongside its decoded key/modifier/event fields, counts press,
 repeat, and release events, and verifies that popping the flag stack restores
-the value observed before the probe. A terminal which grants event flag `2`
-but sends no release events receives an explicit warning.
+the value observed before the probe. It warns if a terminal grants event flag
+`2` but sends no release events, making it useful for comparisons with older
+xterm+ builds and other terminals.

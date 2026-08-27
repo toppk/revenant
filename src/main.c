@@ -11,6 +11,7 @@
 #include <X11/StringDefs.h>
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
+#include <X11/XKBlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 
@@ -38,6 +39,9 @@ typedef struct
         XIM input_method;
         XIC input_context;
         Atom wm_delete_window;
+        uint8_t pressed_keycodes[32];
+        uint8_t filtered_keycodes[32];
+        Boolean detectable_autorepeat;
         Boolean running;
 } App;
 
@@ -634,10 +638,30 @@ KeyFromKeysym(KeySym keysym)
                 return XTP_KEY_SEMICOLON;
         case XK_slash:
                 return XTP_KEY_SLASH;
+        case XK_Alt_L:
+                return XTP_KEY_ALT_LEFT;
+        case XK_Alt_R:
+                return XTP_KEY_ALT_RIGHT;
         case XK_BackSpace:
                 return XTP_KEY_BACKSPACE;
+        case XK_Caps_Lock:
+                return XTP_KEY_CAPS_LOCK;
+        case XK_Control_L:
+                return XTP_KEY_CONTROL_LEFT;
+        case XK_Control_R:
+                return XTP_KEY_CONTROL_RIGHT;
         case XK_Return:
                 return XTP_KEY_ENTER;
+        case XK_Meta_L:
+        case XK_Super_L:
+                return XTP_KEY_META_LEFT;
+        case XK_Meta_R:
+        case XK_Super_R:
+                return XTP_KEY_META_RIGHT;
+        case XK_Shift_L:
+                return XTP_KEY_SHIFT_LEFT;
+        case XK_Shift_R:
+                return XTP_KEY_SHIFT_RIGHT;
         case XK_space:
                 return XTP_KEY_SPACE;
         case XK_Tab:
@@ -663,6 +687,8 @@ KeyFromKeysym(KeySym keysym)
                 return XTP_KEY_ARROW_RIGHT;
         case XK_Up:
                 return XTP_KEY_ARROW_UP;
+        case XK_Num_Lock:
+                return XTP_KEY_NUM_LOCK;
         case XK_KP_0:
         case XK_KP_Insert:
                 return XTP_KEY_NUMPAD_0;
@@ -742,8 +768,22 @@ PrintableAsciiKeysym(KeySym keysym, char *text)
         return true;
 }
 
+static const char *
+KeyActionName(XtpKeyAction action)
+{
+        switch (action) {
+        case XTP_KEY_ACTION_PRESS:
+                return "press";
+        case XTP_KEY_ACTION_REPEAT:
+                return "repeat";
+        case XTP_KEY_ACTION_RELEASE:
+                return "release";
+        }
+        return "unknown";
+}
+
 static void
-KeyEvent(App *app, XKeyEvent *xkey)
+KeyEvent(App *app, XKeyEvent *xkey, XtpKeyAction action)
 {
         char text[128];
         char encoded[256];
@@ -763,7 +803,7 @@ KeyEvent(App *app, XKeyEvent *xkey)
                 return;
         }
 
-        if (app->input_context != NULL) {
+        if (action != XTP_KEY_ACTION_RELEASE && app->input_context != NULL) {
                 length = Xutf8LookupString(app->input_context, xkey, text, (int)sizeof(text),
                                            &keysym, &status);
         } else {
@@ -773,8 +813,18 @@ KeyEvent(App *app, XKeyEvent *xkey)
         if (status == XBufferOverflow)
                 return;
 
+        event.action = action;
         event.key = KeyFromKeysym(physical != NoSymbol ? physical : keysym);
         event.modifiers = KeyModifiers(xkey->state);
+        if (event.key == XTP_KEY_SHIFT_LEFT || event.key == XTP_KEY_SHIFT_RIGHT) {
+                event.modifiers |= XTP_MOD_SHIFT;
+        } else if (event.key == XTP_KEY_CONTROL_LEFT || event.key == XTP_KEY_CONTROL_RIGHT) {
+                event.modifiers |= XTP_MOD_CONTROL;
+        } else if (event.key == XTP_KEY_ALT_LEFT || event.key == XTP_KEY_ALT_RIGHT) {
+                event.modifiers |= XTP_MOD_ALT;
+        } else if (event.key == XTP_KEY_META_LEFT || event.key == XTP_KEY_META_RIGHT) {
+                event.modifiers |= XTP_MOD_SUPER;
+        }
         if ((status == XLookupChars || status == XLookupBoth) && length > 0 &&
             (unsigned char)text[0] >= 0x20U && (unsigned char)text[0] != 0x7fU) {
                 event.utf8 = text;
@@ -792,16 +842,50 @@ KeyEvent(App *app, XKeyEvent *xkey)
         if (physical >= XK_space && physical <= XK_asciitilde)
                 event.unshifted_codepoint = (uint32_t)physical;
 
-        XtpLog(
-            XTP_LOG_DEBUG, "input",
-            "keypress keycode=%u keysym=0x%lx physical=0x%lx mapped=%d state=0x%x text-bytes=%zu",
-            xkey->keycode, keysym, physical, (int)event.key, xkey->state, event.utf8_length);
+        XtpLog(XTP_LOG_DEBUG, "input",
+               "key action=%s keycode=%u keysym=0x%lx physical=0x%lx mapped=%d state=0x%x "
+               "text-bytes=%zu",
+               KeyActionName(action), xkey->keycode, keysym, physical, (int)event.key, xkey->state,
+               event.utf8_length);
 
         if (XtpTerminalEncodeKey(app->terminal, &event, encoded, sizeof(encoded), &written) == 0 &&
             written != 0) {
-                XtpVtScrollOnKeypress(app->vt);
+                if (action != XTP_KEY_ACTION_RELEASE)
+                        XtpVtScrollOnKeypress(app->vt);
                 WritePtyBytes(app, (const uint8_t *)encoded, written);
         }
+}
+
+static bool
+KeycodeSet(const uint8_t keycodes[32], unsigned int keycode)
+{
+        return keycode < 256U && (keycodes[keycode / 8U] & (uint8_t)(1U << (keycode % 8U))) != 0;
+}
+
+static void
+SetKeycode(uint8_t keycodes[32], unsigned int keycode, bool set)
+{
+        uint8_t mask;
+
+        if (keycode >= 256U)
+                return;
+        mask = (uint8_t)(1U << (keycode % 8U));
+        if (set)
+                keycodes[keycode / 8U] |= mask;
+        else
+                keycodes[keycode / 8U] &= (uint8_t)~mask;
+}
+
+static bool
+ClassicAutoRepeatRelease(App *app, const XKeyEvent *release)
+{
+        XEvent next;
+
+        if (app->detectable_autorepeat || XEventsQueued(app->display, QueuedAfterReading) == 0)
+                return false;
+        XPeekEvent(app->display, &next);
+        return next.type == KeyPress && next.xkey.keycode == release->keycode &&
+               next.xkey.time == release->time;
 }
 
 static bool
@@ -835,11 +919,45 @@ InputEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_di
                 XtpVtSetFocus(app->vt, False);
                 if (app->input_context != NULL)
                         XUnsetICFocus(app->input_context);
-        } else if (event->type == KeyPress && !XFilterEvent(event, XtWindow(app->shell))) {
-                if (TranslationOwnsKey(&event->xkey)) {
-                        XtpLog(XTP_LOG_DEBUG, "input", "keypress reserved for Xt translation");
+                memset(app->pressed_keycodes, 0, sizeof(app->pressed_keycodes));
+                memset(app->filtered_keycodes, 0, sizeof(app->filtered_keycodes));
+        } else if (event->type == KeyPress || event->type == KeyRelease) {
+                XtpKeyAction action;
+                bool filtered = XFilterEvent(event, XtWindow(app->shell));
+
+                if (event->type == KeyPress && filtered) {
+                        SetKeycode(app->filtered_keycodes, event->xkey.keycode, true);
+                        return;
+                }
+                if (event->type == KeyRelease &&
+                    (filtered || KeycodeSet(app->filtered_keycodes, event->xkey.keycode))) {
+                        SetKeycode(app->filtered_keycodes, event->xkey.keycode, false);
+                        SetKeycode(app->pressed_keycodes, event->xkey.keycode, false);
+                        return;
+                }
+                if (filtered)
+                        return;
+
+                if (event->type == KeyRelease && ClassicAutoRepeatRelease(app, &event->xkey)) {
+                        XtpLog(XTP_LOG_DEBUG, "input",
+                               "key release suppressed for classic autorepeat keycode=%u",
+                               event->xkey.keycode);
+                        return;
+                }
+                if (event->type == KeyRelease) {
+                        action = XTP_KEY_ACTION_RELEASE;
+                        SetKeycode(app->pressed_keycodes, event->xkey.keycode, false);
+                } else if (KeycodeSet(app->pressed_keycodes, event->xkey.keycode)) {
+                        action = XTP_KEY_ACTION_REPEAT;
                 } else {
-                        KeyEvent(app, &event->xkey);
+                        action = XTP_KEY_ACTION_PRESS;
+                        SetKeycode(app->pressed_keycodes, event->xkey.keycode, true);
+                }
+                if (TranslationOwnsKey(&event->xkey)) {
+                        XtpLog(XTP_LOG_DEBUG, "input", "key %s reserved for Xt translation",
+                               KeyActionName(action));
+                } else {
+                        KeyEvent(app, &event->xkey, action);
                 }
         }
 }
@@ -1806,6 +1924,74 @@ done:
         return result;
 }
 
+typedef struct
+{
+        uint8_t bytes[256];
+        size_t used;
+        bool overflow;
+} SelfTestPtyCapture;
+
+static void
+SelfTestCapturePty(const uint8_t *bytes, size_t length, void *closure)
+{
+        SelfTestPtyCapture *capture = closure;
+
+        if (length > sizeof(capture->bytes) - capture->used) {
+                capture->overflow = true;
+                return;
+        }
+        memcpy(capture->bytes + capture->used, bytes, length);
+        capture->used += length;
+}
+
+static int
+SelfTestKittyKeyboardState(void)
+{
+        static const uint8_t query_order[] = "\033[?u\033[c";
+        static const uint8_t query_order_expected[] = "\033[?0u\033[?62;22c";
+        static const uint8_t state_transitions[] = "\033[=1;1u\033[?u" /* set: 1 */
+                                                   "\033[=2;2u\033[?u" /* augment: 1 | 2 = 3 */
+                                                   "\033[=1;3u\033[?u" /* clear: 3 & ~1 = 2 */
+                                                   "\033[>4u\033[?u"   /* outer push: 4 */
+                                                   "\033[>8u\033[?u"   /* inner push: 8 */
+                                                   "\033[<u\033[?u"    /* restore outer: 4 */
+                                                   "\033[<u\033[?u";   /* restore original: 2 */
+        static const uint8_t state_expected[] =
+            "\033[?1u\033[?3u\033[?2u\033[?4u\033[?8u\033[?4u\033[?2u";
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestCapturePty,
+            .closure = &capture,
+        };
+        int result = -1;
+
+        if (strcmp(XtpTerminalBackend(), "libghostty-vt") != 0)
+                return 0;
+        terminal = XtpTerminalNew(80, 24, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        XtpTerminalFeed(terminal, query_order, sizeof(query_order) - 1U);
+        if (capture.overflow || capture.used != sizeof(query_order_expected) - 1U ||
+            memcmp(capture.bytes, query_order_expected, sizeof(query_order_expected) - 1U) != 0)
+                goto mismatch;
+        capture.used = 0;
+        capture.overflow = false;
+        XtpTerminalFeed(terminal, state_transitions, sizeof(state_transitions) - 1U);
+        if (capture.overflow || capture.used != sizeof(state_expected) - 1U ||
+            memcmp(capture.bytes, state_expected, sizeof(state_expected) - 1U) != 0)
+                goto mismatch;
+        result = 0;
+        goto done;
+mismatch:
+        XtpLog(XTP_LOG_ERROR, "self-test", "Kitty keyboard state mismatch length=%zu bytes=%.*s",
+               capture.used, (int)capture.used, capture.bytes);
+done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
 static int
 SelfTestMouse(void)
 {
@@ -1921,7 +2107,13 @@ SelfTest(void)
         XtpTerminal *terminal = XtpTerminalNew(80, 24, 8, 16);
         XtpRenderer renderer = {SelfTestBegin, SelfTestCell, SelfTestEnd};
         SelfTestRender render = {0};
-        XtpKeyEvent key = {XTP_KEY_A, 0, "a", 1, 'a'};
+        XtpKeyEvent key = {
+            .action = XTP_KEY_ACTION_PRESS,
+            .key = XTP_KEY_A,
+            .utf8 = "a",
+            .utf8_length = 1,
+            .unshifted_codepoint = 'a',
+        };
         char encoded[32];
         size_t written = 0;
         XtpTerminalScrollbar before;
@@ -1956,7 +2148,7 @@ SelfTest(void)
             SelfTestCursorStyles(&renderer) != 0 || SelfTestSelection(&renderer) != 0 ||
             SelfTestHyperlinks(&renderer) != 0 || SelfTestScrollbackLimit() != 0 ||
             SelfTestSelectionScrollback() != 0 || SelfTestScrollTtyOutput() != 0 ||
-            SelfTestFocus() != 0 || SelfTestMouse() != 0 ||
+            SelfTestFocus() != 0 || SelfTestKittyKeyboardState() != 0 || SelfTestMouse() != 0 ||
             XtpTerminalResize(terminal, 100, 30, 9, 18) != 0) {
                 XtpTerminalFree(terminal);
                 return EXIT_FAILURE;
@@ -2051,6 +2243,14 @@ main(int argc, char **argv)
                 XtpLog(XTP_LOG_ERROR, "startup", "cannot open display");
                 return EXIT_FAILURE;
         }
+        {
+                Bool supported = False;
+
+                app.detectable_autorepeat =
+                    XkbSetDetectableAutoRepeat(app.display, True, &supported) && supported;
+                XtpLog(XTP_LOG_INFO, "input", "detectable autorepeat=%s",
+                       app.detectable_autorepeat ? "enabled" : "unavailable");
+        }
         XtpLog(XTP_LOG_INFO, "startup", "display opened name=%s remaining-argc=%d",
                DisplayString(app.display), argc);
 
@@ -2132,7 +2332,8 @@ main(int argc, char **argv)
                XtpVtNaturalWidth(app.vt), XtpVtNaturalHeight(app.vt));
         UpdateGeometry(&app);
         XtSetKeyboardFocus(app.shell, app.vt);
-        XtAddEventHandler(app.vt, KeyPressMask | FocusChangeMask, False, InputEvent, &app);
+        XtAddEventHandler(app.vt, KeyPressMask | KeyReleaseMask | FocusChangeMask, False,
+                          InputEvent, &app);
         app.input_method = XOpenIM(app.display, NULL, NULL, NULL);
         if (app.input_method != NULL) {
                 app.input_context = XCreateIC(

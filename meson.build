@@ -239,6 +239,17 @@ if build_with_ghostty and xvfb.found()
         ],
         timeout: 30,
     )
+    test(
+        'xvfb-kitty-keyboard',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-kitty-keyboard.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            key_test_tool.full_path(),
+        ],
+        timeout: 30,
+    )
 endif
 
 summary(
