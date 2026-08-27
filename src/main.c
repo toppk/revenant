@@ -733,6 +733,15 @@ KeyModifiers(unsigned int state)
         return result;
 }
 
+static bool
+PrintableAsciiKeysym(KeySym keysym, char *text)
+{
+        if (keysym < XK_space || keysym > XK_asciitilde)
+                return false;
+        *text = (char)keysym;
+        return true;
+}
+
 static void
 KeyEvent(App *app, XKeyEvent *xkey)
 {
@@ -770,6 +779,15 @@ KeyEvent(App *app, XKeyEvent *xkey)
             (unsigned char)text[0] >= 0x20U && (unsigned char)text[0] != 0x7fU) {
                 event.utf8 = text;
                 event.utf8_length = (size_t)length;
+        } else if ((xkey->state & ControlMask) != 0 &&
+                   PrintableAsciiKeysym(keysym != NoSymbol ? keysym : physical, text)) {
+                /*
+                 * XLookupString collapses combinations such as Ctrl-I to their
+                 * C0 byte.  The Ghostty encoder needs the printable logical key
+                 * to distinguish Ctrl-I from Tab using its fixterms fallback.
+                 */
+                event.utf8 = text;
+                event.utf8_length = 1;
         }
         if (physical >= XK_space && physical <= XK_asciitilde)
                 event.unshifted_codepoint = (uint32_t)physical;

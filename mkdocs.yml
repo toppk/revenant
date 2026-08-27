@@ -65,8 +65,10 @@ nav:
       - Command-line options: configuration/command-line.md
   - Reference:
       - Diagnostics: reference/diagnostics.md
+      - Interactive probes: reference/probes.md
       - Readline 8.3 resize regression: reference/bash-readline-resize.md
   - Compatibility:
+      - Keyboard input differences: compatibility/keyboard-input.md
       - Ghostling feature parity: compatibility/ghostling-parity.md
       - Default VT bindings: compatibility/default-bindings.md
       - Command-line feasibility: compatibility/command-line-feasibility.md

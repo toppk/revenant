@@ -126,6 +126,15 @@ documentation recommends.
   and mouse events in their own encodings; the keyboard flags do not change
   them.
 
+Ghostty, and therefore xterm+, has one important exception to the opt-in
+boundary: its default fixterms encoder reports ambiguous Ctrl-I, Ctrl-M, and
+Ctrl-[ combinations using CSI-u even while the Kitty flag value is zero. For
+example, Ctrl-I sends `CSI 105 ; 5 u`, while Tab remains `0x09`. Seeing one of
+these sequences does not mean that an application enabled Kitty flags; query
+`CSI ? u` to determine the active protocol state. Traditional xterm collapses
+these pairs instead. xterm+ records this substantial default-input difference
+in its `DRIFT.md`.
+
 ## Compatibility
 
 <!-- markdownlint-disable MD013 -->

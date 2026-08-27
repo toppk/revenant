@@ -159,6 +159,13 @@ font_key_test_tool = executable(
     install: false,
 )
 
+key_test_tool = executable(
+    'xtp-send-key',
+    'tests/xtp-send-key.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
 wheel_test_tool = executable(
     'xtp-send-wheel',
     'tests/xtp-send-wheel.c',
@@ -200,6 +207,12 @@ test(
     args: ['--self-test'],
 )
 
+test(
+    'probe-keymodes-parser',
+    python3,
+    args: [files('tools/probe-keymodes.py'), '--self-test'],
+)
+
 xvfb = find_program('Xvfb', required: false)
 if build_with_ghostty and xvfb.found()
     test(
@@ -215,6 +228,17 @@ if build_with_ghostty and xvfb.found()
         ],
         timeout: 30,
     )
+    test(
+        'xvfb-keyboard',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-keyboard.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            key_test_tool.full_path(),
+        ],
+        timeout: 30,
+    )
 endif
 
 summary(
@@ -226,6 +250,7 @@ summary(
         'libghostty source': ghostty_source_dir,
         'profiling frame pointers': get_option('profiling'),
         'font-key test tool': font_key_test_tool.full_path(),
+        'key test tool': key_test_tool.full_path(),
         'selection test tool': selection_test_tool.full_path(),
         'selection reader tool': selection_reader_tool.full_path(),
         'Shift-click test tool': shift_click_test_tool.full_path(),

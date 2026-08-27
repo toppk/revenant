@@ -22,6 +22,11 @@ compatibility scope stays honest.
 
 Intentional behavioral and architectural differences from the current xterm
 patch-410 reference are maintained in [`DRIFT.md`](DRIFT.md).
+One major user-visible difference is default keyboard encoding: xterm+ follows
+libghostty's fixterms behavior and distinguishes Ctrl-I from Tab, Ctrl-M from
+Enter, and Ctrl-[ from Escape even before an application enables Kitty
+keyboard flags. See the
+[keyboard compatibility warning](docs/compatibility/keyboard-input.md).
 The roles and update policy for local Ghostty, Ghostling, xterm snapshot, and
 xterm.dev checkouts under ignored `upstream/` are documented in
 [`UPSTREAM.md`](UPSTREAM.md). Maintainer working agreements and architecture
@@ -35,6 +40,11 @@ Start with [`docs/configuration/xresources.md`](docs/configuration/xresources.md
 if X resources are new to you. Preview all three together with
 `just serve`, or one site with live reload via `just serve-docs` or
 `just serve-tdn` (uses `uvx`; see the `justfile`).
+
+Human-run verification programs follow the discoverable
+`tools/probe-<feature>.<ext>` naming convention. The current color, OSC 8,
+emoji/grapheme, and keyboard probes are cataloged in
+[`docs/reference/probes.md`](docs/reference/probes.md).
 
 ## Relationship to xterm source
 

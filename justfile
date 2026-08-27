@@ -48,6 +48,22 @@ reflow-prompt: build-gcc
 reflow-resize window: build-gcc
     ./{{gcc_build}}/xtp-resize-loop "{{window}}" --grid 38 80 24 250
 
+# Interactively inspect legacy, raw, and Kitty keyboard encoding
+probe-keymodes *args:
+    python3 tools/probe-keymodes.py {{args}}
+
+# Display the SGR attribute and color sampler
+probe-color:
+    tools/probe-color.sh
+
+# Display OSC 8 links for hover and activation checks
+probe-osc8:
+    tools/probe-osc8.sh
+
+# Interactively inspect emoji, grapheme width, and alignment
+probe-emoji *args:
+    python3 tools/probe-emoji.py {{args}}
+
 # Build and test all supported compiler/backend combinations
 test: test-gcc test-clang test-stub
 

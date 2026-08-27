@@ -47,7 +47,10 @@ and every menu entry and command-line option is classified in the
 - **Coming from xterm?**
   Go straight to [Configuring xterm+](configuration/xterm-plus.md) and
   the [command-line feasibility](compatibility/command-line-feasibility.md)
-  table to see which of your options already work.
+  table to see which of your options already work. Also read the
+  [major default keyboard-input difference](compatibility/keyboard-input.md):
+  xterm+ deliberately distinguishes Ctrl-I from Tab, Ctrl-M from Enter, and
+  Ctrl-[ from Escape without application opt-in.
 
 - **Building it**
   [Install](getting-started/install.md) covers the stub build for UI work
@@ -55,7 +58,9 @@ and every menu entry and command-line option is classified in the
 
 - **Something looks wrong**
   [Diagnostics](reference/diagnostics.md) explains `-report-config`, the
-  structured log, and the CPU profiling helper.
+  structured log, and the CPU profiling helper. The
+  [interactive probe suite](reference/probes.md) provides named visual and
+  keyboard fixtures for comparing xterm+, xterm, and Ghostty.
 
 - **Writing a terminal application or emulator**
   The [Terminal Developers Network](https://toppk.github.io/xterm-plus/tdn/) explains control protocols,

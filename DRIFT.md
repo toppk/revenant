@@ -61,6 +61,37 @@ ordinary text is never promoted to a link heuristically. This is an
 intentional extension to the patch-410 interaction contract, including when
 Shift overrides application mouse reporting.
 
+### Major default keyboard-input drift
+
+This difference affects bytes sent to applications under the default terminal
+configuration. It is therefore a larger compatibility departure than an
+additional UI gesture or an internal backend substitution.
+
+xterm's traditional keyboard encoding collapses Ctrl-I with Tab, Ctrl-M with
+Enter, and Ctrl-[ with Escape before the bytes reach the pseudoterminal. Raw
+TTY mode cannot recover those distinctions: it only prevents the kernel from
+transforming bytes the terminal has already encoded.
+
+xterm+ follows libghostty's fixterms behavior even when an application has not
+explicitly enabled the Kitty keyboard protocol. It sends the ambiguous Ctrl
+key combinations as CSI-u sequences; for example, Ctrl-I is
+`CSI 105;5 u`, while Tab remains the single byte `0x09`. This is a substantial
+intentional departure from xterm's default input contract. It lets modern
+raw-mode applications distinguish the physical intentions, but an application
+which assumes xterm's byte aliases may observe different input without first
+negotiating a keyboard protocol.
+
+These three split aliases are the named acceptance fixture, not the complete
+compatibility boundary. Libghostty's legacy encoder also incorporates
+fixterms and selected Kitty conventions for some Ctrl+Shift, digit,
+punctuation, Alt+Ctrl, lock-state, and non-US-layout combinations. Those cases
+require an explicit byte-for-byte matrix against xterm; they must not be
+assumed compatible merely because ordinary Ctrl-letter input is compatible.
+
+The X11 adapter must pass both the base key identity and printable logical
+text to libghostty. It must not forward Xlib's already-collapsed C0 byte as the
+text value or drop the event entirely.
+
 ### Structured diagnostic logging
 
 xterm+ emits `hh:mm:ss subsystem: message` diagnostics on standard error.
