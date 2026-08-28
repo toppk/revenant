@@ -51,6 +51,7 @@ util_dep = cc.find_library('util')
 m_dep = cc.find_library('m')
 
 sources = files(
+    'src/char_class.c',
     'src/command_options.c',
     'src/config_report.c',
     'src/diagnostics.c',

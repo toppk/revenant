@@ -1,5 +1,6 @@
 #include "terminal.h"
 
+#include "char_class.h"
 #include "diagnostics.h"
 
 #include <stdlib.h>
@@ -13,6 +14,7 @@ struct XtpTerminal
         uint32_t cell_height;
         size_t scrollback_lines;
         bool modes[XTP_TERMINAL_MODE_COUNT];
+        XtpCharClassTable *char_classes;
         XtpTerminalEffects effects;
 };
 
@@ -36,6 +38,8 @@ void
 XtpTerminalFree(XtpTerminal *terminal)
 {
         XtpLog(XTP_LOG_INFO, "terminal", "destroying backend=stub");
+        if (terminal != NULL)
+                XtpCharClassFree(terminal->char_classes);
         free(terminal);
 }
 
@@ -150,8 +154,20 @@ XtpTerminalSetCursorBlinkDefault(XtpTerminal *terminal, bool blinking)
 int
 XtpTerminalSetCharClass(XtpTerminal *terminal, const char *specification)
 {
-        (void)specification;
-        return terminal != NULL ? 0 : -1;
+        XtpCharClassTable *table = NULL;
+
+        if (terminal == NULL)
+                return -1;
+        if (XtpCharClassParse(specification, &table) != 0) {
+                XtpLog(XTP_LOG_WARNING, "selection", "invalid charClass specification=%s",
+                       specification);
+                return -1;
+        }
+        XtpCharClassFree(terminal->char_classes);
+        terminal->char_classes = table;
+        XtpLog(XTP_LOG_INFO, "selection", "stub charClass specification=%s",
+               specification != NULL ? specification : "(default)");
+        return 0;
 }
 
 int

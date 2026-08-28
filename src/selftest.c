@@ -1,5 +1,6 @@
 #include "selftest.h"
 
+#include "char_class.h"
 #include "diagnostics.h"
 #include "menus.h"
 #include "pty_process.h"
@@ -52,6 +53,53 @@ SelfTestPty(void)
         output[used] = '\0';
         XtpPtyFree(pty);
         return strstr(output, "xterm-plus-pty") != NULL ? 0 : -1;
+}
+
+static int
+SelfTestCharClass(XtpTerminal *terminal)
+{
+        static const char *const invalid[] = {
+            "",
+            " ",
+            "-1:48",
+            "33-",
+            "40-33:48",
+            "33:",
+            "33:48,",
+            "33::48",
+            "0x110000",
+            "junk",
+            "33:999999999999999999999999999999999999999999999999999999999999999",
+        };
+        XtpCharClassTable *table = NULL;
+        XtpCharClassTable *candidate;
+        size_t index;
+
+        if (XtpCharClassOf(NULL, 0) != 32 || XtpCharClassOf(NULL, '\t') != 32 ||
+            XtpCharClassOf(NULL, 1) != 1 || XtpCharClassOf(NULL, '!') != '!' ||
+            XtpCharClassOf(NULL, 'A') != 48 || XtpCharClassOf(NULL, 215) != 215 ||
+            XtpCharClassOf(NULL, 0x2000) != 32 || XtpCharClassOf(NULL, 0x3042) != 0x3040)
+                return -1;
+        if (XtpCharClassParse("33:48, 37:48, 65-90:7, 67:9, 0x100-0x102:12", &table) != 0 ||
+            table == NULL || XtpCharClassOf(table, '!') != 48 || XtpCharClassOf(table, '%') != 48 ||
+            XtpCharClassOf(table, 'A') != 7 || XtpCharClassOf(table, 'C') != 9 ||
+            XtpCharClassOf(table, 0x101) != 12)
+                goto failure;
+        for (index = 0; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
+                candidate = table;
+                if (XtpCharClassParse(invalid[index], &candidate) == 0 || candidate != table)
+                        goto failure;
+        }
+        if (XtpTerminalSetCharClass(terminal, "33:48,37:48") != 0 ||
+            XtpTerminalSetCharClass(terminal, "-1:48") == 0 ||
+            XtpTerminalSetCharClass(terminal, NULL) != 0)
+                goto failure;
+        XtpCharClassFree(table);
+        return 0;
+
+failure:
+        XtpCharClassFree(table);
+        return -1;
 }
 
 static int
@@ -1047,6 +1095,11 @@ XtpSelfTest(void)
 
         if (terminal == NULL)
                 return EXIT_FAILURE;
+        if (SelfTestCharClass(terminal) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "charClass check failed");
+                XtpTerminalFree(terminal);
+                return EXIT_FAILURE;
+        }
         if (XtpTerminalSetScrollbackLines(terminal, 64) != 0) {
                 XtpTerminalFree(terminal);
                 return EXIT_FAILURE;
