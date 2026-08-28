@@ -142,6 +142,7 @@ typedef struct
         Boolean alpha_visual;
         uint16_t background_alpha;
         XtpX11AlphaFormat alpha_format;
+        Pixel opaque_background_pixel;
         XftFont *xft_fonts[XTP_FONT_SLOTS];
         XftFont *xft_bold_fonts[XTP_FONT_SLOTS];
         double xft_sizes[XTP_FONT_SLOTS];

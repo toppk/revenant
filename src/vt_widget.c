@@ -797,7 +797,7 @@ LogInitialFont(Vt100Rec *vt)
         if (XGetFontProperty(vt->vt.initial_font, XA_FONT, &atom) && atom != None)
                 name = XGetAtomName(XtDisplay((Widget)vt), (Atom)atom);
         foreground.pixel = vt->vt.foreground;
-        background.pixel = vt->core.background_pixel;
+        background.pixel = vt->vt.opaque_background_pixel;
         XQueryColor(XtDisplay((Widget)vt), vt->core.colormap, &foreground);
         XQueryColor(XtDisplay((Widget)vt), vt->core.colormap, &background);
         XtpLog(XTP_LOG_INFO, "config",
@@ -830,8 +830,7 @@ LogInitialFont(Vt100Rec *vt)
 Pixel
 VtOpaquePixel(const Vt100Rec *vt, Pixel pixel)
 {
-        return XtpX11PixelWithAlpha(pixel, vt->vt.alpha_visual ? &vt->vt.alpha_format : NULL,
-                                    UINT16_MAX);
+        return XtpX11OpaquePixel(pixel, vt->vt.alpha_visual ? &vt->vt.alpha_format : NULL);
 }
 
 uint16_t
@@ -866,7 +865,7 @@ NormalizeConfiguredColors(Vt100Rec *vt)
         vt->vt.cursor_color = VtOpaquePixel(vt, vt->vt.cursor_color);
         vt->core.border_pixel = VtOpaquePixel(vt, vt->core.border_pixel);
         vt->core.background_pixel = XtpX11PixelWithAlpha(
-            vt->core.background_pixel, vt->vt.alpha_visual ? &vt->vt.alpha_format : NULL,
+            vt->vt.opaque_background_pixel, vt->vt.alpha_visual ? &vt->vt.alpha_format : NULL,
             vt->vt.background_alpha);
 }
 
@@ -892,6 +891,7 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
         if (vt->vt.cursor_off_time < 0)
                 vt->vt.cursor_off_time = 0;
         ResolveBackgroundOpacity(vt);
+        vt->vt.opaque_background_pixel = VtOpaquePixel(vt, vt->core.background_pixel);
         NormalizeConfiguredColors(vt);
         vt->vt.cursor_blink_policy = ParseCursorBlinkPolicy(vt->vt.cursor_blink_name);
 
@@ -1039,6 +1039,9 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
              new_vt->vt.background_opacity_name != NULL &&
              strcmp(old_vt->vt.background_opacity_name, new_vt->vt.background_opacity_name) != 0))
                 ResolveBackgroundOpacity(new_vt);
+        if (old_vt->core.background_pixel != new_vt->core.background_pixel)
+                new_vt->vt.opaque_background_pixel =
+                    VtOpaquePixel(new_vt, new_vt->core.background_pixel);
         NormalizeConfiguredColors(new_vt);
         if (old_vt->vt.save_lines != new_vt->vt.save_lines && new_vt->vt.terminal != NULL &&
             XtpTerminalSetScrollbackLines(new_vt->vt.terminal, (size_t)new_vt->vt.save_lines) != 0)
@@ -1436,7 +1439,7 @@ XtpVtSetBackgroundOpacityPercent(Widget widget, unsigned int percent)
         if (percent > 100U)
                 percent = 100U;
         vt->vt.background_alpha = (uint16_t)((percent * (unsigned int)UINT16_MAX + 50U) / 100U);
-        background = XtpX11PixelWithAlpha(vt->core.background_pixel, &vt->vt.alpha_format,
+        background = XtpX11PixelWithAlpha(vt->vt.opaque_background_pixel, &vt->vt.alpha_format,
                                           vt->vt.background_alpha);
         if (background == vt->core.background_pixel)
                 return True;

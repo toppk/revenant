@@ -109,7 +109,16 @@ SelfTestBackgroundOpacity(void)
         static const char *const invalid[] = {
             "", "-0.1", "1.1", "nan", "inf", ".", "0.5e0", "0.5 trailing",
         };
-        XtpX11AlphaFormat format = {0xffU, 24};
+        XtpX11AlphaFormat format = {
+            .mask = 0xffU,
+            .shift = 24,
+            .red_mask = 0xffU,
+            .red_shift = 16,
+            .green_mask = 0xffU,
+            .green_shift = 8,
+            .blue_mask = 0xffU,
+            .blue_shift = 0,
+        };
         uint16_t alpha;
         Pixel pixel;
         size_t index;
@@ -125,9 +134,15 @@ SelfTestBackgroundOpacity(void)
                 if (XtpBackgroundOpacityParse(invalid[index], &alpha) == 0)
                         return -1;
         }
-        pixel = XtpX11PixelWithAlpha(0x00123456UL, &format, 32768U);
-        if ((pixel & 0x00ffffffUL) != 0x00123456UL || (pixel >> 24) != 128U ||
-            XtpX11PixelAlpha(pixel, &format) < 32895U || XtpX11PixelAlpha(pixel, &format) > 32897U)
+        pixel = XtpX11PixelWithAlpha(0x00ffffffUL, &format, 41942U);
+        if (pixel != 0xa3a3a3a3UL || XtpX11OpaquePixel(pixel, &format) != 0xffffffffUL)
+                return -1;
+        pixel = XtpX11PixelWithAlpha(0x00ff8000UL, &format, 41942U);
+        if (pixel != 0xa3a35200UL || XtpX11OpaquePixel(pixel, &format) != 0xffff8000UL)
+                return -1;
+        pixel = XtpX11PixelWithAlpha(0x00000000UL, &format, 41942U);
+        if (pixel != 0xa3000000UL || XtpX11PixelAlpha(pixel, &format) < 41890U ||
+            XtpX11PixelAlpha(pixel, &format) > 41892U)
                 return -1;
         return 0;
 }

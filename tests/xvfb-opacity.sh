@@ -78,6 +78,7 @@ wait_for_terminal()
 
 fallback_log=$test_dir/fallback.log
 "$terminal" -debug -xrm 'XTerm*backgroundOpacity: 0.5' \
+    -xrm 'xterm.vt100.background: #FFFFFF' \
     -e sh -c 'printf "opaque fallback\r\n"; sleep 20' \
     >"$test_dir/fallback.out" 2>"$fallback_log" &
 terminal_pid=$!
@@ -87,6 +88,14 @@ if ! grep -q 'compositor is unavailable; using opaque default visual' "$fallback
 then
     echo "xterm+ did not fall back to the opaque default visual" >&2
     sed -n '1,220p' "$fallback_log" >&2
+    exit 1
+fi
+fallback_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$fallback_log" | tail -1)
+fallback_pixel=$("$window_alpha" "$fallback_window" --expose --argb)
+if test "$fallback_pixel" != 0xffffffff
+then
+    echo "opaque fallback stored $fallback_pixel instead of 0xffffffff" >&2
+    sed -n '1,240p' "$fallback_log" >&2
     exit 1
 fi
 kill "$terminal_pid"
@@ -111,7 +120,11 @@ done
 run_argb_case()
 {
     renderer=$1
-    log=$test_dir/$renderer.log
+    background=$2
+    expected_pixel=$3
+    exercise_slider=$4
+    case_name=$5
+    log=$test_dir/$case_name.log
     if test "$renderer" = true
     then
         renderer_name=xft
@@ -120,14 +133,15 @@ run_argb_case()
     fi
 
     "$terminal" -debug -sb -fa monospace \
-        -xrm 'XTerm*backgroundOpacity: 0.5' \
+        -xrm 'XTerm*backgroundOpacity: 0.64' \
+        -xrm "xterm.vt100.background: $background" \
         -xrm "xterm.vt100.renderFont: $renderer" \
         -e sh -c 'printf "transparent background\r\n"; sleep 20' \
-        >"$test_dir/$renderer.out" 2>"$log" &
+        >"$test_dir/$case_name.out" 2>"$log" &
     terminal_pid=$!
     wait_for_terminal "$log" "$renderer ARGB visual"
-    if ! grep -q 'depth=32 argb=true background-alpha=32768' "$log" || \
-       ! grep -q 'effective-alpha=32768 visual-alpha=true depth=32' "$log" || \
+    if ! grep -q 'depth=32 argb=true background-alpha=41942' "$log" || \
+       ! grep -q 'effective-alpha=41942 visual-alpha=true depth=32' "$log" || \
        ! grep -q "active renderer=$renderer_name" "$log"
     then
         echo "xterm+ did not select the requested ARGB visual for $renderer" >&2
@@ -135,14 +149,21 @@ run_argb_case()
         exit 1
     fi
     window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$log" | tail -1)
+    pixel=$("$window_alpha" "$window" --expose --argb)
+    if test "$pixel" != "$expected_pixel"
+    then
+        echo "$case_name redraw stored $pixel instead of $expected_pixel" >&2
+        sed -n '1,280p' "$log" >&2
+        exit 1
+    fi
     alpha=$("$window_alpha" "$window" --expose)
-    if test "$alpha" -lt 32000 || test "$alpha" -gt 33500
+    if test "$alpha" -lt 41500 || test "$alpha" -gt 42200
     then
         echo "$renderer redraw changed background alpha to $alpha" >&2
         sed -n '1,260p' "$log" >&2
         exit 1
     fi
-    if test "$renderer" = true
+    if test "$exercise_slider" = true
     then
         "$drag_slider" open "$window" >/dev/null
         attempt=0
@@ -194,5 +215,37 @@ run_argb_case()
     terminal_pid=
 }
 
-run_argb_case false
-run_argb_case true
+run_argb_case false '#FFFFFF' 0xa3a3a3a3 false xlib-white
+run_argb_case true '#FFFFFF' 0xa3a3a3a3 true xft-white
+run_argb_case true '#FF8000' 0xa3a35200 false xft-orange
+run_argb_case false '#000000' 0xa3000000 false xlib-black
+
+content_log=$test_dir/content.log
+"$terminal" -debug +sb -fa monospace \
+    -xrm 'XTerm*backgroundOpacity: 0.64' \
+    -xrm 'xterm.vt100.background: #FFFFFF' \
+    -xrm 'xterm.vt100.foreground: #00FF00' \
+    -xrm 'xterm.vt100.internalBorder: 2' \
+    -xrm 'xterm.vt100.renderFont: true' \
+    -e sh -c 'printf "\033[7m    \033[0m\r\n\033[48;2;255;128;0m\033[2K\033[0m\r\n\033[2K\r\n"; sleep 20' \
+    >"$test_dir/content.out" 2>"$content_log" &
+terminal_pid=$!
+wait_for_terminal "$content_log" 'reverse-video and BCE alpha policy'
+content_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$content_log" | tail -1)
+cell_width=$(sed -n 's/.*VT100 resolved renderer=.* cell=\([0-9][0-9]*\)x[0-9][0-9]* .*/\1/p' "$content_log" | tail -1)
+cell_height=$(sed -n 's/.*VT100 resolved renderer=.* cell=[0-9][0-9]*x\([0-9][0-9]*\) .*/\1/p' "$content_log" | tail -1)
+sample_x=$((2 + cell_width / 2))
+inverse_pixel=$("$window_alpha" "$content_window" --expose --argb "$sample_x" $((2 + cell_height / 2)))
+bce_pixel=$("$window_alpha" "$content_window" --expose --argb "$sample_x" $((2 + cell_height + cell_height / 2)))
+default_erase_pixel=$("$window_alpha" "$content_window" --expose --argb "$sample_x" $((2 + 2 * cell_height + cell_height / 2)))
+if test "$inverse_pixel" != 0xff00ff00 || \
+   test "$bce_pixel" != 0xffff8000 || \
+   test "$default_erase_pixel" != 0xa3a3a3a3
+then
+    echo "content alpha policy inverse=$inverse_pixel bce=$bce_pixel default=$default_erase_pixel" >&2
+    sed -n '1,320p' "$content_log" >&2
+    exit 1
+fi
+kill "$terminal_pid"
+wait "$terminal_pid" 2>/dev/null || true
+terminal_pid=

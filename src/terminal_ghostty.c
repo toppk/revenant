@@ -1429,6 +1429,14 @@ ConvertColor(GhosttyStyleColor color, const GhosttyRenderStateColors *colors)
         return result;
 }
 
+static XtpColor
+ConvertRgbColor(GhosttyColorRgb color)
+{
+        XtpColor result = {XTP_COLOR_RGB, 0, color.r, color.g, color.b};
+
+        return result;
+}
+
 int
 XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *closure,
                   bool force_full)
@@ -1540,6 +1548,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                         GhosttyBuffer text = {local, sizeof(local), 0};
                         GhosttyStyle style = GHOSTTY_INIT_SIZED(GhosttyStyle);
                         GhosttyCell raw = 0;
+                        GhosttyColorRgb background_rgb;
                         GhosttyCellWide wide = GHOSTTY_CELL_WIDE_NARROW;
                         bool hyperlink = false;
                         XtpRenderCell cell = {0};
@@ -1583,6 +1592,11 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                                                                              : 1U;
                         cell.foreground = ConvertColor(style.fg_color, &colors);
                         cell.background = ConvertColor(style.bg_color, &colors);
+                        if (cell.background.kind == XTP_COLOR_DEFAULT &&
+                            ghostty_render_state_row_cells_get(
+                                terminal->cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_BG_COLOR,
+                                &background_rgb) == GHOSTTY_SUCCESS)
+                                cell.background = ConvertRgbColor(background_rgb);
                         cell.bold = style.bold;
                         cell.italic = style.italic;
                         cell.faint = style.faint;
