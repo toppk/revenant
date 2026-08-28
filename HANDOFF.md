@@ -75,45 +75,21 @@ functional comparison, while xterm remains the UI and compatibility oracle.
 
 ## Current architecture
 
-- `src/main.c`: Xt application shell, PTY event loop, menus, geometry, and
-  terminal effects.
-- `src/selftest.c`: the implementation behind the packaged binary's
-  `--self-test` health check.
-- `src/command_options.c`: the command-line-to-X-resource table shared by Xt
-  startup and configuration provenance reporting.
-- `src/vt_widget.c`: custom `VT100` composite-widget class, resources,
-  lifecycle, font slots, translations, callbacks, and public widget API.
-- `src/vt_widgetP.h`: private widget record and the internal interfaces shared
-  by the VT widget implementation modules.
-- `src/vt_draw.c`: frame caching, bitmap/Xft cell drawing, cursor painting and
-  blinking, damage handling, and redisplay.
-- `src/vt_input.c`: keyboard mapping and repeat tracking, XIM and focus input,
-  selection ownership and conversion, paste requests, hyperlink interaction,
-  mouse reporting, and local scroll actions. Encoded keyboard, mouse, and focus
-  bytes all leave the widget through `XtNinputCallback`.
-- `src/terminal.h`: backend-neutral terminal state, rendering, input encoding,
-  resize, and effects boundary.
-- `src/terminal_ghostty.c`: `libghostty-vt` adapter.
-- `src/terminal_stub.c`: UI-only backend when libghostty is disabled.
-- `src/pty.c`: PTY creation, child lifecycle, lossless queued I/O, and kernel
-  resize.
-- `src/menus.c`: complete patch-410 popup-menu inventory; unimplemented
-  entries stay visible but insensitive.
-- `src/config_report.c`: resource provenance and compatibility report.
-- `compat/`: machine-readable patch-410 resource, app-default, and action
-  catalogs.
-- `docs/`, `tdn/`, and `www/`: the xterm+ manual, the independently licensed
-  Terminal Developers Network reference, and the published landing page.
-- `justfile`: isolated GCC, Clang, stub, formatting, documentation, and
-  combined maintainer checks.
+The durable module map and ownership rules live in
+[the maintainer architecture guide](docs/maintainers/architecture.md). Keep
+this ignored handoff focused on transient continuation notes and constraints
+that should not become project documentation.
 
 As new capability is added, prefer focused modules over continued growth of
 `main.c` and `vt_widget.c`. Keep Ghostty-specific types behind `terminal.h`.
-The private VT-widget boundary is now established, and terminal input ownership
-is consolidated in `vt_input.c`; keep Xt translation exclusions and encoded
-input delivery in that one place.
-Smaller follow-ups are typed menu-entry identifiers instead of string dispatch
-and setup helpers in `main.c` with one failure-cleanup path.
+The private VT-widget boundary is now established. Keep keyboard/XIM ownership
+and Xt translation exclusions in `vt_input.c`; keep pointer-driven selection,
+paste, hyperlinks, mouse reporting, and local scroll actions in
+`vt_interaction.c`. Encoded input delivery uses the widget's single
+`XtNinputCallback` boundary.
+
+Menu dispatch uses typed identifiers, and `main.c` delegates startup phases to
+small helpers with one cleanup path for normal exit and partial initialization.
 
 Keep the current pixel geometry in the terminal boundary until another caller
 needs a different shape. At that point, prefer one geometry-setting operation

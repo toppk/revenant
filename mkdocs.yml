@@ -76,6 +76,7 @@ nav:
       - Popup-menu feasibility: compatibility/menu-feasibility.md
       - Rendering review: compatibility/rendering-review.md
   - Maintainers:
+      - Architecture: maintainers/architecture.md
       - Roadmap: maintainers/roadmap.md
       - Upstream references: maintainers/upstream.md
       - C style guide: maintainers/style.md
