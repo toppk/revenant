@@ -39,20 +39,19 @@ typedef struct
 
 typedef struct
 {
-        const char *menu_name;
-        const char *entry_name;
+        XtpMenuItem item;
         XtpTerminalMode mode;
 } TerminalModeMenuItem;
 
 static const TerminalModeMenuItem terminal_mode_menu_items[] = {
-    {"mainMenu", "backarrow key", XTP_TERMINAL_MODE_BACKARROW_KEY},
-    {"mainMenu", "num-lock", XTP_TERMINAL_MODE_NUMLOCK_KEYPAD},
-    {"mainMenu", "alt-esc", XTP_TERMINAL_MODE_ALT_SENDS_ESCAPE},
-    {"vtMenu", "autowrap", XTP_TERMINAL_MODE_AUTOWRAP},
-    {"vtMenu", "reversewrap", XTP_TERMINAL_MODE_REVERSE_WRAP},
-    {"vtMenu", "autolinefeed", XTP_TERMINAL_MODE_AUTOLINEFEED},
-    {"vtMenu", "appcursor", XTP_TERMINAL_MODE_APPLICATION_CURSOR},
-    {"vtMenu", "appkeypad", XTP_TERMINAL_MODE_APPLICATION_KEYPAD},
+    {XTP_MENU_ITEM_BACKARROW_KEY, XTP_TERMINAL_MODE_BACKARROW_KEY},
+    {XTP_MENU_ITEM_NUM_LOCK, XTP_TERMINAL_MODE_NUMLOCK_KEYPAD},
+    {XTP_MENU_ITEM_ALT_ESC, XTP_TERMINAL_MODE_ALT_SENDS_ESCAPE},
+    {XTP_MENU_ITEM_AUTOWRAP, XTP_TERMINAL_MODE_AUTOWRAP},
+    {XTP_MENU_ITEM_REVERSE_WRAP, XTP_TERMINAL_MODE_REVERSE_WRAP},
+    {XTP_MENU_ITEM_AUTOLINEFEED, XTP_TERMINAL_MODE_AUTOLINEFEED},
+    {XTP_MENU_ITEM_APPLICATION_CURSOR, XTP_TERMINAL_MODE_APPLICATION_CURSOR},
+    {XTP_MENU_ITEM_APPLICATION_KEYPAD, XTP_TERMINAL_MODE_APPLICATION_KEYPAD},
 };
 
 typedef struct
@@ -106,60 +105,6 @@ static const char *const fallback_resources[] = {
 
 static void UpdateGeometry(App *app);
 
-typedef struct
-{
-        const char *name;
-        const char *class_name;
-} ResourceProbe;
-
-static const ResourceProbe resource_probes[] = {
-    {"xterm.geometry", "XTerm.Geometry"},
-    {"xterm.menuLocale", "XTerm.MenuLocale"},
-    {"xterm.debug", "XTerm.Debug"},
-    {"xterm.vt100.background", "XTerm.VT100.Background"},
-    {"xterm.vt100.foreground", "XTerm.VT100.Foreground"},
-    {"xterm.vt100.font", "XTerm.VT100.Font"},
-    {"xterm.vt100.font1", "XTerm.VT100.Font1"},
-    {"xterm.vt100.font2", "XTerm.VT100.Font2"},
-    {"xterm.vt100.font3", "XTerm.VT100.Font3"},
-    {"xterm.vt100.font4", "XTerm.VT100.Font4"},
-    {"xterm.vt100.font5", "XTerm.VT100.Font5"},
-    {"xterm.vt100.font6", "XTerm.VT100.Font6"},
-    {"xterm.vt100.font7", "XTerm.VT100.Font7"},
-    {"xterm.vt100.faceName", "XTerm.VT100.FaceName"},
-    {"xterm.vt100.faceNameDoublesize", "XTerm.VT100.FaceNameDoublesize"},
-    {"xterm.vt100.faceSize", "XTerm.VT100.FaceSize"},
-    {"xterm.vt100.renderFont", "XTerm.VT100.RenderFont"},
-    {"xterm.vt100.internalBorder", "XTerm.VT100.BorderWidth"},
-    {"xterm.vt100.saveLines", "XTerm.VT100.SaveLines"},
-    {"xterm.vt100.scrollBar", "XTerm.VT100.ScrollBar"},
-    {"xterm.vt100.rightScrollBar", "XTerm.VT100.RightScrollBar"},
-    {"xterm.vt100.cursorColor", "XTerm.VT100.CursorColor"},
-    {"xterm.vt100.alwaysHighlight", "XTerm.VT100.AlwaysHighlight"},
-    {"xterm.vt100.cursorBlink", "XTerm.VT100.CursorBlink"},
-    {"xterm.vt100.cursorBlinkXOR", "XTerm.VT100.CursorBlinkXOR"},
-    {"xterm.vt100.cursorOnTime", "XTerm.VT100.CursorOnTime"},
-    {"xterm.vt100.cursorOffTime", "XTerm.VT100.CursorOffTime"},
-    {"xterm.vt100.pointerColor", "XTerm.VT100.PointerColor"},
-    {"xterm.vt100.pointerShape", "XTerm.VT100.PointerShape"},
-    {"xterm.vt100.color0", "XTerm.VT100.Color"},
-    {"xterm.vt100.color1", "XTerm.VT100.Color"},
-    {"xterm.vt100.color2", "XTerm.VT100.Color"},
-    {"xterm.vt100.color3", "XTerm.VT100.Color"},
-    {"xterm.vt100.color4", "XTerm.VT100.Color"},
-    {"xterm.vt100.color5", "XTerm.VT100.Color"},
-    {"xterm.vt100.color6", "XTerm.VT100.Color"},
-    {"xterm.vt100.color7", "XTerm.VT100.Color"},
-    {"xterm.vt100.color8", "XTerm.VT100.Color"},
-    {"xterm.vt100.color9", "XTerm.VT100.Color"},
-    {"xterm.vt100.color10", "XTerm.VT100.Color"},
-    {"xterm.vt100.color11", "XTerm.VT100.Color"},
-    {"xterm.vt100.color12", "XTerm.VT100.Color"},
-    {"xterm.vt100.color13", "XTerm.VT100.Color"},
-    {"xterm.vt100.color14", "XTerm.VT100.Color"},
-    {"xterm.vt100.color15", "XTerm.VT100.Color"},
-};
-
 static void
 SetEarlyDebug(int argc, char **argv)
 {
@@ -185,60 +130,6 @@ LogCommandLine(int argc, char **argv)
         XtpLog(XTP_LOG_INFO, "startup", "command-line argc=%d", argc);
         for (argument = 0; argument < argc; ++argument)
                 XtpLog(XTP_LOG_DEBUG, "startup", "argv[%d]=%s", argument, argv[argument]);
-}
-
-static Boolean
-RelevantServerResource(const char *line)
-{
-        return strncmp(line, "XTerm", 5) == 0 || strncmp(line, "Xterm", 5) == 0 ||
-               strncmp(line, "xterm", 5) == 0 || strncmp(line, "Xft.", 4) == 0 ||
-               strncmp(line, "Xcursor.", 8) == 0;
-}
-
-static void
-LogResourceDatabases(Display *display)
-{
-        const char *manager = XResourceManagerString(display);
-        char *copy = manager != NULL ? strdup(manager) : NULL;
-        char *line;
-        char *state = NULL;
-        size_t probe;
-        XrmDatabase database = XtDatabase(display);
-
-        XtpLog(XTP_LOG_DEBUG, "xresource", "RESOURCE_MANAGER present=%s",
-               manager != NULL ? "true" : "false");
-        for (line = copy != NULL ? strtok_r(copy, "\n", &state) : NULL; line != NULL;
-             line = strtok_r(NULL, "\n", &state)) {
-                if (RelevantServerResource(line))
-                        XtpLog(XTP_LOG_DEBUG, "xresource", "server %s", line);
-        }
-        free(copy);
-
-        for (probe = 0; probe < XtNumber(resource_probes); ++probe) {
-                XrmValue value;
-                String type = NULL;
-
-                if (XrmGetResource(database, resource_probes[probe].name,
-                                   resource_probes[probe].class_name, &type, &value)) {
-                        int length = (int)value.size;
-
-                        if (length > 0 && ((const char *)value.addr)[length - 1] == '\0')
-                                --length;
-                        XtpLog(XTP_LOG_DEBUG, "xresource",
-                               "merged name=%s class=%s type=%s value=%.*s",
-                               resource_probes[probe].name, resource_probes[probe].class_name,
-                               type != NULL ? type : "(null)", length, (const char *)value.addr);
-                }
-        }
-        XtpLog(XTP_LOG_INFO, "config",
-               "resource precedence effective=command-line > server RESOURCE_MANAGER > "
-               "app-defaults/fallbacks > compiled resource defaults");
-        XtpLog(XTP_LOG_WARNING, "compat",
-               "renderer is resolved by the VT100 widget; cursorColor is applied; color0..color15, "
-               "pointerColor, and pointerShape are merged but not applied yet");
-        XtpLog(XTP_LOG_INFO, "scrollback",
-               "saveLines, scrollbar visibility/side, wheel navigation, thumb dragging, and "
-               "scroll-back/scroll-forw actions are active");
 }
 
 static void PtyOutputReady(XtPointer closure, int *source, XtInputId *input_id);
@@ -362,24 +253,27 @@ TerminalTitle(const char *title, size_t length, void *closure)
 {
         App *app = closure;
         char *value = malloc(length + 1U);
-        char preview[129];
-        size_t shown = length < sizeof(preview) - 1U ? length : sizeof(preview) - 1U;
-        size_t index;
 
         if (value == NULL)
                 return;
         memcpy(value, title, length);
         value[length] = '\0';
-        for (index = 0; index < shown; ++index) {
-                unsigned char byte = (unsigned char)title[index];
-
-                preview[index] = byte >= 0x20U && byte != 0x7fU ? (char)byte : '.';
-        }
-        preview[shown] = '\0';
         XtVaSetValues(app->shell, XtNtitle, value, NULL);
-        XtpLog(XTP_LOG_INFO, "shell", "title changed bytes=%zu preview=%s%s", length, preview,
-               shown < length ? "..." : "");
+        XtpLogBytePreview(XTP_LOG_INFO, "shell", "title changed", title, length);
         free(value);
+}
+
+static void
+ResizeChild(App *app, unsigned int columns, unsigned int rows, unsigned int cell_width,
+            unsigned int cell_height)
+{
+        if (app->pty != NULL &&
+            XtpPtyResize(app->pty, (uint16_t)columns, (uint16_t)rows, cell_width, cell_height) != 0)
+                XBell(app->display, 0);
+        if (app->terminal != NULL &&
+            XtpTerminalResize(app->terminal, (uint16_t)columns, (uint16_t)rows, cell_width,
+                              cell_height) != 0)
+                XBell(app->display, 0);
 }
 
 static void
@@ -392,15 +286,8 @@ FontChanged(Widget widget, XtPointer closure, XtPointer call_data)
         XtpLog(XTP_LOG_INFO, "font", "callback renderer=%s cell=%ux%u grid=%ux%u",
                XtpVtRendererName(app->vt), change->cell_width, change->cell_height,
                XtpVtColumns(app->vt), XtpVtRows(app->vt));
-        if (app->pty != NULL &&
-            XtpPtyResize(app->pty, (uint16_t)XtpVtColumns(app->vt), (uint16_t)XtpVtRows(app->vt),
-                         change->cell_width, change->cell_height) != 0)
-                XBell(app->display, 0);
-        if (XtpTerminalResize(app->terminal, (uint16_t)XtpVtColumns(app->vt),
-                              (uint16_t)XtpVtRows(app->vt), change->cell_width,
-                              change->cell_height) != 0) {
-                XBell(app->display, 0);
-        }
+        ResizeChild(app, XtpVtColumns(app->vt), XtpVtRows(app->vt), change->cell_width,
+                    change->cell_height);
         UpdateGeometry(app);
         XtpMenusSetRenderFont(&app->menus, XtpVtUsingXft(app->vt), XtpVtXftAvailable(app->vt));
 }
@@ -414,14 +301,22 @@ SizeChanged(Widget widget, XtPointer closure, XtPointer call_data)
         (void)widget;
         XtpLog(XTP_LOG_INFO, "resize", "callback grid=%ux%u cell=%ux%u", change->columns,
                change->rows, change->cell_width, change->cell_height);
-        if (app->pty != NULL &&
-            XtpPtyResize(app->pty, (uint16_t)change->columns, (uint16_t)change->rows,
-                         change->cell_width, change->cell_height) != 0)
-                XBell(app->display, 0);
-        if (app->terminal != NULL &&
-            XtpTerminalResize(app->terminal, (uint16_t)change->columns, (uint16_t)change->rows,
-                              change->cell_width, change->cell_height) != 0)
-                XBell(app->display, 0);
+        ResizeChild(app, change->columns, change->rows, change->cell_width, change->cell_height);
+}
+
+static void
+SyncTerminalModeChecks(App *app)
+{
+        size_t index;
+
+        for (index = 0; index < XtNumber(terminal_mode_menu_items); ++index) {
+                const TerminalModeMenuItem *item = &terminal_mode_menu_items[index];
+                bool enabled;
+
+                if (app->terminal != NULL &&
+                    XtpTerminalGetMode(app->terminal, item->mode, &enabled) == 0)
+                        XtpMenusSetChecked(&app->menus, item->item, enabled ? True : False);
+        }
 }
 
 static void
@@ -431,37 +326,25 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
         XtpPopupMenu *popup = call_data;
 
         (void)widget;
-        {
-                size_t index;
-
-                for (index = 0; index < XtNumber(terminal_mode_menu_items); ++index) {
-                        const TerminalModeMenuItem *item = &terminal_mode_menu_items[index];
-                        bool enabled;
-
-                        if (app->terminal != NULL &&
-                            XtpTerminalGetMode(app->terminal, item->mode, &enabled) == 0)
-                                XtpMenusSetChecked(&app->menus, item->menu_name, item->entry_name,
-                                                   enabled ? True : False);
-                }
-        }
-        XtpMenusSetChecked(&app->menus, "vtMenu", "scrollkey", XtpVtScrollKey(app->vt));
-        XtpMenusSetChecked(&app->menus, "vtMenu", "scrollttyoutput", XtpVtScrollTtyOutput(app->vt));
-        XtpMenusSetChecked(&app->menus, "vtMenu", "selectToClipboard",
+        SyncTerminalModeChecks(app);
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_KEY, XtpVtScrollKey(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_TTY_OUTPUT,
+                           XtpVtScrollTtyOutput(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SELECT_TO_CLIPBOARD,
                            XtpVtSelectToClipboard(app->vt));
         XtpLog(XTP_LOG_INFO, "menu", "popup requested name=%s", popup->name);
         XtpMenusPopup(&app->menus, popup->name, popup->event);
 }
 
 static const TerminalModeMenuItem *
-FindTerminalModeMenuItem(const char *menu_name, const char *entry_name)
+FindTerminalModeMenuItem(XtpMenuItem menu_item)
 {
         size_t index;
 
         for (index = 0; index < XtNumber(terminal_mode_menu_items); ++index) {
                 const TerminalModeMenuItem *item = &terminal_mode_menu_items[index];
 
-                if (strcmp(item->menu_name, menu_name) == 0 &&
-                    strcmp(item->entry_name, entry_name) == 0)
+                if (item->item == menu_item)
                         return item;
         }
         return NULL;
@@ -478,8 +361,8 @@ ToggleTerminalMode(App *app, const TerminalModeMenuItem *item)
                 XBell(app->display, 0);
                 return;
         }
-        XtpMenusSetChecked(&app->menus, item->menu_name, item->entry_name, enabled ? True : False);
-        XtpLog(XTP_LOG_INFO, "menu", "mode item=%s enabled=%s", item->entry_name,
+        XtpMenusSetChecked(&app->menus, item->item, enabled ? True : False);
+        XtpLog(XTP_LOG_INFO, "menu", "mode item=%d enabled=%s", (int)item->item,
                enabled ? "true" : "false");
 }
 
@@ -506,63 +389,90 @@ ToggleReverseVideo(App *app)
 }
 
 static void
-MenuDispatch(Widget source, const char *menu_name, const char *entry_name, XtPointer closure)
+SelectFont(App *app, int slot)
+{
+        if (!XtpVtSelectFont(app->vt, slot))
+                XBell(app->display, 0);
+}
+
+static void
+MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
 {
         App *app = closure;
         const TerminalModeMenuItem *mode_item;
 
-        (void)source;
-        XtpLog(XTP_LOG_INFO, "menu", "dispatch menu=%s item=%s", menu_name, entry_name);
-        mode_item = FindTerminalModeMenuItem(menu_name, entry_name);
+        XtpLog(XTP_LOG_INFO, "menu", "dispatch menu=%s item=%s id=%d", XtName(XtParent(source)),
+               XtName(source), (int)menu_item);
+        mode_item = FindTerminalModeMenuItem(menu_item);
         if (mode_item != NULL) {
                 ToggleTerminalMode(app, mode_item);
                 return;
         }
-        if (strcmp(menu_name, "mainMenu") == 0) {
-                if (strcmp(entry_name, "quit") == 0)
-                        app->running = False;
-                if (strcmp(entry_name, "redraw") == 0)
-                        XtpVtRedraw(app->vt);
+        switch (menu_item) {
+        case XTP_MENU_ITEM_NONE:
                 return;
-        }
-
-        if (strcmp(menu_name, "vtMenu") == 0) {
-                if (strcmp(entry_name, "scrollbar") == 0)
-                        ToggleScrollbar(app);
-                else if (strcmp(entry_name, "reversevideo") == 0)
-                        ToggleReverseVideo(app);
-                else if (strcmp(entry_name, "scrollkey") == 0) {
-                        XtpVtSetScrollKey(app->vt, !XtpVtScrollKey(app->vt));
-                        XtpMenusSetChecked(&app->menus, menu_name, entry_name,
-                                           XtpVtScrollKey(app->vt));
-                } else if (strcmp(entry_name, "scrollttyoutput") == 0) {
-                        XtpVtSetScrollTtyOutput(app->vt, !XtpVtScrollTtyOutput(app->vt));
-                        XtpMenusSetChecked(&app->menus, menu_name, entry_name,
-                                           XtpVtScrollTtyOutput(app->vt));
-                } else if (strcmp(entry_name, "selectToClipboard") == 0) {
-                        XtpVtSetSelectToClipboard(app->vt, !XtpVtSelectToClipboard(app->vt));
-                        XtpMenusSetChecked(&app->menus, menu_name, entry_name,
-                                           XtpVtSelectToClipboard(app->vt));
-                }
+        case XTP_MENU_ITEM_REDRAW:
+                XtpVtRedraw(app->vt);
                 return;
-        }
-
-        if (strcmp(menu_name, "fontMenu") == 0) {
-                int slot = -1;
-
-                if (strcmp(entry_name, "render-font") == 0) {
-                        if (!XtpVtSetRenderFont(app->vt, !XtpVtUsingXft(app->vt)))
-                                XBell(app->display, 0);
-                        return;
-                }
-                if (strcmp(entry_name, "fontdefault") == 0) {
-                        slot = 0;
-                } else if (strncmp(entry_name, "font", 4) == 0 && entry_name[4] >= '1' &&
-                           entry_name[4] <= '7' && entry_name[5] == '\0') {
-                        slot = entry_name[4] - '0';
-                }
-                if (slot >= 0 && !XtpVtSelectFont(app->vt, slot))
+        case XTP_MENU_ITEM_QUIT:
+                app->running = False;
+                return;
+        case XTP_MENU_ITEM_SCROLLBAR:
+                ToggleScrollbar(app);
+                return;
+        case XTP_MENU_ITEM_REVERSE_VIDEO:
+                ToggleReverseVideo(app);
+                return;
+        case XTP_MENU_ITEM_SCROLL_KEY:
+                XtpVtSetScrollKey(app->vt, !XtpVtScrollKey(app->vt));
+                XtpMenusSetChecked(&app->menus, menu_item, XtpVtScrollKey(app->vt));
+                return;
+        case XTP_MENU_ITEM_SCROLL_TTY_OUTPUT:
+                XtpVtSetScrollTtyOutput(app->vt, !XtpVtScrollTtyOutput(app->vt));
+                XtpMenusSetChecked(&app->menus, menu_item, XtpVtScrollTtyOutput(app->vt));
+                return;
+        case XTP_MENU_ITEM_SELECT_TO_CLIPBOARD:
+                XtpVtSetSelectToClipboard(app->vt, !XtpVtSelectToClipboard(app->vt));
+                XtpMenusSetChecked(&app->menus, menu_item, XtpVtSelectToClipboard(app->vt));
+                return;
+        case XTP_MENU_ITEM_RENDER_FONT:
+                if (!XtpVtSetRenderFont(app->vt, !XtpVtUsingXft(app->vt)))
                         XBell(app->display, 0);
+                return;
+        case XTP_MENU_ITEM_FONT_DEFAULT:
+                SelectFont(app, 0);
+                return;
+        case XTP_MENU_ITEM_FONT_1:
+                SelectFont(app, 1);
+                return;
+        case XTP_MENU_ITEM_FONT_2:
+                SelectFont(app, 2);
+                return;
+        case XTP_MENU_ITEM_FONT_3:
+                SelectFont(app, 3);
+                return;
+        case XTP_MENU_ITEM_FONT_4:
+                SelectFont(app, 4);
+                return;
+        case XTP_MENU_ITEM_FONT_5:
+                SelectFont(app, 5);
+                return;
+        case XTP_MENU_ITEM_FONT_6:
+                SelectFont(app, 6);
+                return;
+        case XTP_MENU_ITEM_FONT_7:
+                SelectFont(app, 7);
+                return;
+        case XTP_MENU_ITEM_BACKARROW_KEY:
+        case XTP_MENU_ITEM_NUM_LOCK:
+        case XTP_MENU_ITEM_ALT_ESC:
+        case XTP_MENU_ITEM_AUTOWRAP:
+        case XTP_MENU_ITEM_REVERSE_WRAP:
+        case XTP_MENU_ITEM_AUTOLINEFEED:
+        case XTP_MENU_ITEM_APPLICATION_CURSOR:
+        case XTP_MENU_ITEM_APPLICATION_KEYPAD:
+                /* Handled by terminal_mode_menu_items above. */
+                return;
         }
 }
 
@@ -692,18 +602,205 @@ UpdateGeometry(App *app)
         XtpLog(XTP_LOG_DEBUG, "resize", "shell geometry requested=%ux%u", vt_width, vt_height);
 }
 
+static int
+ResolveChildCommand(int *argc, char **argv, char *default_command[2], char ***command)
+{
+        int argument;
+
+        *command = NULL;
+        for (argument = 1; argument < *argc; ++argument) {
+                if (strcmp(argv[argument], "-e") == 0) {
+                        if (argument + 1 == *argc) {
+                                XtpLog(XTP_LOG_ERROR, "startup", "-e requires a command");
+                                return -1;
+                        }
+                        *command = &argv[argument + 1];
+                        *argc = argument;
+                        break;
+                }
+        }
+        if (*command == NULL) {
+                default_command[0] = getenv("SHELL");
+                if (default_command[0] == NULL || default_command[0][0] == '\0')
+                        default_command[0] = (char *)"/bin/sh";
+                default_command[1] = NULL;
+                *command = default_command;
+        }
+        return 0;
+}
+
+static int
+OpenApplication(App *app, int *argc, char **argv, AppResources *resources)
+{
+        Arg args[4];
+        Cardinal num_args = 0;
+
+        XtSetLanguageProc(NULL, NULL, NULL);
+        XtToolkitInitialize();
+        app->context = XtCreateApplicationContext();
+        if (app->context == NULL) {
+                XtpLog(XTP_LOG_ERROR, "startup", "cannot create application context");
+                return -1;
+        }
+        XtAppSetFallbackResources(app->context, (String *)fallback_resources);
+
+        app->display = XtOpenDisplay(app->context, NULL, "xterm", "XTerm", XtpCommandOptions,
+                                     XtpCommandOptionCount, argc, argv);
+        if (app->display == NULL) {
+                XtpLog(XTP_LOG_ERROR, "startup", "cannot open display");
+                return -1;
+        }
+        XtpLog(XTP_LOG_INFO, "startup", "display opened name=%s remaining-argc=%d",
+               DisplayString(app->display), *argc);
+
+        XtSetArg(args[num_args], XtNallowShellResize, True);
+        ++num_args;
+        XtSetArg(args[num_args], XtNtitle, "xterm+");
+        ++num_args;
+        XtSetArg(args[num_args], XtNinput, True);
+        ++num_args;
+        XtSetArg(args[num_args], XtNmappedWhenManaged, False);
+        ++num_args;
+        app->shell = XtAppCreateShell("xterm", "XTerm", applicationShellWidgetClass, app->display,
+                                      args, num_args);
+        if (app->shell == NULL) {
+                XtpLog(XTP_LOG_ERROR, "startup", "cannot create application shell");
+                return -1;
+        }
+        XtpLog(XTP_LOG_INFO, "shell", "created instance=xterm class=XTerm title=xterm+");
+
+        XtGetApplicationResources(app->shell, resources, application_resources,
+                                  XtNumber(application_resources), NULL, 0);
+        XtpLogSetDebug(resources->debug);
+        XtpLog(XTP_LOG_INFO, "config", "application resolved menuLocale=%s debug=%s",
+               resources->menu_locale != NULL ? resources->menu_locale : "(null)",
+               XtpLogDebugEnabled() ? "true" : "false");
+        XtpLogResourceDatabases(app->display);
+
+        app->vt = XtVaCreateManagedWidget("vt100", vt100WidgetClass, app->shell, NULL);
+        if (app->vt == NULL) {
+                XtpLog(XTP_LOG_ERROR, "startup", "cannot create VT100 widget");
+                return -1;
+        }
+        XtpLog(XTP_LOG_INFO, "shell", "created child instance=vt100 class=VT100");
+        XtpLog(XTP_LOG_INFO, "config", "active renderer=%s", XtpVtRendererName(app->vt));
+        return 0;
+}
+
+static void
+WireApplication(App *app, const AppResources *resources)
+{
+        XtAddCallback(app->vt, XtNfontChangedCallback, FontChanged, app);
+        XtAddCallback(app->vt, XtNsizeChangedCallback, SizeChanged, app);
+        XtAddCallback(app->vt, XtNpopupMenuCallback, PopupRequested, app);
+        XtAddCallback(app->vt, XtNpasteCallback, PasteReceived, app);
+        XtAddCallback(app->vt, XtNinputCallback, EncodedInputReceived, app);
+        XtpMenusCreate(&app->menus, app->shell, resources->menu_locale, MenuDispatch, app);
+        XtpMenusSetScrollbar(&app->menus, XtpVtScrollbarVisible(app->vt));
+        XtpMenusSetRenderFont(&app->menus, XtpVtUsingXft(app->vt), XtpVtXftAvailable(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SELECT_TO_CLIPBOARD,
+                           XtpVtSelectToClipboard(app->vt));
+}
+
+static int
+CreateTerminal(App *app)
+{
+        XtpTerminalEffects effects = {
+            TerminalWritePty,
+            TerminalBell,
+            TerminalTitle,
+            app,
+        };
+
+        app->terminal =
+            XtpTerminalNew((uint16_t)XtpVtColumns(app->vt), (uint16_t)XtpVtRows(app->vt),
+                           XtpVtCellWidth(app->vt), XtpVtCellHeight(app->vt));
+        if (app->terminal == NULL) {
+                XtpLog(XTP_LOG_ERROR, "terminal", "cannot initialize backend=%s",
+                       XtpTerminalBackend());
+                return -1;
+        }
+        XtpLog(XTP_LOG_INFO, "config", "terminal backend=%s", XtpTerminalBackend());
+        XtpTerminalSetEffects(app->terminal, &effects);
+        XtpVtSetTerminal(app->vt, app->terminal);
+        return 0;
+}
+
+static void
+RealizeApplication(App *app)
+{
+        UpdateGeometry(app);
+        XtRealizeWidget(app->shell);
+        XtpLog(XTP_LOG_INFO, "shell", "realized window=0x%lx pixels=%ux%u", XtWindow(app->shell),
+               XtpVtNaturalWidth(app->vt), XtpVtNaturalHeight(app->vt));
+        UpdateGeometry(app);
+        XtSetKeyboardFocus(app->shell, app->vt);
+        app->wm_delete_window = XInternAtom(app->display, "WM_DELETE_WINDOW", False);
+        (void)XSetWMProtocols(app->display, XtWindow(app->shell), &app->wm_delete_window, 1);
+        XtAddEventHandler(app->shell, StructureNotifyMask, True, ShellEvent, app);
+}
+
+static int
+StartChild(App *app, char **command)
+{
+        if (XtpTerminalBackendIsStub())
+                return 0;
+
+        app->pty =
+            XtpPtySpawn(command, (uint16_t)XtpVtColumns(app->vt), (uint16_t)XtpVtRows(app->vt),
+                        XtpVtCellWidth(app->vt), XtpVtCellHeight(app->vt));
+        if (app->pty == NULL) {
+                XtpLog(XTP_LOG_ERROR, "pty", "cannot start command=%s", command[0]);
+                return -1;
+        }
+        app->pty_input = XtAppAddInput(app->context, XtpPtyFd(app->pty),
+                                       (XtPointer)(uintptr_t)XtInputReadMask, PtyReady, app);
+        return 0;
+}
+
+static void
+DestroyApplication(App *app)
+{
+        if (app->pty_input != (XtInputId)0) {
+                XtRemoveInput(app->pty_input);
+                app->pty_input = (XtInputId)0;
+        }
+        StopWatchingPtyOutput(app);
+        XtpPtyFree(app->pty);
+        app->pty = NULL;
+        if (app->vt != NULL)
+                XtpVtSetTerminal(app->vt, NULL);
+        if (app->terminal != NULL) {
+                XtpTerminalFree(app->terminal);
+                app->terminal = NULL;
+        }
+        if (app->shell != NULL) {
+                XtDestroyWidget(app->shell);
+                app->shell = NULL;
+                app->vt = NULL;
+        }
+        XtpMenusDestroy(&app->menus, app->display);
+        if (app->display != NULL) {
+                XtCloseDisplay(app->display);
+                app->display = NULL;
+        }
+        if (app->context != NULL) {
+                XtDestroyApplicationContext(app->context);
+                app->context = NULL;
+        }
+}
+
 int
 main(int argc, char **argv)
 {
         App app;
         AppResources resources;
-        Arg args[12];
-        Cardinal num_args = 0;
         char **command = NULL;
         char *default_command[2];
         int argument;
         int original_argc = argc;
-        XrmDatabase command_database;
+        int status = EXIT_FAILURE;
+        XrmDatabase command_database = NULL;
         Boolean report_requested = False;
 
         for (argument = 1; argument < argc; ++argument) {
@@ -716,7 +813,6 @@ main(int argc, char **argv)
         }
         if (report_requested)
                 XtpLogSetQuiet(1);
-        command_database = XtpConfigCommandDatabase(original_argc, argv);
 
         SetEarlyDebug(argc, argv);
         LogCommandLine(argc, argv);
@@ -731,24 +827,9 @@ main(int argc, char **argv)
                 return EXIT_SUCCESS;
         }
 
-        for (argument = 1; argument < argc; ++argument) {
-                if (strcmp(argv[argument], "-e") == 0) {
-                        if (argument + 1 == argc) {
-                                XtpLog(XTP_LOG_ERROR, "startup", "-e requires a command");
-                                return EXIT_FAILURE;
-                        }
-                        command = &argv[argument + 1];
-                        argc = argument;
-                        break;
-                }
-        }
-        if (command == NULL) {
-                default_command[0] = getenv("SHELL");
-                if (default_command[0] == NULL || default_command[0][0] == '\0')
-                        default_command[0] = (char *)"/bin/sh";
-                default_command[1] = NULL;
-                command = default_command;
-        }
+        if (ResolveChildCommand(&argc, argv, default_command, &command) != 0)
+                return EXIT_FAILURE;
+        command_database = XtpConfigCommandDatabase(original_argc, argv);
         XtpLog(XTP_LOG_INFO, "startup", "child command=%s", command[0]);
 
         memset(&app, 0, sizeof(app));
@@ -761,107 +842,21 @@ main(int argc, char **argv)
                        getenv("DISPLAY") != NULL ? getenv("DISPLAY") : "(unset)",
                        getenv("SHELL") != NULL ? getenv("SHELL") : "(unset)");
         }
-        XtSetLanguageProc(NULL, NULL, NULL);
-        XtToolkitInitialize();
-        app.context = XtCreateApplicationContext();
-        XtAppSetFallbackResources(app.context, (String *)fallback_resources);
-
-        app.display = XtOpenDisplay(app.context, NULL, "xterm", "XTerm", XtpCommandOptions,
-                                    XtpCommandOptionCount, &argc, argv);
-        if (app.display == NULL) {
-                XtpLog(XTP_LOG_ERROR, "startup", "cannot open display");
-                return EXIT_FAILURE;
-        }
-        XtpLog(XTP_LOG_INFO, "startup", "display opened name=%s remaining-argc=%d",
-               DisplayString(app.display), argc);
-
-        XtSetArg(args[num_args], XtNallowShellResize, True);
-        ++num_args;
-        XtSetArg(args[num_args], XtNtitle, "xterm+");
-        ++num_args;
-        XtSetArg(args[num_args], XtNinput, True);
-        ++num_args;
-        XtSetArg(args[num_args], XtNmappedWhenManaged, False);
-        ++num_args;
-        app.shell = XtAppCreateShell("xterm", "XTerm", applicationShellWidgetClass, app.display,
-                                     args, num_args);
-        XtpLog(XTP_LOG_INFO, "shell", "created instance=xterm class=XTerm title=xterm+");
-
-        XtGetApplicationResources(app.shell, &resources, application_resources,
-                                  XtNumber(application_resources), NULL, 0);
-        XtpLogSetDebug(resources.debug);
-        XtpLog(XTP_LOG_INFO, "config", "application resolved menuLocale=%s debug=%s",
-               resources.menu_locale != NULL ? resources.menu_locale : "(null)",
-               XtpLogDebugEnabled() ? "true" : "false");
-        LogResourceDatabases(app.display);
-
-        app.vt = XtVaCreateManagedWidget("vt100", vt100WidgetClass, app.shell, NULL);
-        XtpLog(XTP_LOG_INFO, "shell", "created child instance=vt100 class=VT100");
-        XtpLog(XTP_LOG_INFO, "config", "active renderer=%s", XtpVtRendererName(app.vt));
+        if (OpenApplication(&app, &argc, argv, &resources) != 0)
+                goto done;
 
         if (resources.report_config) {
                 XtpReportConfig(app.display, app.vt, command_database);
-                if (command_database != NULL)
-                        XrmDestroyDatabase(command_database);
-                XtDestroyWidget(app.shell);
-                XtCloseDisplay(app.display);
-                XtDestroyApplicationContext(app.context);
-                return EXIT_SUCCESS;
+                status = EXIT_SUCCESS;
+                goto done;
         }
 
-        XtAddCallback(app.vt, XtNfontChangedCallback, FontChanged, &app);
-        XtAddCallback(app.vt, XtNsizeChangedCallback, SizeChanged, &app);
-        XtAddCallback(app.vt, XtNpopupMenuCallback, PopupRequested, &app);
-        XtAddCallback(app.vt, XtNpasteCallback, PasteReceived, &app);
-        XtAddCallback(app.vt, XtNinputCallback, EncodedInputReceived, &app);
-        XtpMenusCreate(&app.menus, app.shell, resources.menu_locale, MenuDispatch, &app);
-        XtpMenusSetScrollbar(&app.menus, XtpVtScrollbarVisible(app.vt));
-        XtpMenusSetRenderFont(&app.menus, XtpVtUsingXft(app.vt), XtpVtXftAvailable(app.vt));
-        XtpMenusSetChecked(&app.menus, "vtMenu", "selectToClipboard",
-                           XtpVtSelectToClipboard(app.vt));
-
-        app.terminal = XtpTerminalNew((uint16_t)XtpVtColumns(app.vt), (uint16_t)XtpVtRows(app.vt),
-                                      XtpVtCellWidth(app.vt), XtpVtCellHeight(app.vt));
-        if (app.terminal == NULL) {
-                XtpLog(XTP_LOG_ERROR, "terminal", "cannot initialize backend=%s",
-                       XtpTerminalBackend());
-                return EXIT_FAILURE;
-        }
-        XtpLog(XTP_LOG_INFO, "config", "terminal backend=%s", XtpTerminalBackend());
-        {
-                XtpTerminalEffects effects = {
-                    TerminalWritePty,
-                    TerminalBell,
-                    TerminalTitle,
-                    &app,
-                };
-
-                XtpTerminalSetEffects(app.terminal, &effects);
-        }
-        XtpVtSetTerminal(app.vt, app.terminal);
-
-        UpdateGeometry(&app);
-        XtRealizeWidget(app.shell);
-        XtpLog(XTP_LOG_INFO, "shell", "realized window=0x%lx pixels=%ux%u", XtWindow(app.shell),
-               XtpVtNaturalWidth(app.vt), XtpVtNaturalHeight(app.vt));
-        UpdateGeometry(&app);
-        XtSetKeyboardFocus(app.shell, app.vt);
-        app.wm_delete_window = XInternAtom(app.display, "WM_DELETE_WINDOW", False);
-        (void)XSetWMProtocols(app.display, XtWindow(app.shell), &app.wm_delete_window, 1);
-        XtAddEventHandler(app.shell, StructureNotifyMask, True, ShellEvent, &app);
-
-        if (!XtpTerminalBackendIsStub()) {
-                app.pty = XtpPtySpawn(command, (uint16_t)XtpVtColumns(app.vt),
-                                      (uint16_t)XtpVtRows(app.vt), XtpVtCellWidth(app.vt),
-                                      XtpVtCellHeight(app.vt));
-                if (app.pty == NULL) {
-                        XtpLog(XTP_LOG_ERROR, "pty", "cannot start command=%s", command[0]);
-                        return EXIT_FAILURE;
-                }
-                app.pty_input =
-                    XtAppAddInput(app.context, XtpPtyFd(app.pty),
-                                  (XtPointer)(uintptr_t)XtInputReadMask, PtyReady, &app);
-        }
+        WireApplication(&app, &resources);
+        if (CreateTerminal(&app) != 0)
+                goto done;
+        RealizeApplication(&app);
+        if (StartChild(&app, command) != 0)
+                goto done;
 
         app.running = True;
         XtpLog(XTP_LOG_INFO, "startup", "event loop starting");
@@ -870,16 +865,12 @@ main(int argc, char **argv)
                 XtAppProcessEvent(app.context, XtIMAll);
 
         XtpLog(XTP_LOG_INFO, "startup", "event loop stopping");
-        if (app.pty_input != (XtInputId)0)
-                XtRemoveInput(app.pty_input);
-        StopWatchingPtyOutput(&app);
-        XtpPtyFree(app.pty);
-        XtpTerminalFree(app.terminal);
-        XtDestroyWidget(app.shell);
-        XtCloseDisplay(app.display);
-        XtDestroyApplicationContext(app.context);
+        status = EXIT_SUCCESS;
+
+done:
+        DestroyApplication(&app);
         if (command_database != NULL)
                 XrmDestroyDatabase(command_database);
-        XtpLog(XTP_LOG_INFO, "startup", "shutdown complete");
-        return EXIT_SUCCESS;
+        XtpLog(XTP_LOG_INFO, "startup", "shutdown complete status=%d", status);
+        return status;
 }

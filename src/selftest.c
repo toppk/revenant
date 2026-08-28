@@ -1131,8 +1131,14 @@ XtpSelfTest(void)
                 goto failure;
         }
         XtpTerminalFree(terminal);
-        if (SelfTestPty() != 0 || SelfTestPtyQueue() != 0)
+        if (SelfTestPty() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "PTY lifecycle check failed");
                 return EXIT_FAILURE;
+        }
+        if (SelfTestPtyQueue() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "PTY queue check failed");
+                return EXIT_FAILURE;
+        }
 
         printf("xterm+ self-test: backend=%s menus=%d/%d/%d\n", XtpTerminalBackend(),
                XTP_MAIN_MENU_ENTRIES, XTP_VT_MENU_ENTRIES, XTP_FONT_MENU_ENTRIES);

@@ -13,117 +13,122 @@
 typedef struct
 {
         const char *name;
+        XtpMenuItem item;
         Boolean separator;
         Boolean implemented;
 } MenuSpec;
 
-#define ITEM(name, implemented) {name, False, implemented}
-#define LINE(name) {name, True, False}
+#define ITEM(name, item, implemented) {name, item, False, implemented}
+#define INERT(name) ITEM(name, XTP_MENU_ITEM_NONE, False)
+#define ACTIVE(name, item) ITEM(name, item, True)
+#define LINE(name) {name, XTP_MENU_ITEM_NONE, True, False}
 
 static const MenuSpec main_specs[] = {
-    ITEM("toolbar", False),
-    ITEM("fullscreen", False),
-    ITEM("securekbd", False),
-    ITEM("allowsends", False),
-    ITEM("redraw", True),
+    INERT("toolbar"),
+    INERT("fullscreen"),
+    INERT("securekbd"),
+    INERT("allowsends"),
+    ACTIVE("redraw", XTP_MENU_ITEM_REDRAW),
     LINE("line1"),
-    ITEM("logging", False),
-    ITEM("print-immediate", False),
-    ITEM("print-on-error", False),
-    ITEM("print", False),
-    ITEM("print-redir", False),
-    ITEM("dump-html", False),
-    ITEM("dump-svg", False),
+    INERT("logging"),
+    INERT("print-immediate"),
+    INERT("print-on-error"),
+    INERT("print"),
+    INERT("print-redir"),
+    INERT("dump-html"),
+    INERT("dump-svg"),
     LINE("line2"),
-    ITEM("8-bit control", False),
-    ITEM("backarrow key", True),
-    ITEM("num-lock", True),
-    ITEM("alt-esc", True),
-    ITEM("meta-esc", False),
-    ITEM("delete-is-del", False),
-    ITEM("oldFunctionKeys", False),
-    ITEM("tcapFunctionKeys", False),
-    ITEM("hpFunctionKeys", False),
-    ITEM("scoFunctionKeys", False),
-    ITEM("sunFunctionKeys", False),
-    ITEM("sunKeyboard", False),
+    INERT("8-bit control"),
+    ACTIVE("backarrow key", XTP_MENU_ITEM_BACKARROW_KEY),
+    ACTIVE("num-lock", XTP_MENU_ITEM_NUM_LOCK),
+    ACTIVE("alt-esc", XTP_MENU_ITEM_ALT_ESC),
+    INERT("meta-esc"),
+    INERT("delete-is-del"),
+    INERT("oldFunctionKeys"),
+    INERT("tcapFunctionKeys"),
+    INERT("hpFunctionKeys"),
+    INERT("scoFunctionKeys"),
+    INERT("sunFunctionKeys"),
+    INERT("sunKeyboard"),
     LINE("line3"),
-    ITEM("suspend", False),
-    ITEM("continue", False),
-    ITEM("interrupt", False),
-    ITEM("hangup", False),
-    ITEM("terminate", False),
-    ITEM("kill", False),
+    INERT("suspend"),
+    INERT("continue"),
+    INERT("interrupt"),
+    INERT("hangup"),
+    INERT("terminate"),
+    INERT("kill"),
     LINE("line4"),
-    ITEM("quit", True),
+    ACTIVE("quit", XTP_MENU_ITEM_QUIT),
 };
 
 static const MenuSpec vt_specs[] = {
-    ITEM("scrollbar", True),
-    ITEM("jumpscroll", False),
-    ITEM("reversevideo", True),
-    ITEM("autowrap", True),
-    ITEM("reversewrap", True),
-    ITEM("autolinefeed", True),
-    ITEM("appcursor", True),
-    ITEM("appkeypad", True),
-    ITEM("scrollkey", True),
-    ITEM("scrollttyoutput", True),
-    ITEM("allow132", False),
-    ITEM("keepSelection", False),
-    ITEM("keepClipboard", False),
-    ITEM("selectToClipboard", True),
-    ITEM("visualbell", False),
-    ITEM("bellIsUrgent", False),
-    ITEM("poponbell", False),
-    ITEM("cursorblink", False),
-    ITEM("titeInhibit", False),
-    ITEM("activeicon", False),
+    ACTIVE("scrollbar", XTP_MENU_ITEM_SCROLLBAR),
+    INERT("jumpscroll"),
+    ACTIVE("reversevideo", XTP_MENU_ITEM_REVERSE_VIDEO),
+    ACTIVE("autowrap", XTP_MENU_ITEM_AUTOWRAP),
+    ACTIVE("reversewrap", XTP_MENU_ITEM_REVERSE_WRAP),
+    ACTIVE("autolinefeed", XTP_MENU_ITEM_AUTOLINEFEED),
+    ACTIVE("appcursor", XTP_MENU_ITEM_APPLICATION_CURSOR),
+    ACTIVE("appkeypad", XTP_MENU_ITEM_APPLICATION_KEYPAD),
+    ACTIVE("scrollkey", XTP_MENU_ITEM_SCROLL_KEY),
+    ACTIVE("scrollttyoutput", XTP_MENU_ITEM_SCROLL_TTY_OUTPUT),
+    INERT("allow132"),
+    INERT("keepSelection"),
+    INERT("keepClipboard"),
+    ACTIVE("selectToClipboard", XTP_MENU_ITEM_SELECT_TO_CLIPBOARD),
+    INERT("visualbell"),
+    INERT("bellIsUrgent"),
+    INERT("poponbell"),
+    INERT("cursorblink"),
+    INERT("titeInhibit"),
+    INERT("activeicon"),
     LINE("line1"),
-    ITEM("softreset", False),
-    ITEM("hardreset", False),
-    ITEM("clearsavedlines", False),
+    INERT("softreset"),
+    INERT("hardreset"),
+    INERT("clearsavedlines"),
     LINE("line2"),
-    ITEM("tekshow", False),
-    ITEM("tekmode", False),
-    ITEM("vthide", False),
-    ITEM("altscreen", False),
-    ITEM("sixelScrolling", False),
-    ITEM("privateColorRegisters", False),
+    INERT("tekshow"),
+    INERT("tekmode"),
+    INERT("vthide"),
+    INERT("altscreen"),
+    INERT("sixelScrolling"),
+    INERT("privateColorRegisters"),
 };
 
 static const MenuSpec font_specs[] = {
-    ITEM("fontdefault", True),
-    ITEM("font1", True),
-    ITEM("font2", True),
-    ITEM("font3", True),
-    ITEM("font4", True),
-    ITEM("font5", True),
-    ITEM("font6", True),
-    ITEM("font7", True),
-    ITEM("fontescape", False),
-    ITEM("fontsel", False),
+    ACTIVE("fontdefault", XTP_MENU_ITEM_FONT_DEFAULT),
+    ACTIVE("font1", XTP_MENU_ITEM_FONT_1),
+    ACTIVE("font2", XTP_MENU_ITEM_FONT_2),
+    ACTIVE("font3", XTP_MENU_ITEM_FONT_3),
+    ACTIVE("font4", XTP_MENU_ITEM_FONT_4),
+    ACTIVE("font5", XTP_MENU_ITEM_FONT_5),
+    ACTIVE("font6", XTP_MENU_ITEM_FONT_6),
+    ACTIVE("font7", XTP_MENU_ITEM_FONT_7),
+    INERT("fontescape"),
+    INERT("fontsel"),
     LINE("line1"),
-    ITEM("allow-bold-fonts", False),
-    ITEM("font-linedrawing", False),
-    ITEM("font-packed", False),
-    ITEM("font-doublesize", False),
-    ITEM("font-loadable", False),
+    INERT("allow-bold-fonts"),
+    INERT("font-linedrawing"),
+    INERT("font-packed"),
+    INERT("font-doublesize"),
+    INERT("font-loadable"),
     LINE("line2"),
-    ITEM("render-font", True),
-    ITEM("utf8-mode", False),
-    ITEM("utf8-fonts", False),
-    ITEM("utf8-title", False),
+    ACTIVE("render-font", XTP_MENU_ITEM_RENDER_FONT),
+    INERT("utf8-mode"),
+    INERT("utf8-fonts"),
+    INERT("utf8-title"),
     LINE("line3"),
-    ITEM("allow-color-ops", False),
-    ITEM("allow-font-ops", False),
-    ITEM("allow-mouse-ops", False),
-    ITEM("allow-tcap-ops", False),
-    ITEM("allow-title-ops", False),
-    ITEM("allow-window-ops", False),
+    INERT("allow-color-ops"),
+    INERT("allow-font-ops"),
+    INERT("allow-mouse-ops"),
+    INERT("allow-tcap-ops"),
+    INERT("allow-title-ops"),
+    INERT("allow-window-ops"),
 };
 
 #undef ITEM
+#undef INERT
+#undef ACTIVE
 #undef LINE
 
 _Static_assert(XtNumber(main_specs) == XTP_MAIN_MENU_ENTRIES, "main menu inventory changed");
@@ -133,12 +138,12 @@ _Static_assert(XtNumber(font_specs) == XTP_FONT_MENU_ENTRIES, "font menu invento
 static void
 Activate(Widget widget, XtPointer closure, XtPointer call_data)
 {
-        XtpMenus *menus = closure;
+        XtpMenuBinding *binding = closure;
 
         (void)call_data;
         XtpLog(XTP_LOG_INFO, "menu", "selected menu=%s item=%s", XtName(XtParent(widget)),
                XtName(widget));
-        menus->dispatch(widget, XtName(XtParent(widget)), XtName(widget), menus->closure);
+        binding->menus->dispatch(widget, binding->item, binding->menus->closure);
 }
 
 static Widget
@@ -162,14 +167,23 @@ CreateMenu(XtpMenus *menus, Widget parent, const char *name, const MenuSpec *spe
                     specs[index].separator ? smeLineObjectClass : smeBSBObjectClass, menu, NULL, 0);
 
                 if (!specs[index].separator) {
-                        XtAddCallback(item, XtNcallback, Activate, menus);
                         if (!specs[index].implemented)
                                 XtSetSensitive(item, False);
-                        if (strcmp(name, "vtMenu") == 0 &&
-                            strcmp(specs[index].name, "scrollbar") == 0)
+                        if (specs[index].item != XTP_MENU_ITEM_NONE) {
+                                XtpMenuBinding *binding;
+
+                                if (menus->binding_count >= XTP_MENU_BINDINGS)
+                                        XtAppError(XtWidgetToApplicationContext(parent),
+                                                   "xterm+: menu binding inventory overflow");
+                                binding = &menus->bindings[menus->binding_count++];
+                                binding->menus = menus;
+                                binding->widget = item;
+                                binding->item = specs[index].item;
+                                XtAddCallback(item, XtNcallback, Activate, binding);
+                        }
+                        if (specs[index].item == XTP_MENU_ITEM_SCROLLBAR)
                                 menus->scrollbar_item = item;
-                        if (strcmp(name, "fontMenu") == 0 &&
-                            strcmp(specs[index].name, "render-font") == 0)
+                        if (specs[index].item == XTP_MENU_ITEM_RENDER_FONT)
                                 menus->render_font_item = item;
                 }
         }
@@ -188,6 +202,7 @@ XtpMenusCreate(XtpMenus *menus, Widget parent, const char *menu_locale, XtpMenuD
         menus->scrollbar_item = NULL;
         menus->render_font_item = NULL;
         menus->checkmark = None;
+        menus->binding_count = 0;
         XtpLog(XTP_LOG_INFO, "menu", "initializing menuLocale=%s previous-locale=%s",
                menu_locale != NULL ? menu_locale : "(null)",
                saved_locale != NULL ? saved_locale : "(null)");
@@ -268,21 +283,24 @@ XtpMenusSetRenderFont(XtpMenus *menus, Boolean enabled, Boolean available)
 }
 
 void
-XtpMenusSetChecked(XtpMenus *menus, const char *menu_name, const char *entry_name, Boolean checked)
+XtpMenusSetChecked(XtpMenus *menus, XtpMenuItem item, Boolean checked)
 {
-        Widget menu = NULL;
-        Widget item;
+        Cardinal index;
 
-        if (strcmp(menu_name, "mainMenu") == 0)
-                menu = menus->main_menu;
-        else if (strcmp(menu_name, "vtMenu") == 0)
-                menu = menus->vt_menu;
-        else if (strcmp(menu_name, "fontMenu") == 0)
-                menu = menus->font_menu;
-        if (menu == NULL)
-                return;
-        item = XtNameToWidget(menu, entry_name);
-        if (item == NULL)
-                return;
-        XtVaSetValues(item, XtNleftBitmap, checked ? menus->checkmark : None, NULL);
+        for (index = 0; index < menus->binding_count; ++index) {
+                if (menus->bindings[index].item == item) {
+                        XtVaSetValues(menus->bindings[index].widget, XtNleftBitmap,
+                                      checked ? menus->checkmark : None, NULL);
+                        return;
+                }
+        }
+}
+
+void
+XtpMenusDestroy(XtpMenus *menus, Display *display)
+{
+        if (menus->checkmark != None && display != NULL)
+                XFreePixmap(display, menus->checkmark);
+        menus->checkmark = None;
+        menus->binding_count = 0;
 }

@@ -5,6 +5,7 @@
 #include <X11/Xresource.h>
 
 XrmDatabase XtpConfigCommandDatabase(int argc, char **argv);
+void XtpLogResourceDatabases(Display *display);
 void XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database);
 
 #endif

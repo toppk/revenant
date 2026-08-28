@@ -1,6 +1,7 @@
 #include "config_report.h"
 
 #include "command_options.h"
+#include "diagnostics.h"
 #include "resource_catalog.h"
 #include "vt_widget.h"
 
@@ -59,6 +60,114 @@ typedef struct
 
 static const char *const reset = "\033[0m";
 static bool use_color;
+
+typedef struct
+{
+        const char *name;
+        const char *class_name;
+} ResourceProbe;
+
+static const ResourceProbe resource_probes[] = {
+    {"xterm.geometry", "XTerm.Geometry"},
+    {"xterm.menuLocale", "XTerm.MenuLocale"},
+    {"xterm.debug", "XTerm.Debug"},
+    {"xterm.vt100.background", "XTerm.VT100.Background"},
+    {"xterm.vt100.foreground", "XTerm.VT100.Foreground"},
+    {"xterm.vt100.font", "XTerm.VT100.Font"},
+    {"xterm.vt100.font1", "XTerm.VT100.Font1"},
+    {"xterm.vt100.font2", "XTerm.VT100.Font2"},
+    {"xterm.vt100.font3", "XTerm.VT100.Font3"},
+    {"xterm.vt100.font4", "XTerm.VT100.Font4"},
+    {"xterm.vt100.font5", "XTerm.VT100.Font5"},
+    {"xterm.vt100.font6", "XTerm.VT100.Font6"},
+    {"xterm.vt100.font7", "XTerm.VT100.Font7"},
+    {"xterm.vt100.faceName", "XTerm.VT100.FaceName"},
+    {"xterm.vt100.faceNameDoublesize", "XTerm.VT100.FaceNameDoublesize"},
+    {"xterm.vt100.faceSize", "XTerm.VT100.FaceSize"},
+    {"xterm.vt100.renderFont", "XTerm.VT100.RenderFont"},
+    {"xterm.vt100.internalBorder", "XTerm.VT100.BorderWidth"},
+    {"xterm.vt100.saveLines", "XTerm.VT100.SaveLines"},
+    {"xterm.vt100.scrollBar", "XTerm.VT100.ScrollBar"},
+    {"xterm.vt100.rightScrollBar", "XTerm.VT100.RightScrollBar"},
+    {"xterm.vt100.cursorColor", "XTerm.VT100.CursorColor"},
+    {"xterm.vt100.alwaysHighlight", "XTerm.VT100.AlwaysHighlight"},
+    {"xterm.vt100.cursorBlink", "XTerm.VT100.CursorBlink"},
+    {"xterm.vt100.cursorBlinkXOR", "XTerm.VT100.CursorBlinkXOR"},
+    {"xterm.vt100.cursorOnTime", "XTerm.VT100.CursorOnTime"},
+    {"xterm.vt100.cursorOffTime", "XTerm.VT100.CursorOffTime"},
+    {"xterm.vt100.pointerColor", "XTerm.VT100.PointerColor"},
+    {"xterm.vt100.pointerShape", "XTerm.VT100.PointerShape"},
+    {"xterm.vt100.color0", "XTerm.VT100.Color"},
+    {"xterm.vt100.color1", "XTerm.VT100.Color"},
+    {"xterm.vt100.color2", "XTerm.VT100.Color"},
+    {"xterm.vt100.color3", "XTerm.VT100.Color"},
+    {"xterm.vt100.color4", "XTerm.VT100.Color"},
+    {"xterm.vt100.color5", "XTerm.VT100.Color"},
+    {"xterm.vt100.color6", "XTerm.VT100.Color"},
+    {"xterm.vt100.color7", "XTerm.VT100.Color"},
+    {"xterm.vt100.color8", "XTerm.VT100.Color"},
+    {"xterm.vt100.color9", "XTerm.VT100.Color"},
+    {"xterm.vt100.color10", "XTerm.VT100.Color"},
+    {"xterm.vt100.color11", "XTerm.VT100.Color"},
+    {"xterm.vt100.color12", "XTerm.VT100.Color"},
+    {"xterm.vt100.color13", "XTerm.VT100.Color"},
+    {"xterm.vt100.color14", "XTerm.VT100.Color"},
+    {"xterm.vt100.color15", "XTerm.VT100.Color"},
+};
+
+static bool
+RelevantServerResource(const char *line)
+{
+        return strncmp(line, "XTerm", 5) == 0 || strncmp(line, "Xterm", 5) == 0 ||
+               strncmp(line, "xterm", 5) == 0 || strncmp(line, "Xft.", 4) == 0 ||
+               strncmp(line, "Xcursor.", 8) == 0;
+}
+
+void
+XtpLogResourceDatabases(Display *display)
+{
+        const char *manager = XResourceManagerString(display);
+        char *copy = manager != NULL ? strdup(manager) : NULL;
+        char *line;
+        char *state = NULL;
+        size_t probe;
+        XrmDatabase database = XtDatabase(display);
+
+        XtpLog(XTP_LOG_DEBUG, "xresource", "RESOURCE_MANAGER present=%s",
+               manager != NULL ? "true" : "false");
+        for (line = copy != NULL ? strtok_r(copy, "\n", &state) : NULL; line != NULL;
+             line = strtok_r(NULL, "\n", &state)) {
+                if (RelevantServerResource(line))
+                        XtpLog(XTP_LOG_DEBUG, "xresource", "server %s", line);
+        }
+        free(copy);
+
+        for (probe = 0; probe < XtNumber(resource_probes); ++probe) {
+                XrmValue value;
+                String type = NULL;
+
+                if (XrmGetResource(database, resource_probes[probe].name,
+                                   resource_probes[probe].class_name, &type, &value)) {
+                        int length = (int)value.size;
+
+                        if (length > 0 && ((const char *)value.addr)[length - 1] == '\0')
+                                --length;
+                        XtpLog(XTP_LOG_DEBUG, "xresource",
+                               "merged name=%s class=%s type=%s value=%.*s",
+                               resource_probes[probe].name, resource_probes[probe].class_name,
+                               type != NULL ? type : "(null)", length, (const char *)value.addr);
+                }
+        }
+        XtpLog(XTP_LOG_INFO, "config",
+               "resource precedence effective=command-line > server RESOURCE_MANAGER > "
+               "app-defaults/fallbacks > compiled resource defaults");
+        XtpLog(XTP_LOG_WARNING, "compat",
+               "renderer is resolved by the VT100 widget; cursorColor is applied; color0..color15, "
+               "pointerColor, and pointerShape are merged but not applied yet");
+        XtpLog(XTP_LOG_INFO, "scrollback",
+               "saveLines, scrollbar visibility/side, wheel navigation, thumb dragging, and "
+               "scroll-back/scroll-forw actions are active");
+}
 
 static const char *
 OriginName(Origin origin)
