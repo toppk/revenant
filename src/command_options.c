@@ -22,6 +22,8 @@ XrmOptionDescRec XtpCommandOptions[] = {
     {"+si", "*vt100.scrollTtyOutput", XrmoptionNoArg, (XPointer) "true"},
     {"-ah", "*vt100.alwaysHighlight", XrmoptionNoArg, (XPointer) "true"},
     {"+ah", "*vt100.alwaysHighlight", XrmoptionNoArg, (XPointer) "false"},
+    {"-rv", "*vt100.reverseVideo", XrmoptionNoArg, (XPointer) "true"},
+    {"+rv", "*vt100.reverseVideo", XrmoptionNoArg, (XPointer) "false"},
     {"-bc", "*vt100.cursorBlink", XrmoptionNoArg, (XPointer) "true"},
     {"+bc", "*vt100.cursorBlink", XrmoptionNoArg, (XPointer) "false"},
     {"-bcf", "*vt100.cursorOffTime", XrmoptionSepArg, NULL},

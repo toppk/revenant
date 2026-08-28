@@ -416,6 +416,7 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
                            XtpVtScrollTtyOutput(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SELECT_TO_CLIPBOARD,
                            XtpVtSelectToClipboard(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_REVERSE_VIDEO, XtpVtReverseVideo(app->vt));
         XtpMenusSetOpacity(&app->menus, (int)XtpVtBackgroundOpacityPercent(app->vt),
                            XtpVtBackgroundOpacityAvailable(app->vt));
         XtpLog(XTP_LOG_INFO, "menu", "popup requested name=%s", popup->name);
@@ -464,13 +465,10 @@ ToggleScrollbar(App *app)
 static void
 ToggleReverseVideo(App *app)
 {
-        Pixel foreground;
-        Pixel background;
-
-        XtVaGetValues(app->vt, XtNforeground, &foreground, XtNbackground, &background, NULL);
-        XtVaSetValues(app->vt, XtNforeground, background, XtNbackground, foreground, NULL);
-        XtpLog(XTP_LOG_INFO, "menu", "reverse-video foreground=%lu background=%lu", background,
-               foreground);
+        XtpVtSetReverseVideo(app->vt, !XtpVtReverseVideo(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_REVERSE_VIDEO, XtpVtReverseVideo(app->vt));
+        XtpLog(XTP_LOG_INFO, "menu", "reverse-video enabled=%s",
+               XtpVtReverseVideo(app->vt) ? "true" : "false");
         XtpVtRedraw(app->vt);
 }
 
@@ -803,6 +801,7 @@ WireApplication(App *app, const AppResources *resources)
         XtpMenusSetRenderFont(&app->menus, XtpVtUsingXft(app->vt), XtpVtXftAvailable(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SELECT_TO_CLIPBOARD,
                            XtpVtSelectToClipboard(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_REVERSE_VIDEO, XtpVtReverseVideo(app->vt));
         XtpMenusSetOpacity(&app->menus, (int)XtpVtBackgroundOpacityPercent(app->vt),
                            XtpVtBackgroundOpacityAvailable(app->vt));
 }

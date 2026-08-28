@@ -33,6 +33,7 @@ behaviour; the table gives the resource value each form sets.
 | --- | --- | --- |
 | `-bg color` | `*background` | Background |
 | `-fg color` | `*foreground` | Foreground |
+| `-rv` / `+rv` | `vt100.reverseVideo` true / false | Swap the configured default foreground and background |
 | `-geometry WxH+X+Y` | `.geometry` | Size in characters, position in pixels |
 | `-b pixels` | `vt100.internalBorder` | Padding inside the window |
 | `-title string` | `.title` | Window title |

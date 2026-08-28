@@ -36,6 +36,7 @@ typedef struct
         uint16_t columns;
         uint16_t rows;
         bool full_repaint;
+        bool reverse_colors;
         bool cursor_visible;
         uint16_t cursor_column;
         uint16_t cursor_row;

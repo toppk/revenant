@@ -28,6 +28,8 @@ struct XtpTerminal
         GhosttySelectionGestureBehavior selection_extend_behavior;
         bool selection_extend_left;
         bool selection_extend_rectangle;
+        bool reverse_colors_initialized;
+        bool reverse_colors;
         XtpCharClassTable *char_classes;
         XtpTerminalEffects effects;
 };
@@ -1442,9 +1444,11 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                   bool force_full)
 {
         GhosttyRenderStateColors colors = GHOSTTY_INIT_SIZED(GhosttyRenderStateColors);
+        GhosttyTerminalModeConfig reverse_colors = {GHOSTTY_MODE_REVERSE_COLORS, false};
         XtpRenderFrame frame = {0};
         GhosttyRenderStateDirty dirty;
         GhosttyRenderStateCursorVisualStyle cursor_style;
+        bool reverse_colors_changed;
         uint16_t row = 0;
         bool cursor_in_viewport = false;
         bool cursor_wide_tail = false;
@@ -1461,6 +1465,11 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
         if (ghostty_render_state_get(terminal->render_state, GHOSTTY_RENDER_STATE_DATA_COLORS,
                                      &colors) != GHOSTTY_SUCCESS) {
                 XtpLog(XTP_LOG_ERROR, "render", "cannot read render-state colors");
+                return -1;
+        }
+        if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_MODE, &reverse_colors) !=
+            GHOSTTY_SUCCESS) {
+                XtpLog(XTP_LOG_ERROR, "render", "cannot read reverse-colors mode");
                 return -1;
         }
         if (ghostty_render_state_get(terminal->render_state, GHOSTTY_RENDER_STATE_DATA_COLS,
@@ -1485,7 +1494,14 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                 return -1;
         }
 
-        frame.full_repaint = force_full || dirty == GHOSTTY_RENDER_STATE_DIRTY_FULL;
+        frame.reverse_colors = reverse_colors.value;
+        reverse_colors_changed = terminal->reverse_colors_initialized &&
+                                 terminal->reverse_colors != frame.reverse_colors;
+        frame.full_repaint =
+            force_full || dirty == GHOSTTY_RENDER_STATE_DIRTY_FULL || reverse_colors_changed;
+        if (reverse_colors_changed)
+                XtpLog(XTP_LOG_INFO, "render", "screen reverse changed enabled=%s",
+                       frame.reverse_colors ? "true" : "false");
         if (cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_UNDERLINE)
                 frame.cursor_shape = XTP_CURSOR_SHAPE_UNDERLINE;
         else if (cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_BAR)
@@ -1625,15 +1641,18 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                 renderer->end(&frame, closure);
         XtpLog(XTP_LOG_DEBUG, "render",
                "frame mode=%s grid=%ux%u cells=%zu graphemes=%zu cursor=%s@%u,%u shape=%d "
-               "blink-requested=%s",
+               "blink-requested=%s screen-reverse=%s",
                frame.full_repaint ? "full" : "partial", frame.columns, frame.rows, rendered_cells,
                rendered_graphemes, frame.cursor_visible ? "visible" : "hidden", frame.cursor_column,
-               frame.cursor_row, frame.cursor_shape, frame.cursor_blinking ? "true" : "false");
+               frame.cursor_row, frame.cursor_shape, frame.cursor_blinking ? "true" : "false",
+               frame.reverse_colors ? "true" : "false");
         {
                 GhosttyRenderStateDirty clean = GHOSTTY_RENDER_STATE_DIRTY_FALSE;
                 (void)ghostty_render_state_set(terminal->render_state,
                                                GHOSTTY_RENDER_STATE_OPTION_DIRTY, &clean);
         }
+        terminal->reverse_colors_initialized = true;
+        terminal->reverse_colors = frame.reverse_colors;
         return 0;
 }
 

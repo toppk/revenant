@@ -280,6 +280,7 @@ typedef struct
         size_t begin_calls;
         size_t end_calls;
         Boolean saw_styled_cell;
+        Boolean saw_inverse_cell;
         Boolean saw_hyperlink_cell;
         Boolean saw_wide_cell;
         Boolean saw_wide_tail;
@@ -308,6 +309,8 @@ SelfTestCell(const XtpRenderCell *cell, void *closure)
                 ++render->nonempty_cells;
         if (cell->foreground.kind != XTP_COLOR_DEFAULT)
                 render->saw_styled_cell = True;
+        if (cell->inverse)
+                render->saw_inverse_cell = True;
         if (cell->hyperlink)
                 render->saw_hyperlink_cell = True;
         if (cell->width == 2)
@@ -355,6 +358,44 @@ SelfTestCursorOnly(XtpTerminal *terminal, const XtpRenderer *renderer, SelfTestR
             render->frame.cursor_column + 1U != column)
                 return -1;
         return 0;
+}
+
+static int
+SelfTestReverseColors(const XtpRenderer *renderer)
+{
+        static const uint8_t styled[] = "\033[7mX\033[0m";
+        static const uint8_t reverse_on[] = "\033[?5h";
+        static const uint8_t reverse_off[] = "\033[?5l";
+        XtpTerminal *terminal;
+        SelfTestRender render = {0};
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(8, 3, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalFeed(terminal, styled, sizeof(styled) - 1U);
+        if (XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            render.frame.reverse_colors || !render.saw_inverse_cell)
+                goto done;
+
+        render.saw_inverse_cell = False;
+        XtpTerminalFeed(terminal, reverse_on, sizeof(reverse_on) - 1U);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            !render.frame.reverse_colors || !render.frame.full_repaint ||
+            render.last_frame_cells != 24U || !render.saw_inverse_cell)
+                goto done;
+
+        XtpTerminalFeed(terminal, reverse_off, sizeof(reverse_off) - 1U);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.reverse_colors || !render.frame.full_repaint ||
+            render.last_frame_cells != 24U)
+                goto done;
+        result = 0;
+done:
+        XtpTerminalFree(terminal);
+        return result;
 }
 
 static int
@@ -1187,6 +1228,10 @@ XtpSelfTest(void)
         }
         if (SelfTestCursorOnly(terminal, &renderer, &render) != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "cursor-only check failed");
+                goto failure;
+        }
+        if (SelfTestReverseColors(&renderer) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "reverse-colors check failed");
                 goto failure;
         }
         if (SelfTestModes(terminal) != 0) {

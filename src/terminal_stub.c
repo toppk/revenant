@@ -79,6 +79,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
         frame.columns = terminal->columns;
         frame.rows = terminal->rows;
         frame.full_repaint = force_full;
+        frame.reverse_colors = false;
         frame.cursor_visible = false;
         frame.cursor_column = 0;
         frame.cursor_row = 0;

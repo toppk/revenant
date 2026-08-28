@@ -84,7 +84,7 @@ Two structural gaps come first, because they affect every row:
 | `-/+nomap` | Do not map the window; useful with `-into` | `mappedWhenManaged` | Shell already sets it False then maps; make it conditional | READY |
 | `-b number` | `internalBorder` | — | — | DONE |
 | `-bw number` / `-bd color` | Shell border width and colour | Xt | — | XT |
-| `-/+rv` | `reverseVideo` at startup | Swap fg/bg before realize | Reverse video exists as a menu toggle; apply the resource at startup | READY |
+| `-/+rv` | `reverseVideo` at startup | Swap fg/bg before realize | Resource, command-line forms, and menu toggle share the widget color swap | DONE |
 | `-/+t` | Start in Tek mode | None | Tek not planned | SKIP |
 | `-/+tb` | Toolbar | None | Toolbar not planned | SKIP |
 | `-/+ai` / `-fi fontname` | Active icon and its font | None | Modern WMs ignore | SKIP |

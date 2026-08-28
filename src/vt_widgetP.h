@@ -91,6 +91,7 @@ typedef struct
 {
         Pixel foreground;
         Pixel background;
+        Pixel opaque_background;
         char text[64];
         size_t text_length;
         uint8_t width;
@@ -126,6 +127,7 @@ typedef struct
         Boolean scroll_key;
         Boolean scroll_tty_output;
         Boolean select_to_clipboard;
+        Boolean reverse_video;
         Dimension scroll_bar_border;
         Boolean always_highlight;
         XtCallbackList font_changed_callback;
@@ -172,6 +174,7 @@ typedef struct
         XtpSelectionUnit select_unit;
         Boolean focused;
         Boolean render_cursor_visible;
+        Boolean render_reverse_colors;
         unsigned int render_cursor_column;
         unsigned int render_cursor_row;
         Boolean cursor_cell_seen;

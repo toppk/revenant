@@ -66,6 +66,24 @@ RenderOpaqueColor(Vt100Rec *vt, XtpColor color, Boolean foreground)
         return VtOpaquePixel(vt, pixel);
 }
 
+static Pixel
+RenderBackgroundSurface(Vt100Rec *vt, Pixel pixel)
+{
+        return XtpX11PixelWithAlpha(VtOpaquePixel(vt, pixel),
+                                    vt->vt.alpha_visual ? &vt->vt.alpha_format : NULL,
+                                    vt->vt.background_alpha);
+}
+
+static Pixel
+RenderFrameColor(Vt100Rec *vt, XtpColor color, Boolean foreground)
+{
+        if (color.kind != XTP_COLOR_DEFAULT)
+                return RenderOpaqueColor(vt, color, foreground);
+        if (vt->vt.render_reverse_colors)
+                return foreground ? vt->vt.opaque_background_pixel : vt->vt.foreground;
+        return foreground ? vt->vt.foreground : vt->vt.opaque_background_pixel;
+}
+
 int
 VtTerminalX(Vt100Rec *vt)
 {
@@ -85,6 +103,7 @@ ResetVisualCells(Vt100Rec *vt, VisualCell *cells, size_t count)
         for (index = 0; index < count; ++index) {
                 cells[index].foreground = vt->vt.foreground;
                 cells[index].background = vt->core.background_pixel;
+                cells[index].opaque_background = vt->vt.opaque_background_pixel;
                 cells[index].width = 1;
         }
 }
@@ -127,24 +146,34 @@ static VisualCell
 MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
 {
         VisualCell visual = {0};
+        Boolean translucent_background;
         size_t index;
         Boolean drawable = cell->utf8_length < sizeof(visual.text);
 
-        visual.foreground = RenderOpaqueColor(vt, cell->foreground, True);
-        visual.background = cell->background.kind == XTP_COLOR_DEFAULT
-                                ? vt->core.background_pixel
-                                : RenderOpaqueColor(vt, cell->background, False);
+        visual.foreground = RenderFrameColor(vt, cell->foreground, True);
+        visual.background = RenderFrameColor(vt, cell->background, False);
         visual.width = cell->width;
         if (cell->inverse) {
-                visual.foreground = RenderOpaqueColor(vt, cell->background, False);
-                visual.background = RenderOpaqueColor(vt, cell->foreground, True);
+                Pixel temporary = visual.foreground;
+
+                visual.foreground = visual.background;
+                visual.background = temporary;
         }
+        translucent_background =
+            vt->vt.render_reverse_colors
+                ? (cell->inverse ? cell->foreground.kind == XTP_COLOR_DEFAULT
+                                 : cell->background.kind == XTP_COLOR_DEFAULT)
+                : (!cell->inverse && cell->background.kind == XTP_COLOR_DEFAULT);
         if (cell->selected) {
                 Pixel temporary = visual.foreground;
 
-                visual.foreground = VtOpaquePixel(vt, visual.background);
-                visual.background = VtOpaquePixel(vt, temporary);
+                visual.foreground = visual.background;
+                visual.background = temporary;
+                translucent_background = False;
         }
+        visual.opaque_background = visual.background;
+        if (translucent_background)
+                visual.background = RenderBackgroundSurface(vt, visual.background);
         if (drawable) {
                 for (index = 0; index < cell->utf8_length; ++index) {
                         unsigned char byte = (unsigned char)cell->utf8[index];
@@ -483,7 +512,7 @@ SetCursorCell(Vt100Rec *vt, const VisualCell *cell)
                 memcpy(vt->vt.cursor_text, cell->text, cell->text_length);
         vt->vt.cursor_fill =
             vt->vt.cursor_color != cell->background ? vt->vt.cursor_color : cell->foreground;
-        vt->vt.cursor_text_color = VtOpaquePixel(vt, cell->background);
+        vt->vt.cursor_text_color = cell->opaque_background;
         vt->vt.cursor_bold = cell->bold;
 }
 
@@ -653,6 +682,7 @@ static Boolean
 SameVisualCell(const VisualCell *left, const VisualCell *right)
 {
         return left->foreground == right->foreground && left->background == right->background &&
+               left->opaque_background == right->opaque_background &&
                left->text_length == right->text_length && left->width == right->width &&
                left->bold == right->bold && left->underline == right->underline &&
                left->strikethrough == right->strikethrough && left->overline == right->overline &&
@@ -665,6 +695,7 @@ RenderBegin(const XtpRenderFrame *frame, void *closure)
         Vt100Rec *vt = closure;
 
         vt->vt.render_cursor_visible = frame->cursor_visible;
+        vt->vt.render_reverse_colors = frame->reverse_colors ? True : False;
         vt->vt.render_cursor_column = frame->cursor_column;
         vt->vt.render_cursor_row = frame->cursor_row;
         vt->vt.cursor_cell_seen = False;

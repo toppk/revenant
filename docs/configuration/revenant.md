@@ -113,8 +113,15 @@ directly. The sixteen palette overrides `color0` … `color15`, plus
 resource system but not yet applied by the renderer; they are classified
 *accepted but ignored* until the palette slice of the roadmap lands.
 
-Reverse video is available as a runtime toggle in the VT Options menu; the
-`reverseVideo` resource and `-rv` do not yet apply at startup.
+Reverse video is available through the `reverseVideo` resource, the `-rv` and
+`+rv` command-line forms, and the runtime toggle in the VT Options menu. It
+swaps the configured default foreground and background without conflating that
+widget policy with application-selected DECSCNM or per-cell SGR 7 inverse.
+Applications can toggle DECSCNM with `CSI ? 5 h` and `CSI ? 5 l`; it repaints
+the complete screen and composes with SGR 7, so applying both inversions restores
+normal cell polarity. Background opacity remains attached to the effective
+screen background, while explicit cell backgrounds and reversed ink stay
+opaque.
 
 ### Compositor-backed background opacity
 

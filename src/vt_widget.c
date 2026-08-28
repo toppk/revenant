@@ -162,6 +162,8 @@ static XtResource resources[] = {
      XtRImmediate, (XtPointer)True},
     {"selectToClipboard", "SelectToClipboard", XtRBoolean, sizeof(Boolean),
      OFFSET(select_to_clipboard), XtRImmediate, (XtPointer)False},
+    {XtNreverseVideo, XtCReverseVideo, XtRBoolean, sizeof(Boolean), OFFSET(reverse_video),
+     XtRImmediate, (XtPointer)False},
     {"scrollBarBorder", "ScrollBarBorder", XtRDimension, sizeof(Dimension),
      OFFSET(scroll_bar_border), XtRImmediate, (XtPointer)1},
     {"alwaysHighlight", "AlwaysHighlight", XtRBoolean, sizeof(Boolean), OFFSET(always_highlight),
@@ -870,6 +872,15 @@ NormalizeConfiguredColors(Vt100Rec *vt)
 }
 
 static void
+SwapDefaultColors(Vt100Rec *vt)
+{
+        Pixel foreground = vt->vt.foreground;
+
+        vt->vt.foreground = vt->vt.opaque_background_pixel;
+        vt->vt.opaque_background_pixel = VtOpaquePixel(vt, foreground);
+}
+
+static void
 Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
 {
         Vt100Rec *vt = VtAsRecord(new_widget);
@@ -892,6 +903,8 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
                 vt->vt.cursor_off_time = 0;
         ResolveBackgroundOpacity(vt);
         vt->vt.opaque_background_pixel = VtOpaquePixel(vt, vt->core.background_pixel);
+        if (vt->vt.reverse_video)
+                SwapDefaultColors(vt);
         NormalizeConfiguredColors(vt);
         vt->vt.cursor_blink_policy = ParseCursorBlinkPolicy(vt->vt.cursor_blink_name);
 
@@ -1042,6 +1055,8 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
         if (old_vt->core.background_pixel != new_vt->core.background_pixel)
                 new_vt->vt.opaque_background_pixel =
                     VtOpaquePixel(new_vt, new_vt->core.background_pixel);
+        if (old_vt->vt.reverse_video != new_vt->vt.reverse_video)
+                SwapDefaultColors(new_vt);
         NormalizeConfiguredColors(new_vt);
         if (old_vt->vt.save_lines != new_vt->vt.save_lines && new_vt->vt.terminal != NULL &&
             XtpTerminalSetScrollbackLines(new_vt->vt.terminal, (size_t)new_vt->vt.save_lines) != 0)
@@ -1567,6 +1582,18 @@ Boolean
 XtpVtSelectToClipboard(Widget widget)
 {
         return VtAsRecord(widget)->vt.select_to_clipboard;
+}
+
+Boolean
+XtpVtReverseVideo(Widget widget)
+{
+        return VtAsRecord(widget)->vt.reverse_video;
+}
+
+void
+XtpVtSetReverseVideo(Widget widget, Boolean enabled)
+{
+        XtVaSetValues(widget, XtNreverseVideo, enabled ? True : False, NULL);
 }
 
 void

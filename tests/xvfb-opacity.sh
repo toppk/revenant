@@ -76,6 +76,25 @@ wait_for_terminal()
     done
 }
 
+wait_for_log()
+{
+    log=$1
+    pattern=$2
+    description=$3
+    attempt=0
+    while ! grep -F -q -- "$pattern" "$log" 2>/dev/null
+    do
+        attempt=$((attempt + 1))
+        if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
+        then
+            echo "xterm+ did not report $description" >&2
+            sed -n '1,360p' "$log" >&2
+            exit 1
+        fi
+        sleep 0.05
+    done
+}
+
 fallback_log=$test_dir/fallback.log
 "$terminal" -debug -xrm 'XTerm*backgroundOpacity: 0.5' \
     -xrm 'xterm.vt100.background: #FFFFFF' \
@@ -116,6 +135,119 @@ do
     fi
     sleep 0.05
 done
+
+decs_on=$test_dir/decs-on
+decs_off=$test_dir/decs-off
+decs_log=$test_dir/decs.log
+"$terminal" -debug +sb -fa monospace \
+    -xrm 'XTerm*backgroundOpacity: 0.64' \
+    -xrm 'xterm.vt100.background: #FFFFFF' \
+    -xrm 'xterm.vt100.foreground: #00FF00' \
+    -xrm 'xterm.vt100.internalBorder: 2' \
+    -xrm 'xterm.vt100.renderFont: true' \
+    -e sh -c 'printf "\033[2J\033[Hplain\033[2;1H\033[7m    \033[0m\033[3;1H\033[48;2;255;128;0m    \033[0m\033]2;decs-ready\007"; while ! test -d "$1"; do sleep 0.05; done; printf "\033[?5h"; while ! test -d "$2"; do sleep 0.05; done; printf "\033[?5l"; sleep 20' sh "$decs_on" "$decs_off" \
+    >"$test_dir/decs.out" 2>"$decs_log" &
+terminal_pid=$!
+wait_for_terminal "$decs_log" 'DECSCNM alpha policy'
+wait_for_log "$decs_log" 'decs-ready' 'initial DECSCNM content'
+decs_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$decs_log" | tail -1)
+cell_width=$(sed -n 's/.*VT100 resolved renderer=.* cell=\([0-9][0-9]*\)x[0-9][0-9]* .*/\1/p' "$decs_log" | tail -1)
+cell_height=$(sed -n 's/.*VT100 resolved renderer=.* cell=[0-9][0-9]*x\([0-9][0-9]*\) .*/\1/p' "$decs_log" | tail -1)
+untouched_x=$((2 + 10 * cell_width + cell_width / 2))
+inverse_x=$((2 + cell_width / 2))
+first_row_y=$((2 + cell_height / 2))
+second_row_y=$((2 + cell_height + cell_height / 2))
+third_row_y=$((2 + 2 * cell_height + cell_height / 2))
+
+normal_untouched=$(
+    "$window_alpha" "$decs_window" --expose --argb "$untouched_x" "$first_row_y"
+)
+normal_inverse=$(
+    "$window_alpha" "$decs_window" --expose --argb "$inverse_x" "$second_row_y"
+)
+normal_explicit=$(
+    "$window_alpha" "$decs_window" --expose --argb "$inverse_x" "$third_row_y"
+)
+if test "$normal_untouched" != 0xa3a3a3a3 || \
+   test "$normal_inverse" != 0xff00ff00 || test "$normal_explicit" != 0xffff8000
+then
+    echo "initial DECSCNM pixels untouched=$normal_untouched inverse=$normal_inverse explicit=$normal_explicit" >&2
+    sed -n '1,360p' "$decs_log" >&2
+    exit 1
+fi
+
+mkdir "$decs_on"
+wait_for_log "$decs_log" 'screen reverse changed enabled=true' 'DECSCNM enable repaint'
+reversed_untouched=$(
+    "$window_alpha" "$decs_window" --expose --argb "$untouched_x" "$first_row_y"
+)
+reversed_inverse=$(
+    "$window_alpha" "$decs_window" --expose --argb "$inverse_x" "$second_row_y"
+)
+reversed_explicit=$(
+    "$window_alpha" "$decs_window" --expose --argb "$inverse_x" "$third_row_y"
+)
+# SGR 7 and DECSCNM cancel visually. Their restored default background is the
+# translucent screen surface, not opaque ink merely because SGR 7 remains set.
+if test "$reversed_untouched" != 0xa300a300 || \
+   test "$reversed_inverse" != 0xa3a3a3a3 || test "$reversed_explicit" != 0xffff8000
+then
+    echo "enabled DECSCNM pixels untouched=$reversed_untouched inverse=$reversed_inverse explicit=$reversed_explicit" >&2
+    sed -n '1,380p' "$decs_log" >&2
+    exit 1
+fi
+
+mkdir "$decs_off"
+wait_for_log "$decs_log" 'screen reverse changed enabled=false' 'DECSCNM disable repaint'
+restored_untouched=$(
+    "$window_alpha" "$decs_window" --expose --argb "$untouched_x" "$first_row_y"
+)
+restored_inverse=$(
+    "$window_alpha" "$decs_window" --expose --argb "$inverse_x" "$second_row_y"
+)
+restored_explicit=$(
+    "$window_alpha" "$decs_window" --expose --argb "$inverse_x" "$third_row_y"
+)
+if test "$restored_untouched" != "$normal_untouched" || \
+   test "$restored_inverse" != "$normal_inverse" || \
+   test "$restored_explicit" != "$normal_explicit"
+then
+    echo "restored DECSCNM pixels untouched=$restored_untouched inverse=$restored_inverse explicit=$restored_explicit" >&2
+    sed -n '1,400p' "$decs_log" >&2
+    exit 1
+fi
+kill "$terminal_pid"
+wait "$terminal_pid" 2>/dev/null || true
+terminal_pid=
+
+rv_log=$test_dir/reverse-resource.log
+"$terminal" -debug -rv +sb -fa monospace \
+    -xrm 'XTerm*backgroundOpacity: 0.64' \
+    -xrm 'xterm.vt100.background: #FFFFFF' \
+    -xrm 'xterm.vt100.foreground: #00FF00' \
+    -xrm 'xterm.vt100.internalBorder: 2' \
+    -xrm 'xterm.vt100.renderFont: true' \
+    -e sh -c 'printf "\033[2J\033[H\033]2;rv-ready\007"; sleep 20' \
+    >"$test_dir/reverse-resource.out" 2>"$rv_log" &
+terminal_pid=$!
+wait_for_terminal "$rv_log" 'reverseVideo startup resource'
+wait_for_log "$rv_log" 'rv-ready' 'reverseVideo startup content'
+rv_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$rv_log" | tail -1)
+cell_width=$(sed -n 's/.*VT100 resolved renderer=.* cell=\([0-9][0-9]*\)x[0-9][0-9]* .*/\1/p' "$rv_log" | tail -1)
+cell_height=$(sed -n 's/.*VT100 resolved renderer=.* cell=[0-9][0-9]*x\([0-9][0-9]*\) .*/\1/p' "$rv_log" | tail -1)
+rv_pixel=$(
+    "$window_alpha" "$rv_window" --expose --argb \
+        $((2 + 10 * cell_width + cell_width / 2)) $((2 + cell_height / 2))
+)
+if test "$rv_pixel" != 0xa300a300
+then
+    echo "reverseVideo background stored $rv_pixel instead of translucent green" >&2
+    sed -n '1,360p' "$rv_log" >&2
+    exit 1
+fi
+kill "$terminal_pid"
+wait "$terminal_pid" 2>/dev/null || true
+terminal_pid=
 
 run_argb_case()
 {
