@@ -76,7 +76,13 @@ jobs:
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
       - run: packaging/build-deb "${{ needs.prepare.outputs.version }}"
-      - run: sudo apt-get install -y ./dist/*.deb && revenant --version && xterm+ --version
+      - run: |
+          sudo apt-get install -y ./dist/*.deb
+          revenant --version
+          xterm+ --version
+          test -f /usr/share/applications/revenant.desktop
+          test -f /usr/share/icons/hicolor/scalable/apps/revenant.svg
+          test -f /usr/share/icons/hicolor/256x256/apps/revenant.png
       - uses: actions/upload-artifact@v7
         with:
           name: deb-x86_64
@@ -101,7 +107,13 @@ jobs:
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
       - run: packaging/build-rpm "${{ needs.prepare.outputs.version }}"
-      - run: dnf install -y ./dist/*.rpm && revenant --version && xterm+ --version
+      - run: |
+          dnf install -y ./dist/*.rpm
+          revenant --version
+          xterm+ --version
+          test -f /usr/share/applications/revenant.desktop
+          test -f /usr/share/icons/hicolor/scalable/apps/revenant.svg
+          test -f /usr/share/icons/hicolor/256x256/apps/revenant.png
       - uses: actions/upload-artifact@v7
         with:
           name: rpm-x86_64

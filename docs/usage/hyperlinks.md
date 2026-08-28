@@ -44,4 +44,4 @@ responsible for displaying and applying its own policy to the destination.
 
 For protocol syntax, application guidance, and compatibility across terminal
 emulators, see the
-[TDN OSC 8 reference](https://toppk.github.io/xterm-plus/tdn/osc/hyperlinks/).
+[TDN OSC 8 reference](https://toppk.github.io/revenant/tdn/osc/hyperlinks/).

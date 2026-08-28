@@ -4,7 +4,7 @@ Version:        %{version}
 Release:        1%{?dist}
 Summary:        xterm-compatible X11 terminal emulator built on libghostty-vt
 License:        MIT
-URL:            https://github.com/toppk/xterm-plus
+URL:            https://github.com/toppk/revenant
 
 # Debug subpackages do not work with --build-in-place.
 %global debug_package %{nil}
@@ -23,8 +23,9 @@ BuildRequires:  pkgconfig(xrender)
 # zig >= 0.16 must be on PATH; Fedora's packaged zig is not used.
 
 %description
-Revenant (installed as revenant, with an xterm+ compatibility symlink) preserves xterm's Xt/Athena user interface and X resource contract
-while using libghostty-vt as its terminal core.
+Revenant is an X11 terminal emulator that keeps xterm's Xt/Athena user
+interface and X resource contract while using libghostty-vt as its terminal
+core. It installs as revenant, with an xterm+ compatibility symlink.
 
 %build
 %meson -Dlibghostty=enabled
@@ -37,10 +38,13 @@ while using libghostty-vt as its terminal core.
 %meson_test
 
 %files
-%license LICENSES/xterm.txt
+%license LICENSE
 %doc README.md
 %{_bindir}/revenant
 %{_bindir}/xterm+
+%{_datadir}/applications/revenant.desktop
+%{_datadir}/icons/hicolor/scalable/apps/revenant.svg
+%{_datadir}/icons/hicolor/256x256/apps/revenant.png
 
 %changelog
 * Tue Aug 25 2026 Kenneth Topp <toppk@bllue.org> - %{version}-1

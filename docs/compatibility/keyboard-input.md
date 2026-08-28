@@ -57,7 +57,7 @@ is recorded in the [xterm differences ledger](drift.md), not an implementation
 gap.
 
 The protocol mechanics and the zero-flags exception are covered in the
-[TDN Kitty keyboard reference](https://toppk.github.io/xterm-plus/tdn/input/kitty-keyboard/).
+[TDN Kitty keyboard reference](https://toppk.github.io/revenant/tdn/input/kitty-keyboard/).
 
 ## Negotiated Kitty keyboard input
 

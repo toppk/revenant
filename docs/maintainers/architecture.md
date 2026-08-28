@@ -89,7 +89,7 @@ The repository deliberately carries xterm-derived compatibility material:
 - behavioral details reconstructed while consulting xterm's implementation.
 
 Those portions are covered by
-[`LICENSES/xterm.txt`](https://github.com/toppk/xterm-plus/blob/master/LICENSES/xterm.txt).
+[`LICENSES/xterm.txt`](https://github.com/toppk/revenant/blob/master/LICENSES/xterm.txt).
 Consult xterm to reproduce external behavior, not to transplant its terminal
 engine. Keep the checked-in compatibility catalogs synchronized whenever the
 oracle advances.

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Revenant
+GenericName=Terminal
+Comment=xterm-compatible X11 terminal with a modern libghostty-vt core
+Exec=revenant
+Icon=revenant
+Terminal=false
+Categories=System;TerminalEmulator;
+Keywords=shell;prompt;command;commandline;xterm;
+StartupWMClass=XTerm

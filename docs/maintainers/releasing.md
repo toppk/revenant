@@ -9,26 +9,26 @@ commit, then dispatches the workflow against that tag.
 1. Tag the commit and push the tag:
 
     ```sh
-    git tag v0.2.0
-    git push origin master v0.2.0
+    git tag v0.3.0
+    git push origin master v0.3.0
     ```
 
 2. Dispatch the workflow with the tag, from the CLI or the Actions tab:
 
     ```sh
-    gh workflow run release.yml -f tag=v0.2.0
+    gh workflow run release.yml -f tag=v0.3.0
     gh run watch
     ```
 
 3. When the run finishes, the release at
-   `https://github.com/toppk/xterm-plus/releases/tag/v0.2.0` is published
+   `https://github.com/toppk/revenant/releases/tag/v0.3.0` is published
    with its assets attached.
 
 ## What the workflow does
 
 - **Check tag** fails immediately if the tag does not exist on `origin`, and
-  derives the package version by stripping the leading `v` (`v0.2.0` →
-  `0.2.0`).
+  derives the package version by stripping the leading `v` (`v0.3.0` →
+  `0.3.0`).
 - Every build job checks out the Revenant tag itself, so its packaging scripts
   come from that tagged commit. While `tools/fetch-libghostty` temporarily
   follows Ghostty `main`, however, separate jobs can resolve different Ghostty
@@ -40,10 +40,11 @@ commit, then dispatches the workflow against that tag.
   `README.md`, and `LICENSES/`.
 - **deb** builds on `ubuntu-latest` with `dpkg-buildpackage` from
   `packaging/debian/`, then installs the result and runs `revenant --version`
-  and `xterm+ --version`.
+  and `xterm+ --version`. The package also installs Revenant's desktop entry
+  and scalable and 256-pixel application icons.
 - **rpm** builds in a `fedora:latest` container with
   `rpmbuild --build-in-place` from `packaging/revenant.spec`, then installs
-  the result and runs `revenant --version` and `xterm+ --version`.
+  the result and runs the same binary and desktop-integration checks.
 - **GitHub release** downloads every artifact, publishes the release, and
   then deletes the run's build artifacts. Artifacts are also uploaded with
   a 3-day expiry, so a failed run leaves them around briefly for debugging.
@@ -62,17 +63,17 @@ Zig on `PATH`, and `tools/fetch-libghostty` run first; output lands in
 `dist/`.
 
 ```sh
-packaging/build-tarball 0.2.0
-packaging/build-deb 0.2.0      # Debian/Ubuntu: also needs debhelper
-packaging/build-rpm 0.2.0      # Fedora: also needs rpm-build
+packaging/build-tarball 0.3.0
+packaging/build-deb 0.3.0      # Debian/Ubuntu: also needs debhelper
+packaging/build-rpm 0.3.0      # Fedora: also needs rpm-build
 ```
 
 ## Undoing a test release
 
 ```sh
-gh release delete v0.2.0 --yes
-git push origin :v0.2.0
-git tag -d v0.2.0
+gh release delete v0.3.0 --yes
+git push origin :v0.3.0
+git tag -d v0.3.0
 ```
 
 ## Known gaps
@@ -86,6 +87,3 @@ git tag -d v0.2.0
   rpm need a `Depends`/`Requires` on `xterm` (or on whichever subpackage
   owns those files).
 - No macOS or Windows builds; the X11 story there is unresolved.
-- The `MIT` license declared in the spec and `debian/copyright` is a
-  placeholder until the repository carries a top-level license for Revenant's
-  own code.

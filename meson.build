@@ -165,6 +165,11 @@ xterm_plus = executable(
 )
 
 install_symlink('xterm+', install_dir: get_option('bindir'), pointing_to: 'revenant')
+install_data('data/revenant.desktop', install_dir: get_option('datadir') / 'applications')
+install_data('data/icons/revenant.svg',
+    install_dir: get_option('datadir') / 'icons/hicolor/scalable/apps')
+install_data('data/icons/revenant-256.png', rename: 'revenant.png',
+    install_dir: get_option('datadir') / 'icons/hicolor/256x256/apps')
 
 font_key_test_tool = executable(
     'xtp-send-font-keys',

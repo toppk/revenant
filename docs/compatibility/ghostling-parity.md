@@ -73,7 +73,7 @@ and nested stack restoration. Non-US layouts and composed XIM input remain
 useful matrix expansion, but are no longer missing protocol plumbing.
 
 The wire format and manual probes are documented in the
-[TDN Kitty keyboard reference](https://toppk.github.io/xterm-plus/tdn/input/kitty-keyboard/).
+[TDN Kitty keyboard reference](https://toppk.github.io/revenant/tdn/input/kitty-keyboard/).
 Run `python3 tools/probe-keymodes.py --kitty-only` from a checkout for the maintained
 interactive acceptance probe; it preserves exact bytes, decodes event types,
 and verifies flag-stack restoration.

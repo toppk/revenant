@@ -102,10 +102,11 @@ reader can rerun it in a new emulator version and update the table.
   [terminal page](terminals/index.md);
 - versioned probes for everything else.
 
-## Relationship to xterm+
+## Relationship to Revenant
 
-TDN started inside the [xterm+](https://toppk.github.io/xterm-plus/) project
-because xterm+ needed it: a compatibility target has to be written down
-before it can be met. The content is about terminals in general, not about
-xterm+, and it is meant to become a community effort. xterm+-specific
-decisions stay in the [xterm+ documentation](https://toppk.github.io/xterm-plus/docs/).
+TDN started inside [Revenant](https://toppk.github.io/revenant/), originally
+called xterm+, because Revenant needed it: a compatibility target has to be
+written down before it can be met. The content is about terminals in general,
+not about Revenant, and it is meant to become a community effort.
+Revenant-specific decisions stay in the
+[Revenant documentation](https://toppk.github.io/revenant/docs/).

@@ -264,7 +264,7 @@ the configured default blink. `always` and `never` ignore application blink
 requests without suppressing application shape or visibility changes. The
 command-line forms are `-bc`, `+bc`, `-bcn milliseconds`, and
 `-bcf milliseconds`. A focused block is filled and an unfocused block is an
-outline. See the [TDN cursor-controls reference](https://toppk.github.io/xterm-plus/tdn/csi/cursor/) for the
+outline. See the [TDN cursor-controls reference](https://toppk.github.io/revenant/tdn/csi/cursor/) for the
 wire protocol and compatibility notes. Wiring `cursorUnderLine` and `cursorBar`
 as startup shape resources remains roadmap work.
 

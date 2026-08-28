@@ -1,8 +1,8 @@
 site_name: Terminal Developers Network
 site_description: A reference for terminal protocols, emulator behavior, and compatibility.
-site_url: https://toppk.github.io/xterm-plus/tdn/
-repo_url: https://github.com/toppk/xterm-plus
-repo_name: toppk/xterm-plus
+site_url: https://toppk.github.io/revenant/tdn/
+repo_url: https://github.com/toppk/revenant
+repo_name: toppk/revenant
 edit_uri: edit/master/tdn/docs/
 docs_dir: docs
 site_dir: site
@@ -133,4 +133,4 @@ nav:
   - Practices:
       - Overview: practices/index.md
       - Multiplexers: practices/multiplexers.md
-  - xterm+ project: https://toppk.github.io/xterm-plus/
+  - Revenant project: https://toppk.github.io/revenant/

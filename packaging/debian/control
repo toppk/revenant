@@ -15,12 +15,13 @@ Build-Depends: debhelper-compat (= 13),
                libxft-dev,
                libxrender-dev
 Standards-Version: 4.6.2
-Homepage: https://github.com/toppk/xterm-plus
+Homepage: https://github.com/toppk/revenant
 Rules-Requires-Root: no
 
 Package: revenant
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: xterm-compatible X11 terminal emulator built on libghostty-vt
- Revenant (installed as revenant, with an xterm+ compatibility symlink) preserves xterm's Xt/Athena user interface and X resource contract
- while using libghostty-vt as its terminal core.
+ Revenant is an X11 terminal emulator that keeps xterm's Xt/Athena user
+ interface and X resource contract while using libghostty-vt as its terminal
+ core. It installs as revenant, with an xterm+ compatibility symlink.

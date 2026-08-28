@@ -6,6 +6,11 @@ also build it directly from the repository.
 The binary is `revenant`; every package and tarball also installs an `xterm+`
 symlink pointing to it, so either name starts the same program.
 
+System installation with Meson, the Debian package, or the RPM also installs a
+Revenant launcher and application icons in the standard freedesktop locations.
+The launcher identifies the window as XTerm so desktop environments associate
+it with Revenant's existing X11 application class.
+
 ## Prerequisites
 
 You need a C toolchain, Meson and Ninja, and the X11 development libraries

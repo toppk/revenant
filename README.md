@@ -44,7 +44,8 @@ treating Revenant as a transparent replacement.
 
 ## Build and run
 
-Releases provide Linux archives and Debian and RPM packages. The
+Releases provide Linux archives and Debian and RPM packages; system packages
+also install a Revenant application-menu launcher and icons. The
 [installation guide](docs/getting-started/install.md) lists dependencies and
 packaging details. To build the full terminal from a checkout:
 
@@ -144,7 +145,7 @@ The repository's main areas are intentionally unsurprising:
 | `tools/` | Fetch, profiling, maintenance, and interactive probe utilities |
 | `docs/` | Revenant user and maintainer manual |
 | `compat/` | Machine-readable xterm patch-410 compatibility catalogs |
-| `data/` | Reference app-default material |
+| `data/` | Reference app-default material, desktop launcher, and application icons |
 | `tdn/` | Independently licensed terminal-protocol documentation |
 | `packaging/` | Release archives, Debian packages, and RPM support |
 

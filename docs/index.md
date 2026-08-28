@@ -65,7 +65,7 @@ is classified in the
   keyboard fixtures for comparing Revenant, xterm, and Ghostty.
 
 - **Writing a terminal application or emulator**
-  The [Terminal Developers Network](https://toppk.github.io/xterm-plus/tdn/) explains control protocols,
+  The [Terminal Developers Network](https://toppk.github.io/revenant/tdn/) explains control protocols,
   their history, compatibility differences, and reproducible probes.
 
 </div>

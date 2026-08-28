@@ -1,8 +1,8 @@
 site_name: Revenant
 site_description: An xterm-compatible X11 terminal with a modern libghostty core.
-site_url: https://toppk.github.io/xterm-plus/docs/
-repo_url: https://github.com/toppk/xterm-plus
-repo_name: toppk/xterm-plus
+site_url: https://toppk.github.io/revenant/docs/
+repo_url: https://github.com/toppk/revenant
+repo_name: toppk/revenant
 edit_uri: edit/master/docs/
 docs_dir: docs
 site_dir: site
@@ -81,4 +81,4 @@ nav:
       - Upstream references: maintainers/upstream.md
       - C style guide: maintainers/style.md
       - Releasing: maintainers/releasing.md
-  - Terminal Developers Network: https://toppk.github.io/xterm-plus/tdn/
+  - Terminal Developers Network: https://toppk.github.io/revenant/tdn/

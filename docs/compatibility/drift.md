@@ -139,7 +139,7 @@ visibility remain under application control in every case.
 This behavior intentionally differs from xterm's cursor-blink policy.
 `cursorBlinkXOR` is accepted for resource-file compatibility but has no effect.
 The [TDN cursor-controls
-reference](https://toppk.github.io/xterm-plus/tdn/csi/cursor/) documents the
+reference](https://toppk.github.io/revenant/tdn/csi/cursor/) documents the
 wire controls, the Revenant policy, the xterm policy reference, and versioned
 observations from other terminals.
 
@@ -178,4 +178,4 @@ design decisions:
   and compatibility tests.
 
 Detailed compatibility classifications live in the repository's
-[`compat/README.md`](https://github.com/toppk/xterm-plus/blob/master/compat/README.md).
+[`compat/README.md`](https://github.com/toppk/revenant/blob/master/compat/README.md).
