@@ -315,6 +315,22 @@ XtpMenusPopup(XtpMenus *menus, const char *name, XEvent *event)
         params[0] = (String)name;
         XtCallActionProc(menu, "XawPositionSimpleMenu", event, params, num_params);
         XtPopupSpringLoaded(menu);
+        if (menu == menus->main_menu && menus->opacity_slider != NULL) {
+                Position x = 0;
+                Position y = 0;
+                Dimension width = 0;
+                Dimension height = 0;
+                Arg args[4];
+
+                XtSetArg(args[0], XtNx, &x);
+                XtSetArg(args[1], XtNy, &y);
+                XtSetArg(args[2], XtNwidth, &width);
+                XtSetArg(args[3], XtNheight, &height);
+                XtGetValues(menus->opacity_slider, args, XtNumber(args));
+                XtpLog(XTP_LOG_DEBUG, "menu",
+                       "opacity slider geometry x=%d y=%d width=%d height=%d", (int)x, (int)y,
+                       (int)width, (int)height);
+        }
 }
 
 void

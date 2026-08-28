@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 static void
@@ -74,15 +75,17 @@ main(int argc, char **argv)
         XEvent event = {0};
         int x;
         int y;
+        int open_only;
 
-        if (argc != 2) {
-                fprintf(stderr, "usage: %s SHELL-WINDOW\n", argv[0]);
+        open_only = argc == 3 && strcmp(argv[1], "open") == 0;
+        if (!open_only && (argc != 5 || strcmp(argv[1], "drag") != 0)) {
+                fprintf(stderr, "usage: %s open SHELL-WINDOW | drag SHELL-WINDOW X Y\n", argv[0]);
                 return EXIT_FAILURE;
         }
         errno = 0;
-        parsed = strtoul(argv[1], &end, 0);
-        if (errno != 0 || end == argv[1] || *end != '\0' || parsed == 0) {
-                fprintf(stderr, "invalid shell window: %s\n", argv[1]);
+        parsed = strtoul(argv[2], &end, 0);
+        if (errno != 0 || end == argv[2] || *end != '\0' || parsed == 0) {
+                fprintf(stderr, "invalid shell window: %s\n", argv[2]);
                 return EXIT_FAILURE;
         }
         display = XOpenDisplay(NULL);
@@ -91,28 +94,39 @@ main(int argc, char **argv)
                 return EXIT_FAILURE;
         }
         shell = (Window)parsed;
-        terminal = FirstChild(display, shell);
-        if (terminal == None) {
-                fprintf(stderr, "cannot find terminal child\n");
-                XCloseDisplay(display);
-                return EXIT_FAILURE;
-        }
 
-        event.xbutton.type = ButtonPress;
-        event.xbutton.display = display;
-        event.xbutton.window = terminal;
-        event.xbutton.root = DefaultRootWindow(display);
-        event.xbutton.time = CurrentTime;
-        event.xbutton.x = 20;
-        event.xbutton.y = 20;
-        event.xbutton.x_root = 20;
-        event.xbutton.y_root = 20;
-        event.xbutton.state = ControlMask;
-        event.xbutton.button = Button1;
-        event.xbutton.same_screen = True;
-        (void)XSendEvent(display, terminal, True, ButtonPressMask, &event);
-        XSync(display, False);
-        ShortDelay();
+        if (open_only) {
+                terminal = FirstChild(display, shell);
+                if (terminal == None) {
+                        fprintf(stderr, "cannot find terminal child\n");
+                        XCloseDisplay(display);
+                        return EXIT_FAILURE;
+                }
+                event.xbutton.type = ButtonPress;
+                event.xbutton.display = display;
+                event.xbutton.window = terminal;
+                event.xbutton.root = DefaultRootWindow(display);
+                event.xbutton.time = CurrentTime;
+                event.xbutton.x = 20;
+                event.xbutton.y = 20;
+                event.xbutton.x_root = 20;
+                event.xbutton.y_root = 20;
+                event.xbutton.state = ControlMask;
+                event.xbutton.button = Button1;
+                event.xbutton.same_screen = True;
+                (void)XSendEvent(display, terminal, True, ButtonPressMask, &event);
+                XSync(display, False);
+                ShortDelay();
+                menu = FindPopupMenu(display, shell);
+                if (menu == None) {
+                        fprintf(stderr, "cannot find mapped Main Options menu\n");
+                        XCloseDisplay(display);
+                        return EXIT_FAILURE;
+                }
+                printf("opened menu 0x%lx\n", menu);
+                XCloseDisplay(display);
+                return EXIT_SUCCESS;
+        }
 
         menu = FindPopupMenu(display, shell);
         if (menu == None || !XGetWindowAttributes(display, menu, &attributes)) {
@@ -120,28 +134,36 @@ main(int argc, char **argv)
                 XCloseDisplay(display);
                 return EXIT_FAILURE;
         }
-        x = attributes.width / 2;
-        /* The slider precedes line2; 19 SmeBSB and three SmeLine objects follow it. */
-        y = attributes.height - 19 * 21 - 3 * 8 - 11;
+        x = atoi(argv[3]);
+        y = atoi(argv[4]);
 
         event.xmotion.type = MotionNotify;
+        event.xmotion.display = display;
         event.xmotion.window = menu;
+        event.xmotion.root = DefaultRootWindow(display);
+        event.xmotion.time = CurrentTime;
         event.xmotion.x = x;
         event.xmotion.y = y;
         event.xmotion.x_root = attributes.x + x;
         event.xmotion.y_root = attributes.y + y;
         event.xmotion.state = ControlMask | Button1Mask;
+        event.xmotion.same_screen = True;
         (void)XSendEvent(display, menu, True, ButtonMotionMask, &event);
         XSync(display, False);
         ShortDelay();
 
         event.xbutton.type = ButtonRelease;
+        event.xbutton.display = display;
         event.xbutton.window = menu;
+        event.xbutton.root = DefaultRootWindow(display);
+        event.xbutton.time = CurrentTime;
         event.xbutton.x = x;
         event.xbutton.y = y;
         event.xbutton.x_root = attributes.x + x;
         event.xbutton.y_root = attributes.y + y;
         event.xbutton.state = ControlMask | Button1Mask;
+        event.xbutton.button = Button1;
+        event.xbutton.same_screen = True;
         (void)XSendEvent(display, menu, True, ButtonReleaseMask, &event);
         XSync(display, False);
         printf("dragged opacity slider in 0x%lx at %d,%d\n", menu, x, y);

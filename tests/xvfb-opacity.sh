@@ -144,7 +144,24 @@ run_argb_case()
     fi
     if test "$renderer" = true
     then
-        "$drag_slider" "$window" >/dev/null
+        "$drag_slider" open "$window" >/dev/null
+        attempt=0
+        while ! grep -q 'opacity slider geometry' "$log"
+        do
+            attempt=$((attempt + 1))
+            if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
+            then
+                echo "Main Options menu did not report the opacity slider geometry" >&2
+                sed -n '1,280p' "$log" >&2
+                exit 1
+            fi
+            sleep 0.05
+        done
+        slider_x=$(sed -n 's/.*opacity slider geometry x=\([0-9]*\) .*/\1/p' "$log" | tail -1)
+        slider_y=$(sed -n 's/.*opacity slider geometry .* y=\([0-9]*\) .*/\1/p' "$log" | tail -1)
+        slider_w=$(sed -n 's/.*opacity slider geometry .* width=\([0-9]*\) .*/\1/p' "$log" | tail -1)
+        slider_h=$(sed -n 's/.*opacity slider geometry .* height=\([0-9]*\).*/\1/p' "$log" | tail -1)
+        "$drag_slider" drag "$window" $((slider_x + slider_w * 3 / 4)) $((slider_y + slider_h / 2)) >/dev/null
         attempt=0
         while ! grep -q 'background opacity changed percent=' "$log"
         do
