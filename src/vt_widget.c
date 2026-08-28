@@ -67,14 +67,14 @@ typedef enum
 {
         XTP_SELECTION_SOURCE_ATOM,
         XTP_SELECTION_SOURCE_CUT_BUFFER,
-} XtpSelectionSourceKind;
+} SelectionSourceKind;
 
 typedef struct
 {
-        XtpSelectionSourceKind kind;
+        SelectionSourceKind kind;
         Atom atom;
         int cut_buffer;
-} XtpSelectionSource;
+} SelectionSource;
 
 typedef enum
 {
@@ -82,16 +82,16 @@ typedef enum
         XTP_CURSOR_BLINK_DEFAULT_TRUE,
         XTP_CURSOR_BLINK_ALWAYS,
         XTP_CURSOR_BLINK_NEVER,
-} XtpCursorBlinkPolicy;
+} CursorBlinkPolicy;
 
 typedef enum
 {
-        XTP_KEY_ACTION_FONT_LARGER,
-        XTP_KEY_ACTION_FONT_SMALLER,
-        XTP_KEY_ACTION_PASTE,
-        XTP_KEY_ACTION_SCROLL_BACK,
-        XTP_KEY_ACTION_SCROLL_FORWARD,
-} XtpLocalKeyAction;
+        XTP_LOCAL_ACTION_FONT_LARGER,
+        XTP_LOCAL_ACTION_FONT_SMALLER,
+        XTP_LOCAL_ACTION_PASTE,
+        XTP_LOCAL_ACTION_SCROLL_BACK,
+        XTP_LOCAL_ACTION_SCROLL_FORWARD,
+} LocalKeyAction;
 
 typedef struct
 {
@@ -101,7 +101,7 @@ typedef struct
         Time time;
         unsigned int keycode;
         unsigned int state;
-        XtpLocalKeyAction action;
+        LocalKeyAction action;
 } KeyActionIdentity;
 
 typedef struct
@@ -134,7 +134,7 @@ typedef struct
         int save_lines;
         int multi_click_time;
         String cursor_blink_name;
-        XtpCursorBlinkPolicy cursor_blink_policy;
+        CursorBlinkPolicy cursor_blink_policy;
         int cursor_on_time;
         int cursor_off_time;
         Boolean scroll_bar;
@@ -544,7 +544,7 @@ ResourceBoolean(const char *value, Boolean default_value)
         return default_value;
 }
 
-static XtpCursorBlinkPolicy
+static CursorBlinkPolicy
 ParseCursorBlinkPolicy(const char *value)
 {
         if (value != NULL && strcasecmp(value, "true") == 0)
@@ -562,13 +562,13 @@ ParseCursorBlinkPolicy(const char *value)
 }
 
 static Boolean
-CursorBlinkDefault(XtpCursorBlinkPolicy policy)
+CursorBlinkDefault(CursorBlinkPolicy policy)
 {
         return policy == XTP_CURSOR_BLINK_DEFAULT_TRUE || policy == XTP_CURSOR_BLINK_ALWAYS;
 }
 
 static Boolean
-EffectiveCursorBlink(XtpCursorBlinkPolicy policy, Boolean requested)
+EffectiveCursorBlink(CursorBlinkPolicy policy, Boolean requested)
 {
         if (policy == XTP_CURSOR_BLINK_ALWAYS)
                 return True;
@@ -2329,7 +2329,7 @@ RelativeFont(Widget widget, int direction)
 }
 
 static Boolean
-AcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, XtpLocalKeyAction action)
+AcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action)
 {
         KeyActionIdentity *identity;
         unsigned int slot;
@@ -2372,7 +2372,7 @@ LargerFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_par
 {
         (void)params;
         (void)num_params;
-        if (!AcceptLocalKeyAction(AsVt(widget), event, XTP_KEY_ACTION_FONT_LARGER))
+        if (!AcceptLocalKeyAction(AsVt(widget), event, XTP_LOCAL_ACTION_FONT_LARGER))
                 return;
         XtpLog(
             XTP_LOG_INFO, "input",
@@ -2389,7 +2389,7 @@ SmallerFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_pa
 {
         (void)params;
         (void)num_params;
-        if (!AcceptLocalKeyAction(AsVt(widget), event, XTP_KEY_ACTION_FONT_SMALLER))
+        if (!AcceptLocalKeyAction(AsVt(widget), event, XTP_LOCAL_ACTION_FONT_SMALLER))
                 return;
         XtpLog(XTP_LOG_INFO, "input",
                "action smaller-vt-font event=%d serial=%lu synthetic=%s time=%lu keycode=%u "
@@ -2473,10 +2473,10 @@ OwnsSelection(const Vt100Rec *vt, Atom selection)
         return False;
 }
 
-static XtpSelectionSource
+static SelectionSource
 ResolveSelectionSource(Vt100Rec *vt, const char *name)
 {
-        XtpSelectionSource source = {XTP_SELECTION_SOURCE_ATOM, None, -1};
+        SelectionSource source = {XTP_SELECTION_SOURCE_ATOM, None, -1};
 
         if (name == NULL || *name == '\0')
                 return source;
@@ -3381,7 +3381,7 @@ PublishSelection(Vt100Rec *vt, String *params, Cardinal num_params)
                 return;
         }
         for (index = 0; index < num_params; ++index) {
-                XtpSelectionSource source = ResolveSelectionSource(vt, params[index]);
+                SelectionSource source = ResolveSelectionSource(vt, params[index]);
                 Boolean duplicate = False;
                 Cardinal owned;
 
@@ -3478,7 +3478,7 @@ typedef struct
         Cardinal source_count;
         Cardinal source_index;
         Boolean tried_string;
-        XtpSelectionSource sources[];
+        SelectionSource sources[];
 } PasteRequest;
 
 static void
@@ -3563,7 +3563,7 @@ RequestNextPasteSource(Widget widget, PasteRequest *request)
         Atom utf8 = XInternAtom(XtDisplay(widget), "UTF8_STRING", False);
 
         while (request->source_index < request->source_count) {
-                XtpSelectionSource *source = &request->sources[request->source_index];
+                SelectionSource *source = &request->sources[request->source_index];
 
                 if (source->kind == XTP_SELECTION_SOURCE_ATOM) {
                         XtGetSelectionValue(widget, source->atom, utf8, SelectionReceived, request,
@@ -3608,7 +3608,7 @@ RequestNamedPaste(Widget widget, Time time, String *params, Cardinal num_params)
         }
         request->time = time;
         for (index = 0; index < num_params; ++index) {
-                XtpSelectionSource source = ResolveSelectionSource(vt, params[index]);
+                SelectionSource source = ResolveSelectionSource(vt, params[index]);
 
                 if (source.kind == XTP_SELECTION_SOURCE_ATOM && source.atom == None)
                         continue;
@@ -3627,7 +3627,7 @@ InsertSelectionAction(Widget widget, XEvent *event, String *params, Cardinal *nu
             ReportMouseButton(vt, &event->xbutton, XTP_MOUSE_ACTION_RELEASE))
                 return;
         if (event != NULL && event->type == KeyPress &&
-            !AcceptLocalKeyAction(vt, event, XTP_KEY_ACTION_PASTE))
+            !AcceptLocalKeyAction(vt, event, XTP_LOCAL_ACTION_PASTE))
                 return;
         if (event != NULL && (event->type == ButtonPress || event->type == ButtonRelease))
                 time = event->xbutton.time;
@@ -3684,7 +3684,7 @@ ScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_par
         intptr_t rows = ScrollActionRows(vt, params, *num_params);
 
         if (event != NULL && event->type == KeyPress &&
-            !AcceptLocalKeyAction(vt, event, XTP_KEY_ACTION_SCROLL_BACK))
+            !AcceptLocalKeyAction(vt, event, XTP_LOCAL_ACTION_SCROLL_BACK))
                 return;
         if (event != NULL && event->type == ButtonPress &&
             ReportMouseButton(vt, &event->xbutton, XTP_MOUSE_ACTION_PRESS)) {
@@ -3701,7 +3701,7 @@ ScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *num_
         intptr_t rows = ScrollActionRows(vt, params, *num_params);
 
         if (event != NULL && event->type == KeyPress &&
-            !AcceptLocalKeyAction(vt, event, XTP_KEY_ACTION_SCROLL_FORWARD))
+            !AcceptLocalKeyAction(vt, event, XTP_LOCAL_ACTION_SCROLL_FORWARD))
                 return;
         if (event != NULL && event->type == ButtonPress &&
             ReportMouseButton(vt, &event->xbutton, XTP_MOUSE_ACTION_PRESS)) {

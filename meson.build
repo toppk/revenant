@@ -1,7 +1,7 @@
 project(
     'xterm-plus',
     'c',
-    version: '0.1.0',
+    version: '0.2.0',
     meson_version: '>= 1.3',
     default_options: [
         'buildtype=debugoptimized',
@@ -45,18 +45,19 @@ x11_dep = dependency('x11')
 xt_dep = dependency('xt')
 xaw_dep = dependency('xaw7')
 xmu_dep = dependency('xmu')
-x11_xcb_dep = dependency('x11-xcb')
 fontconfig_dep = dependency('fontconfig')
 xft_dep = dependency('xft')
 util_dep = cc.find_library('util')
 m_dep = cc.find_library('m')
 
 sources = files(
+    'src/command_options.c',
     'src/config_report.c',
     'src/diagnostics.c',
     'src/main.c',
     'src/menus.c',
     'src/pty.c',
+    'src/selftest.c',
     'src/terminal.c',
     'src/vt_widget.c',
 )
@@ -108,6 +109,10 @@ if build_with_ghostty
     ghostty_archive = custom_target(
         'libghostty-vt',
         output: 'libghostty-vt.a',
+        # The checkout is intentionally outside Meson's source manifest. Let
+        # Zig's cache decide whether work is needed so a changed Ghostty HEAD
+        # can never leave an old archive paired with new headers.
+        build_always_stale: true,
         command: [
             ghostty_builder,
             zig,
@@ -142,7 +147,6 @@ xterm_plus = executable(
         xt_dep,
         xaw_dep,
         xmu_dep,
-        x11_xcb_dep,
         fontconfig_dep,
         xft_dep,
         util_dep,

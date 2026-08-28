@@ -11,7 +11,6 @@ Build-Depends: debhelper-compat (= 13),
                libxt-dev,
                libxaw7-dev,
                libxmu-dev,
-               libx11-xcb-dev,
                libfontconfig-dev,
                libxft-dev
 Standards-Version: 4.6.2

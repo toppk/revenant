@@ -1615,12 +1615,19 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
         size_t rendered_cells = 0;
         size_t rendered_graphemes = 0;
 
-        if (terminal == NULL || renderer == NULL ||
-            ghostty_render_state_update(terminal->render_state, terminal->handle) !=
-                GHOSTTY_SUCCESS ||
-            ghostty_render_state_get(terminal->render_state, GHOSTTY_RENDER_STATE_DATA_COLORS,
-                                     &colors) != GHOSTTY_SUCCESS ||
-            ghostty_render_state_get(terminal->render_state, GHOSTTY_RENDER_STATE_DATA_COLS,
+        if (terminal == NULL || renderer == NULL)
+                return -1;
+        if (ghostty_render_state_update(terminal->render_state, terminal->handle) !=
+            GHOSTTY_SUCCESS) {
+                XtpLog(XTP_LOG_ERROR, "render", "cannot update render state");
+                return -1;
+        }
+        if (ghostty_render_state_get(terminal->render_state, GHOSTTY_RENDER_STATE_DATA_COLORS,
+                                     &colors) != GHOSTTY_SUCCESS) {
+                XtpLog(XTP_LOG_ERROR, "render", "cannot read render-state colors");
+                return -1;
+        }
+        if (ghostty_render_state_get(terminal->render_state, GHOSTTY_RENDER_STATE_DATA_COLS,
                                      &frame.columns) != GHOSTTY_SUCCESS ||
             ghostty_render_state_get(terminal->render_state, GHOSTTY_RENDER_STATE_DATA_ROWS,
                                      &frame.rows) != GHOSTTY_SUCCESS ||
@@ -1637,8 +1644,10 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                                      &frame.cursor_blinking) != GHOSTTY_SUCCESS ||
             ghostty_render_state_get(terminal->render_state,
                                      GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_HAS_VALUE,
-                                     &cursor_in_viewport) != GHOSTTY_SUCCESS)
+                                     &cursor_in_viewport) != GHOSTTY_SUCCESS) {
+                XtpLog(XTP_LOG_ERROR, "render", "cannot read render-state metadata");
                 return -1;
+        }
 
         frame.full_repaint = force_full || dirty == GHOSTTY_RENDER_STATE_DIRTY_FULL;
         if (cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_UNDERLINE)
@@ -1930,4 +1939,10 @@ const char *
 XtpTerminalBackend(void)
 {
         return "libghostty-vt";
+}
+
+bool
+XtpTerminalBackendIsStub(void)
+{
+        return false;
 }

@@ -75,8 +75,12 @@ functional comparison, while xterm remains the UI and compatibility oracle.
 
 ## Current architecture
 
-- `src/main.c`: Xt application shell, Xlib/XCB connection, PTY event loop,
-  input method, key dispatch, menus, geometry, and terminal effects.
+- `src/main.c`: Xt application shell, PTY event loop, input method, key
+  dispatch, menus, geometry, and terminal effects.
+- `src/selftest.c`: the implementation behind the packaged binary's
+  `--self-test` health check.
+- `src/command_options.c`: the command-line-to-X-resource table shared by Xt
+  startup and configuration provenance reporting.
 - `src/vt_widget.c`: custom `VT100` composite widget, bitmap/Xft drawing,
   cursor, frame caching, progressive drawing, font slots, resources,
   translations, and callbacks.
@@ -98,6 +102,24 @@ functional comparison, while xterm remains the UI and compatibility oracle.
 
 As new capability is added, prefer focused modules over continued growth of
 `main.c` and `vt_widget.c`. Keep Ghostty-specific types behind `terminal.h`.
+The next structural boundary should be a private VT-widget header shared by
+drawing, fonts, selection, and input modules. Land that file split first as a
+pure-move commit. In a separate behavioral commit, move keyboard/XIM ownership
+into the new input module so keyboard, mouse, and focus bytes all leave the
+widget through `XtNinputCallback`; do not leave translation ownership
+duplicated in two places.
+Smaller follow-ups are typed menu-entry identifiers instead of string dispatch
+and setup helpers in `main.c` with one failure-cleanup path.
+
+Keep the current pixel geometry in the terminal boundary until another caller
+needs a different shape. At that point, prefer one geometry-setting operation
+over continuing to add width, padding, and screen dimensions to individual
+selection and mouse calls.
+
+The ignored Ghostty checkout is not a Meson input tree. The libghostty custom
+target is therefore always considered stale and delegates incremental rebuild
+decisions to Zig's cache. Removing that behavior can silently pair headers
+from a newly fetched Ghostty revision with an archive from the old revision.
 
 The render-state dirty flag describes cell damage, not every visual-state
 change. In particular, cursor movement can arrive with zero dirty rows. The

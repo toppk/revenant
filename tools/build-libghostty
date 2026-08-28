@@ -38,5 +38,6 @@ esac
     -Demit-lib-vt \
     -Doptimize="$optimize"
 
-cp "$prefix/lib/libghostty-vt.a" "$output"
-
+if ! cmp -s "$prefix/lib/libghostty-vt.a" "$output"; then
+    cp "$prefix/lib/libghostty-vt.a" "$output"
+fi

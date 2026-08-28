@@ -17,7 +17,6 @@ BuildRequires:  pkgconfig(x11)
 BuildRequires:  pkgconfig(xt)
 BuildRequires:  pkgconfig(xaw7)
 BuildRequires:  pkgconfig(xmu)
-BuildRequires:  pkgconfig(x11-xcb)
 BuildRequires:  pkgconfig(fontconfig)
 BuildRequires:  pkgconfig(xft)
 # zig >= 0.16 must be on PATH; Fedora's packaged zig is not used.

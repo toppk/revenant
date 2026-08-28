@@ -1,5 +1,6 @@
 #include "config_report.h"
 
+#include "command_options.h"
 #include "resource_catalog.h"
 #include "vt_widget.h"
 
@@ -48,14 +49,6 @@ typedef struct
 
 typedef struct
 {
-        const char *option;
-        const char *resource;
-        const char *fixed_value;
-        bool takes_argument;
-} OptionResource;
-
-typedef struct
-{
         const char *label;
         const char *resource;
         XtpFontSlotInfo loaded;
@@ -66,30 +59,6 @@ typedef struct
 
 static const char *const reset = "\033[0m";
 static bool use_color;
-
-static const OptionResource option_resources[] = {
-    {"-geometry", "xterm.geometry", NULL, true},
-    {"-fn", "xterm*vt100.font", NULL, true},
-    {"-fa", "xterm*vt100.faceName", NULL, true},
-    {"-fd", "xterm*vt100.faceNameDoublesize", NULL, true},
-    {"-fs", "xterm*vt100.faceSize", NULL, true},
-    {"-b", "xterm*vt100.internalBorder", NULL, true},
-    {"-sl", "xterm*vt100.saveLines", NULL, true},
-    {"-cc", "xterm*vt100.charClass", NULL, true},
-    {"-mc", "xterm*vt100.multiClickTime", NULL, true},
-    {"-sb", "xterm*vt100.scrollBar", "true", false},
-    {"+sb", "xterm*vt100.scrollBar", "false", false},
-    {"-rightbar", "xterm*vt100.rightScrollBar", "true", false},
-    {"-leftbar", "xterm*vt100.rightScrollBar", "false", false},
-    {"-sk", "xterm*vt100.scrollKey", "true", false},
-    {"+sk", "xterm*vt100.scrollKey", "false", false},
-    {"-si", "xterm*vt100.scrollTtyOutput", "false", false},
-    {"+si", "xterm*vt100.scrollTtyOutput", "true", false},
-    {"-ah", "xterm*vt100.alwaysHighlight", "true", false},
-    {"+ah", "xterm*vt100.alwaysHighlight", "false", false},
-    {"-debug", "xterm.debug", "true", false},
-    {"+debug", "xterm.debug", "false", false},
-};
 
 static const char *
 OriginName(Origin origin)
@@ -198,45 +167,39 @@ PrintResolved(const char *display_name, const char *support, const char *explana
         fputc('\n', stdout);
 }
 
-static void
-PutCommandResource(XrmDatabase *database, const char *resource, const char *value)
-{
-        XrmPutStringResource(database, resource, value);
-}
-
 XrmDatabase
 XtpConfigCommandDatabase(int argc, char **argv)
 {
         XrmDatabase database = NULL;
+        XrmOptionDescRec *options;
+        char **arguments;
+        int option_count = XtpCommandOptionCount + 1;
+        int parse_argc = argc;
         int argument;
 
-        XrmInitialize();
         for (argument = 1; argument < argc; ++argument) {
-                size_t option;
-
-                if (strcmp(argv[argument], "-e") == 0)
-                        break;
-                if (strcmp(argv[argument], "-xrm") == 0 && argument + 1 < argc) {
-                        XrmPutLineResource(&database, argv[++argument]);
-                        continue;
-                }
-                for (option = 0; option < XtNumber(option_resources); ++option) {
-                        const OptionResource *mapping = &option_resources[option];
-                        const char *value;
-
-                        if (strcmp(argv[argument], mapping->option) != 0)
-                                continue;
-                        if (mapping->takes_argument) {
-                                if (argument + 1 >= argc)
-                                        break;
-                                value = argv[++argument];
-                        } else {
-                                value = mapping->fixed_value;
-                        }
-                        PutCommandResource(&database, mapping->resource, value);
+                if (strcmp(argv[argument], "-e") == 0) {
+                        parse_argc = argument;
                         break;
                 }
         }
+
+        options = malloc((size_t)option_count * sizeof(*options));
+        arguments = malloc(((size_t)parse_argc + 1U) * sizeof(*arguments));
+        if (options == NULL || arguments == NULL) {
+                free(options);
+                free(arguments);
+                return NULL;
+        }
+        memcpy(options, XtpCommandOptions, (size_t)XtpCommandOptionCount * sizeof(*options));
+        options[XtpCommandOptionCount] = (XrmOptionDescRec){"-xrm", NULL, XrmoptionResArg, NULL};
+        memcpy(arguments, argv, (size_t)parse_argc * sizeof(*arguments));
+        arguments[parse_argc] = NULL;
+
+        XrmInitialize();
+        XrmParseCommand(&database, options, option_count, "xterm", &parse_argc, arguments);
+        free(arguments);
+        free(options);
         return database;
 }
 

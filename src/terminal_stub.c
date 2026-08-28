@@ -368,3 +368,9 @@ XtpTerminalBackend(void)
 {
         return "stub";
 }
+
+bool
+XtpTerminalBackendIsStub(void)
+{
+        return true;
+}

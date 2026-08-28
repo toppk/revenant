@@ -1,0 +1,1144 @@
+#include "selftest.h"
+
+#include "diagnostics.h"
+#include "menus.h"
+#include "pty_process.h"
+#include "terminal.h"
+
+#include <errno.h>
+#include <inttypes.h>
+#include <poll.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static int
+SelfTestPty(void)
+{
+        char *command[] = {
+            (char *)"/bin/sh",
+            (char *)"-c",
+            (char *)"printf xterm-plus-pty",
+            NULL,
+        };
+        XtpPty *pty = XtpPtySpawn(command, 80, 24, 8, 16);
+        char output[256];
+        size_t used = 0;
+        int attempts;
+
+        if (pty == NULL)
+                return -1;
+        for (attempts = 0; attempts < 10 && used + 1U < sizeof(output); ++attempts) {
+                struct pollfd descriptor = {
+                    XtpPtyFd(pty),
+                    POLLIN | POLLHUP,
+                    0,
+                };
+                ssize_t amount;
+
+                if (poll(&descriptor, 1, 200) < 0 && errno != EINTR)
+                        break;
+                amount = XtpPtyRead(pty, output + used, sizeof(output) - used - 1U);
+                if (amount > 0) {
+                        used += (size_t)amount;
+                } else if (amount < 0 &&
+                           (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)) {
+                        continue;
+                } else {
+                        break;
+                }
+        }
+        output[used] = '\0';
+        XtpPtyFree(pty);
+        return strstr(output, "xterm-plus-pty") != NULL ? 0 : -1;
+}
+
+static int
+SelfTestPtyQueue(void)
+{
+        static const size_t first_write = 96U * 1024U;
+        static const size_t payload_size = 160U * 1024U;
+        char *command[] = {
+            (char *)"/bin/sh",
+            (char *)"-c",
+            (char *)"stty raw -echo; printf R; sleep 0.2; exec cat",
+            NULL,
+        };
+        XtpPty *pty = XtpPtySpawn(command, 80, 24, 8, 16);
+        uint8_t *payload = NULL;
+        uint8_t buffer[8192];
+        size_t received = 0;
+        int attempts;
+        int result = -1;
+
+        if (pty == NULL)
+                return -1;
+        for (attempts = 0; attempts < 20; ++attempts) {
+                struct pollfd descriptor = {XtpPtyFd(pty), POLLIN, 0};
+                ssize_t amount;
+
+                if (poll(&descriptor, 1, 100) < 0 && errno != EINTR)
+                        goto done;
+                amount = XtpPtyRead(pty, buffer, sizeof(buffer));
+                if (amount == 1 && buffer[0] == 'R')
+                        break;
+                if (amount < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
+                        continue;
+                goto done;
+        }
+        if (attempts == 20)
+                goto done;
+        payload = malloc(payload_size);
+        if (payload == NULL)
+                goto done;
+        for (received = 0; received < payload_size; ++received)
+                payload[received] = (uint8_t)(received * 31U + 7U);
+        received = 0;
+        if (XtpPtyQueue(pty, payload, first_write) != 0 || XtpPtyFlush(pty) != 1 ||
+            XtpPtyPending(pty) == 0 ||
+            XtpPtyQueue(pty, payload + first_write, payload_size - first_write) != 0)
+                goto done;
+        for (attempts = 0; attempts < 200 && (XtpPtyPending(pty) != 0 || received < payload_size);
+             ++attempts) {
+                struct pollfd descriptor = {XtpPtyFd(pty),
+                                            POLLIN | (XtpPtyPending(pty) != 0 ? POLLOUT : 0), 0};
+                ssize_t amount;
+
+                if (poll(&descriptor, 1, 100) < 0) {
+                        if (errno == EINTR)
+                                continue;
+                        goto done;
+                }
+                if ((descriptor.revents & POLLOUT) != 0 && XtpPtyFlush(pty) < 0)
+                        goto done;
+                if ((descriptor.revents & POLLIN) == 0)
+                        continue;
+                amount = XtpPtyRead(pty, buffer, sizeof(buffer));
+                if (amount > 0) {
+                        if ((size_t)amount > payload_size - received ||
+                            memcmp(buffer, payload + received, (size_t)amount) != 0)
+                                goto done;
+                        received += (size_t)amount;
+                } else if (amount < 0 && errno != EINTR && errno != EAGAIN &&
+                           errno != EWOULDBLOCK) {
+                        goto done;
+                }
+        }
+        if (XtpPtyPending(pty) == 0 && received == payload_size)
+                result = 0;
+done:
+        free(payload);
+        XtpPtyFree(pty);
+        return result;
+}
+
+static uint64_t
+SelfTestRowsBelow(const XtpTerminalScrollbar *state)
+{
+        uint64_t end = state->offset + state->length;
+
+        return state->total > end ? state->total - end : 0;
+}
+
+static int
+SelfTestScrollTtyOutput(void)
+{
+        XtpTerminal *terminal;
+        XtpTerminalScrollbar before;
+        XtpTerminalScrollbar after;
+        int line;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(20, 4, 8, 16);
+        if (terminal == NULL || XtpTerminalSetScrollbackLines(terminal, 64) != 0)
+                goto done;
+        for (line = 0; line < 12; ++line) {
+                char text[32];
+                int length = snprintf(text, sizeof(text), "anchor-%02d\r\n", line);
+
+                XtpTerminalFeed(terminal, (const uint8_t *)text, (size_t)length);
+        }
+        if (XtpTerminalScrollTo(terminal, 3) != 0 ||
+            XtpTerminalGetScrollbar(terminal, &before) != 0 ||
+            XtpTerminalFeedOutput(terminal, (const uint8_t *)"next\r\n", 6, false) != 0 ||
+            XtpTerminalGetScrollbar(terminal, &after) != 0 || after.total <= before.total ||
+            after.offset <= before.offset ||
+            SelfTestRowsBelow(&after) != SelfTestRowsBelow(&before))
+                goto done;
+        if (XtpTerminalScrollTo(terminal, 2) != 0 ||
+            XtpTerminalFeedOutput(terminal, (const uint8_t *)"bottom\r\n", 8, true) != 0 ||
+            XtpTerminalGetScrollbar(terminal, &after) != 0 ||
+            after.offset + after.length != after.total)
+                goto done;
+        result = 0;
+done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+typedef struct
+{
+        size_t nonempty_cells;
+        size_t frame_cells;
+        size_t last_frame_cells;
+        size_t begin_calls;
+        size_t end_calls;
+        Boolean saw_styled_cell;
+        Boolean saw_hyperlink_cell;
+        Boolean saw_wide_cell;
+        Boolean saw_wide_tail;
+        Boolean saw_selected_cell;
+        size_t selected_cells;
+        XtpRenderFrame frame;
+} SelfTestRender;
+
+static void
+SelfTestBegin(const XtpRenderFrame *frame, void *closure)
+{
+        SelfTestRender *render = closure;
+
+        render->frame = *frame;
+        render->frame_cells = 0;
+        ++render->begin_calls;
+}
+
+static void
+SelfTestCell(const XtpRenderCell *cell, void *closure)
+{
+        SelfTestRender *render = closure;
+
+        ++render->frame_cells;
+        if (cell->utf8_length != 0)
+                ++render->nonempty_cells;
+        if (cell->foreground.kind != XTP_COLOR_DEFAULT)
+                render->saw_styled_cell = True;
+        if (cell->hyperlink)
+                render->saw_hyperlink_cell = True;
+        if (cell->width == 2)
+                render->saw_wide_cell = True;
+        if (cell->width == 0)
+                render->saw_wide_tail = True;
+        if (cell->selected)
+                render->saw_selected_cell = True;
+        if (cell->selected)
+                ++render->selected_cells;
+}
+
+static void
+SelfTestEnd(const XtpRenderFrame *frame, void *closure)
+{
+        SelfTestRender *render = closure;
+
+        render->frame = *frame;
+        render->last_frame_cells = render->frame_cells;
+        ++render->end_calls;
+}
+
+static int
+SelfTestCursorOnly(XtpTerminal *terminal, const XtpRenderer *renderer, SelfTestRender *render)
+{
+        static const uint8_t text[] = "abc";
+        static const uint8_t cursor_left[] = "\033[D";
+        size_t begin_calls;
+        size_t end_calls;
+        uint16_t column;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        XtpTerminalFeed(terminal, text, sizeof(text) - 1U);
+        if (XtpTerminalRender(terminal, renderer, render, false) != 0 ||
+            !render->frame.cursor_visible || render->frame.cursor_column == 0)
+                return -1;
+        column = render->frame.cursor_column;
+        begin_calls = render->begin_calls;
+        end_calls = render->end_calls;
+        XtpTerminalFeed(terminal, cursor_left, sizeof(cursor_left) - 1U);
+        if (XtpTerminalRender(terminal, renderer, render, false) != 0 ||
+            render->begin_calls != begin_calls + 1U || render->end_calls != end_calls + 1U ||
+            render->last_frame_cells != 0 || !render->frame.cursor_visible ||
+            render->frame.cursor_column + 1U != column)
+                return -1;
+        return 0;
+}
+
+static int
+SelfTestCursorStyles(const XtpRenderer *renderer)
+{
+        static const struct
+        {
+                const char *sequence;
+                XtpCursorShape shape;
+                bool blinking;
+        } cases[] = {
+            {"\033[0 q", XTP_CURSOR_SHAPE_BLOCK, false},
+            {"\033[1 q", XTP_CURSOR_SHAPE_BLOCK, true},
+            {"\033[2 q", XTP_CURSOR_SHAPE_BLOCK, false},
+            {"\033[3 q", XTP_CURSOR_SHAPE_UNDERLINE, true},
+            {"\033[4 q", XTP_CURSOR_SHAPE_UNDERLINE, false},
+            {"\033[5 q", XTP_CURSOR_SHAPE_BAR, true},
+            {"\033[6 q", XTP_CURSOR_SHAPE_BAR, false},
+        };
+        XtpTerminal *terminal;
+        SelfTestRender render = {0};
+        size_t item;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(8, 3, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        if (XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            render.frame.cursor_shape != XTP_CURSOR_SHAPE_BLOCK || render.frame.cursor_blinking)
+                goto done;
+        if (XtpTerminalSetCursorBlinkDefault(terminal, true) != 0 ||
+            XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            !render.frame.cursor_blinking ||
+            XtpTerminalSetCursorBlinkDefault(terminal, false) != 0 ||
+            XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blinking)
+                goto done;
+        for (item = 0; item < XtNumber(cases); ++item) {
+                size_t begin_calls = render.begin_calls;
+                size_t end_calls = render.end_calls;
+
+                XtpTerminalFeed(terminal, (const uint8_t *)cases[item].sequence,
+                                strlen(cases[item].sequence));
+                if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+                    render.begin_calls != begin_calls + 1U || render.end_calls != end_calls + 1U ||
+                    render.frame.cursor_shape != cases[item].shape ||
+                    render.frame.cursor_blinking != cases[item].blinking) {
+                        XtpLog(XTP_LOG_ERROR, "self-test",
+                               "cursor style case=%zu shape=%d blink=%s", item,
+                               render.frame.cursor_shape,
+                               render.frame.cursor_blinking ? "true" : "false");
+                        goto done;
+                }
+        }
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[?12h", 6);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            !render.frame.cursor_blinking)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[?12l", 6);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blinking)
+                goto done;
+        if (XtpTerminalSetCursorBlinkDefault(terminal, true) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[0 q", 5);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            !render.frame.cursor_blinking)
+                goto done;
+        if (XtpTerminalSetCursorBlinkDefault(terminal, false) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[0 q", 5);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blinking)
+                goto done;
+        result = 0;
+done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestHyperlinks(const XtpRenderer *renderer)
+{
+        static const uint8_t content[] =
+            "\033]8;;http://example.com\033\\This is a link\033]8;;\033\\ plain";
+        static const uint8_t expected[] = "http://example.com";
+        XtpTerminal *terminal;
+        SelfTestRender render = {0};
+        uint8_t *uri = NULL;
+        size_t length = 0;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(30, 2, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalFeed(terminal, content, sizeof(content) - 1U);
+        if (XtpTerminalHyperlinkAt(terminal, 0, 0, &uri, &length) != 0 ||
+            length != sizeof(expected) - 1U || memcmp(uri, expected, length) != 0 ||
+            XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            !render.saw_hyperlink_cell) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "OSC 8 URI length=%zu rendered=%s", length,
+                       render.saw_hyperlink_cell ? "true" : "false");
+                goto done;
+        }
+        free(uri);
+        uri = NULL;
+        length = 0;
+        if (XtpTerminalHyperlinkAt(terminal, 14, 0, &uri, &length) != 0 || uri != NULL ||
+            length != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "OSC 8 terminator left URI length=%zu", length);
+                goto done;
+        }
+        result = 0;
+done:
+        free(uri);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestModes(XtpTerminal *terminal)
+{
+        XtpTerminalMode mode;
+
+        for (mode = 0; mode < XTP_TERMINAL_MODE_COUNT; ++mode) {
+                bool initial;
+                bool changed;
+
+                if (XtpTerminalGetMode(terminal, mode, &initial) != 0 ||
+                    XtpTerminalSetMode(terminal, mode, !initial) != 0 ||
+                    XtpTerminalGetMode(terminal, mode, &changed) != 0 || changed == initial ||
+                    XtpTerminalSetMode(terminal, mode, initial) != 0)
+                        return -1;
+        }
+        return 0;
+}
+
+static int
+SelfTestSelection(const XtpRenderer *renderer)
+{
+        static const uint8_t content[] = "hello   world\r\nsecond line\r\n~/workspace/xterm-plus";
+        static const char url_char_class[] =
+            "33:48,35:48,37-38:48,43-47:48,58:48,61:48,63-64:48,95:48,126:48";
+        XtpTerminal *terminal;
+        SelfTestRender render = {0};
+        uint8_t *text = NULL;
+        uint8_t *paste = NULL;
+        size_t length = 0;
+        size_t paste_length = 0;
+        int start_result;
+        int extend_result;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(30, 4, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalFeed(terminal, content, sizeof(content) - 1U);
+        start_result = XtpTerminalSelectionStart(terminal, 0, 0, 1.0, 1.0, 1000000000U,
+                                                 XTP_SELECTION_CELL, false);
+        extend_result = XtpTerminalSelectionExtend(terminal, 4, 0, 38.0, 1.0, 30, 8, 0, 64, false);
+        if (start_result != 0 || extend_result != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "selection gesture start=%d extend=%d",
+                       start_result, extend_result);
+                goto done;
+        }
+        XtpTerminalSelectionEnd(terminal, 4, 0, true);
+        if (XtpTerminalSelectionText(terminal, &text, &length) != 0 || length != 5 ||
+            memcmp(text, "hello", 5) != 0 ||
+            XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            !render.saw_selected_cell) {
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "selection output length=%zu text=%.*s selected=%s", length, (int)length,
+                       text != NULL ? (const char *)text : "",
+                       render.saw_selected_cell ? "yes" : "no");
+                goto done;
+        }
+        free(text);
+        text = NULL;
+        if (XtpTerminalSelectionExtendStart(terminal, 11, 0, XTP_SELECTION_CELL) != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "cell-granular right-click extension failed");
+                goto done;
+        }
+        XtpTerminalSelectionExtendEnd(terminal);
+        if (XtpTerminalSelectionText(terminal, &text, &length) != 0 || length != 12 ||
+            memcmp(text, "hello   worl", 12) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "cell extension length=%zu text=%.*s", length,
+                       (int)length, text != NULL ? (const char *)text : "");
+                goto done;
+        }
+        free(text);
+        text = NULL;
+        XtpTerminalSelectionClear(terminal);
+        if (XtpTerminalSelectionStart(terminal, 6, 0, 51.0, 1.0, 2000000000U, XTP_SELECTION_CELL,
+                                      false) != 0) {
+                goto done;
+        }
+        XtpTerminalSelectionEnd(terminal, 6, 0, true);
+        if (XtpTerminalSelectionStart(terminal, 6, 0, 51.0, 1.0, 2100000000U, XTP_SELECTION_WORD,
+                                      true) != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "double-click whitespace selection failed");
+                goto done;
+        }
+        render.selected_cells = 0;
+        if (XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            render.selected_cells != 3) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "whitespace selected cells=%zu",
+                       render.selected_cells);
+                goto done;
+        }
+        if (XtpTerminalSelectionExtendStart(terminal, 11, 0, XTP_SELECTION_WORD) != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "word-granular right-click extension failed");
+                goto done;
+        }
+        if (XtpTerminalSelectionText(terminal, &text, &length) != 0 || length != 8 ||
+            memcmp(text, "   world", 8) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "word extension length=%zu text=%.*s", length,
+                       (int)length, text != NULL ? (const char *)text : "");
+                goto done;
+        }
+        free(text);
+        text = NULL;
+        if (XtpTerminalSelectionExtendActive(terminal, 0, 0, false) != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "crossing word extension failed");
+                goto done;
+        }
+        render.selected_cells = 0;
+        if (XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            render.selected_cells != 8) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "crossed word selected cells=%zu",
+                       render.selected_cells);
+                goto done;
+        }
+        XtpTerminalSelectionExtendEnd(terminal);
+        XtpTerminalSelectionClear(terminal);
+        if (XtpTerminalSelectionStart(terminal, 1, 0, 9.0, 1.0, 3000000000U, XTP_SELECTION_CELL,
+                                      false) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "line sequence initial click failed");
+                goto done;
+        }
+        XtpTerminalSelectionEnd(terminal, 1, 0, true);
+        if (XtpTerminalSelectionStart(terminal, 1, 0, 9.0, 1.0, 3100000000U, XTP_SELECTION_WORD,
+                                      true) != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "line sequence double click failed");
+                goto done;
+        }
+        XtpTerminalSelectionEnd(terminal, 1, 0, true);
+        if (XtpTerminalSelectionStart(terminal, 1, 0, 9.0, 1.0, 3200000000U, XTP_SELECTION_LINE,
+                                      true) != 1 ||
+            XtpTerminalSelectionExtendStart(terminal, 2, 1, XTP_SELECTION_LINE) != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "line-granular right-click extension failed");
+                goto done;
+        }
+        XtpTerminalSelectionExtendEnd(terminal);
+        if (XtpTerminalSelectionText(terminal, &text, &length) != 0 || length != 25 ||
+            memcmp(text, "hello   world\nsecond line", 25) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "line extension length=%zu text=%.*s", length,
+                       (int)length, text != NULL ? (const char *)text : "");
+                goto done;
+        }
+        free(text);
+        text = NULL;
+        XtpTerminalSelectionClear(terminal);
+        if (XtpTerminalSelectionStart(terminal, 3, 2, 25.0, 33.0, 4000000000U, XTP_SELECTION_WORD,
+                                      false) != 1 ||
+            XtpTerminalSelectionText(terminal, &text, &length) != 0 || length != 9 ||
+            memcmp(text, "workspace", 9) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "default charClass path length=%zu text=%.*s",
+                       length, (int)length, text != NULL ? (const char *)text : "");
+                goto done;
+        }
+        free(text);
+        text = NULL;
+        if (XtpTerminalSelectionExtendStart(terminal, 25, 2, XTP_SELECTION_WORD) != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "word extension into undrawn suffix failed");
+                goto done;
+        }
+        render.selected_cells = 0;
+        if (XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            render.selected_cells != 28) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "word-to-undrawn selected cells=%zu",
+                       render.selected_cells);
+                goto done;
+        }
+        XtpTerminalSelectionExtendEnd(terminal);
+        XtpTerminalSelectionClear(terminal);
+        if (XtpTerminalSelectionStart(terminal, 20, 0, 161.0, 1.0, 4200000000U, XTP_SELECTION_CELL,
+                                      false) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "undrawn initial click failed");
+                goto done;
+        }
+        XtpTerminalSelectionEnd(terminal, 20, 0, true);
+        if (XtpTerminalSelectionStart(terminal, 20, 0, 161.0, 1.0, 4300000000U, XTP_SELECTION_WORD,
+                                      true) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "undrawn double click selected text");
+                goto done;
+        }
+        render.selected_cells = 0;
+        if (XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            render.selected_cells != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "undrawn double-click cells=%zu",
+                       render.selected_cells);
+                goto done;
+        }
+        XtpTerminalSelectionClear(terminal);
+        if (XtpTerminalSelectionStart(terminal, 0, 0, 1.0, 1.0, 4400000000U, XTP_SELECTION_CELL,
+                                      false) != 0 ||
+            XtpTerminalSelectionExtend(terminal, 20, 0, 165.0, 1.0, 30, 8, 0, 64, false) != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "undrawn suffix cell extension failed");
+                goto done;
+        }
+        render.selected_cells = 0;
+        if (XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            render.selected_cells != 30) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "undrawn suffix selected cells=%zu",
+                       render.selected_cells);
+                goto done;
+        }
+        XtpTerminalSelectionClear(terminal);
+        if (XtpTerminalSelectionStart(terminal, 0, 2, 1.0, 33.0, 4500000000U, XTP_SELECTION_CELL,
+                                      false) != 0 ||
+            XtpTerminalSelectionExtend(terminal, 10, 3, 85.0, 49.0, 30, 8, 0, 64, false) != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "undrawn row cell extension failed");
+                goto done;
+        }
+        render.selected_cells = 0;
+        if (XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            render.selected_cells != 60) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "undrawn row selected cells=%zu",
+                       render.selected_cells);
+                goto done;
+        }
+        XtpTerminalSelectionClear(terminal);
+        if (XtpTerminalSelectionStart(terminal, 10, 3, 85.0, 49.0, 4600000000U, XTP_SELECTION_LINE,
+                                      false) != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "undrawn triple-click line failed");
+                goto done;
+        }
+        render.selected_cells = 0;
+        if (XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            render.selected_cells != 30) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "undrawn line selected cells=%zu",
+                       render.selected_cells);
+                goto done;
+        }
+        XtpTerminalSelectionClear(terminal);
+        if (XtpTerminalSetCharClass(terminal, url_char_class) != 0)
+                goto done;
+        XtpTerminalSelectionClear(terminal);
+        if (XtpTerminalSelectionStart(terminal, 3, 2, 25.0, 33.0, 4100000000U, XTP_SELECTION_WORD,
+                                      false) != 1 ||
+            XtpTerminalSelectionText(terminal, &text, &length) != 0 || length != 22 ||
+            memcmp(text, "~/workspace/xterm-plus", 22) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "custom charClass path length=%zu text=%.*s",
+                       length, (int)length, text != NULL ? (const char *)text : "");
+                goto done;
+        }
+        free(text);
+        text = NULL;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[?2004h", 8);
+        if (XtpTerminalEncodePaste(terminal, (const uint8_t *)"hello\n", 6, &paste,
+                                   &paste_length) != 0 ||
+            paste_length != 18 || memcmp(paste, "\033[200~hello\n\033[201~", 18) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "paste output length=%zu", paste_length);
+                goto done;
+        }
+        result = 0;
+done:
+        free(paste);
+        free(text);
+        XtpTerminalSelectionClear(terminal);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestScrollbackLimit(void)
+{
+        enum
+        {
+                configured_lines = 16500,
+                emitted_lines = 20000,
+                bytes_per_line = 8,
+        };
+        XtpTerminal *terminal;
+        XtpTerminalScrollbar scrollbar = {0};
+        char *content;
+        int line;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(80, 24, 8, 16);
+        content = malloc((size_t)emitted_lines * bytes_per_line + 1U);
+        if (terminal == NULL || content == NULL)
+                goto done;
+        for (line = 0; line < emitted_lines; ++line) {
+                int length = snprintf(content + (size_t)line * bytes_per_line, bytes_per_line + 1U,
+                                      "L%05d\r\n", line);
+
+                if (length != bytes_per_line)
+                        goto done;
+        }
+        if (XtpTerminalSetScrollbackLines(terminal, configured_lines) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)content, (size_t)emitted_lines * bytes_per_line);
+        /*
+         * libghostty prunes whole pages, so its documented line limit is an
+         * estimate rather than an exact retained-row count. This lower bound
+         * is deliberately loose enough for one page of granularity while
+         * still catching the independent default byte cap.
+         */
+        if (XtpTerminalGetScrollbar(terminal, &scrollbar) != 0 ||
+            scrollbar.total < configured_lines * 3U / 4U || scrollbar.total >= emitted_lines) {
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "saveLines not retained configured=%d emitted=%d total=%" PRIu64,
+                       configured_lines, emitted_lines, scrollbar.total);
+                goto done;
+        }
+        if (XtpTerminalSetScrollbackLines(terminal, 0) != 0 ||
+            XtpTerminalGetScrollbar(terminal, &scrollbar) != 0 ||
+            scrollbar.total != scrollbar.length) {
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "saveLines zero retained history total=%" PRIu64 " length=%" PRIu64,
+                       scrollbar.total, scrollbar.length);
+                goto done;
+        }
+        result = 0;
+done:
+        free(content);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestSelectionScrollback(void)
+{
+        static const char expected[] = "L00\nL01\nL02\nL03\nL04\nL05\nL06\nL07\nL08\nL09\nL10\nL11";
+        XtpTerminal *terminal;
+        XtpTerminalScrollbar before;
+        XtpTerminalScrollbar after;
+        XtpSelectionAutoscroll direction = XTP_SELECTION_AUTOSCROLL_NONE;
+        uint8_t *text = NULL;
+        size_t length = 0;
+        int line;
+        int ticks = 0;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(8, 3, 8, 16);
+        if (terminal == NULL || XtpTerminalSetScrollbackLines(terminal, 64) != 0)
+                goto done;
+        for (line = 0; line < 12; ++line) {
+                char row[8];
+                int row_length =
+                    snprintf(row, sizeof(row), line == 0 ? "L%02d" : "\r\nL%02d", line);
+
+                XtpTerminalFeed(terminal, (const uint8_t *)row, (size_t)row_length);
+        }
+        if (XtpTerminalGetScrollbar(terminal, &before) != 0 || before.offset == 0 ||
+            XtpTerminalSelectionStart(terminal, 2, 2, 23.0, 40.0, 5000000000U, XTP_SELECTION_CELL,
+                                      false) != 0 ||
+            XtpTerminalSelectionExtend(terminal, 0, 0, 1.0, -1.0, 8, 8, 0, 48, false) != 1 ||
+            XtpTerminalSelectionGetAutoscroll(terminal, &direction) != 0 ||
+            direction != XTP_SELECTION_AUTOSCROLL_UP) {
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "scrollback selection did not begin at bottom offset=%" PRIu64
+                       " direction=%d",
+                       before.offset, direction);
+                goto done;
+        }
+        do {
+                before = after = (XtpTerminalScrollbar){0};
+                if (XtpTerminalGetScrollbar(terminal, &before) != 0 ||
+                    XtpTerminalSelectionAutoscrollTick(terminal, 0, 0, 1.0, -1.0, 8, 8, 0, 48,
+                                                       false) < 0 ||
+                    XtpTerminalGetScrollbar(terminal, &after) != 0 ||
+                    after.offset > before.offset) {
+                        XtpLog(XTP_LOG_ERROR, "self-test",
+                               "scrollback selection moved non-monotonically before=%" PRIu64
+                               " after=%" PRIu64,
+                               before.offset, after.offset);
+                        goto done;
+                }
+                ++ticks;
+        } while (after.offset != 0 && ticks < 64);
+        if (after.offset != 0 ||
+            XtpTerminalSelectionAutoscrollTick(terminal, 0, 0, 1.0, -1.0, 8, 8, 0, 48, false) < 0 ||
+            XtpTerminalGetScrollbar(terminal, &after) != 0 || after.offset != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "scrollback selection did not stop at oldest row offset=%" PRIu64,
+                       after.offset);
+                goto done;
+        }
+        XtpTerminalSelectionEnd(terminal, 0, 0, true);
+        if (XtpTerminalSelectionText(terminal, &text, &length) != 0 ||
+            length != sizeof(expected) - 1U || memcmp(text, expected, sizeof(expected) - 1U) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "scrollback selection lost or duplicated text length=%zu text=%.*s", length,
+                       (int)length, text != NULL ? (const char *)text : "");
+                goto done;
+        }
+        free(text);
+        text = NULL;
+        XtpTerminalSelectionClear(terminal);
+        if (XtpTerminalScrollToBottom(terminal) != 0 ||
+            XtpTerminalSelectionStart(terminal, 0, 2, 1.0, 40.0, 6000000000U, XTP_SELECTION_CELL,
+                                      false) != 0 ||
+            XtpTerminalSelectionExtend(terminal, 2, 2, 23.0, 40.0, 8, 8, 0, 48, false) != 1) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "scrollback Button-3 setup failed");
+                goto done;
+        }
+        XtpTerminalSelectionEnd(terminal, 2, 2, true);
+        if (XtpTerminalSelectionExtendStart(terminal, 0, 0, XTP_SELECTION_CELL) != 1)
+                goto done;
+        ticks = 0;
+        do {
+                before = after = (XtpTerminalScrollbar){0};
+                if (XtpTerminalGetScrollbar(terminal, &before) != 0 ||
+                    XtpTerminalScrollBy(terminal, -1) != 0 ||
+                    XtpTerminalSelectionExtendActive(terminal, 0, 0, false) != 1 ||
+                    XtpTerminalGetScrollbar(terminal, &after) != 0 || after.offset > before.offset)
+                        goto done;
+                ++ticks;
+        } while (after.offset != 0 && ticks < 64);
+        XtpTerminalSelectionExtendEnd(terminal);
+        free(text);
+        text = NULL;
+        if (after.offset != 0 || XtpTerminalSelectionText(terminal, &text, &length) != 0 ||
+            length != sizeof(expected) - 1U || memcmp(text, expected, sizeof(expected) - 1U) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "scrollback Button-3 extension lost or duplicated text length=%zu text=%.*s",
+                       length, (int)length, text != NULL ? (const char *)text : "");
+                goto done;
+        }
+        result = 0;
+done:
+        free(text);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestFocus(void)
+{
+        static const uint8_t enable[] = "\033[?1004h";
+        static const uint8_t disable[] = "\033[?1004l";
+        XtpTerminal *terminal;
+        char encoded[8];
+        size_t written = 0;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(80, 24, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        if (XtpTerminalEncodeFocus(terminal, true, encoded, sizeof(encoded), &written) != 0 ||
+            written != 0)
+                goto done;
+        XtpTerminalFeed(terminal, enable, sizeof(enable) - 1U);
+        if (XtpTerminalEncodeFocus(terminal, true, encoded, sizeof(encoded), &written) != 0 ||
+            written != 3 || memcmp(encoded, "\033[I", 3) != 0)
+                goto mismatch;
+        if (XtpTerminalEncodeFocus(terminal, false, encoded, sizeof(encoded), &written) != 0 ||
+            written != 3 || memcmp(encoded, "\033[O", 3) != 0)
+                goto mismatch;
+        XtpTerminalFeed(terminal, disable, sizeof(disable) - 1U);
+        if (XtpTerminalEncodeFocus(terminal, false, encoded, sizeof(encoded), &written) != 0 ||
+            written != 0)
+                goto done;
+        result = 0;
+        goto done;
+mismatch:
+        XtpLog(XTP_LOG_ERROR, "self-test", "focus encoding mismatch length=%zu bytes=%.*s", written,
+               (int)written, encoded);
+done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+typedef struct
+{
+        uint8_t bytes[256];
+        size_t used;
+        bool overflow;
+} SelfTestPtyCapture;
+
+static void
+SelfTestCapturePty(const uint8_t *bytes, size_t length, void *closure)
+{
+        SelfTestPtyCapture *capture = closure;
+
+        if (length > sizeof(capture->bytes) - capture->used) {
+                capture->overflow = true;
+                return;
+        }
+        memcpy(capture->bytes + capture->used, bytes, length);
+        capture->used += length;
+}
+
+static int
+SelfTestKittyKeyboardState(void)
+{
+        static const uint8_t query_order[] = "\033[?u\033[c";
+        static const uint8_t query_order_expected[] = "\033[?0u\033[?62;22c";
+        static const uint8_t state_transitions[] = "\033[=1;1u\033[?u" /* set: 1 */
+                                                   "\033[=2;2u\033[?u" /* augment: 1 | 2 = 3 */
+                                                   "\033[=1;3u\033[?u" /* clear: 3 & ~1 = 2 */
+                                                   "\033[>4u\033[?u"   /* outer push: 4 */
+                                                   "\033[>8u\033[?u"   /* inner push: 8 */
+                                                   "\033[<u\033[?u"    /* restore outer: 4 */
+                                                   "\033[<u\033[?u";   /* restore original: 2 */
+        static const uint8_t state_expected[] =
+            "\033[?1u\033[?3u\033[?2u\033[?4u\033[?8u\033[?4u\033[?2u";
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestCapturePty,
+            .closure = &capture,
+        };
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(80, 24, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        XtpTerminalFeed(terminal, query_order, sizeof(query_order) - 1U);
+        if (capture.overflow || capture.used != sizeof(query_order_expected) - 1U ||
+            memcmp(capture.bytes, query_order_expected, sizeof(query_order_expected) - 1U) != 0)
+                goto mismatch;
+        capture.used = 0;
+        capture.overflow = false;
+        XtpTerminalFeed(terminal, state_transitions, sizeof(state_transitions) - 1U);
+        if (capture.overflow || capture.used != sizeof(state_expected) - 1U ||
+            memcmp(capture.bytes, state_expected, sizeof(state_expected) - 1U) != 0)
+                goto mismatch;
+        result = 0;
+        goto done;
+mismatch:
+        XtpLog(XTP_LOG_ERROR, "self-test", "Kitty keyboard state mismatch length=%zu bytes=%.*s",
+               capture.used, (int)capture.used, capture.bytes);
+done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestMouse(void)
+{
+        static const uint8_t sgr_normal[] = "\033[?1000h\033[?1006h";
+        static const uint8_t sgr_button[] = "\033[?1002h";
+        static const uint8_t sgr_any[] = "\033[?1003h";
+        static const uint8_t x10_mode[] = "\033[?1003l\033[?1006l\033[?9h";
+        static const uint8_t urxvt_mode[] = "\033[?9l\033[?1000h\033[?1015h";
+        static const uint8_t pixel_mode[] = "\033[?1015l\033[?1016h";
+        static const uint8_t utf8_mode[] = "\033[?1016l\033[?1005h";
+        static const char x10_left[] = {'\033', '[', 'M', 32, 34, 34};
+        static const char utf8_right[] = {'\033', '[', 'M', 34, (char)0xc3, (char)0xa9, 34};
+        XtpMouseEvent event = {
+            .action = XTP_MOUSE_ACTION_PRESS,
+            .button = XTP_MOUSE_BUTTON_LEFT,
+            .x = 10.0f,
+            .y = 18.0f,
+            .screen_width = 644,
+            .screen_height = 388,
+            .cell_width = 8,
+            .cell_height = 16,
+            .padding_top = 2,
+            .padding_bottom = 2,
+            .padding_left = 2,
+            .padding_right = 2,
+            .any_button_pressed = true,
+        };
+        XtpTerminal *terminal;
+        char encoded[128];
+        size_t written = 0;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(80, 24, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        if (XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != 0)
+                goto done;
+        XtpTerminalFeed(terminal, sgr_normal, sizeof(sgr_normal) - 1U);
+        if (!XtpTerminalMouseTracking(terminal) ||
+            XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != 9 || memcmp(encoded, "\033[<0;2;2M", 9) != 0)
+                goto mismatch;
+        event.action = XTP_MOUSE_ACTION_RELEASE;
+        event.any_button_pressed = false;
+        if (XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != 9 || memcmp(encoded, "\033[<0;2;2m", 9) != 0)
+                goto mismatch;
+        XtpTerminalFeed(terminal, sgr_button, sizeof(sgr_button) - 1U);
+        event.action = XTP_MOUSE_ACTION_MOTION;
+        event.any_button_pressed = true;
+        event.x = 18.0f;
+        if (XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != 10 || memcmp(encoded, "\033[<32;3;2M", 10) != 0)
+                goto mismatch;
+        XtpTerminalFeed(terminal, sgr_any, sizeof(sgr_any) - 1U);
+        event.button = XTP_MOUSE_BUTTON_NONE;
+        event.any_button_pressed = false;
+        event.x = 26.0f;
+        if (XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != 10 || memcmp(encoded, "\033[<35;4;2M", 10) != 0)
+                goto mismatch;
+        event.action = XTP_MOUSE_ACTION_PRESS;
+        event.button = XTP_MOUSE_BUTTON_FOUR;
+        event.x = 10.0f;
+        if (XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != 10 || memcmp(encoded, "\033[<64;2;2M", 10) != 0)
+                goto mismatch;
+        XtpTerminalFeed(terminal, x10_mode, sizeof(x10_mode) - 1U);
+        event.action = XTP_MOUSE_ACTION_PRESS;
+        event.button = XTP_MOUSE_BUTTON_LEFT;
+        event.modifiers = XTP_MOD_CONTROL | XTP_MOD_ALT;
+        if (XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != sizeof(x10_left) || memcmp(encoded, x10_left, sizeof(x10_left)) != 0)
+                goto mismatch;
+        event.action = XTP_MOUSE_ACTION_RELEASE;
+        if (XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != 0)
+                goto mismatch;
+        XtpTerminalFeed(terminal, urxvt_mode, sizeof(urxvt_mode) - 1U);
+        event.action = XTP_MOUSE_ACTION_PRESS;
+        event.button = XTP_MOUSE_BUTTON_RIGHT;
+        if (XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != 9 || memcmp(encoded, "\033[58;2;2M", 9) != 0)
+                goto mismatch;
+        XtpTerminalFeed(terminal, pixel_mode, sizeof(pixel_mode) - 1U);
+        event.modifiers = 0;
+        if (XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != 10 || memcmp(encoded, "\033[<2;8;16M", 10) != 0)
+                goto mismatch;
+        XtpTerminalFeed(terminal, utf8_mode, sizeof(utf8_mode) - 1U);
+        event.screen_width = 2404;
+        event.x = 1602.0f;
+        if (XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != sizeof(utf8_right) || memcmp(encoded, utf8_right, sizeof(utf8_right)) != 0)
+                goto mismatch;
+        result = 0;
+        goto done;
+mismatch:
+        XtpLog(XTP_LOG_ERROR, "self-test", "mouse encoding mismatch length=%zu bytes=%.*s", written,
+               (int)written, encoded);
+done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+int
+XtpSelfTest(void)
+{
+        static const uint8_t sample[] = "plain\033[31m red\033[0m wide=界\r\n";
+        XtpTerminal *terminal = XtpTerminalNew(80, 24, 8, 16);
+        XtpRenderer renderer = {SelfTestBegin, SelfTestCell, SelfTestEnd};
+        SelfTestRender render = {0};
+        XtpKeyEvent key = {
+            .action = XTP_KEY_ACTION_PRESS,
+            .key = XTP_KEY_A,
+            .utf8 = "a",
+            .utf8_length = 1,
+            .unshifted_codepoint = 'a',
+        };
+        char encoded[32];
+        size_t written = 0;
+        XtpTerminalScrollbar before;
+        XtpTerminalScrollbar after;
+        int line;
+
+        if (terminal == NULL)
+                return EXIT_FAILURE;
+        if (XtpTerminalSetScrollbackLines(terminal, 64) != 0) {
+                XtpTerminalFree(terminal);
+                return EXIT_FAILURE;
+        }
+        XtpTerminalFeed(terminal, sample, sizeof(sample) - 1U);
+        for (line = 0; line < 40; ++line) {
+                char text[32];
+                int length = snprintf(text, sizeof(text), "history-%02d\r\n", line);
+
+                XtpTerminalFeed(terminal, (const uint8_t *)text, (size_t)length);
+        }
+        XtpTerminalFeed(terminal, sample, sizeof(sample) - 1U);
+        if (XtpTerminalRender(terminal, &renderer, &render, true) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "basic render check failed");
+                goto failure;
+        }
+        if (XtpTerminalEncodeKey(terminal, &key, encoded, sizeof(encoded), &written) != 0 ||
+            written != 1 || encoded[0] != 'a') {
+                XtpLog(XTP_LOG_ERROR, "self-test", "basic key check failed length=%zu", written);
+                goto failure;
+        }
+        if (XtpTerminalGetScrollbar(terminal, &before) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "basic scrollbar query failed");
+                goto failure;
+        }
+        if (!XtpTerminalBackendIsStub() &&
+            (render.nonempty_cells == 0 || !render.saw_styled_cell || !render.saw_wide_cell ||
+             !render.saw_wide_tail || before.total <= before.length || before.offset == 0 ||
+             XtpTerminalScrollBy(terminal, -3) != 0 ||
+             XtpTerminalGetScrollbar(terminal, &after) != 0 || after.offset >= before.offset ||
+             XtpTerminalScrollToBottom(terminal) != 0 ||
+             XtpTerminalGetScrollbar(terminal, &after) != 0 || after.offset != before.offset)) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "scrollback render check failed");
+                goto failure;
+        }
+        if (SelfTestCursorOnly(terminal, &renderer, &render) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "cursor-only check failed");
+                goto failure;
+        }
+        if (SelfTestModes(terminal) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "mode check failed");
+                goto failure;
+        }
+        if (SelfTestCursorStyles(&renderer) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "cursor-style check failed");
+                goto failure;
+        }
+        if (SelfTestSelection(&renderer) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "selection check failed");
+                goto failure;
+        }
+        if (SelfTestHyperlinks(&renderer) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "hyperlink check failed");
+                goto failure;
+        }
+        if (SelfTestScrollbackLimit() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "scrollback-limit check failed");
+                goto failure;
+        }
+        if (SelfTestSelectionScrollback() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "scrollback-selection check failed");
+                goto failure;
+        }
+        if (SelfTestScrollTtyOutput() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "tty-output scroll check failed");
+                goto failure;
+        }
+        if (SelfTestFocus() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "focus check failed");
+                goto failure;
+        }
+        if (SelfTestKittyKeyboardState() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "Kitty keyboard check failed");
+                goto failure;
+        }
+        if (SelfTestMouse() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "mouse check failed");
+                goto failure;
+        }
+        if (XtpTerminalResize(terminal, 100, 30, 9, 18) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "resize check failed");
+                goto failure;
+        }
+        XtpTerminalFree(terminal);
+        if (SelfTestPty() != 0 || SelfTestPtyQueue() != 0)
+                return EXIT_FAILURE;
+
+        printf("xterm+ self-test: backend=%s menus=%d/%d/%d\n", XtpTerminalBackend(),
+               XTP_MAIN_MENU_ENTRIES, XTP_VT_MENU_ENTRIES, XTP_FONT_MENU_ENTRIES);
+        return EXIT_SUCCESS;
+
+failure:
+        XtpTerminalFree(terminal);
+        return EXIT_FAILURE;
+}

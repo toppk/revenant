@@ -340,5 +340,6 @@ int XtpTerminalGetMode(XtpTerminal *terminal, XtpTerminalMode mode, bool *enable
 int XtpTerminalSetMode(XtpTerminal *terminal, XtpTerminalMode mode, bool enabled);
 void XtpTerminalSetEffects(XtpTerminal *terminal, const XtpTerminalEffects *effects);
 const char *XtpTerminalBackend(void);
+bool XtpTerminalBackendIsStub(void);
 
 #endif
