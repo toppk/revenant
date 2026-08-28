@@ -30,7 +30,8 @@ case "$buildtype" in
         ;;
 esac
 
-"$zig" build \
+# DESTDIR belongs to the outer install; zig would otherwise install its prefix into the package tree.
+env -u DESTDIR "$zig" build \
     --build-file "$source/build.zig" \
     --cache-dir "$cache_dir" \
     --global-cache-dir "$global_cache_dir" \
