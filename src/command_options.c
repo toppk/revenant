@@ -28,8 +28,9 @@ XrmOptionDescRec XtpCommandOptions[] = {
     {"+bc", "*vt100.cursorBlink", XrmoptionNoArg, (XPointer) "false"},
     {"-bcf", "*vt100.cursorOffTime", XrmoptionSepArg, NULL},
     {"-bcn", "*vt100.cursorOnTime", XrmoptionSepArg, NULL},
-    {"-debug", "*debug", XrmoptionNoArg, (XPointer) "true"},
-    {"+debug", "*debug", XrmoptionNoArg, (XPointer) "false"},
+    {"-log", "*logLevel", XrmoptionSepArg, NULL},
+    {"-debug", "*logLevel", XrmoptionNoArg, (XPointer) "debug"},
+    {"+debug", "*logLevel", XrmoptionNoArg, (XPointer) "warning"},
     {"-report-config", "*reportConfig", XrmoptionNoArg, (XPointer) "true"},
 };
 

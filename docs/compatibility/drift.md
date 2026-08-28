@@ -122,11 +122,13 @@ Internally each record has debug, info, warning, or error severity. On a
 terminal the timestamp is bright cyan and the message is colored by severity;
 redirected output is plain text.
 
-High-volume debug diagnostics are controlled by xterm-style `-debug` and
-`+debug` options and the `debug` X resource. The compiled default is `+debug`
-(debug disabled). Info, warning, and error records remain enabled. This logging
-surface and its exact output are Revenant facilities, not an xterm compatibility
-promise.
+The compiled logging threshold is `warning`, so ordinary healthy operation is
+silent. Revenant's `-log LEVEL` option and `logLevel` X resource select
+`debug`, `info`, `warning`, or `error`, enabling that severity and everything
+above it. The xterm-style `-debug` and `+debug` options remain aliases for
+`-log debug` and `-log warning`; the legacy `debug` resource is honored when
+`logLevel` is unset. This logging surface and its exact output are Revenant
+facilities, not an xterm compatibility promise.
 
 ### Cursor-blink policy
 

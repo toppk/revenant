@@ -64,6 +64,7 @@ static const TerminalModeMenuItem terminal_mode_menu_items[] = {
 typedef struct
 {
         String menu_locale;
+        String log_level;
         Boolean debug;
         Boolean report_config;
 } AppResources;
@@ -77,6 +78,15 @@ static XtResource application_resources[] = {
         XtOffsetOf(AppResources, menu_locale),
         XtRString,
         (XtPointer) "C",
+    },
+    {
+        "logLevel",
+        "LogLevel",
+        XtRString,
+        sizeof(String),
+        XtOffsetOf(AppResources, log_level),
+        XtRImmediate,
+        NULL,
     },
     {
         "debug",
@@ -190,20 +200,39 @@ ConfigureApplicationVisual(App *app)
 }
 
 static void
-SetEarlyDebug(int argc, char **argv)
+SetEarlyLogLevel(int argc, char **argv)
 {
         int argument;
-        int enabled = 0;
 
         for (argument = 1; argument < argc; ++argument) {
+                XtpLogLevel level;
+
                 if (strcmp(argv[argument], "-e") == 0)
                         break;
                 if (strcmp(argv[argument], "-debug") == 0)
-                        enabled = 1;
+                        XtpLogSetLevel(XTP_LOG_DEBUG);
                 else if (strcmp(argv[argument], "+debug") == 0)
-                        enabled = 0;
+                        XtpLogSetLevel(XTP_LOG_WARNING);
+                else if (strcmp(argv[argument], "-log") == 0 && argument + 1 < argc &&
+                         XtpLogLevelParse(argv[argument + 1], &level) == 0)
+                        XtpLogSetLevel(level);
         }
-        XtpLogSetDebug(enabled);
+}
+
+static void
+ApplyLogResources(const AppResources *resources)
+{
+        XtpLogLevel level = resources->debug ? XTP_LOG_DEBUG : XTP_LOG_WARNING;
+
+        if (resources->log_level != NULL && XtpLogLevelParse(resources->log_level, &level) != 0) {
+                XtpLogSetLevel(XTP_LOG_WARNING);
+                XtpLog(
+                    XTP_LOG_WARNING, "config",
+                    "invalid logLevel=%s; expected debug, info, warning, or error; using warning",
+                    resources->log_level);
+                return;
+        }
+        XtpLogSetLevel(level);
 }
 
 static void
@@ -771,10 +800,10 @@ OpenApplication(App *app, int *argc, char **argv, AppResources *resources)
 
         XtGetApplicationResources(app->shell, resources, application_resources,
                                   XtNumber(application_resources), NULL, 0);
-        XtpLogSetDebug(resources->debug);
-        XtpLog(XTP_LOG_INFO, "config", "application resolved menuLocale=%s debug=%s",
+        ApplyLogResources(resources);
+        XtpLog(XTP_LOG_INFO, "config", "application resolved menuLocale=%s log-level=%s",
                resources->menu_locale != NULL ? resources->menu_locale : "(null)",
-               XtpLogDebugEnabled() ? "true" : "false");
+               XtpLogLevelName(XtpLogLevelCurrent()));
         XtpLogResourceDatabases(app->display);
 
         app->vt = XtVaCreateManagedWidget("vt100", vt100WidgetClass, app->shell, XtNdepth,
@@ -925,11 +954,11 @@ main(int argc, char **argv)
         if (report_requested)
                 XtpLogSetQuiet(1);
 
-        SetEarlyDebug(argc, argv);
+        SetEarlyLogLevel(argc, argv);
         LogCommandLine(argc, argv);
         XtpLog(XTP_LOG_INFO, "config",
                "compiled version=" XTP_VERSION " application=xterm class=XTerm widget=vt100/VT100 "
-               "backend-option=auto default-grid=80x24 default-font=fixed debug=false");
+               "backend-option=auto default-grid=80x24 default-font=fixed log-level=warning");
 
         if (argc == 2 && strcmp(argv[1], "--self-test") == 0)
                 return XtpSelfTest();

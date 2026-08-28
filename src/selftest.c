@@ -16,6 +16,41 @@
 #include <string.h>
 
 static int
+SelfTestLogLevels(void)
+{
+        static const struct
+        {
+                const char *text;
+                XtpLogLevel level;
+                const char *name;
+        } valid[] = {
+            {"debug", XTP_LOG_DEBUG, "debug"},    {"INFO", XTP_LOG_INFO, "info"},
+            {"warn", XTP_LOG_WARNING, "warning"}, {"warning", XTP_LOG_WARNING, "warning"},
+            {"error", XTP_LOG_ERROR, "error"},
+        };
+        XtpLogLevel original = XtpLogLevelCurrent();
+        XtpLogLevel parsed = XTP_LOG_DEBUG;
+        size_t item;
+
+        if (original != XTP_LOG_WARNING)
+                return -1;
+        for (item = 0; item < sizeof(valid) / sizeof(valid[0]); ++item) {
+                if (XtpLogLevelParse(valid[item].text, &parsed) != 0 ||
+                    parsed != valid[item].level ||
+                    strcmp(XtpLogLevelName(parsed), valid[item].name) != 0)
+                        return -1;
+        }
+        if (XtpLogLevelParse(NULL, &parsed) == 0 || XtpLogLevelParse("quiet", &parsed) == 0 ||
+            XtpLogLevelParse("", &parsed) == 0 || XtpLogLevelParse("debug", NULL) == 0)
+                return -1;
+        XtpLogSetLevel(XTP_LOG_ERROR);
+        if (XtpLogLevelCurrent() != XTP_LOG_ERROR)
+                return -1;
+        XtpLogSetLevel(original);
+        return 0;
+}
+
+static int
 SelfTestPty(void)
 {
         char *command[] = {
@@ -1181,6 +1216,10 @@ XtpSelfTest(void)
 
         if (terminal == NULL)
                 return EXIT_FAILURE;
+        if (SelfTestLogLevels() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "log-level check failed");
+                goto failure;
+        }
         if (SelfTestCharClass(terminal) != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "charClass check failed");
                 XtpTerminalFree(terminal);

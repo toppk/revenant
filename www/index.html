@@ -37,7 +37,7 @@
     }
 
     main {
-      max-width: 66rem;
+      max-width: 76rem;
       margin: 0 auto;
       padding: 4rem 1.5rem 6rem;
     }
@@ -80,23 +80,21 @@
     }
 
     .hero {
-      display: flex;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 2.5rem;
-      align-items: stretch;
     }
 
     .hero figure {
       margin: 0;
-      flex: 0 1 auto;
-      max-width: 62%;
       min-width: 0;
     }
 
     .hero img {
+      display: block;
       height: 100%;
-      width: auto;
-      max-width: 100%;
-      object-fit: contain;
+      width: 100%;
+      object-fit: fill;
       object-position: center top;
       filter: drop-shadow(0 .3rem .6rem rgba(0, 0, 0, .35));
     }
@@ -116,15 +114,14 @@
       }
     }
 
-    @media (max-width:40rem) {
+    @media (max-width:70rem) {
       .hero {
-        flex-direction: column;
+        grid-template-columns: 1fr;
         align-items: center;
       }
 
       .hero figure {
-        flex: none;
-        width: 80%;
+        width: min(80%, 30rem);
       }
 
       .hero img {
@@ -143,7 +140,7 @@
 
     .cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+      grid-template-columns: 1fr;
       gap: 1rem;
       margin-top: 2rem;
     }

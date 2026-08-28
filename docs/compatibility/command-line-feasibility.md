@@ -178,7 +178,8 @@ Two structural gaps come first, because they affect every row:
 | `-report-icons` | Log title/icon updates | Title callback; debug log already prints them | Alias | READY |
 | `-report-xres` | Dump VT100 resources | `-report-config` is a superset | Alias | READY |
 | `-report-config` | Revenant resolved-configuration report | — | Revenant extension, not an xterm option | DONE |
-| `-/+debug` | Debug log | — | — | DONE |
+| `-log level` | Revenant severity threshold | Structured diagnostic logger | Revenant extension; debug, info, warning, or error | DONE |
+| `-/+debug` | Debug log | `logLevel` debug / warning | Compatibility aliases around the threshold | DONE |
 
 ## Sixel and Tek
 

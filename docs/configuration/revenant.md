@@ -343,11 +343,13 @@ same trick xterm uses.
 ## Diagnostics from the resource system
 
 ```xrdb
-XTerm*debug: true    ! -debug / +debug
+XTerm*logLevel: warning
 ```
 
-enables the per-key, PTY, and frame debug log on stderr. See
-[Diagnostics](../reference/diagnostics.md).
+is the default and prints only warnings and errors. Set it to `info` for
+startup and lifecycle records or `debug` for per-key, PTY, and frame details.
+The older `XTerm*debug: true` resource remains a compatibility alias when
+`logLevel` is unset. See [Diagnostics](../reference/diagnostics.md).
 
 ## Checking your configuration
 

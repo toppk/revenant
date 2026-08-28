@@ -56,6 +56,10 @@ probe-keymodes *args:
 probe-color:
     tools/probe-color.sh
 
+# Step through SGR 7, DECSCNM, and widget reverse-video rendering
+probe-reverse-video *args:
+    tools/probe-reverse-video.sh {{args}}
+
 # Display OSC 8 links for hover and activation checks
 probe-osc8:
     tools/probe-osc8.sh

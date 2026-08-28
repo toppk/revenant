@@ -71,6 +71,7 @@ typedef struct
 static const ResourceProbe resource_probes[] = {
     {"xterm.geometry", "XTerm.Geometry"},
     {"xterm.menuLocale", "XTerm.MenuLocale"},
+    {"xterm.logLevel", "XTerm.LogLevel"},
     {"xterm.debug", "XTerm.Debug"},
     {"xterm.vt100.background", "XTerm.VT100.Background"},
     {"xterm.vt100.backgroundOpacity", "XTerm.VT100.BackgroundOpacity"},
@@ -163,7 +164,7 @@ XtpLogResourceDatabases(Display *display)
         XtpLog(XTP_LOG_INFO, "config",
                "resource precedence effective=command-line > server RESOURCE_MANAGER > "
                "app-defaults/fallbacks > compiled resource defaults");
-        XtpLog(XTP_LOG_WARNING, "compat",
+        XtpLog(XTP_LOG_INFO, "compat",
                "renderer is resolved by the VT100 widget; cursorColor is applied; color0..color15, "
                "pointerColor, and pointerShape are merged but not applied yet");
         XtpLog(XTP_LOG_INFO, "scrollback",
@@ -1217,12 +1218,14 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database)
             {"xterm.vt100.selectToClipboard", "XTerm.VT100.SelectToClipboard", "false"},
             {"xterm.vt100.multiClickTime", "XTerm.VT100.MultiClickTime", "250"},
             {"xterm.vt100.charClass", "XTerm.VT100.CharClass", ""},
+            {"xterm.logLevel", "XTerm.LogLevel", "warning"},
             {"xterm.debug", "XTerm.Debug", "false"},
         };
         static const char *const behavior_names[] = {
             "XTerm*saveLines",      "XTerm*scrollBar",       "XTerm*rightScrollBar",
             "XTerm*scrollKey",      "XTerm*scrollTtyOutput", "XTerm*selectToClipboard",
-            "XTerm*multiClickTime", "XTerm*charClass",       "XTerm*debug",
+            "XTerm*multiClickTime", "XTerm*charClass",       "XTerm*logLevel",
+            "XTerm*debug",
         };
         static const char *const behavior_help[] = {
             "Maximum saved-history lines retained by libghostty.",
@@ -1233,11 +1236,12 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database)
             "Resolve the SELECT action token to CLIPBOARD rather than PRIMARY.",
             "Milliseconds allowed between clicks in a multi-click selection gesture.",
             "Override character classes used for double-click word selection.",
-            "High-volume diagnostic logging.",
+            "Minimum diagnostic severity: debug, info, warning, or error.",
+            "Legacy Boolean alias used only when logLevel is unset.",
         };
         static const char *const behavior_support[] = {
             "supported", "supported", "supported", "supported", "supported",
-            "supported", "supported", "supported", "supported",
+            "supported", "supported", "supported", "supported", "supported",
         };
         XrmDatabase merged = XtDatabase(display);
         XrmDatabase server = NULL;

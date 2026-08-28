@@ -48,10 +48,14 @@ Diagnostics go to standard error as
 hh:mm:ss subsystem: message
 ```
 
-Info, warning, and error records are always on. Debug records are off by
-default (xterm's `+debug` state) and enabled with `-debug` or the `debug`
-resource. On a terminal the timestamp is cyan and the message coloured by
-severity; redirected output is plain, and `NO_COLOR` is honoured.
+The default threshold is `warning`, so a healthy ordinary launch writes
+nothing. Choose `debug`, `info`, `warning`, or `error` with `-log LEVEL` or the
+`logLevel` X resource; the chosen level and everything more severe are
+enabled. The xterm-compatible `-debug` and `+debug` options remain aliases for
+`-log debug` and `-log warning`. The legacy Boolean `debug` resource is used
+only when `logLevel` is unset. On a terminal the timestamp is cyan and the
+message coloured by severity; redirected output is plain, and `NO_COLOR` is
+honoured.
 
 With debug on, startup logs the full command line, compiled defaults, the
 relevant `RESOURCE_MANAGER` entries, merged values after precedence, and the
@@ -65,11 +69,13 @@ omitted bytes explicitly.
 PTY previews can contain application data. Review or redact a debug log before
 sharing it if the terminal displayed sensitive output.
 
-Keeping debug off also keeps synchronous per-key and per-frame logging out
-of the rendering path, so leave it off unless you are reproducing something:
+The command-line level is applied before the display is opened; an X resource
+takes effect once Xt has resolved the display's resource database. Keeping the
+default warning threshold also keeps synchronous per-key and per-frame logging
+out of the rendering path, so enable debug only while reproducing something:
 
 ```sh
-revenant -debug 2> revenant.log
+revenant -log debug 2> revenant.log
 ```
 
 ## Regression helpers

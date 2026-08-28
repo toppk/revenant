@@ -95,6 +95,87 @@ wait_for_log()
     done
 }
 
+quiet_log=$test_dir/quiet-default.log
+if ! "$terminal" -e true >"$test_dir/quiet-default.out" 2>"$quiet_log"
+then
+    echo "xterm+ failed during quiet-default logging check" >&2
+    sed -n '1,160p' "$quiet_log" >&2
+    exit 1
+fi
+if test -s "$quiet_log"
+then
+    echo "healthy default launch wrote diagnostics" >&2
+    sed -n '1,180p' "$quiet_log" >&2
+    exit 1
+fi
+
+warning_log=$test_dir/warning-default.log
+if ! "$terminal" -xrm 'XTerm*backgroundOpacity: 0.5' -e true \
+    >"$test_dir/warning-default.out" 2>"$warning_log"
+then
+    echo "xterm+ failed during warning-default logging check" >&2
+    sed -n '1,160p' "$warning_log" >&2
+    exit 1
+fi
+if ! grep -q 'compositor is unavailable; using opaque default visual' "$warning_log" || \
+   grep -q 'startup: command-line' "$warning_log" || \
+   grep -q 'config: application resolved' "$warning_log"
+then
+    echo "default logging was not limited to warning and above" >&2
+    sed -n '1,180p' "$warning_log" >&2
+    exit 1
+fi
+
+info_log=$test_dir/info-command-line.log
+if ! "$terminal" -log info -xrm 'XTerm*backgroundOpacity: 0.5' -e true \
+    >"$test_dir/info-command-line.out" 2>"$info_log"
+then
+    echo "xterm+ failed during command-line info logging check" >&2
+    sed -n '1,160p' "$info_log" >&2
+    exit 1
+fi
+if ! grep -q 'startup: command-line' "$info_log" || \
+   ! grep -q 'compositor is unavailable; using opaque default visual' "$info_log" || \
+   ! grep -q 'config: application resolved menuLocale=.* log-level=info' "$info_log"
+then
+    echo "-log info did not enable info and above" >&2
+    sed -n '1,180p' "$info_log" >&2
+    exit 1
+fi
+
+resource_log=$test_dir/info-resource.log
+if ! "$terminal" -xrm 'XTerm*logLevel: info' -e true \
+    >"$test_dir/info-resource.out" 2>"$resource_log"
+then
+    echo "xterm+ failed during logLevel resource check" >&2
+    sed -n '1,160p' "$resource_log" >&2
+    exit 1
+fi
+if grep -q 'startup: command-line' "$resource_log" || \
+   ! grep -q 'config: application resolved menuLocale=.* log-level=info' "$resource_log"
+then
+    echo "logLevel resource did not apply after Xt resource resolution" >&2
+    sed -n '1,180p' "$resource_log" >&2
+    exit 1
+fi
+
+legacy_debug_log=$test_dir/legacy-debug-resource.log
+if ! "$terminal" -xrm 'XTerm*debug: true' -e true \
+    >"$test_dir/legacy-debug-resource.out" 2>"$legacy_debug_log"
+then
+    echo "xterm+ failed during legacy debug resource check" >&2
+    sed -n '1,160p' "$legacy_debug_log" >&2
+    exit 1
+fi
+if grep -q 'startup: command-line' "$legacy_debug_log" || \
+   ! grep -q 'config: application resolved menuLocale=.* log-level=debug' "$legacy_debug_log" || \
+   ! grep -q 'xresource: merged name=xterm.debug .* value=true' "$legacy_debug_log"
+then
+    echo "legacy debug resource did not enable debug after Xt resource resolution" >&2
+    sed -n '1,200p' "$legacy_debug_log" >&2
+    exit 1
+fi
+
 fallback_log=$test_dir/fallback.log
 "$terminal" -debug -xrm 'XTerm*backgroundOpacity: 0.5' \
     -xrm 'xterm.vt100.background: #FFFFFF' \

@@ -72,7 +72,8 @@ that ignores application blink requests.
 
 | Option | Resource | Meaning |
 | --- | --- | --- |
-| `-debug` / `+debug` | `debug` | Verbose stderr log (default off) |
+| `-log level` | `logLevel` | Minimum stderr severity: `debug`, `info`, `warning` (default), or `error` |
+| `-debug` / `+debug` | `logLevel` debug / warning | xterm-compatible aliases for verbose/default logging |
 | `-report-config` | `reportConfig` | Print the resolved configuration report and exit |
 | `--version` | — | Print the version and exit (Revenant specific; xterm uses `-version`) |
 | `--self-test` | — | Run the built-in self test and exit (Revenant specific) |

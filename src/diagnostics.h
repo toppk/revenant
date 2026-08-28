@@ -18,8 +18,10 @@ typedef enum
         XTP_LOG_ERROR,
 } XtpLogLevel;
 
-void XtpLogSetDebug(int enabled);
-int XtpLogDebugEnabled(void);
+int XtpLogLevelParse(const char *text, XtpLogLevel *level);
+const char *XtpLogLevelName(XtpLogLevel level);
+void XtpLogSetLevel(XtpLogLevel level);
+XtpLogLevel XtpLogLevelCurrent(void);
 void XtpLogSetQuiet(int enabled);
 void XtpLog(XtpLogLevel level, const char *subsystem, const char *format, ...) XTP_PRINTF(3, 4);
 void XtpLogBytePreview(XtpLogLevel level, const char *subsystem, const char *event,
