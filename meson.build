@@ -59,6 +59,8 @@ sources = files(
     'src/pty.c',
     'src/selftest.c',
     'src/terminal.c',
+    'src/vt_draw.c',
+    'src/vt_input.c',
     'src/vt_widget.c',
 )
 

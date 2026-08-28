@@ -1,0 +1,279 @@
+#ifndef XTERM_PLUS_VT_WIDGETP_H
+#define XTERM_PLUS_VT_WIDGETP_H
+
+#include "vt_widget.h"
+
+#include "diagnostics.h"
+#include "terminal.h"
+
+#include <X11/IntrinsicP.h>
+#include <X11/CoreP.h>
+#include <X11/CompositeP.h>
+#include <X11/StringDefs.h>
+#include <X11/Xatom.h>
+#include <X11/Xft/Xft.h>
+#include <X11/Xaw/Scrollbar.h>
+#include <X11/Xmu/Converters.h>
+#include <X11/keysym.h>
+
+#include <ctype.h>
+#include <errno.h>
+#include <float.h>
+#include <limits.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#define XTP_FONT_SLOTS 8
+#define XTP_COLOR_CACHE_SIZE 512
+
+#ifndef XtNfont1
+#define XtNfont1 "font1"
+#define XtNfont2 "font2"
+#define XtNfont3 "font3"
+#define XtNfont4 "font4"
+#define XtNfont5 "font5"
+#define XtNfont6 "font6"
+#define XtNfont7 "font7"
+#endif
+
+#ifndef XtCFont1
+#define XtCFont1 "Font1"
+#define XtCFont2 "Font2"
+#define XtCFont3 "Font3"
+#define XtCFont4 "Font4"
+#define XtCFont5 "Font5"
+#define XtCFont6 "Font6"
+#define XtCFont7 "Font7"
+#endif
+
+typedef struct
+{
+        Boolean used;
+        Boolean owned;
+        uint8_t red;
+        uint8_t green;
+        uint8_t blue;
+        Pixel pixel;
+        XftColor xft;
+} ColorCacheEntry;
+
+#define XTP_RECENT_KEY_ACTIONS 16
+#define XTP_SCROLL_RENDER_DELAY_MS 8
+#define XTP_SELECTION_AUTOSCROLL_MS 15
+
+typedef enum
+{
+        XTP_SELECTION_SOURCE_ATOM,
+        XTP_SELECTION_SOURCE_CUT_BUFFER,
+} SelectionSourceKind;
+
+typedef struct
+{
+        SelectionSourceKind kind;
+        Atom atom;
+        int cut_buffer;
+} SelectionSource;
+
+typedef enum
+{
+        XTP_CURSOR_BLINK_DEFAULT_FALSE,
+        XTP_CURSOR_BLINK_DEFAULT_TRUE,
+        XTP_CURSOR_BLINK_ALWAYS,
+        XTP_CURSOR_BLINK_NEVER,
+} CursorBlinkPolicy;
+
+typedef enum
+{
+        XTP_LOCAL_ACTION_FONT_LARGER,
+        XTP_LOCAL_ACTION_FONT_SMALLER,
+        XTP_LOCAL_ACTION_PASTE,
+        XTP_LOCAL_ACTION_SCROLL_BACK,
+        XTP_LOCAL_ACTION_SCROLL_FORWARD,
+} LocalKeyAction;
+
+typedef struct
+{
+        Boolean used;
+        Boolean duplicate_logged;
+        unsigned long serial;
+        Time time;
+        unsigned int keycode;
+        unsigned int state;
+        LocalKeyAction action;
+} KeyActionIdentity;
+
+typedef struct
+{
+        Pixel foreground;
+        Pixel background;
+        char text[64];
+        size_t text_length;
+        uint8_t width;
+        Boolean bold;
+        Boolean underline;
+        Boolean strikethrough;
+        Boolean overline;
+} VisualCell;
+
+typedef struct
+{
+        Pixel foreground;
+        Pixel cursor_color;
+        XFontStruct *initial_font;
+        String font_names[XTP_FONT_SLOTS];
+        String render_font_name;
+        String face_name;
+        String face_name_doublesize;
+        String char_class;
+        String face_size_names[XTP_FONT_SLOTS];
+        Dimension internal_border;
+        int columns;
+        int rows;
+        int save_lines;
+        int multi_click_time;
+        String cursor_blink_name;
+        CursorBlinkPolicy cursor_blink_policy;
+        int cursor_on_time;
+        int cursor_off_time;
+        Boolean scroll_bar;
+        Boolean right_scroll_bar;
+        Boolean scroll_key;
+        Boolean scroll_tty_output;
+        Boolean select_to_clipboard;
+        Dimension scroll_bar_border;
+        Boolean always_highlight;
+        XtCallbackList font_changed_callback;
+        XtCallbackList size_changed_callback;
+        XtCallbackList popup_menu_callback;
+        XtCallbackList paste_callback;
+        XtCallbackList input_callback;
+
+        GC gc;
+        Widget scrollbar;
+        XFontStruct *fonts[XTP_FONT_SLOTS];
+        Boolean owned[XTP_FONT_SLOTS];
+        Boolean use_xft;
+        XftFont *xft_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_bold_fonts[XTP_FONT_SLOTS];
+        double xft_sizes[XTP_FONT_SLOTS];
+        XftDraw *xft_draw;
+        int current_font;
+        XtpTerminal *terminal;
+        uint8_t *selection_text;
+        size_t selection_text_length;
+        Time selection_time;
+        Atom *owned_selections;
+        Cardinal owned_selection_count;
+        Boolean disowning_selections;
+        Boolean selection_dragging;
+        Boolean selection_extending;
+        XtIntervalId selection_autoscroll_timer;
+        int selection_pointer_x;
+        int selection_pointer_y;
+        Boolean selection_rectangle;
+        uint8_t *hovered_hyperlink;
+        size_t hovered_hyperlink_length;
+        uint8_t *pressed_hyperlink;
+        size_t pressed_hyperlink_length;
+        unsigned int reported_mouse_buttons;
+        Time last_button_up_time;
+        unsigned int last_button;
+        unsigned int number_of_clicks;
+        XtpSelectionUnit select_unit;
+        Boolean focused;
+        Boolean render_cursor_visible;
+        unsigned int render_cursor_column;
+        unsigned int render_cursor_row;
+        Boolean cursor_cell_seen;
+        char cursor_text[64];
+        size_t cursor_text_length;
+        Pixel cursor_fill;
+        Pixel cursor_text_color;
+        Boolean cursor_bold;
+        VisualCell *frame_cells;
+        VisualCell *pending_cells;
+        size_t frame_capacity;
+        unsigned int frame_columns;
+        unsigned int frame_rows;
+        Boolean frame_valid;
+        Boolean capture_full_frame;
+        Boolean damage_clip_active;
+        XRectangle damage_clip;
+        Boolean last_cursor_visible;
+        unsigned int last_cursor_column;
+        unsigned int last_cursor_row;
+        XtpCursorShape last_cursor_shape;
+        Boolean cursor_protocol_visible;
+        Boolean cursor_blink_requested;
+        Boolean cursor_blinking;
+        Boolean cursor_blink_on;
+        XtIntervalId cursor_blink_timer;
+        XtIntervalId viewport_update_timer;
+        unsigned int viewport_updates_coalesced;
+        Boolean suppress_grid_resize;
+        KeyActionIdentity recent_key_actions[XTP_RECENT_KEY_ACTIONS];
+        unsigned int next_key_action;
+        ColorCacheEntry colors[XTP_COLOR_CACHE_SIZE];
+        size_t color_count;
+} Vt100Part;
+
+typedef struct _Vt100Rec
+{
+        CorePart core;
+        CompositePart composite;
+        Vt100Part vt;
+} Vt100Rec;
+
+typedef struct
+{
+        int unused;
+} Vt100ClassPart;
+
+typedef struct _Vt100ClassRec
+{
+        CoreClassPart core_class;
+        CompositeClassPart composite_class;
+        Vt100ClassPart vt_class;
+} Vt100ClassRec;
+
+Vt100Rec *AsVt(Widget widget);
+unsigned int SlotWidth(const Vt100Rec *vt, int slot);
+unsigned int SlotHeight(const Vt100Rec *vt, int slot);
+int SlotAscent(const Vt100Rec *vt, int slot);
+Boolean EffectiveCursorBlink(CursorBlinkPolicy policy, Boolean requested);
+Dimension ScrollbarTotalWidth(Vt100Rec *vt);
+void UpdateScrollbar(Vt100Rec *vt);
+Boolean ScrollViewportBy(Vt100Rec *vt, intptr_t rows);
+Boolean AcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action);
+
+int TerminalX(Vt100Rec *vt);
+void EraseLastCursor(Vt100Rec *vt);
+void DrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int row,
+                XtpCursorShape shape);
+void StopCursorBlink(Vt100Rec *vt);
+void ScheduleCursorBlink(Vt100Rec *vt);
+void RestartCursorBlink(Vt100Rec *vt);
+int RenderTerminal(Vt100Rec *vt, Boolean force_full);
+void RepaintCached(Vt100Rec *vt, const XRectangle *damage);
+void Placeholder(Vt100Rec *vt);
+void Redisplay(Widget widget, XEvent *event, Region region);
+
+Boolean HyperlinkUriEqualsCell(Vt100Rec *vt, const XtpRenderCell *cell);
+void HyperlinkEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch);
+void ScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void ScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void SelectStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void SelectExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void SelectEndAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void StartExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void InsertSelectionAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void MousePressAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void MouseMotionAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void HyperlinkStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+
+#endif

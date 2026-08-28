@@ -81,9 +81,15 @@ functional comparison, while xterm remains the UI and compatibility oracle.
   `--self-test` health check.
 - `src/command_options.c`: the command-line-to-X-resource table shared by Xt
   startup and configuration provenance reporting.
-- `src/vt_widget.c`: custom `VT100` composite widget, bitmap/Xft drawing,
-  cursor, frame caching, progressive drawing, font slots, resources,
-  translations, and callbacks.
+- `src/vt_widget.c`: custom `VT100` composite-widget class, resources,
+  lifecycle, font slots, translations, callbacks, and public widget API.
+- `src/vt_widgetP.h`: private widget record and the internal interfaces shared
+  by the VT widget implementation modules.
+- `src/vt_draw.c`: frame caching, bitmap/Xft cell drawing, cursor painting and
+  blinking, damage handling, and redisplay.
+- `src/vt_input.c`: selection ownership and conversion, paste requests,
+  hyperlink interaction, mouse reporting, and local scroll actions. Keyboard
+  and XIM handling still live in `main.c` pending the separate ownership move.
 - `src/terminal.h`: backend-neutral terminal state, rendering, input encoding,
   resize, and effects boundary.
 - `src/terminal_ghostty.c`: `libghostty-vt` adapter.
@@ -102,12 +108,10 @@ functional comparison, while xterm remains the UI and compatibility oracle.
 
 As new capability is added, prefer focused modules over continued growth of
 `main.c` and `vt_widget.c`. Keep Ghostty-specific types behind `terminal.h`.
-The next structural boundary should be a private VT-widget header shared by
-drawing, fonts, selection, and input modules. Land that file split first as a
-pure-move commit. In a separate behavioral commit, move keyboard/XIM ownership
-into the new input module so keyboard, mouse, and focus bytes all leave the
-widget through `XtNinputCallback`; do not leave translation ownership
-duplicated in two places.
+The private VT-widget boundary is now established. In a separate behavioral
+commit, move keyboard/XIM ownership into `vt_input.c` so keyboard, mouse, and
+focus bytes all leave the widget through `XtNinputCallback`; do not leave
+translation ownership duplicated in two places.
 Smaller follow-ups are typed menu-entry identifiers instead of string dispatch
 and setup helpers in `main.c` with one failure-cleanup path.
 
