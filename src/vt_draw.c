@@ -1,5 +1,10 @@
 #include "vt_widgetP.h"
 
+#include "diagnostics.h"
+
+#include <stdlib.h>
+#include <string.h>
+
 static Pixel
 RgbPixel(Vt100Rec *vt, uint8_t red, uint8_t green, uint8_t blue)
 {
@@ -57,12 +62,12 @@ RenderColor(Vt100Rec *vt, XtpColor color, Boolean foreground)
 }
 
 int
-TerminalX(Vt100Rec *vt)
+VtTerminalX(Vt100Rec *vt)
 {
         int x = (int)vt->vt.internal_border;
 
         if (vt->vt.scroll_bar && !vt->vt.right_scroll_bar)
-                x += (int)ScrollbarTotalWidth(vt);
+                x += (int)VtScrollbarTotalWidth(vt);
         return x;
 }
 
@@ -155,7 +160,7 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
                 }
         }
         visual.bold = cell->bold;
-        visual.underline = cell->underline != 0 || HyperlinkUriEqualsCell(vt, cell);
+        visual.underline = cell->underline != 0 || VtHyperlinkUriEqualsCell(vt, cell);
         visual.strikethrough = cell->strikethrough;
         visual.overline = cell->overline;
         return visual;
@@ -359,11 +364,11 @@ DrawDecorations(Vt100Rec *vt, const VisualCell *cell, const XRectangle *area)
 static void
 DrawVisualCell(Vt100Rec *vt, const VisualCell *cell, unsigned int column, unsigned int row)
 {
-        unsigned int cell_width = SlotWidth(vt, vt->vt.current_font);
-        unsigned int height = SlotHeight(vt, vt->vt.current_font);
+        unsigned int cell_width = VtSlotWidth(vt, vt->vt.current_font);
+        unsigned int height = VtSlotHeight(vt, vt->vt.current_font);
         unsigned int columns = cell->width != 0 ? cell->width : 1U;
         XRectangle area;
-        int x = TerminalX(vt) + (int)column * (int)cell_width;
+        int x = VtTerminalX(vt) + (int)column * (int)cell_width;
         int y = (int)vt->vt.internal_border + (int)row * (int)height;
 
         if (cell->width == 0)
@@ -377,7 +382,7 @@ DrawVisualCell(Vt100Rec *vt, const VisualCell *cell, unsigned int column, unsign
 
                 if (cell->text_length != 0)
                         image[0] = cell->text[0];
-                PaintVisualRun(vt, cell, &area, x, y + SlotAscent(vt, vt->vt.current_font),
+                PaintVisualRun(vt, cell, &area, x, y + VtSlotAscent(vt, vt->vt.current_font),
                                cell->text, cell->text_length, image, columns);
         }
         DrawDecorations(vt, cell, &area);
@@ -399,8 +404,8 @@ DrawVisualRowRange(Vt100Rec *vt, unsigned int row, unsigned int first_column,
         {
                 RUN_CAPACITY = 4096
         };
-        unsigned int width = SlotWidth(vt, vt->vt.current_font);
-        unsigned int height = SlotHeight(vt, vt->vt.current_font);
+        unsigned int width = VtSlotWidth(vt, vt->vt.current_font);
+        unsigned int height = VtSlotHeight(vt, vt->vt.current_font);
         unsigned int column = first_column;
 
         if (end_column > vt->vt.frame_columns)
@@ -433,7 +438,7 @@ DrawVisualRowRange(Vt100Rec *vt, unsigned int row, unsigned int first_column,
                         }
                         {
                                 XRectangle area;
-                                int x = TerminalX(vt) + (int)start * (int)width;
+                                int x = VtTerminalX(vt) + (int)start * (int)width;
                                 int y = (int)vt->vt.internal_border + (int)row * (int)height;
 
                                 area.x = (short)x;
@@ -441,7 +446,7 @@ DrawVisualRowRange(Vt100Rec *vt, unsigned int row, unsigned int first_column,
                                 area.width = (unsigned short)(length * width);
                                 area.height = (unsigned short)height;
                                 PaintVisualRun(vt, first, &area, x,
-                                               y + SlotAscent(vt, vt->vt.current_font), run,
+                                               y + VtSlotAscent(vt, vt->vt.current_font), run,
                                                visible, run, length);
                                 DrawDecorations(vt, first, &area);
                         }
@@ -472,7 +477,7 @@ SetCursorCell(Vt100Rec *vt, const VisualCell *cell)
 }
 
 void
-EraseLastCursor(Vt100Rec *vt)
+VtEraseLastCursor(Vt100Rec *vt)
 {
         size_t index;
 
@@ -486,8 +491,8 @@ EraseLastCursor(Vt100Rec *vt)
 }
 
 void
-DrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int row,
-           XtpCursorShape shape)
+VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int row,
+             XtpCursorShape shape)
 {
         Widget widget = (Widget)vt;
 
@@ -499,10 +504,10 @@ DrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int row,
         }
 
         if (visible && column < vt->vt.frame_columns && row < vt->vt.frame_rows) {
-                unsigned int width = SlotWidth(vt, vt->vt.current_font);
-                unsigned int height = SlotHeight(vt, vt->vt.current_font);
+                unsigned int width = VtSlotWidth(vt, vt->vt.current_font);
+                unsigned int height = VtSlotHeight(vt, vt->vt.current_font);
                 XRectangle area;
-                int x = TerminalX(vt) + (int)column * (int)width;
+                int x = VtTerminalX(vt) + (int)column * (int)width;
                 int y = (int)vt->vt.internal_border + (int)row * (int)height;
 
                 area.x = (short)x;
@@ -518,7 +523,7 @@ DrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int row,
                                        height);
                         if (vt->vt.cursor_text_length != 0) {
                                 DrawText(vt, vt->vt.cursor_text_color, x,
-                                         y + SlotAscent(vt, vt->vt.current_font),
+                                         y + VtSlotAscent(vt, vt->vt.current_font),
                                          vt->vt.cursor_text, vt->vt.cursor_text_length,
                                          vt->vt.cursor_bold);
                         }
@@ -557,7 +562,7 @@ DrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int row,
 }
 
 void
-StopCursorBlink(Vt100Rec *vt)
+VtStopCursorBlink(Vt100Rec *vt)
 {
         if (vt->vt.cursor_blink_timer != (XtIntervalId)0) {
                 XtRemoveTimeOut(vt->vt.cursor_blink_timer);
@@ -565,7 +570,7 @@ StopCursorBlink(Vt100Rec *vt)
         }
 }
 
-void ScheduleCursorBlink(Vt100Rec *vt);
+void VtScheduleCursorBlink(Vt100Rec *vt);
 
 static void
 CursorBlinkTick(XtPointer closure, XtIntervalId *timer)
@@ -584,33 +589,33 @@ CursorBlinkTick(XtPointer closure, XtIntervalId *timer)
                 if (!vt->vt.last_cursor_visible) {
                         vt->vt.cursor_cell_seen = False;
                         vt->vt.cursor_text_length = 0;
-                        DrawCursor(vt, True, vt->vt.last_cursor_column, vt->vt.last_cursor_row,
-                                   vt->vt.last_cursor_shape);
+                        VtDrawCursor(vt, True, vt->vt.last_cursor_column, vt->vt.last_cursor_row,
+                                     vt->vt.last_cursor_shape);
                         XFlush(XtDisplay((Widget)vt));
                 }
                 vt->vt.cursor_blink_on = True;
         } else if (vt->vt.cursor_blink_on) {
-                EraseLastCursor(vt);
-                DrawCursor(vt, False, vt->vt.last_cursor_column, vt->vt.last_cursor_row,
-                           vt->vt.last_cursor_shape);
+                VtEraseLastCursor(vt);
+                VtDrawCursor(vt, False, vt->vt.last_cursor_column, vt->vt.last_cursor_row,
+                             vt->vt.last_cursor_shape);
                 vt->vt.cursor_blink_on = False;
                 XFlush(XtDisplay((Widget)vt));
         } else {
                 vt->vt.cursor_cell_seen = False;
                 vt->vt.cursor_text_length = 0;
-                DrawCursor(vt, True, vt->vt.last_cursor_column, vt->vt.last_cursor_row,
-                           vt->vt.last_cursor_shape);
+                VtDrawCursor(vt, True, vt->vt.last_cursor_column, vt->vt.last_cursor_row,
+                             vt->vt.last_cursor_shape);
                 vt->vt.cursor_blink_on = True;
                 XFlush(XtDisplay((Widget)vt));
         }
         XtpLog(XTP_LOG_DEBUG, "render", "cursor blink phase=%s column=%u row=%u",
                vt->vt.cursor_blink_on ? "on" : "off", vt->vt.last_cursor_column,
                vt->vt.last_cursor_row);
-        ScheduleCursorBlink(vt);
+        VtScheduleCursorBlink(vt);
 }
 
 void
-ScheduleCursorBlink(Vt100Rec *vt)
+VtScheduleCursorBlink(Vt100Rec *vt)
 {
         unsigned long delay;
 
@@ -626,11 +631,11 @@ ScheduleCursorBlink(Vt100Rec *vt)
 }
 
 void
-RestartCursorBlink(Vt100Rec *vt)
+VtRestartCursorBlink(Vt100Rec *vt)
 {
-        StopCursorBlink(vt);
+        VtStopCursorBlink(vt);
         vt->vt.cursor_blink_on = vt->vt.last_cursor_visible || !vt->vt.cursor_protocol_visible;
-        ScheduleCursorBlink(vt);
+        VtScheduleCursorBlink(vt);
 }
 
 static Boolean
@@ -698,7 +703,7 @@ RenderEnd(const XtpRenderFrame *frame, void *closure)
 {
         Vt100Rec *vt = closure;
         Boolean effective_blinking =
-            EffectiveCursorBlink(vt->vt.cursor_blink_policy, frame->cursor_blinking);
+            VtEffectiveCursorBlink(vt->vt.cursor_blink_policy, frame->cursor_blinking);
         Boolean cursor_changed =
             vt->vt.cursor_protocol_visible != frame->cursor_visible ||
             (frame->cursor_visible && (vt->vt.last_cursor_column != frame->cursor_column ||
@@ -723,7 +728,7 @@ RenderEnd(const XtpRenderFrame *frame, void *closure)
                        vt->vt.cursor_cell_seen ? "dirty" : "clean");
 
         if (cursor_changed || blinking_changed) {
-                StopCursorBlink(vt);
+                VtStopCursorBlink(vt);
                 vt->vt.cursor_blink_on = True;
         }
 
@@ -749,7 +754,7 @@ RenderEnd(const XtpRenderFrame *frame, void *closure)
          */
         if (!vt->vt.capture_full_frame &&
             (cursor_changed || blinking_changed || vt->vt.cursor_cell_seen))
-                EraseLastCursor(vt);
+                VtEraseLastCursor(vt);
 
         vt->vt.cursor_protocol_visible = frame->cursor_visible;
         vt->vt.cursor_blink_requested = frame->cursor_blinking;
@@ -758,21 +763,21 @@ RenderEnd(const XtpRenderFrame *frame, void *closure)
                 Boolean draw_cursor =
                     frame->cursor_visible && (!effective_blinking || vt->vt.cursor_blink_on);
 
-                DrawCursor(vt, draw_cursor, frame->cursor_column, frame->cursor_row,
-                           frame->cursor_shape);
+                VtDrawCursor(vt, draw_cursor, frame->cursor_column, frame->cursor_row,
+                             frame->cursor_shape);
                 if (cursor_changed && !vt->vt.capture_full_frame && !vt->vt.cursor_cell_seen)
                         XtpLog(XTP_LOG_DEBUG, "render", "cursor-only repaint column=%u row=%u",
                                frame->cursor_column, frame->cursor_row);
         }
         if (frame->cursor_visible && effective_blinking)
-                ScheduleCursorBlink(vt);
+                VtScheduleCursorBlink(vt);
         else
-                StopCursorBlink(vt);
-        UpdateScrollbar(vt);
+                VtStopCursorBlink(vt);
+        VtUpdateScrollbar(vt);
 }
 
 int
-RenderTerminal(Vt100Rec *vt, Boolean force_full)
+VtRenderTerminal(Vt100Rec *vt, Boolean force_full)
 {
         static const XtpRenderer renderer = {
             RenderBegin,
@@ -786,10 +791,10 @@ RenderTerminal(Vt100Rec *vt, Boolean force_full)
 }
 
 void
-RepaintCached(Vt100Rec *vt, const XRectangle *damage)
+VtRepaintCached(Vt100Rec *vt, const XRectangle *damage)
 {
-        unsigned int cell_width = SlotWidth(vt, vt->vt.current_font);
-        unsigned int cell_height = SlotHeight(vt, vt->vt.current_font);
+        unsigned int cell_width = VtSlotWidth(vt, vt->vt.current_font);
+        unsigned int cell_height = VtSlotHeight(vt, vt->vt.current_font);
         XRectangle grid;
         XRectangle clipped;
         unsigned int first_row;
@@ -798,7 +803,7 @@ RepaintCached(Vt100Rec *vt, const XRectangle *damage)
 
         if (!vt->vt.frame_valid || vt->vt.frame_columns == 0 || vt->vt.frame_rows == 0)
                 return;
-        grid.x = (short)TerminalX(vt);
+        grid.x = (short)VtTerminalX(vt);
         grid.y = (short)vt->vt.internal_border;
         grid.width = (unsigned short)(vt->vt.frame_columns * cell_width);
         grid.height = (unsigned short)(vt->vt.frame_rows * cell_height);
@@ -848,21 +853,21 @@ RepaintCached(Vt100Rec *vt, const XRectangle *damage)
 
                         vt->vt.cursor_cell_seen = False;
                         vt->vt.cursor_text_length = 0;
-                        DrawCursor(vt, True, column, cursor_row, vt->vt.last_cursor_shape);
+                        VtDrawCursor(vt, True, column, cursor_row, vt->vt.last_cursor_shape);
                 }
         }
         vt->vt.damage_clip_active = False;
 }
 
 void
-Placeholder(Vt100Rec *vt)
+VtPlaceholder(Vt100Rec *vt)
 {
         static const char *const lines[] = {
             "xterm+",
             "UI-only build: configure with -Dlibghostty=enabled",
         };
-        int x = TerminalX(vt);
-        int y = (int)vt->vt.internal_border + SlotAscent(vt, vt->vt.current_font);
+        int x = VtTerminalX(vt);
+        int y = (int)vt->vt.internal_border + VtSlotAscent(vt, vt->vt.current_font);
         size_t line;
 
         XSetForeground(XtDisplay((Widget)vt), vt->vt.gc, vt->core.background_pixel);
@@ -872,14 +877,14 @@ Placeholder(Vt100Rec *vt)
                 size_t length = strlen(lines[line]);
 
                 DrawText(vt, vt->vt.foreground, x, y, lines[line], length, False);
-                y += (int)SlotHeight(vt, vt->vt.current_font);
+                y += (int)VtSlotHeight(vt, vt->vt.current_font);
         }
 }
 
 void
-Redisplay(Widget widget, XEvent *event, Region region)
+VtRedisplay(Widget widget, XEvent *event, Region region)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
         XRectangle damage;
         Boolean have_damage = False;
 
@@ -887,8 +892,8 @@ Redisplay(Widget widget, XEvent *event, Region region)
                vt->core.width, vt->core.height, vt->vt.columns, vt->vt.rows, vt->vt.current_font,
                XtpVtCellWidth(widget), XtpVtCellHeight(widget));
         if (!vt->vt.frame_valid) {
-                if (RenderTerminal(vt, True) != 0)
-                        Placeholder(vt);
+                if (VtRenderTerminal(vt, True) != 0)
+                        VtPlaceholder(vt);
                 return;
         }
         if (region != NULL) {
@@ -902,7 +907,7 @@ Redisplay(Widget widget, XEvent *event, Region region)
                 have_damage = damage.width != 0 && damage.height != 0;
         }
         if (have_damage)
-                RepaintCached(vt, &damage);
+                VtRepaintCached(vt, &damage);
         else
-                RepaintCached(vt, NULL);
+                VtRepaintCached(vt, NULL);
 }

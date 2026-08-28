@@ -1,5 +1,20 @@
 #include "vt_widgetP.h"
 
+#include "diagnostics.h"
+
+#include <X11/StringDefs.h>
+#include <X11/Xatom.h>
+#include <X11/Xaw/Scrollbar.h>
+#include <X11/Xmu/Converters.h>
+
+#include <ctype.h>
+#include <float.h>
+#include <limits.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+
 static void Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args);
 static void Realize(Widget widget, XtValueMask *value_mask, XSetWindowAttributes *attributes);
 static void Destroy(Widget widget);
@@ -14,14 +29,21 @@ static void PopupMenuAction(Widget widget, XEvent *event, String *params, Cardin
 static void ClassInitialize(void);
 
 static XtActionsRec actions[] = {
-    {"larger-vt-font", LargerFontAction},      {"smaller-vt-font", SmallerFontAction},
-    {"set-render-font", SetRenderFontAction},  {"set-select", SetSelectAction},
-    {"popup-menu", PopupMenuAction},           {"scroll-back", ScrollBackAction},
-    {"scroll-forw", ScrollForwardAction},      {"select-start", SelectStartAction},
-    {"select-extend", SelectExtendAction},     {"select-end", SelectEndAction},
-    {"start-extend", StartExtendAction},       {"insert-selection", InsertSelectionAction},
-    {"mouse-press", MousePressAction},         {"mouse-motion", MouseMotionAction},
-    {"hyperlink-start", HyperlinkStartAction},
+    {"larger-vt-font", LargerFontAction},
+    {"smaller-vt-font", SmallerFontAction},
+    {"set-render-font", SetRenderFontAction},
+    {"set-select", SetSelectAction},
+    {"popup-menu", PopupMenuAction},
+    {"scroll-back", VtScrollBackAction},
+    {"scroll-forw", VtScrollForwardAction},
+    {"select-start", VtSelectStartAction},
+    {"select-extend", VtSelectExtendAction},
+    {"select-end", VtSelectEndAction},
+    {"start-extend", VtStartExtendAction},
+    {"insert-selection", VtInsertSelectionAction},
+    {"mouse-press", VtMousePressAction},
+    {"mouse-motion", VtMouseMotionAction},
+    {"hyperlink-start", VtHyperlinkStartAction},
 };
 
 /*
@@ -177,7 +199,7 @@ Vt100ClassRec vt100ClassRec = {
         False,
         Destroy,
         ResizeWidget,
-        Redisplay,
+        VtRedisplay,
         SetValues,
         NULL,
         XtInheritSetValuesAlmost,
@@ -215,11 +237,11 @@ Realize(Widget widget, XtValueMask *value_mask, XSetWindowAttributes *attributes
         WidgetClass superclass = vt100ClassRec.core_class.superclass;
 
         (*superclass->core_class.realize)(widget, value_mask, attributes);
-        InitializeInput(AsVt(widget));
+        VtInitializeInput(VtAsRecord(widget));
 }
 
 Vt100Rec *
-AsVt(Widget widget)
+VtAsRecord(Widget widget)
 {
         return (Vt100Rec *)widget;
 }
@@ -256,7 +278,7 @@ XftFontHeight(const XftFont *font)
 }
 
 unsigned int
-SlotWidth(const Vt100Rec *vt, int slot)
+VtSlotWidth(const Vt100Rec *vt, int slot)
 {
         if (vt->vt.use_xft)
                 return XftFontWidth(vt->vt.xft_fonts[slot]);
@@ -264,7 +286,7 @@ SlotWidth(const Vt100Rec *vt, int slot)
 }
 
 unsigned int
-SlotHeight(const Vt100Rec *vt, int slot)
+VtSlotHeight(const Vt100Rec *vt, int slot)
 {
         if (vt->vt.use_xft)
                 return XftFontHeight(vt->vt.xft_fonts[slot]);
@@ -272,7 +294,7 @@ SlotHeight(const Vt100Rec *vt, int slot)
 }
 
 int
-SlotAscent(const Vt100Rec *vt, int slot)
+VtSlotAscent(const Vt100Rec *vt, int slot)
 {
         if (vt->vt.use_xft)
                 return vt->vt.xft_fonts[slot]->ascent;
@@ -324,7 +346,7 @@ CursorBlinkDefault(CursorBlinkPolicy policy)
 }
 
 Boolean
-EffectiveCursorBlink(CursorBlinkPolicy policy, Boolean requested)
+VtEffectiveCursorBlink(CursorBlinkPolicy policy, Boolean requested)
 {
         if (policy == XTP_CURSOR_BLINK_ALWAYS)
                 return True;
@@ -379,7 +401,7 @@ PrimaryFaceName(const char *configured)
 }
 
 Dimension
-ScrollbarTotalWidth(Vt100Rec *vt)
+VtScrollbarTotalWidth(Vt100Rec *vt)
 {
         Dimension width;
         Dimension border;
@@ -407,7 +429,7 @@ LayoutScrollbar(Vt100Rec *vt)
 }
 
 void
-UpdateScrollbar(Vt100Rec *vt)
+VtUpdateScrollbar(Vt100Rec *vt)
 {
         XtpTerminalScrollbar state;
         float top;
@@ -465,7 +487,7 @@ ScheduleViewportUpdate(Vt100Rec *vt)
 }
 
 Boolean
-ScrollViewportBy(Vt100Rec *vt, intptr_t rows)
+VtScrollViewportBy(Vt100Rec *vt, intptr_t rows)
 {
         XtpTerminalScrollbar before;
         XtpTerminalScrollbar state;
@@ -552,7 +574,7 @@ ScrollbarScroll(Widget scrollbar, XtPointer closure, XtPointer call_data)
         (void)scrollbar;
         if (rows == 0 && pixels != 0)
                 rows = pixels < 0 ? -1 : 1;
-        (void)ScrollViewportBy(vt, rows);
+        (void)VtScrollViewportBy(vt, rows);
 }
 
 static void
@@ -593,13 +615,13 @@ EnsureScrollbar(Vt100Rec *vt)
             XtCreateWidget("scrollbar", scrollbarWidgetClass, (Widget)vt, args, XtNumber(args));
         XtAddCallback(vt->vt.scrollbar, XtNscrollProc, ScrollbarScroll, vt);
         XtAddCallback(vt->vt.scrollbar, XtNjumpProc, ScrollbarJump, vt);
-        UpdateScrollbar(vt);
+        VtUpdateScrollbar(vt);
 }
 
 static void
 ReleaseGc(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
         if (vt->vt.gc != NULL) {
                 XFreeGC(XtDisplay(widget), vt->vt.gc);
@@ -610,7 +632,7 @@ ReleaseGc(Widget widget)
 static void
 CreateGc(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
         XFontStruct *font = vt->vt.fonts[vt->vt.current_font];
         XGCValues values;
         XtGCMask mask = GCForeground | GCBackground | GCFont | GCGraphicsExposures;
@@ -769,7 +791,7 @@ LogInitialFont(Vt100Rec *vt)
                "foreground=#%02x%02x%02x background=#%02x%02x%02x cursorColor=%lu",
                vt->vt.use_xft ? "xft" : "xlib-bitmap", name != NULL ? name : "(unknown)",
                vt->vt.face_name != NULL ? vt->vt.face_name : "(unset)", vt->vt.xft_sizes[0],
-               SlotWidth(vt, 0), SlotHeight(vt, 0), foreground.red >> 8, foreground.green >> 8,
+               VtSlotWidth(vt, 0), VtSlotHeight(vt, 0), foreground.red >> 8, foreground.green >> 8,
                foreground.blue >> 8, background.red >> 8, background.green >> 8,
                background.blue >> 8, vt->vt.cursor_color);
         XtpLog(XTP_LOG_INFO, "config",
@@ -790,7 +812,7 @@ LogInitialFont(Vt100Rec *vt)
 static void
 Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
 {
-        Vt100Rec *vt = AsVt(new_widget);
+        Vt100Rec *vt = VtAsRecord(new_widget);
 
         (void)request;
         (void)args;
@@ -814,78 +836,13 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
                "VT100 compiled defaults grid=80x24 font=fixed internalBorder=2 saveLines=1024 "
                "scrollBar=false rightScrollBar=false");
 
-        memset(vt->vt.fonts, 0, sizeof(vt->vt.fonts));
-        memset(vt->vt.owned, 0, sizeof(vt->vt.owned));
         vt->vt.fonts[0] = vt->vt.initial_font;
-        vt->vt.use_xft = False;
-        vt->vt.xft_draw = NULL;
-        memset(vt->vt.xft_fonts, 0, sizeof(vt->vt.xft_fonts));
-        memset(vt->vt.xft_bold_fonts, 0, sizeof(vt->vt.xft_bold_fonts));
-        memset(vt->vt.xft_sizes, 0, sizeof(vt->vt.xft_sizes));
-        vt->vt.current_font = 0;
-        vt->vt.gc = NULL;
-        vt->vt.terminal = NULL;
-        vt->vt.selection_text = NULL;
-        vt->vt.selection_text_length = 0;
         vt->vt.selection_time = CurrentTime;
-        vt->vt.owned_selections = NULL;
-        vt->vt.owned_selection_count = 0;
-        vt->vt.disowning_selections = False;
-        vt->vt.selection_dragging = False;
-        vt->vt.selection_extending = False;
-        vt->vt.selection_autoscroll_timer = (XtIntervalId)0;
-        vt->vt.selection_pointer_x = 0;
-        vt->vt.selection_pointer_y = 0;
-        vt->vt.selection_rectangle = False;
-        vt->vt.hovered_hyperlink = NULL;
-        vt->vt.hovered_hyperlink_length = 0;
-        vt->vt.pressed_hyperlink = NULL;
-        vt->vt.pressed_hyperlink_length = 0;
-        vt->vt.reported_mouse_buttons = 0;
-        vt->vt.last_button_up_time = 0;
-        vt->vt.last_button = 0;
-        vt->vt.number_of_clicks = 0;
         vt->vt.select_unit = XTP_SELECTION_CELL;
-        vt->vt.focused = False;
-        vt->vt.render_cursor_visible = False;
-        vt->vt.render_cursor_column = 0;
-        vt->vt.render_cursor_row = 0;
-        vt->vt.cursor_cell_seen = False;
-        vt->vt.cursor_text_length = 0;
         vt->vt.cursor_fill = vt->vt.foreground;
         vt->vt.cursor_text_color = vt->core.background_pixel;
-        vt->vt.cursor_bold = False;
-        vt->vt.frame_cells = NULL;
-        vt->vt.pending_cells = NULL;
-        vt->vt.frame_capacity = 0;
-        vt->vt.frame_columns = 0;
-        vt->vt.frame_rows = 0;
-        vt->vt.frame_valid = False;
-        vt->vt.capture_full_frame = False;
-        vt->vt.damage_clip_active = False;
-        memset(&vt->vt.damage_clip, 0, sizeof(vt->vt.damage_clip));
-        vt->vt.last_cursor_visible = False;
-        vt->vt.last_cursor_column = 0;
-        vt->vt.last_cursor_row = 0;
         vt->vt.last_cursor_shape = XTP_CURSOR_SHAPE_BLOCK;
-        vt->vt.cursor_protocol_visible = False;
-        vt->vt.cursor_blink_requested = False;
-        vt->vt.cursor_blinking = False;
         vt->vt.cursor_blink_on = True;
-        vt->vt.cursor_blink_timer = (XtIntervalId)0;
-        vt->vt.viewport_update_timer = (XtIntervalId)0;
-        vt->vt.viewport_updates_coalesced = 0;
-        vt->vt.suppress_grid_resize = False;
-        vt->vt.input_method = NULL;
-        vt->vt.input_context = NULL;
-        vt->vt.input_window = None;
-        memset(vt->vt.pressed_keycodes, 0, sizeof(vt->vt.pressed_keycodes));
-        memset(vt->vt.filtered_keycodes, 0, sizeof(vt->vt.filtered_keycodes));
-        vt->vt.detectable_autorepeat = False;
-        memset(vt->vt.recent_key_actions, 0, sizeof(vt->vt.recent_key_actions));
-        vt->vt.next_key_action = 0;
-        vt->vt.color_count = 0;
-        memset(vt->vt.colors, 0, sizeof(vt->vt.colors));
         {
                 int slot;
 
@@ -895,23 +852,22 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
         }
         InitializeXft(vt);
         LogInitialFont(vt);
-        vt->vt.scrollbar = NULL;
-
         if (vt->core.width == 0)
                 vt->core.width = XtpVtNaturalWidth(new_widget);
         if (vt->core.height == 0)
                 vt->core.height = XtpVtNaturalHeight(new_widget);
 
         CreateGc(new_widget);
+        /* Track pointer motion and Shift state only to update OSC 8 hover highlighting. */
         XtAddEventHandler(new_widget,
                           PointerMotionMask | KeyPressMask | KeyReleaseMask | LeaveWindowMask,
-                          False, HyperlinkEvent, vt);
+                          False, VtHyperlinkEvent, vt);
 }
 
 static void
 Destroy(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
         int slot;
         size_t color;
 
@@ -921,7 +877,7 @@ Destroy(Widget widget)
                 XtRemoveTimeOut(vt->vt.selection_autoscroll_timer);
         if (vt->vt.cursor_blink_timer != (XtIntervalId)0)
                 XtRemoveTimeOut(vt->vt.cursor_blink_timer);
-        DestroyInput(vt);
+        VtDestroyInput(vt);
         ReleaseGc(widget);
         if (vt->vt.xft_draw != NULL)
                 XftDrawDestroy(vt->vt.xft_draw);
@@ -953,8 +909,8 @@ Destroy(Widget widget)
 static void
 ResizeWidget(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
-        Dimension scrollbar = vt->vt.scroll_bar ? ScrollbarTotalWidth(vt) : 0;
+        Vt100Rec *vt = VtAsRecord(widget);
+        Dimension scrollbar = vt->vt.scroll_bar ? VtScrollbarTotalWidth(vt) : 0;
         unsigned int cell_width = XtpVtCellWidth(widget);
         unsigned int cell_height = XtpVtCellHeight(widget);
         unsigned int horizontal = 2U * vt->vt.internal_border + scrollbar;
@@ -999,8 +955,8 @@ ResizeWidget(Widget widget)
 static Boolean
 SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
 {
-        Vt100Rec *old_vt = AsVt(current);
-        Vt100Rec *new_vt = AsVt(new_widget);
+        Vt100Rec *old_vt = VtAsRecord(current);
+        Vt100Rec *new_vt = VtAsRecord(new_widget);
         Boolean changed = False;
 
         (void)request;
@@ -1030,8 +986,8 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
 
         new_vt->vt.cursor_blink_policy = ParseCursorBlinkPolicy(new_vt->vt.cursor_blink_name);
         if (old_vt->vt.cursor_blink_policy != new_vt->vt.cursor_blink_policy) {
-                Boolean effective = EffectiveCursorBlink(new_vt->vt.cursor_blink_policy,
-                                                         new_vt->vt.cursor_blink_requested);
+                Boolean effective = VtEffectiveCursorBlink(new_vt->vt.cursor_blink_policy,
+                                                           new_vt->vt.cursor_blink_requested);
 
                 if (new_vt->vt.terminal != NULL &&
                     XtpTerminalSetCursorBlinkDefault(
@@ -1039,7 +995,7 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                         0)
                         XtpLog(XTP_LOG_ERROR, "render", "cannot apply cursorBlink=%s",
                                new_vt->vt.cursor_blink_name);
-                StopCursorBlink(new_vt);
+                VtStopCursorBlink(new_vt);
                 new_vt->vt.cursor_blink_on = True;
                 new_vt->vt.cursor_blinking = effective;
                 XtpLog(XTP_LOG_INFO, "config", "VT100 cursorBlink=%s effective=%s",
@@ -1070,7 +1026,7 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
             old_vt->vt.cursor_off_time != new_vt->vt.cursor_off_time) {
                 XtpLog(XTP_LOG_INFO, "config", "VT100 cursor timing on=%dms off=%dms",
                        new_vt->vt.cursor_on_time, new_vt->vt.cursor_off_time);
-                RestartCursorBlink(new_vt);
+                VtRestartCursorBlink(new_vt);
         }
         if (old_vt->vt.scroll_bar != new_vt->vt.scroll_bar) {
                 XtpLog(XTP_LOG_INFO, "scrollbar", "resource visibility %s -> %s",
@@ -1106,7 +1062,7 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
 Boolean
 XtpVtSelectFont(Widget widget, int slot)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
         XtpFontChanged changed;
 
         if (slot < 0 || slot >= XTP_FONT_SLOTS)
@@ -1122,7 +1078,7 @@ XtpVtSelectFont(Widget widget, int slot)
 
         XtpLog(XTP_LOG_INFO, "font", "select slot=%d -> %d old-cell=%ux%u new-cell=%ux%u",
                vt->vt.current_font, slot, XtpVtCellWidth(widget), XtpVtCellHeight(widget),
-               SlotWidth(vt, slot), SlotHeight(vt, slot));
+               VtSlotWidth(vt, slot), VtSlotHeight(vt, slot));
         vt->vt.current_font = slot;
         vt->vt.frame_valid = False;
         vt->vt.last_cursor_visible = False;
@@ -1141,10 +1097,10 @@ XtpVtSelectFont(Widget widget, int slot)
 static void
 RelativeFont(Widget widget, int direction)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
         double current_size = vt->vt.use_xft ? vt->vt.xft_sizes[vt->vt.current_font]
-                                             : (double)SlotWidth(vt, vt->vt.current_font) *
-                                                   SlotHeight(vt, vt->vt.current_font);
+                                             : (double)VtSlotWidth(vt, vt->vt.current_font) *
+                                                   VtSlotHeight(vt, vt->vt.current_font);
         double best_delta = DBL_MAX;
         int best = -1;
         int slot;
@@ -1160,7 +1116,7 @@ RelativeFont(Widget widget, int direction)
                         continue;
                 }
                 size = vt->vt.use_xft ? vt->vt.xft_sizes[slot]
-                                      : (double)SlotWidth(vt, slot) * SlotHeight(vt, slot);
+                                      : (double)VtSlotWidth(vt, slot) * VtSlotHeight(vt, slot);
                 if ((direction > 0 && size <= current_size) ||
                     (direction < 0 && size >= current_size))
                         continue;
@@ -1185,7 +1141,7 @@ RelativeFont(Widget widget, int direction)
 }
 
 Boolean
-AcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action)
+VtAcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action)
 {
         KeyActionIdentity *identity;
         unsigned int slot;
@@ -1228,7 +1184,7 @@ LargerFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_par
 {
         (void)params;
         (void)num_params;
-        if (!AcceptLocalKeyAction(AsVt(widget), event, XTP_LOCAL_ACTION_FONT_LARGER))
+        if (!VtAcceptLocalKeyAction(VtAsRecord(widget), event, XTP_LOCAL_ACTION_FONT_LARGER))
                 return;
         XtpLog(
             XTP_LOG_INFO, "input",
@@ -1245,7 +1201,7 @@ SmallerFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_pa
 {
         (void)params;
         (void)num_params;
-        if (!AcceptLocalKeyAction(AsVt(widget), event, XTP_LOCAL_ACTION_FONT_SMALLER))
+        if (!VtAcceptLocalKeyAction(VtAsRecord(widget), event, XTP_LOCAL_ACTION_FONT_SMALLER))
                 return;
         XtpLog(XTP_LOG_INFO, "input",
                "action smaller-vt-font event=%d serial=%lu synthetic=%s time=%lu keycode=%u "
@@ -1320,23 +1276,23 @@ PopupMenuAction(Widget widget, XEvent *event, String *params, Cardinal *num_para
 unsigned int
 XtpVtCellWidth(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
-        return SlotWidth(vt, vt->vt.current_font);
+        return VtSlotWidth(vt, vt->vt.current_font);
 }
 
 unsigned int
 XtpVtCellHeight(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
-        return SlotHeight(vt, vt->vt.current_font);
+        return VtSlotHeight(vt, vt->vt.current_font);
 }
 
 unsigned int
 XtpVtColumns(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
         return (unsigned int)vt->vt.columns;
 }
@@ -1344,7 +1300,7 @@ XtpVtColumns(Widget widget)
 unsigned int
 XtpVtRows(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
         return (unsigned int)vt->vt.rows;
 }
@@ -1352,15 +1308,15 @@ XtpVtRows(Widget widget)
 Boolean
 XtpVtFontSlotInfo(Widget widget, int slot, XtpFontSlotInfo *info)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
         if (info == NULL || slot < 0 || slot >= XTP_FONT_SLOTS)
                 return False;
         if (vt->vt.use_xft)
                 info->loaded = vt->vt.xft_fonts[slot] != NULL;
         else
                 info->loaded = vt->vt.fonts[slot] != NULL;
-        info->cell_width = info->loaded ? SlotWidth(vt, slot) : 0;
-        info->cell_height = info->loaded ? SlotHeight(vt, slot) : 0;
+        info->cell_width = info->loaded ? VtSlotWidth(vt, slot) : 0;
+        info->cell_height = info->loaded ? VtSlotHeight(vt, slot) : 0;
         info->point_size = vt->vt.use_xft && info->loaded ? vt->vt.xft_sizes[slot] : 0.0;
         return True;
 }
@@ -1368,25 +1324,25 @@ XtpVtFontSlotInfo(Widget widget, int slot, XtpFontSlotInfo *info)
 const char *
 XtpVtRendererName(Widget widget)
 {
-        return AsVt(widget)->vt.use_xft ? "xft" : "xlib-bitmap";
+        return VtAsRecord(widget)->vt.use_xft ? "xft" : "xlib-bitmap";
 }
 
 Boolean
 XtpVtUsingXft(Widget widget)
 {
-        return AsVt(widget)->vt.use_xft;
+        return VtAsRecord(widget)->vt.use_xft;
 }
 
 Boolean
 XtpVtXftAvailable(Widget widget)
 {
-        return AsVt(widget)->vt.xft_fonts[0] != NULL;
+        return VtAsRecord(widget)->vt.xft_fonts[0] != NULL;
 }
 
 Boolean
 XtpVtSetRenderFont(Widget widget, Boolean enabled)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
         XtpFontChanged changed;
 
         enabled = enabled ? True : False;
@@ -1422,12 +1378,12 @@ XtpVtSetRenderFont(Widget widget, Boolean enabled)
 Dimension
 XtpVtNaturalWidth(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
         unsigned long value =
             (unsigned long)vt->vt.columns * XtpVtCellWidth(widget) + 2UL * vt->vt.internal_border;
 
         if (vt->vt.scroll_bar)
-                value += ScrollbarTotalWidth(vt);
+                value += VtScrollbarTotalWidth(vt);
 
         return value <= USHRT_MAX ? (Dimension)value : (Dimension)USHRT_MAX;
 }
@@ -1435,7 +1391,7 @@ XtpVtNaturalWidth(Widget widget)
 Dimension
 XtpVtNaturalHeight(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
         unsigned long value =
             (unsigned long)vt->vt.rows * XtpVtCellHeight(widget) + 2UL * vt->vt.internal_border;
 
@@ -1445,13 +1401,13 @@ XtpVtNaturalHeight(Widget widget)
 Boolean
 XtpVtScrollbarVisible(Widget widget)
 {
-        return AsVt(widget)->vt.scroll_bar;
+        return VtAsRecord(widget)->vt.scroll_bar;
 }
 
 void
 XtpVtSetScrollbar(Widget widget, Boolean visible)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
         visible = visible ? True : False;
         if (vt->vt.scroll_bar == visible)
@@ -1472,13 +1428,13 @@ XtpVtSetScrollbar(Widget widget, Boolean visible)
 Boolean
 XtpVtScrollKey(Widget widget)
 {
-        return AsVt(widget)->vt.scroll_key;
+        return VtAsRecord(widget)->vt.scroll_key;
 }
 
 void
 XtpVtSetScrollKey(Widget widget, Boolean enabled)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
         vt->vt.scroll_key = enabled ? True : False;
         XtpLog(XTP_LOG_INFO, "scrollback", "scrollKey=%s", vt->vt.scroll_key ? "true" : "false");
@@ -1487,19 +1443,19 @@ XtpVtSetScrollKey(Widget widget, Boolean enabled)
 Boolean
 XtpVtScrollTtyOutput(Widget widget)
 {
-        return AsVt(widget)->vt.scroll_tty_output;
+        return VtAsRecord(widget)->vt.scroll_tty_output;
 }
 
 Boolean
 XtpVtSelectToClipboard(Widget widget)
 {
-        return AsVt(widget)->vt.select_to_clipboard;
+        return VtAsRecord(widget)->vt.select_to_clipboard;
 }
 
 void
 XtpVtSetSelectToClipboard(Widget widget, Boolean enabled)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
         vt->vt.select_to_clipboard = enabled ? True : False;
         XtpLog(XTP_LOG_INFO, "selection", "selectToClipboard=%s SELECT=%s",
@@ -1510,7 +1466,7 @@ XtpVtSetSelectToClipboard(Widget widget, Boolean enabled)
 void
 XtpVtSetScrollTtyOutput(Widget widget, Boolean enabled)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
         vt->vt.scroll_tty_output = enabled ? True : False;
         XtpLog(XTP_LOG_INFO, "scrollback", "scrollTtyOutput=%s",
@@ -1520,7 +1476,7 @@ XtpVtSetScrollTtyOutput(Widget widget, Boolean enabled)
 void
 XtpVtScrollOnKeypress(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
         if (vt->vt.scroll_key && ScrollViewportToBottom(vt))
                 XtpVtUpdate(widget);
@@ -1529,33 +1485,36 @@ XtpVtScrollOnKeypress(Widget widget)
 void
 XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
         vt->vt.terminal = terminal;
-        if (terminal != NULL && XtpTerminalSetCursorBlinkDefault(
-                                    terminal, CursorBlinkDefault(vt->vt.cursor_blink_policy)) != 0)
+        if (terminal == NULL) {
+                XtpLog(XTP_LOG_INFO, "terminal", "bound terminal=no");
+                return;
+        }
+        if (XtpTerminalSetCursorBlinkDefault(terminal,
+                                             CursorBlinkDefault(vt->vt.cursor_blink_policy)) != 0)
                 XtpLog(XTP_LOG_ERROR, "render", "cannot apply cursorBlink=%s",
                        vt->vt.cursor_blink_name);
-        if (terminal != NULL &&
-            XtpTerminalSetScrollbackLines(terminal, (size_t)vt->vt.save_lines) != 0)
+        if (XtpTerminalSetScrollbackLines(terminal, (size_t)vt->vt.save_lines) != 0)
                 XtpLog(XTP_LOG_ERROR, "scrollback", "cannot set history limit=%d",
                        vt->vt.save_lines);
-        if (terminal != NULL && XtpTerminalSetCharClass(terminal, vt->vt.char_class) != 0)
+        if (XtpTerminalSetCharClass(terminal, vt->vt.char_class) != 0)
                 XtpLog(XTP_LOG_ERROR, "selection", "cannot apply charClass=%s",
                        vt->vt.char_class != NULL ? vt->vt.char_class : "(default)");
         EnsureScrollbar(vt);
         if (vt->vt.scroll_bar)
                 XtManageChild(vt->vt.scrollbar);
         LayoutScrollbar(vt);
-        UpdateScrollbar(vt);
-        XtpLog(XTP_LOG_INFO, "terminal", "bound terminal=%s", terminal != NULL ? "yes" : "no");
+        VtUpdateScrollbar(vt);
+        XtpLog(XTP_LOG_INFO, "terminal", "bound terminal=yes");
         XtpVtRedraw(widget);
 }
 
 void
 XtpVtUpdate(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
         if (vt->vt.viewport_update_timer != (XtIntervalId)0) {
                 XtRemoveTimeOut(vt->vt.viewport_update_timer);
@@ -1565,21 +1524,21 @@ XtpVtUpdate(Widget widget)
         if (!XtIsRealized(widget) || vt->vt.terminal == NULL)
                 return;
         XtpLog(XTP_LOG_DEBUG, "render", "dirty update requested");
-        if (RenderTerminal(vt, False) != 0)
+        if (VtRenderTerminal(vt, False) != 0)
                 XtpLog(XTP_LOG_ERROR, "render", "dirty update failed");
 }
 
 void
 XtpVtRedraw(Widget widget)
 {
-        Vt100Rec *vt = AsVt(widget);
+        Vt100Rec *vt = VtAsRecord(widget);
 
         if (!XtIsRealized(widget))
                 return;
         XtpLog(XTP_LOG_DEBUG, "render", "redraw requested cache=%s",
                vt->vt.frame_valid ? "valid" : "invalid");
         if (vt->vt.frame_valid)
-                RepaintCached(vt, NULL);
-        else if (RenderTerminal(vt, True) != 0)
-                Placeholder(vt);
+                VtRepaintCached(vt, NULL);
+        else if (VtRenderTerminal(vt, True) != 0)
+                VtPlaceholder(vt);
 }

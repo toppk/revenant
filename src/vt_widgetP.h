@@ -3,36 +3,16 @@
 
 #include "vt_widget.h"
 
-#include "diagnostics.h"
 #include "terminal.h"
 
 #include <X11/IntrinsicP.h>
 #include <X11/CoreP.h>
 #include <X11/CompositeP.h>
-#include <X11/StringDefs.h>
-#include <X11/Xatom.h>
 #include <X11/Xft/Xft.h>
-#include <X11/Xaw/Scrollbar.h>
-#include <X11/XKBlib.h>
-#include <X11/Xmu/Converters.h>
-#include <X11/keysym.h>
-
-#include <ctype.h>
-#include <errno.h>
-#include <float.h>
-#include <limits.h>
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 #define XTP_FONT_SLOTS 8
 #define XTP_COLOR_CACHE_SIZE 512
 
-#ifndef XtNfont1
 #define XtNfont1 "font1"
 #define XtNfont2 "font2"
 #define XtNfont3 "font3"
@@ -40,9 +20,7 @@
 #define XtNfont5 "font5"
 #define XtNfont6 "font6"
 #define XtNfont7 "font7"
-#endif
 
-#ifndef XtCFont1
 #define XtCFont1 "Font1"
 #define XtCFont2 "Font2"
 #define XtCFont3 "Font3"
@@ -50,7 +28,6 @@
 #define XtCFont5 "Font5"
 #define XtCFont6 "Font6"
 #define XtCFont7 "Font7"
-#endif
 
 typedef struct
 {
@@ -248,41 +225,41 @@ typedef struct _Vt100ClassRec
         Vt100ClassPart vt_class;
 } Vt100ClassRec;
 
-Vt100Rec *AsVt(Widget widget);
-unsigned int SlotWidth(const Vt100Rec *vt, int slot);
-unsigned int SlotHeight(const Vt100Rec *vt, int slot);
-int SlotAscent(const Vt100Rec *vt, int slot);
-Boolean EffectiveCursorBlink(CursorBlinkPolicy policy, Boolean requested);
-Dimension ScrollbarTotalWidth(Vt100Rec *vt);
-void UpdateScrollbar(Vt100Rec *vt);
-Boolean ScrollViewportBy(Vt100Rec *vt, intptr_t rows);
-Boolean AcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action);
+Vt100Rec *VtAsRecord(Widget widget);
+unsigned int VtSlotWidth(const Vt100Rec *vt, int slot);
+unsigned int VtSlotHeight(const Vt100Rec *vt, int slot);
+int VtSlotAscent(const Vt100Rec *vt, int slot);
+Boolean VtEffectiveCursorBlink(CursorBlinkPolicy policy, Boolean requested);
+Dimension VtScrollbarTotalWidth(Vt100Rec *vt);
+void VtUpdateScrollbar(Vt100Rec *vt);
+Boolean VtScrollViewportBy(Vt100Rec *vt, intptr_t rows);
+Boolean VtAcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action);
 
-int TerminalX(Vt100Rec *vt);
-void EraseLastCursor(Vt100Rec *vt);
-void DrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int row,
-                XtpCursorShape shape);
-void StopCursorBlink(Vt100Rec *vt);
-void ScheduleCursorBlink(Vt100Rec *vt);
-void RestartCursorBlink(Vt100Rec *vt);
-int RenderTerminal(Vt100Rec *vt, Boolean force_full);
-void RepaintCached(Vt100Rec *vt, const XRectangle *damage);
-void Placeholder(Vt100Rec *vt);
-void Redisplay(Widget widget, XEvent *event, Region region);
+int VtTerminalX(Vt100Rec *vt);
+void VtEraseLastCursor(Vt100Rec *vt);
+void VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int row,
+                  XtpCursorShape shape);
+void VtStopCursorBlink(Vt100Rec *vt);
+void VtScheduleCursorBlink(Vt100Rec *vt);
+void VtRestartCursorBlink(Vt100Rec *vt);
+int VtRenderTerminal(Vt100Rec *vt, Boolean force_full);
+void VtRepaintCached(Vt100Rec *vt, const XRectangle *damage);
+void VtPlaceholder(Vt100Rec *vt);
+void VtRedisplay(Widget widget, XEvent *event, Region region);
 
-void InitializeInput(Vt100Rec *vt);
-void DestroyInput(Vt100Rec *vt);
-Boolean HyperlinkUriEqualsCell(Vt100Rec *vt, const XtpRenderCell *cell);
-void HyperlinkEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch);
-void ScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
-void ScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
-void SelectStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
-void SelectExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
-void SelectEndAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
-void StartExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
-void InsertSelectionAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
-void MousePressAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
-void MouseMotionAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
-void HyperlinkStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtInitializeInput(Vt100Rec *vt);
+void VtDestroyInput(Vt100Rec *vt);
+Boolean VtHyperlinkUriEqualsCell(Vt100Rec *vt, const XtpRenderCell *cell);
+void VtHyperlinkEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch);
+void VtScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtSelectStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtSelectExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtSelectEndAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtStartExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtInsertSelectionAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtMousePressAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtMouseMotionAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtHyperlinkStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 
 #endif

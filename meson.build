@@ -61,6 +61,7 @@ sources = files(
     'src/terminal.c',
     'src/vt_draw.c',
     'src/vt_input.c',
+    'src/vt_interaction.c',
     'src/vt_widget.c',
 )
 
