@@ -2,7 +2,7 @@
 
 Status: identified upstream and fixed in Bash development. The observations
 below were made on 2026-08-26 with Bash 5.3.9 and Readline 8.3. The fault is in
-Readline's prompt metadata refresh after `SIGWINCH`, not in xterm+, xterm, or
+Readline's prompt metadata refresh after `SIGWINCH`, not in Revenant, xterm, or
 libghostty reflow.
 
 The upstream fix is Bash commit
@@ -10,9 +10,9 @@ The upstream fix is Bash commit
 committed by Chet Ramey on 2026-06-02. It is not present in Bash 5.3.9 or the
 published `readline83-001` through `readline83-003` patches. A local
 Bash/Readline build containing the upstream fix was subsequently confirmed to
-recover correctly in xterm+.
+recover correctly in Revenant.
 
-This note remains intentionally broader than an xterm+ bug report. Similar
+This note remains intentionally broader than a Revenant bug report. Similar
 Readline-versus-terminal reflow artifacts have been discussed for years, but
 the exact invisible-run cursor displacement documented here is a Readline 8.3
 regression introduced by its 2025 redisplay rewrite.
@@ -24,7 +24,7 @@ prompt wraps, and widen it again. With nonprinting sequences in `PS1`, the
 cursor can finish inside the visible prompt instead of after it. Repeated
 resizes can leave duplicated prompt fragments.
 
-The visible prompt used in the deterministic xterm+ fixture is 45 columns:
+The visible prompt used in the deterministic Revenant fixture is 45 columns:
 
 ```text
 toppk@foundation:~/workspace/xterm-plus (0)$
@@ -39,7 +39,7 @@ the final nonprinting run is `ESC [ 0 m`, exactly four bytes, and the cursor
 finishes at column 41 over the `0` in `(0)`. Both results match the upstream
 Readline defect exactly.
 
-This is separate from xterm+'s fixed frame-cache resize bug. That bug allowed
+This is separate from Revenant's fixed frame-cache resize bug. That bug allowed
 an old-grid pixel snapshot to be painted using new-grid geometry. Here the
 terminal state itself contains the cursor and prompt produced after Readline's
 `SIGWINCH` redisplay.
@@ -106,9 +106,9 @@ bracketed SGR sequence also triggers a wrong final cursor. Readline loses the
 byte count of the final invisible run after that run moves off the last prompt
 screen line during widening.
 
-## Controlled xterm+ cases
+## Controlled Revenant cases
 
-Build xterm+ and start each case at 80 columns. Shrink it well below the
+Build Revenant and start each case at 80 columns. Shrink it well below the
 visible prompt width, then widen it past that width. Do not submit a command
 between the two resizes.
 
@@ -117,7 +117,7 @@ between the two resizes.
 ```sh
 PS1='\u@\h:\w ($?)\$ ' \
   PROMPT_COMMAND= \
-  ./build/xterm+ -debug -e bash --noprofile --norc
+  ./build/revenant -debug -e bash --noprofile --norc
 ```
 
 The prompt is 45 visible cells in the recorded working directory. It wraps at
@@ -129,7 +129,7 @@ than the prompt.
 ```sh
 PS1='\[\e]133;P;k=i\a\]\u@\h:\w ($?)\$ \[\e]133;B\a\]' \
   PROMPT_COMMAND= \
-  ./build/xterm+ -debug -e bash --noprofile --norc
+  ./build/revenant -debug -e bash --noprofile --norc
 ```
 
 After the shrink-and-grow cycle, the cursor was observed over the `u` in the
@@ -140,7 +140,7 @@ prompt rather than after the final space.
 ```sh
 PS1='\[\e[1m\]\u@\h:\w ($?)\$ \[\e[0m\]' \
   PROMPT_COMMAND= \
-  ./build/xterm+ -debug -e bash --noprofile --norc
+  ./build/revenant -debug -e bash --noprofile --norc
 ```
 
 After the same cycle, the cursor was observed over the `0` in `(0)`. Because
@@ -167,7 +167,7 @@ just reflow-resize WINDOW_ID
 
 The `WINDOW_ID` is printed by the first command's `shell: realized window=`
 debug line. Prompt annotations plus an explicit promise that the shell redraws
-the prompt therefore do not repair the xterm+ result.
+the prompt therefore do not repair the Revenant result.
 
 ## Why `--noprofile --norc` mattered
 
@@ -204,16 +204,16 @@ The following results have been reported during this investigation:
 
 | Application and shell | Result | Qualification |
 | --- | --- | --- |
-| xterm+ with plain long Bash `PS1`, `--noprofile --norc` | Recovers correctly | Controlled case above |
-| xterm+ with OSC-marked Bash `PS1`, `--noprofile --norc` | Wrong final cursor | Controlled case above |
-| xterm+ with SGR-styled Bash `PS1`, `--noprofile --norc` | Wrong final cursor | Controlled case above |
-| xterm+ with OSC marks and `redraw=last` | Wrong final cursor | Repository fixture |
+| Revenant with plain long Bash `PS1`, `--noprofile --norc` | Recovers correctly | Controlled case above |
+| Revenant with OSC-marked Bash `PS1`, `--noprofile --norc` | Wrong final cursor | Controlled case above |
+| Revenant with SGR-styled Bash `PS1`, `--noprofile --norc` | Wrong final cursor | Controlled case above |
+| Revenant with OSC marks and `redraw=last` | Wrong final cursor | Repository fixture |
 | xterm with the affected Bash setup | Same class of failure | Reported manually; repeat the exact controlled matrix before relying on offsets |
 | Ghostty 1.3.1, X11, Bash | Same class of failure | Original command loaded `.bashrc`; repeat with `--norc` for a clean comparison |
 | Ghostty 1.3.1, X11, `zsh -f` | Recovers correctly | No Bash/Readline involved |
 | Bash 5.2 / Readline 8.2 and earlier | Recovers correctly | Confirmed by the upstream version sweep |
 | Bash 5.3 / Readline 8.3 without the development fix | Wrong final cursor | Regression introduced by the Readline 8.3 redisplay rewrite |
-| Readline 8.3 with the upstream fix | Recovers correctly | Confirmed by the upstream standalone `examples/rl` matrix and a local Bash/xterm+ test |
+| Readline 8.3 with the upstream fix | Recovers correctly | Confirmed by the upstream standalone `examples/rl` matrix and a local Bash/Revenant test |
 | Ghostty 1.3.1, native Wayland | Did not reproduce in one manual run | In tension with the deterministic PTY reproducer; recheck that the prompt actually wrapped before widening |
 
 The Ghostty observation is tracked in
@@ -228,7 +228,7 @@ drives one `TIOCSWINSZ` from 80 to 200 columns on a PTY and reproduces
 reliably. The August report also reproduces with Readline's standalone
 `examples/rl`, separating the defect from Bash-specific signal hooks.
 
-## What the xterm+ logs show
+## What the Revenant logs show
 
 At startup, a plain 45-cell prompt produces:
 
@@ -282,7 +282,7 @@ does not fail in its matrix; a prompt with two or more runs loses the final
 run after widening. Changing the last SGR sequence from four to seven bytes
 changes the cursor displacement from four to seven columns.
 
-This predicts the xterm+ evidence exactly:
+This predicts the Revenant evidence exactly:
 
 | Case | Final invisible run | Expected cursor | Observed cursor |
 | --- | --- | --- | --- |
@@ -322,9 +322,9 @@ development commit.
 ## Local fixed-build validation
 
 A local Bash/Readline build containing commit `1e9f5e10b2` was reported on
-2026-08-26 to resize cleanly in xterm+: the misplaced cursor no longer
+2026-08-26 to resize cleanly in Revenant: the misplaced cursor no longer
 appeared. For a reproducible record of that result, repeat the three controlled
-xterm+ cases and capture the build identity:
+Revenant cases and capture the build identity:
 
 1. Record `bash --version` and how the fixed Readline was linked.
 2. Run the plain, OSC 133, and SGR prompts at 80 columns.
@@ -335,7 +335,7 @@ xterm+ cases and capture the build identity:
    fixture check.
 
 The OSC and SGR cases are the decisive controls. The fixed build changes
-columns 37 and 41 to 45 without requiring a visible-prompt or xterm+ change.
+columns 37 and 41 to 45 without requiring a visible-prompt or Revenant change.
 
 ## Related but distinct resize history
 
@@ -357,12 +357,12 @@ present in earlier releases.
 
 ## Terminal-side policy
 
-xterm+ should continue to maintain an exact terminal cursor, resize the PTY
+Revenant should continue to maintain an exact terminal cursor, resize the PTY
 and libghostty state as one ordered event-loop transaction, and execute child
 output literally. It should not generally guess that a cursor movement from
 an interactive application is erroneous.
 
-xterm+ must not work around this regression. OSC 133 prompt knowledge is
+Revenant must not work around this regression. OSC 133 prompt knowledge is
 insufficient because the SGR-only case fails too, and an emulator cannot
 safely discard arbitrary cursor control emitted after resize. The correct fix
 is the upstream Readline prompt-metadata reset.

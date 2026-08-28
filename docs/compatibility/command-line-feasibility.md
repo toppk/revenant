@@ -3,12 +3,12 @@
 Every option in xterm patch-410's `-help` output (`xtermOptions[]` in
 `main.c`, 120 lines including `#ifdef` duplicates): what xterm
 does behind it, whether libghostty-vt or plain X11 supplies the mechanism,
-and how approachable it is for xterm+. Companion to the
+and how approachable it is for Revenant. Companion to the
 [popup-menu study](menu-feasibility.md); reviewed against `src/main.c` and
 the then-selected libghostty headers on 2026-08-25.
 
 Status key: **DONE** implemented; **XT** parsed and applied by the X Toolkit
-without xterm+ code; **ACCEPTED** parsed into a resource that the code does
+without Revenant code; **ACCEPTED** parsed into a resource that the code does
 not act on yet; **READY** can be wired now with no new subsystem;
 **ROADMAP** waits on a [roadmap](../maintainers/roadmap.md) slice (number
 given); **BLOCKED** needs a libghostty change; **SKIP** recommend not
@@ -30,13 +30,13 @@ behind it is *supported* there.
 Two structural gaps come first, because they affect every row:
 
 1. **Unknown options are dropped silently.** Xt leaves unrecognised
-   arguments in `argv`, and xterm+ ignores whatever remains. `-ls`, `-fb
+   arguments in `argv`, and Revenant ignores whatever remains. `-ls`, `-fb
    fixed`, or a typo start a normal window with no message. xterm prints
    `bad command line option` and its usage. Fix: after `XtOpenDisplay`,
    treat any leftover argument other than `-e` as an error. READY, and the
    prerequisite for calling the surface complete.
 2. **`-help` and `-version` are missing** in xterm's single-dash form;
-   xterm+ has `--version` and `--self-test`. `-help` should print the option
+   Revenant has `--version` and `--self-test`. `-help` should print the option
    table with one-line descriptions. READY.
 
 ## Process and session
@@ -56,7 +56,7 @@ Two structural gaps come first, because they affect every row:
 | `-ti termid` | `decTerminalID`: DA responses (vt100/220/…) | libghostty answers DA itself; no terminal-ID option in the reviewed API | Needs an ID option or DA callback | BLOCKED |
 | `-tm string` | `ttyModes`: stty-style keywords for the PTY | `pty.c` termios | Parse the small keyword language, apply with `tcsetattr` | READY |
 | `-/+ie` | `ptyInitialErase`: take erase char from the PTY | `pty.c` termios | Read `VERASE`, feed backarrow mode | READY |
-| `-/+im` | `useInsertMode`: termcap capability tweak | Only affects xterm's `TERMCAP` export | No TERMCAP export in xterm+ | SKIP |
+| `-/+im` | `useInsertMode`: termcap capability tweak | Only affects xterm's `TERMCAP` export | No TERMCAP export in Revenant | SKIP |
 | `-baudrate rate` | Set PTY line speed | `pty.c` termios | `cfsetspeed`; low value but trivial | READY |
 | `-/+hold` | Keep window after child exits | Event loop | Stop tearing down on `SIGCHLD`; keep rendering | READY |
 | `-/+wf` | `waitForMap`: delay exec until mapped | Event loop | Defer `pty` spawn to first `MapNotify` | READY |
@@ -177,7 +177,7 @@ Two structural gaps come first, because they affect every row:
 | `-report-fonts` | Log loaded fonts | `-report-config` font section covers it | Alias to a subset of `-report-config` | READY |
 | `-report-icons` | Log title/icon updates | Title callback; debug log already prints them | Alias | READY |
 | `-report-xres` | Dump VT100 resources | `-report-config` is a superset | Alias | READY |
-| `-report-config` | xterm+ resolved-configuration report | — | xterm+ extension, not an xterm option | DONE |
+| `-report-config` | Revenant resolved-configuration report | — | Revenant extension, not an xterm option | DONE |
 | `-/+debug` | Debug log | — | — | DONE |
 
 ## Sixel and Tek

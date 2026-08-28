@@ -1,5 +1,5 @@
 # Built in place from a git checkout: rpmbuild -bb --build-in-place --define "version X.Y.Z"
-Name:           xterm-plus
+Name:           revenant
 Version:        %{version}
 Release:        1%{?dist}
 Summary:        xterm-compatible X11 terminal emulator built on libghostty-vt
@@ -23,7 +23,7 @@ BuildRequires:  pkgconfig(xrender)
 # zig >= 0.16 must be on PATH; Fedora's packaged zig is not used.
 
 %description
-xterm+ preserves xterm's Xt/Athena user interface and X resource contract
+Revenant (installed as revenant, with an xterm+ compatibility symlink) preserves xterm's Xt/Athena user interface and X resource contract
 while using libghostty-vt as its terminal core.
 
 %build
@@ -39,6 +39,7 @@ while using libghostty-vt as its terminal core.
 %files
 %license LICENSES/xterm.txt
 %doc README.md
+%{_bindir}/revenant
 %{_bindir}/xterm+
 
 %changelog

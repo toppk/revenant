@@ -1,7 +1,7 @@
 # OSC 8 hyperlinks
 
 Terminal applications can attach a URI to arbitrary visible text with the
-OSC 8 control sequence. xterm+ recognizes those links; it does not guess URLs
+OSC 8 control sequence. Revenant recognizes those links; it does not guess URLs
 from ordinary terminal text.
 
 Try it with:
@@ -12,7 +12,7 @@ printf '\e]8;;http://example.com\e\\This is a link\e]8;;\e\\\n'
 
 ## Opening a link
 
-Hold Shift while the pointer is over linked text. xterm+ underlines all
+Hold Shift while the pointer is over linked text. Revenant underlines all
 visible cells carrying that target. Shift+Button 1 opens an `http://` or
 `https://` target with `xdg-open` when the button is released over the same
 target.
@@ -28,7 +28,7 @@ bindings:
 
 OSC 8 targets using `file:`, `mailto:`, `ftp:`, or any other scheme still
 underline on Shift-hover, but Shift-click deliberately does nothing. This
-lets xterm+ expose the terminal's actual hyperlink state without handing
+lets Revenant expose the terminal's actual hyperlink state without handing
 arbitrary URI schemes to a desktop launcher.
 
 ## Security model
@@ -37,7 +37,7 @@ An OSC 8 label and its target can be different: text which says
 `example.com` can point somewhere else. The underline confirms that the cells
 carry a link, not that the visible label describes its destination.
 
-xterm+ passes an allowed target to `xdg-open` as one argument without invoking
+Revenant passes an allowed target to `xdg-open` as one argument without invoking
 a shell. It rejects embedded NUL bytes and permits only the case-insensitive
 `http://` and `https://` prefixes. The browser or desktop handler remains
 responsible for displaying and applying its own policy to the destination.

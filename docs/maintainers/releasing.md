@@ -29,19 +29,21 @@ commit, then dispatches the workflow against that tag.
 - **Check tag** fails immediately if the tag does not exist on `origin`, and
   derives the package version by stripping the leading `v` (`v0.2.0` →
   `0.2.0`).
-- Every build job checks out the xterm+ tag itself, so its packaging scripts
+- Every build job checks out the Revenant tag itself, so its packaging scripts
   come from that tagged commit. While `tools/fetch-libghostty` temporarily
   follows Ghostty `main`, however, separate jobs can resolve different Ghostty
   commits. Replace `main` with the Ghostty 1.4 release tag before publishing an
-  xterm+ release.
+  Revenant release.
 - **tar.gz** builds on x86_64 and aarch64 runners:
-  `xterm-plus-<version>-linux-<arch>.tar.gz` containing a stripped `xterm+`,
+  `revenant-<version>-linux-<arch>.tar.gz` containing a stripped `revenant`,
+  an `xterm+` symlink,
   `README.md`, and `LICENSES/`.
 - **deb** builds on `ubuntu-latest` with `dpkg-buildpackage` from
-  `packaging/debian/`, then installs the result and runs `xterm+ --version`.
+  `packaging/debian/`, then installs the result and runs `revenant --version`
+  and `xterm+ --version`.
 - **rpm** builds in a `fedora:latest` container with
-  `rpmbuild --build-in-place` from `packaging/xterm-plus.spec`, then installs
-  the result and runs `xterm+ --version`.
+  `rpmbuild --build-in-place` from `packaging/revenant.spec`, then installs
+  the result and runs `revenant --version` and `xterm+ --version`.
 - **GitHub release** downloads every artifact, publishes the release, and
   then deletes the run's build artifacts. Artifacts are also uploaded with
   a 3-day expiry, so a failed run leaves them around briefly for debugging.
@@ -75,15 +77,15 @@ git tag -d v0.2.0
 
 ## Known gaps
 
-- The version baked into the binary (`xterm+ --version`, `meson.build`) is
+- The version baked into the binary (`revenant --version`, `meson.build`) is
   not derived from the tag yet. Update the project version in `meson.build`
   before tagging; Meson generates the C version definition from it.
-- The packages have no dependency on xterm. Once xterm+ reads
+- The packages have no dependency on xterm. Once Revenant reads
   `/usr/share/X11/app-defaults/XTerm` and `XTerm-color` from the
   distribution's xterm package instead of carrying its own copy, the deb and
   rpm need a `Depends`/`Requires` on `xterm` (or on whichever subpackage
   owns those files).
 - No macOS or Windows builds; the X11 story there is unresolved.
 - The `MIT` license declared in the spec and `debian/copyright` is a
-  placeholder until the repository carries a top-level license for xterm+'s
+  placeholder until the repository carries a top-level license for Revenant's
   own code.

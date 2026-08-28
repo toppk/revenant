@@ -1,9 +1,9 @@
-# xterm+
+# Revenant
 
-xterm+ is an X11 terminal emulator that looks, configures, and behaves like
+Revenant is an X11 terminal emulator that looks, configures, and behaves like
 xterm, with `libghostty-vt` as its terminal core.
 
-If you already run xterm, xterm+ is meant to be a drop-in replacement: the
+If you already run xterm, Revenant is meant to be a drop-in replacement: the
 same `XTerm` resource class, the same `vt100` widget, the same Ctrl+button
 popup menus, the same `~/.Xresources` lines. If you have never run xterm,
 this documentation starts from zero — including the X11 configuration
@@ -11,12 +11,12 @@ mechanism that xterm inherits and that most modern terminals never had.
 
 ## Two product bars
 
-xterm+ has two requirements that pull in different directions, and the
+Revenant has two requirements that pull in different directions, and the
 project keeps both honest:
 
 1. **xterm fidelity.** xterm patch 410 defines the visible X11 contract:
    resources, menus, translations, geometry, fonts. Anything xterm shows the
-   user, xterm+ tries to show the same way.
+   user, Revenant tries to show the same way.
 2. **Modern terminal capability.** `libghostty-vt` supplies parsing,
    terminal state, reflow, history, key encoding, and query responses. xterm
    compatibility shapes *how* a feature is exposed; it never justifies
@@ -47,11 +47,11 @@ is classified in the
   Shift+Button 1, and why only HTTP and HTTPS targets launch.
 
 - **Coming from xterm?**
-  Go straight to [Configuring xterm+](configuration/xterm-plus.md) and
+  Go straight to [Configuring Revenant](configuration/revenant.md) and
   the [command-line feasibility](compatibility/command-line-feasibility.md)
   table to see which of your options already work. Also read the
   [major default keyboard-input difference](compatibility/keyboard-input.md):
-  xterm+ deliberately distinguishes Ctrl-I from Tab, Ctrl-M from Enter, and
+  Revenant deliberately distinguishes Ctrl-I from Tab, Ctrl-M from Enter, and
   Ctrl-[ from Escape without application opt-in.
 
 - **Building it**
@@ -62,7 +62,7 @@ is classified in the
   [Diagnostics](reference/diagnostics.md) explains `-report-config`, the
   structured log, and the CPU profiling helper. The
   [interactive probe suite](reference/probes.md) provides named visual and
-  keyboard fixtures for comparing xterm+, xterm, and Ghostty.
+  keyboard fixtures for comparing Revenant, xterm, and Ghostty.
 
 - **Writing a terminal application or emulator**
   The [Terminal Developers Network](https://toppk.github.io/xterm-plus/tdn/) explains control protocols,
@@ -72,7 +72,7 @@ is classified in the
 
 ## Status
 
-xterm+ is early. Today it runs a real PTY-backed shell, renders the
+Revenant is early. Today it runs a real PTY-backed shell, renders the
 libghostty grid through Xlib bitmap fonts or Xft, handles resize with reflow,
 scrollback with the real Athena scrollbar, font switching from the font menu
 or Shift+keypad, [named X11 selection with middle-button

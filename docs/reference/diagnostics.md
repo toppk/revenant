@@ -1,14 +1,14 @@
 # Diagnostics
 
-xterm+ ships three tools for answering "what is it actually doing":
+Revenant ships three tools for answering "what is it actually doing":
 the configuration report, the structured log, and the CPU profiling helper.
 
 ## `-report-config`
 
 ```sh
-xterm+ -report-config
-xterm+ -fa Hack -fs 12 -report-config
-xterm+ -report-config > xterm-plus.resources.txt
+revenant -report-config
+revenant -fa Hack -fs 12 -report-config
+revenant -report-config > revenant.resources.txt
 ```
 
 The report resolves the same Xt resource database startup would use, prints
@@ -69,12 +69,12 @@ Keeping debug off also keeps synchronous per-key and per-frame logging out
 of the rendering path, so leave it off unless you are reproducing something:
 
 ```sh
-xterm+ -debug 2> xterm-plus.log
+revenant -debug 2> revenant.log
 ```
 
 ## Regression helpers
 
-Five small X11 utilities are built alongside xterm+ but not installed. Give
+Five small X11 utilities are built alongside Revenant but not installed. Give
 them the top-level window ID reported by the `shell: realized` log line:
 
 ```sh
@@ -147,7 +147,7 @@ PS1="someitnh rellayl logn so you can see" \
 That observation is tracked as Ghostty
 [discussion #14026](https://github.com/ghostty-org/ghostty/discussions/14026).
 The user's `.bashrc` still loaded in that command and changed the exported
-`PS1` from a plain prompt to one containing OSC 133 marks. Controlled xterm+
+`PS1` from a plain prompt to one containing OSC 133 marks. Controlled Revenant
 tests now show that a plain long Bash prompt recovers correctly, while both
 OSC-marked and ordinary SGR-styled prompts can finish with the cursor inside
 the visible prompt. An equivalent native-Wayland manual run did not reproduce,
@@ -158,7 +158,7 @@ was widened.
 See the complete
 [Readline 8.3 wrapped-prompt diagnosis](bash-readline-resize.md) for the
 terminal/PTY background, exact controls, cursor-offset arithmetic, upstream
-fix, and local-build validation. Do not add a libghostty or xterm+ workaround.
+fix, and local-build validation. Do not add a libghostty or Revenant workaround.
 
 ## CPU flamegraphs
 

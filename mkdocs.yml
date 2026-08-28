@@ -1,4 +1,4 @@
-site_name: xterm+
+site_name: Revenant
 site_description: An xterm-compatible X11 terminal with a modern libghostty core.
 site_url: https://toppk.github.io/xterm-plus/docs/
 repo_url: https://github.com/toppk/xterm-plus
@@ -6,7 +6,7 @@ repo_name: toppk/xterm-plus
 edit_uri: edit/master/docs/
 docs_dir: docs
 site_dir: site
-copyright: xterm+ documentation is MIT licensed. xterm-derived material is covered by the xterm license.
+copyright: Revenant documentation is MIT licensed. xterm-derived material is covered by the xterm license.
 
 theme:
   name: material
@@ -56,12 +56,12 @@ nav:
   - Getting started:
       - Install: getting-started/install.md
       - First run: getting-started/first-run.md
-  - Using xterm+:
+  - Using Revenant:
       - Copy and paste on X11: usage/copy-paste.md
       - OSC 8 hyperlinks: usage/hyperlinks.md
   - Configuration:
       - X resources, explained: configuration/xresources.md
-      - Configuring xterm+: configuration/xterm-plus.md
+      - Configuring Revenant: configuration/revenant.md
       - Command-line options: configuration/command-line.md
   - Reference:
       - Diagnostics: reference/diagnostics.md

@@ -3,7 +3,7 @@
 xterm's command-line options are almost all shorthand for resources: `-sl
 5000` and `-xrm 'XTerm*saveLines: 5000'` do the same thing, and a value
 given on the command line beats any resource file. This page lists the
-options xterm+ implements today. The status of every option xterm defines is
+options Revenant implements today. The status of every option xterm defines is
 in the [command-line feasibility](../compatibility/command-line-feasibility.md) study.
 
 xterm's convention: `-opt` turns a boolean on and `+opt` turns it off. A few
@@ -73,11 +73,11 @@ that ignores application blink requests.
 | --- | --- | --- |
 | `-debug` / `+debug` | `debug` | Verbose stderr log (default off) |
 | `-report-config` | `reportConfig` | Print the resolved configuration report and exit |
-| `--version` | — | Print the version and exit (xterm+ specific; xterm uses `-version`) |
-| `--self-test` | — | Run the built-in self test and exit (xterm+ specific) |
+| `--version` | — | Print the version and exit (Revenant specific; xterm uses `-version`) |
+| `--self-test` | — | Run the built-in self test and exit (Revenant specific) |
 
 !!! warning "Unknown options are ignored silently"
-    Options xterm+ does not know are left in `argv` and dropped. `xterm+ -ls`
+    Options Revenant does not know are left in `argv` and dropped. `revenant -ls`
     starts without a login shell and without complaint. Until the option
     table is complete, check the [feasibility table](../compatibility/command-line-feasibility.md)
     when an option seems to have no effect.

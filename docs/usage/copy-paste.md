@@ -6,7 +6,7 @@ most people know from other desktops.
 
 ## Default behavior at a glance
 
-xterm+ follows xterm's traditional default: `selectToClipboard` is `false`,
+Revenant follows xterm's traditional default: `selectToClipboard` is `false`,
 so xterm's symbolic `SELECT` source means `PRIMARY`.
 
 | Operation | What xterm uses by default |
@@ -33,8 +33,8 @@ name bypasses `selectToClipboard`.
 
 Shift+Insert is paste, not copy, in the default bindings.
 
-This page describes upstream xterm patch 410, which is xterm+'s compatibility
-baseline, and then identifies the parts xterm+ implements today.
+This page describes upstream xterm patch 410, which is Revenant's compatibility
+baseline, and then identifies the parts Revenant implements today.
 
 ## The X11 mental model
 
@@ -189,9 +189,9 @@ mode, the terminal wraps pasted text in begin/end markers so the application
 can distinguish a paste from typing. This is independent of whether the X11
 source was `PRIMARY` or `CLIPBOARD`.
 
-## What xterm+ supports today
+## What Revenant supports today
 
-xterm+ deliberately exposes the traditional workflow first:
+Revenant deliberately exposes the traditional workflow first:
 
 | Capability | Status |
 | --- | --- |
@@ -219,10 +219,10 @@ and their ISO-8859-1 wire representation, substituting `?` for characters the
 legacy encoding cannot represent.
 
 For example, this launch selects and pastes through `CLIPBOARD` for that
-xterm+ process:
+Revenant process:
 
 ```sh
-xterm+ -xrm 'XTerm*selectToClipboard:true'
+revenant -xrm 'XTerm*selectToClipboard:true'
 ```
 
 Returning the VT-menu item to off, invoking `set-select(off)`, or using the

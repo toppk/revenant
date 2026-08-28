@@ -1,6 +1,6 @@
 # Recorded differences from xterm
 
-xterm+ is intended to be a faithful, drop-in xterm replacement at its visible
+Revenant is intended to be a faithful, drop-in xterm replacement at its visible
 X11 boundary. It is not intended to preserve xterm's internal architecture.
 This document records intentional differences so that compatibility work does
 not quietly turn into unreviewed divergence.
@@ -13,10 +13,10 @@ when that baseline changes.
 
 ### libghostty-vt terminal core
 
-xterm+'s VT parser, terminal state, key encoder, query responses, and
+Revenant's VT parser, terminal state, key encoder, query responses, and
 primary-screen resize reflow are provided by `libghostty-vt`. X11, Xt,
 Athena widgets, xterm resources, menus, geometry, and the eventual font/render
-skin remain xterm+ responsibilities.
+skin remain Revenant responsibilities.
 
 This replaces xterm's terminal core rather than porting it. Compatibility is
 judged by externally observable behavior. Improvements supplied by the modern
@@ -33,28 +33,28 @@ the oldest complete page can leave fewer than `saveLines` historical rows
 until more output accumulates. The shortfall is bounded by one libghostty page
 but varies with terminal width and page contents.
 
-xterm+ accepts this page-granular result rather than maintaining a second
+Revenant accepts this page-granular result rather than maintaining a second
 history store or depending on libghostty's private page layout. It does remove
 libghostty's independent default byte cap whenever `saveLines` is positive;
 without that correction, the byte cap can truncate history thousands of rows
 before the requested line constraint. `saveLines: 0` still disables history.
 
 Observed at 80×24 with `XTerm*saveLines: 16500` after `seq 1000000`, the oldest
-visible sequence line was `983478` in xterm and `983721` in xterm+. The xterm
+visible sequence line was `983478` in xterm and `983721` in Revenant. The xterm
 result is exact: 16,500 historical rows plus the 23 sequence rows still on the
-live screen. The xterm+ result was 243 rows short because the final libghostty
+live screen. The Revenant result was 243 rows short because the final libghostty
 prune removed a complete page. This is a deliberate compatibility tradeoff for
 the current backend API, not evidence that the X resource was ignored.
 
 ### OSC 8 hyperlinks
 
 Upstream xterm deliberately does not implement OSC 8 hyperlinks because the
-visible label can differ from the target URI. xterm+ implements OSC 8 as a
+visible label can differ from the target URI. Revenant implements OSC 8 as a
 modern terminal capability supplied by `libghostty-vt` and exposes it through
 an explicit local gesture: Shift-hover underlines linked cells and
 Shift+Button 1 activates a link.
 
-Activation is intentionally narrower than many terminal emulators. xterm+
+Activation is intentionally narrower than many terminal emulators. Revenant
 directly executes `xdg-open` with one URI argument only for `http://` and
 `https://` targets. Other schemes remain visible on Shift-hover but are inert;
 ordinary text is never promoted to a link heuristically. This is an
@@ -72,7 +72,7 @@ Enter, and Ctrl-[ with Escape before the bytes reach the pseudoterminal. Raw
 TTY mode cannot recover those distinctions: it only prevents the kernel from
 transforming bytes the terminal has already encoded.
 
-xterm+ follows libghostty's fixterms behavior even when an application has not
+Revenant follows libghostty's fixterms behavior even when an application has not
 explicitly enabled the Kitty keyboard protocol. It sends the ambiguous Ctrl
 key combinations as CSI-u sequences; for example, Ctrl-I is
 `CSI 105;5 u`, while Tab remains the single byte `0x09`. This is a substantial
@@ -92,7 +92,7 @@ The X11 adapter must pass both the base key identity and printable logical
 text to libghostty. It must not forward Xlib's already-collapsed C0 byte as the
 text value or drop the event entirely.
 
-xterm+ also supports application-negotiated Kitty keyboard flags, including
+Revenant also supports application-negotiated Kitty keyboard flags, including
 press/repeat/release events, shifted and base-layout alternatives, bare
 modifier keys, all-keys-as-escape encoding, associated UTF-8 text, and nested
 flag stacks. This is a major capability extension beyond xterm's keyboard
@@ -100,9 +100,24 @@ protocol surface. Except for the default fixterms distinctions described
 above, those extra event forms are emitted only after an application requests
 the corresponding Kitty flags.
 
+### Compositor-backed background opacity
+
+Revenant adds a `backgroundOpacity` resource, expressed as a number from `0.0`
+through `1.0`. A non-opaque value selects a 32-bit ARGB visual when the X
+server provides one and a compositor owns `_NET_WM_CM_Sn`. The alpha channel
+belongs only to the default terminal background and scrollbar trough;
+foreground text, explicit cell backgrounds, selections, cursors, scrollbar
+thumbs, and Athena menus remain opaque.
+
+This is an intentional modern extension rather than an emulation of older
+pseudo-transparency schemes. Revenant never reads or copies the root pixmap and
+does not implement urxvt's `transparent`, `inheritPixmap`, tint, or shade
+resources. When compositing or an ARGB visual is unavailable, it uses the
+ordinary opaque visual rather than approximating transparency.
+
 ### Structured diagnostic logging
 
-xterm+ emits `hh:mm:ss subsystem: message` diagnostics on standard error.
+Revenant emits `hh:mm:ss subsystem: message` diagnostics on standard error.
 Internally each record has debug, info, warning, or error severity. On a
 terminal the timestamp is bright cyan and the message is colored by severity;
 redirected output is plain text.
@@ -110,12 +125,12 @@ redirected output is plain text.
 High-volume debug diagnostics are controlled by xterm-style `-debug` and
 `+debug` options and the `debug` X resource. The compiled default is `+debug`
 (debug disabled). Info, warning, and error records remain enabled. This logging
-surface and its exact output are xterm+ facilities, not an xterm compatibility
+surface and its exact output are Revenant facilities, not an xterm compatibility
 promise.
 
 ### Cursor-blink policy
 
-xterm+ treats `cursorBlink` as a four-value policy. `false` and `true` select
+Revenant treats `cursorBlink` as a four-value policy. `false` and `true` select
 the steady or blinking default to which `CSI 0 SP q` returns, while still
 honoring application blink requests. `always` and `never` force blinking or a
 steady cursor and ignore application blink requests; cursor shape and
@@ -125,7 +140,7 @@ This behavior intentionally differs from xterm's cursor-blink policy.
 `cursorBlinkXOR` is accepted for resource-file compatibility but has no effect.
 The [TDN cursor-controls
 reference](https://toppk.github.io/xterm-plus/tdn/csi/cursor/) documents the
-wire controls, the xterm+ policy, the xterm policy reference, and versioned
+wire controls, the Revenant policy, the xterm policy reference, and versioned
 observations from other terminals.
 
 ## Transitional gaps, not intended differences
@@ -139,7 +154,7 @@ design decisions:
   override faces, color emoji, and `faceNameDoublesize` are not implemented.
 - The xterm color palette and pointer resources are merged by Xt but are not
   all applied by the drawer.
-- `-report-config` is an xterm+ diagnostic which presents resolved resources,
+- `-report-config` is a Revenant diagnostic which presents resolved resources,
   provenance, font-menu ordering, fontconfig matches, all 330 resources in the
   active patch-410 xterm tables plus 17 compile-conditional resources,
   inherited Xt/Athena component resources and constraints, all 130 active

@@ -1,7 +1,7 @@
 # Architecture and source boundaries
 
-xterm+ combines an xterm-compatible X11 host with a modern terminal engine.
-That sentence defines the principal boundary: xterm+ owns presentation and
+Revenant combines an xterm-compatible X11 host with a modern terminal engine.
+That sentence defines the principal boundary: Revenant owns presentation and
 desktop integration, while `libghostty-vt` owns terminal semantics.
 
 ## Runtime layers
@@ -58,7 +58,7 @@ history, reflow, grapheme bytes, terminal selection primitives, input encoding,
 and protocol effects. The X11 host must not infer terminal state from raw PTY
 bytes or maintain a competing screen/history model.
 
-xterm+ is the source of truth for Xt resources and translations, Athena
+Revenant is the source of truth for Xt resources and translations, Athena
 widgets, X11 selections, rendering, window-manager interaction, local gestures,
 and policy choices such as whether output returns a historical viewport to the
 live bottom.
@@ -75,7 +75,7 @@ remain true as new features are promoted.
 ## Relationship to xterm
 
 xterm patch 410 is the current visible compatibility oracle and a source
-reference. xterm+ does not compile, link, or embed xterm's terminal engine.
+reference. Revenant does not compile, link, or embed xterm's terminal engine.
 Its application, PTY layer, widget, renderer, diagnostics, and backend adapter
 are separate implementations; `libghostty-vt` replaces xterm's parser and
 terminal-state engine.

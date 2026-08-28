@@ -1,21 +1,21 @@
-# Configuring xterm+
+# Configuring Revenant
 
 This page assumes you have read [X resources, explained](xresources.md), or
 already know the `edit → xrdb -merge → restart` loop. Everything below is a
 resource line you put in `~/.Xresources`; each also has a command-line
 equivalent where xterm defines one (see [Command-line options](command-line.md)).
 
-xterm+ uses application class `XTerm`, instance `xterm`, and a terminal
+Revenant uses application class `XTerm`, instance `xterm`, and a terminal
 widget named `vt100` of class `VT100` — deliberately the same as xterm. An
-existing xterm configuration applies to xterm+ unchanged. Where xterm+ does
+existing xterm configuration applies to Revenant unchanged. Where Revenant does
 not yet implement a resource, it still accepts the line; run
-`xterm+ -report-config` to see which lines are *supported*, *accepted but
+`revenant -report-config` to see which lines are *supported*, *accepted but
 ignored*, or *unsupported*.
 
 ## A complete starter file
 
 ```xrdb
-! ~/.Xresources — xterm / xterm+
+! ~/.Xresources — xterm / Revenant
 XTerm*renderFont:      true
 XTerm*faceName:        Hack
 XTerm*faceSize:        11
@@ -29,10 +29,10 @@ XTerm*rightScrollBar:  true
 XTerm*scrollTtyOutput: false
 XTerm*scrollKey:       true
 XTerm*internalBorder:  4
-XTerm*title:           xterm+
+XTerm*title:           Revenant
 ```
 
-Load it with `xrdb -merge ~/.Xresources` and start a new xterm+.
+Load it with `xrdb -merge ~/.Xresources` and start a new Revenant.
 
 ## Fonts
 
@@ -57,7 +57,7 @@ menu order. `-report-config` prints the actual order it computed.
 
 ### Two renderers
 
-`renderFont` picks which of xterm+'s two text paths is used:
+`renderFont` picks which of Revenant's two text paths is used:
 
 ```xrdb
 XTerm*renderFont: true      ! Xft/fontconfig: faceName + faceSize apply
@@ -73,11 +73,11 @@ XTerm*faceSize3: 8
 XTerm*faceSize5: 14
 ```
 
-xterm+ resolves those point sizes using the active X screen's Xft defaults,
+Revenant resolves those point sizes using the active X screen's Xft defaults,
 including its DPI. This keeps the initial font and every font-menu slot at the
 same physical scale as xterm on displays whose DPI is not 96.
 
-If you leave `faceSize`*N* unset, xterm+ derives sizes from the bitmap slot
+If you leave `faceSize`*N* unset, Revenant derives sizes from the bitmap slot
 proportions the way xterm does. `fc-match 'DejaVu Sans Mono'` shows what
 fontconfig will actually pick; `-report-config` prints the same match.
 
@@ -125,10 +125,10 @@ Set `backgroundOpacity` to a value from `0.0` (fully transparent) through
 XTerm*backgroundOpacity: 0.85
 ```
 
-xterm+ uses a 32-bit ARGB window only when an X compositor owns the screen's
+Revenant uses a 32-bit ARGB window only when an X compositor owns the screen's
 standard compositor selection and the X server offers a suitable visual. If
 either condition is missing, it starts normally with the opaque default
-visual and logs the fallback. The visual is chosen when xterm+ starts, so
+visual and logs the fallback. The visual is chosen when Revenant starts, so
 changing the resource requires a new window.
 
 Alpha applies to the default terminal background and scrollbar trough.
@@ -136,7 +136,7 @@ Foreground text, explicit SGR cell backgrounds, selections, the cursor,
 scrollbar thumb, and Athena popup menus remain opaque for legibility. Both the
 Xft and bitmap-font renderers preserve the same policy across redraws.
 
-This is real compositor-backed transparency. xterm+ does not copy the root
+This is real compositor-backed transparency. Revenant does not copy the root
 pixmap or implement urxvt-style `transparent`, `inheritPixmap`, tint, or shade
 pseudo-transparency resources.
 
@@ -169,7 +169,7 @@ it in xterm — width, thickness, foreground, background, border — works
 through the `scrollbar` path. The wheel scrolls five lines per tick;
 Shift+Page Up/Down scroll by half a page.
 
-`saveLines` is the active libghostty line constraint. xterm+ removes
+`saveLines` is the active libghostty line constraint. Revenant removes
 libghostty's independent default byte constraint when `saveLines` is positive;
 otherwise that byte limit can truncate a large configured history long before
 the requested row count. A zero value disables history. libghostty removes
@@ -242,7 +242,7 @@ Readline 8.3 has a known wrapped-prompt regression: after a prompt with two or
 more nonprinting runs wraps, widening the terminal can leave the cursor inside
 the prompt. It affects OSC 133 and ordinary SGR prompt regions alike. Bash
 development commit `1e9f5e10b2` fixes Readline's stale per-line invisible-byte
-metadata; xterm+ requires no workaround. See the
+metadata; Revenant requires no workaround. See the
 [Readline 8.3 resize regression](../reference/bash-readline-resize.md) for the
 source diagnosis, exact cursor-offset proof, and fixed-build validation.
 
@@ -345,12 +345,12 @@ enables the per-key, PTY, and frame debug log on stderr. See
 ## Checking your configuration
 
 ```sh
-xterm+ -report-config                 # everything, annotated, coloured
-xterm+ -report-config | grep -i face  # just the font lines
-xterm+ -fa Hack -fs 12 -report-config # what would these options resolve to?
+revenant -report-config                 # everything, annotated, coloured
+revenant -report-config | grep -i face  # just the font lines
+revenant -fa Hack -fs 12 -report-config # what would these options resolve to?
 ```
 
 The report is in `.Xresources` syntax, so lines can be pasted back into your
 file. Command-line values, X resources, compiled defaults, and unset
-resources are coloured differently; every entry says whether xterm+ supports
+resources are coloured differently; every entry says whether Revenant supports
 it.

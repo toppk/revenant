@@ -2,7 +2,7 @@
 
 !!! warning "Major default-input compatibility difference"
 
-    xterm+ does not reproduce xterm's complete default keyboard byte stream.
+    Revenant does not reproduce xterm's complete default keyboard byte stream.
     It uses libghostty's legacy-plus-fixterms encoder, including before an
     application enables the Kitty keyboard protocol. Raw TTY mode exposes
     this difference directly; it does not restore xterm encoding.
@@ -10,11 +10,11 @@
 ## The confirmed aliases that split
 
 xterm traditionally collapses several different key intentions into the same
-control byte. xterm+ deliberately preserves the distinction:
+control byte. Revenant deliberately preserves the distinction:
 
 <!-- markdownlint-disable MD013 -->
 
-| Keys | xterm default | xterm+ default |
+| Keys | xterm default | Revenant default |
 | --- | --- | --- |
 | Tab | `0x09` | `0x09` |
 | Ctrl-I | `0x09` | `CSI 105 ; 5 u` |
@@ -26,7 +26,7 @@ control byte. xterm+ deliberately preserves the distinction:
 <!-- markdownlint-enable MD013 -->
 
 For example, the literal bytes for Ctrl-I are `1b 5b 31 30 35 3b 35 75` in
-xterm+, while Tab remains the single byte `09`.
+Revenant, while Tab remains the single byte `09`.
 
 ## Why raw mode does not make them equal
 
@@ -35,7 +35,7 @@ pseudoterminal. The kernel's cooked mode may then interpret, transform, or
 withhold some bytes. Raw mode disables that second layer; it does not ask the
 emulator to switch keyboard encoders.
 
-Consequently, a raw-mode program receives the fixterms sequence from xterm+
+Consequently, a raw-mode program receives the fixterms sequence from Revenant
 and the aliased control byte from xterm. This behavior does not imply that the
 program negotiated Kitty keyboard flags. `CSI ? u` can still report a flag
 value of zero.
@@ -52,7 +52,7 @@ from the Ctrl-I result.
 
 Applications that parse modern CSI-u input benefit from the extra distinction.
 Programs that assume xterm's aliases without negotiating a protocol can behave
-differently under xterm+. This is an intentional current product decision and
+differently under Revenant. This is an intentional current product decision and
 is recorded in the [xterm differences ledger](drift.md), not an implementation
 gap.
 
@@ -61,7 +61,7 @@ The protocol mechanics and the zero-flags exception are covered in the
 
 ## Negotiated Kitty keyboard input
 
-xterm+ implements the five Kitty keyboard flags through its real X11 input
+Revenant implements the five Kitty keyboard flags through its real X11 input
 path. Applications can query, set, augment, clear, push, and pop flag sets.
 When event reporting is active, a held key is distinguished as an initial
 press, one or more repeats, and a release. Shifted/base-layout alternatives,
@@ -70,7 +70,7 @@ Shift, Ctrl, Alt, Super, Caps Lock, and Num Lock states are passed to
 libghostty's encoder.
 
 XKB detectable autorepeat is enabled when the X server supports it. On an
-older server, xterm+ recognizes the traditional adjacent release/press pair
+older server, Revenant recognizes the traditional adjacent release/press pair
 with the same keycode and timestamp. Losing focus clears the pressed-key set
 so a missing release cannot turn a later press into a false repeat.
 
@@ -99,4 +99,4 @@ sequence alongside its decoded key/modifier/event fields, counts press,
 repeat, and release events, and verifies that popping the flag stack restores
 the value observed before the probe. It warns if a terminal grants event flag
 `2` but sends no release events, making it useful for comparisons with older
-xterm+ builds and other terminals.
+Revenant builds and other terminals.

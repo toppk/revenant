@@ -27,8 +27,8 @@ not involved. See the
 
 ## Summary
 
-xterm+ and xterm both draw directly to the window, immediately, as PTY
-data arrives. The pre-rewrite xterm+ renderer flashed and smeared because
+Revenant and xterm both draw directly to the window, immediately, as PTY
+data arrives. The pre-rewrite Revenant renderer flashed and smeared because
 it broke several disciplines xterm follows. The byte-sniffing scroll fast
 path and content-diff scroll detector added to compensate were themselves
 a source of wrong output and have been removed.
@@ -85,7 +85,7 @@ not atomicity.
 | Full repaint on every Expose | `Redisplay` ignored the damage region | Cached rows/columns intersecting damage are repainted |
 | No-newline output delayed | Incomplete lines held on an 8 ms timer | Every PTY read is fed and rendered immediately |
 | Stale rows painted with old geometry after resize | Grid changed while the old `frame_cells` snapshot remained valid | Resize invalidates the frame before callbacks and Expose |
-| Wrapped Bash prompt leaves cursor inside the prompt after shrink/grow | Readline 8.3 retains stale `local_prompt_invis_chars[]` metadata when widening | Fixed in Bash development commit `1e9f5e10b2`; keep the fixture as external-component coverage and do not work around it in xterm+ |
+| Wrapped Bash prompt leaves cursor inside the prompt after shrink/grow | Readline 8.3 retains stale `local_prompt_invis_chars[]` metadata when widening | Fixed in Bash development commit `1e9f5e10b2`; keep the fixture as external-component coverage and do not work around it in Revenant |
 
 The unused `XtpVtUpdateScrolled`, raw-byte helpers, content detector, and scroll
 branch of `RenderBegin` were deleted together.

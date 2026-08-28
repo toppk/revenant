@@ -1,24 +1,31 @@
-# xterm+
+<p align="center">
+  <img src="docs/assets/revenant.png" width="360" alt="Revenant: a skeleton rising from the grave, coffin lid on its shoulder">
+</p>
 
-xterm+ is an X11 terminal emulator that preserves xterm's Xt/Athena interface
-and X resource contract while using `libghostty-vt` as its terminal core.
+<h1 align="center">Revenant</h1>
+
+<p align="center"><strong>A modern X11 terminal for users who like xterm.</strong></p>
+
+Revenant (installed as `revenant`, with `xterm+` as an alternative name) is an
+X11 terminal emulator that preserves xterm's Xt/Athena interface and X resource
+contract while using `libghostty-vt` as its terminal core.
 
 For an xterm user, the goal is a familiar window: the `XTerm` resource class,
 the `vt100` widget, Ctrl+mouse-button menus, configured bitmap and Xft font
-slots, and the same `.Xresources` vocabulary. Under that interface, xterm+
+slots, and the same `.Xresources` vocabulary. Under that interface, Revenant
 adds a modern terminal engine with resize reflow, 24-bit color, current mouse
 and focus protocols, robust grapheme state, and the Kitty keyboard protocol.
 
-> **Project status:** xterm+ is early and not yet a complete xterm replacement.
+> **Project status:** Revenant is early and not yet a complete xterm replacement.
 > Unsupported menu entries remain visible but insensitive, and accepted but
 > unwired resources are reported honestly. See the
 > [roadmap](docs/maintainers/roadmap.md) and
 > [Ghostling parity gate](docs/compatibility/ghostling-parity.md) for the
 > current boundary.
 
-## Why xterm+
+## Why Revenant
 
-xterm+ is deliberately judged against two product bars:
+Revenant is deliberately judged against two product bars:
 
 - **xterm compatibility:** xterm patch 410 defines the visible X11 contract —
   resources, menus, translations, geometry, and font behavior.
@@ -26,14 +33,14 @@ xterm+ is deliberately judged against two product bars:
   for features already supplied by `libghostty-vt`.
 
 xterm compatibility determines how features are presented; it should not make
-xterm+ less capable than a thin libghostty host. Intentional differences are
+Revenant less capable than a thin libghostty host. Intentional differences are
 recorded in the [xterm differences ledger](docs/compatibility/drift.md).
 
-The largest default difference today is keyboard encoding. xterm+ follows
+The largest default difference today is keyboard encoding. Revenant follows
 libghostty's fixterms behavior, distinguishing Ctrl+I from Tab, Ctrl+M from
 Enter, and Ctrl+[ from Escape without application opt-in. Read the
 [keyboard compatibility warning](docs/compatibility/keyboard-input.md) before
-treating xterm+ as a transparent replacement.
+treating Revenant as a transparent replacement.
 
 ## Build and run
 
@@ -46,14 +53,14 @@ tools/fetch-libghostty
 meson setup build-ghostty -Dlibghostty=enabled
 meson compile -C build-ghostty
 meson test -C build-ghostty
-./build-ghostty/xterm+
+./build-ghostty/revenant
 ```
 
-Without arguments, xterm+ starts `$SHELL` (falling back to `/bin/sh`) and sets
+Without arguments, Revenant starts `$SHELL` (falling back to `/bin/sh`) and sets
 `TERM=xterm-256color`. Use xterm's trailing `-e` form to run another command:
 
 ```sh
-./build-ghostty/xterm+ -e sh -lc 'printf "hello from xterm+\n"; exec "$SHELL"'
+./build-ghostty/revenant -e sh -lc 'printf "hello from Revenant\n"; exec "$SHELL"'
 ```
 
 For UI-only work, a stub build avoids Zig and does not start a PTY:
@@ -62,7 +69,7 @@ For UI-only work, a stub build avoids Zig and does not start a PTY:
 meson setup build -Dlibghostty=disabled
 meson compile -C build
 meson test -C build
-./build/xterm+
+./build/revenant
 ```
 
 ## First things to know
@@ -82,7 +89,7 @@ and basic controls. Continue with:
 
 - [X resources, explained](docs/configuration/xresources.md), for readers new
   to X11 configuration;
-- [configuring xterm+](docs/configuration/xterm-plus.md), for supported fonts,
+- [configuring Revenant](docs/configuration/revenant.md), for supported fonts,
   colors, scrollback, selection, and cursor policies;
 - [copy and paste on X11](docs/usage/copy-paste.md), for `PRIMARY`,
   `CLIPBOARD`, and cut buffers;
@@ -97,7 +104,7 @@ The published documentation also includes the independently licensed
 [Terminal Developers Network](tdn/README.md), a protocol reference with
 reproducible terminal probes.
 
-## Maintaining xterm+
+## Maintaining Revenant
 
 The normal maintainer loop is:
 
@@ -135,7 +142,7 @@ The repository's main areas are intentionally unsurprising:
 | `src/` | Xt/X11 application, VT widget, PTY layer, and terminal backends |
 | `tests/` | Backend self-tests and Xvfb integration coverage |
 | `tools/` | Fetch, profiling, maintenance, and interactive probe utilities |
-| `docs/` | xterm+ user and maintainer manual |
+| `docs/` | Revenant user and maintainer manual |
 | `compat/` | Machine-readable xterm patch-410 compatibility catalogs |
 | `data/` | Reference app-default material |
 | `tdn/` | Independently licensed terminal-protocol documentation |
@@ -143,7 +150,7 @@ The repository's main areas are intentionally unsurprising:
 
 ## Source and licenses
 
-xterm+ does not compile or embed xterm's terminal implementation. Its
+Revenant does not compile or embed xterm's terminal implementation. Its
 PTY/event loop, Xt widget, X11 renderer, diagnostics, and libghostty adapter
 are project code; `libghostty-vt` supplies parsing and terminal state.
 

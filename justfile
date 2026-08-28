@@ -36,13 +36,13 @@ build-stub:
 test-stub: build-stub
     meson test -C {{stub_build}} --print-errorlogs
 
-# Repeatedly resize an xterm+ window to exercise reflow and expose handling
+# Repeatedly resize a Revenant window to exercise reflow and expose handling
 resize-loop window cycles="4" delay_ms="100": build-gcc
     ./{{gcc_build}}/xtp-resize-loop "{{window}}" "{{cycles}}" "{{delay_ms}}"
 
 # Open the fixed 45-column Bash prompt used by the wrapped-prompt reproducer
 reflow-prompt: build-gcc
-    ./{{gcc_build}}/xterm+ -debug -geometry 80x24 -e bash --noprofile --rcfile "{{justfile_directory()}}/tests/reflow-prompt.bash" -i
+    ./{{gcc_build}}/revenant -debug -geometry 80x24 -e bash --noprofile --rcfile "{{justfile_directory()}}/tests/reflow-prompt.bash" -i
 
 # Cross the fixture prompt's wrap boundary once, using terminal grid sizes
 reflow-resize window: build-gcc
@@ -75,7 +75,7 @@ format:
 format-check:
     clang-format --dry-run --Werror src/*.[ch] tests/*.c
 
-# Build landing page, xterm+ docs, and TDN into site/
+# Build landing page, Revenant docs, and TDN into site/
 site:
     rm -rf site
     {{mkdocs}} build --strict -d site/docs
@@ -86,7 +86,7 @@ site:
 serve: site
     python3 -m http.server -d site 8000
 
-# Live-reload the xterm+ docs only
+# Live-reload the Revenant docs only
 serve-docs:
     {{mkdocs}} serve
 

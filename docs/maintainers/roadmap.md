@@ -1,6 +1,6 @@
-# xterm+ roadmap
+# Revenant roadmap
 
-xterm+ has two simultaneous product requirements:
+Revenant has two simultaneous product requirements:
 
 1. Preserve xterm's visible X11/Xt/Athena experience and compatibility
    contract wherever practical.
@@ -8,12 +8,12 @@ xterm+ has two simultaneous product requirements:
    interface when the selected `libghostty-vt` supplies the underlying facility,
    then exceed that floor with the xterm daily-driver experience.
 
-The first requirement defines how xterm+ should look, configure, and behave at
+The first requirement defines how Revenant should look, configure, and behave at
 its X11 boundary. The second is a functional floor. Pixel fidelity and obscure
 xterm options must not indefinitely outrank basic modern terminal capability.
 
 Ghostling is a deliberately minimal demo rather than a complete product. Its
-single-file architecture and Raylib UI are not models for xterm+. Its use of
+single-file architecture and Raylib UI are not models for Revenant. Its use of
 the libghostty C API is the comparison point. See the
 [upstream reference guide](upstream.md) for checkout
 roles and revision policy.
@@ -21,18 +21,18 @@ roles and revision policy.
 The [Ghostling feature-parity gate](../compatibility/ghostling-parity.md) is
 an MVP gate, not an aspirational comparison. MVP requires every advertised
 item to be Present at the user-visible boundary, including Kitty keyboard and
-Kitty graphics, while retaining the xterm features that make xterm+ a daily
+Kitty graphics, while retaining the xterm features that make Revenant a daily
 driver rather than a differently skinned Ghostling.
 
 ## Capability baseline
 
-This matrix compares xterm+ with the Ghostling checkout reviewed on
-2026-08-24. “Partial” means terminal state reaches xterm+ or some behavior is
+This matrix compares Revenant with the Ghostling checkout reviewed on
+2026-08-24. “Partial” means terminal state reaches Revenant or some behavior is
 present, but the complete user-visible integration is not yet available.
 
 <!-- markdownlint-disable MD013 -->
 
-| Capability demonstrated by Ghostling | xterm+ status | Remaining integration |
+| Capability demonstrated by Ghostling | Revenant status | Remaining integration |
 | --- | --- | --- |
 | PTY-backed shell and terminal effects | Present | Retain ordered backpressure coverage for the shared write queue and expand the effect surface. |
 | Resize with primary-screen reflow | Partial | Retain geometry regression coverage; the [Readline 8.3 wrapped-prompt regression](../reference/bash-readline-resize.md) is fixed upstream and requires no terminal workaround. |
@@ -51,10 +51,10 @@ present, but the complete user-visible integration is not yet available.
 
 <!-- markdownlint-enable MD013 -->
 
-Selection is an xterm+ requirement even though the reviewed Ghostling feature
+Selection is a Revenant requirement even though the reviewed Ghostling feature
 list does not make it a baseline item. The selected libghostty API already
 provides selection gestures, history-safe grid references, row selection
-ranges, and formatted selection text. xterm+ now renders those ranges, owns
+ranges, and formatted selection text. Revenant now renders those ranges, owns
 named X11 selections, supports xterm-style Button-3 extension, and sends
 Button-2 paste through Ghostty's bracketed-paste encoder. Selection autoscroll
 preserves tracked endpoints across deep history for both Button-1 drag and
@@ -176,7 +176,7 @@ semantics and describes the implemented named-selection path.
   must not reach directly into Ghostty handles.
 - libghostty owns terminal history, reflow, protocol modes, selection
   semantics, and image protocol state. Do not build parallel copies in the UI.
-- xterm+ owns the PTY/event loop, X resources, Xt actions/translations, Xaw
+- Revenant owns the PTY/event loop, X resources, Xt actions/translations, Xaw
   widgets, X11 selections, renderer, window-manager behavior, and policy.
 - Extract focused modules as capabilities grow; avoid making `main.c` and
   `vt_widget.c` the permanent home of every integration.

@@ -5,12 +5,12 @@
 xterm has no settings dialog and no config file of its own. It is configured
 through **X resources** — a mechanism that belongs to the X Window System
 itself, is shared by every classic X application, and predates almost every
-other configuration system you have used. Once you understand it, xterm+ is
+other configuration system you have used. Once you understand it, Revenant is
 easy to configure. This page is that understanding, from scratch.
 
 If you already know what `xrdb -merge ~/.Xresources` does and why
 `XTerm*background` and `xterm.vt100.background` are different, skip ahead to
-[Configuring xterm+](xterm-plus.md).
+[Configuring Revenant](revenant.md).
 
 ## The one-paragraph version
 
@@ -29,7 +29,7 @@ Everything else on this page is detail on those sentences.
 Create `~/.Xresources` with these lines:
 
 ```xrdb
-! xterm+ / xterm settings
+! Revenant / xterm settings
 XTerm*background:  #1c1c1c
 XTerm*foreground:  #d0d0d0
 XTerm*faceName:    Hack
@@ -43,7 +43,7 @@ Load it:
 xrdb -merge ~/.Xresources
 ```
 
-Start `xterm+` (or `xterm`). You get a dark window with a scalable font and
+Start `revenant` (or `xterm`). You get a dark window with a scalable font and
 ten thousand lines of scrollback. That is the whole loop: **edit, `xrdb`,
 start the application**.
 
@@ -95,7 +95,7 @@ XTerm*SimpleMenu*background: gray20 ! every popup menu in xterm-class apps
 ```
 
 The convention for xterm files is to start with the class `XTerm`, so the
-lines also apply to xterm+ and to `uxterm`, which share the class.
+lines also apply to Revenant and to `uxterm`, which share the class.
 
 !!! tip "Why `XTerm*` and not `xterm*`?"
     The instance name of the application is whatever `argv[0]` or `-name`
@@ -131,7 +131,7 @@ using rules you can summarise as:
 4. These are compared left to right, so the leftmost difference decides.
 
 The practical rule: **if a setting is not taking effect, something more
-specific is winning**. `xterm+ -report-config` shows you the resolved value
+specific is winning**. `revenant -report-config` shows you the resolved value
 of every setting and where it came from — use it before guessing.
 
 ### Values
@@ -228,9 +228,9 @@ skill is *inspection*, not memorising rules.
   an application with that class and instance name.
 - `editres` — interactive widget-tree browser, if you want to see the real
   paths.
-- `xterm+ -report-config` — xterm+'s own report: every resource it knows,
+- `revenant -report-config` — Revenant's own report: every resource it knows,
   the effective value, whether it came from the command line, resources, or
-  the compiled default, and whether xterm+ supports it yet. This is the one
+  the compiled default, and whether Revenant supports it yet. This is the one
   to reach for first; see [Diagnostics](../reference/diagnostics.md).
 
 ## A tour of the xterm widget tree
@@ -261,7 +261,7 @@ renames a menu entry; and `XTerm*title` sets the window title because
 | Works in one window, not after `-name` | Lines written against instance `xterm` instead of class `XTerm` |
 | Font "not found" though `fc-list` shows it | Trailing whitespace after the value, or a `#` comment that cpp swallowed |
 | Menu font changed when you meant the terminal font | `XTerm*font` is loose; use `XTerm*vt100.font` |
-| Colour works in xterm, ignored in xterm+ | The resource is accepted but not applied yet; `-report-config` labels it *accepted but ignored* |
+| Colour works in xterm, ignored in Revenant | The resource is accepted but not applied yet; `-report-config` labels it *accepted but ignored* |
 | `~/.Xdefaults` ignored | Something loaded `xrdb` at login, so the file is never consulted |
 
 ## Further reading
@@ -270,7 +270,7 @@ renames a menu entry; and `XTerm*title` sets the window title because
 - The X Toolkit Intrinsics manual, chapter "Resource Management", for the
   full precedence algorithm
 - xterm's own manual page, section RESOURCES, for the complete list of
-  xterm resources — xterm+ inventories all of them in
+  xterm resources — Revenant inventories all of them in
   `compat/xterm-410-resources.tsv` and reports its support for each
 
 <!-- markdownlint-enable MD013 -->

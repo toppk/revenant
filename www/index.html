@@ -1,75 +1,238 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>xterm+</title>
-<link rel="icon" href="docs/assets/xterm-plus.png">
-<style>
-  :root { --bg:#fff; --fg:#1a1a1a; --muted:#555; --line:#ddd; --accent:#0b7285; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#111; --fg:#e8e8e8; --muted:#aaa; --line:#333; --accent:#5fd3e0; }
-  }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg);
-         font:17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width:44rem; margin:0 auto; padding:4rem 1.5rem 6rem; }
-  header { display:flex; align-items:center; gap:1.2rem; margin-bottom:2.5rem;
-           padding:1.2rem 1.5rem; background:#000; color:#7fe04a;
-           clip-path:polygon(.5rem 0, calc(100% - .5rem) 0, 100% .5rem, 100% calc(100% - .5rem),
-                             calc(100% - .5rem) 100%, .5rem 100%, 0 calc(100% - .5rem), 0 .5rem); }
-  header h1 small { color:#7fe04a; font-weight:bold; }
-  header img { height:5.1rem; width:auto; flex:0 0 auto; }
-  h1 { font-size:2.2rem; margin:0; flex:1; min-width:0; }
-  h1 small { display:block; font-size:1rem; font-weight:normal; color:var(--muted); }
-  h2 { font-size:1.2rem; margin-top:2.5rem; }
-  a { color:var(--accent); }
-  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(15rem,1fr)); gap:1rem; margin-top:2rem; }
-  .card { border:1px solid var(--line); border-radius:8px; padding:1.2rem 1.4rem; text-decoration:none; color:inherit; }
-  .card:hover { border-color:var(--accent); }
-  .card strong { display:block; font-size:1.1rem; margin-bottom:.3rem; color:var(--accent); }
-  .card span { color:var(--muted); font-size:.95rem; }
-  footer { margin-top:4rem; color:var(--muted); font-size:.9rem; border-top:1px solid var(--line); padding-top:1rem; }
-  code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.92em; }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Revenant</title>
+  <link rel="icon" href="docs/assets/xterm-plus.png">
+  <style>
+    :root {
+      --bg: #fff;
+      --fg: #1a1a1a;
+      --muted: #555;
+      --line: #ddd;
+      --accent: #0b7285;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111;
+        --fg: #e8e8e8;
+        --muted: #aaa;
+        --line: #333;
+        --accent: #5fd3e0;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    main {
+      max-width: 66rem;
+      margin: 0 auto;
+      padding: 4rem 1.5rem 6rem;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      margin-bottom: 2.5rem;
+      padding: 1.2rem 1.5rem;
+      background: #000;
+      color: #7fe04a;
+      clip-path: polygon(.5rem 0, calc(100% - .5rem) 0, 100% .5rem, 100% calc(100% - .5rem),
+          calc(100% - .5rem) 100%, .5rem 100%, 0 calc(100% - .5rem), 0 .5rem);
+    }
+
+    header h1 small {
+      color: #7fe04a;
+      font-weight: bold;
+    }
+
+    header img {
+      height: 5.1rem;
+      width: auto;
+      flex: 0 0 auto;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      margin: 0;
+      flex: 1;
+      min-width: 0;
+    }
+
+    h1 small {
+      display: block;
+      font-size: 1rem;
+      font-weight: normal;
+      color: var(--muted);
+    }
+
+    .hero {
+      display: flex;
+      gap: 2.5rem;
+      align-items: stretch;
+    }
+
+    .hero figure {
+      margin: 0;
+      flex: 0 1 auto;
+      max-width: 62%;
+      min-width: 0;
+    }
+
+    .hero img {
+      height: 100%;
+      width: auto;
+      max-width: 100%;
+      object-fit: contain;
+      object-position: center top;
+      filter: drop-shadow(0 .3rem .6rem rgba(0, 0, 0, .35));
+    }
+
+    .hero>div {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .hero p:first-child {
+      margin-top: 0;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .hero img {
+        filter: invert(1) drop-shadow(0 .3rem .6rem rgba(0, 0, 0, .6));
+      }
+    }
+
+    @media (max-width:40rem) {
+      .hero {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .hero figure {
+        flex: none;
+        width: 80%;
+      }
+
+      .hero img {
+        height: auto;
+      }
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      margin-top: 2.5rem;
+    }
+
+    a {
+      color: var(--accent);
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 1.2rem 1.4rem;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+    }
+
+    .card strong {
+      display: block;
+      font-size: 1.1rem;
+      margin-bottom: .3rem;
+      color: var(--accent);
+    }
+
+    .card span {
+      color: var(--muted);
+      font-size: .95rem;
+    }
+
+    footer {
+      margin-top: 4rem;
+      color: var(--muted);
+      font-size: .9rem;
+      border-top: 1px solid var(--line);
+      padding-top: 1rem;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .92em;
+    }
+  </style>
 </head>
+
 <body>
-<main>
-  <header>
-    <img src="docs/assets/xterm-plus.svg" alt="">
-    <h1>xterm+ <small>an xterm-compatible X11 terminal with a modern core</small></h1>
-  </header>
+  <main>
+    <header>
+      <img src="docs/assets/xterm-plus.svg" alt="">
+      <h1>Revenant <small>a modern X11 terminal that feels like xterm</small></h1>
+    </header>
 
-  <!-- ==== EDIT BELOW: why xterm+ exists and where it is going ==== -->
-  <p>
-    xterm+ keeps everything that makes xterm xterm — the resources, the menus,
-    the translations, the <code>~/.Xresources</code> lines you wrote twenty
-    years ago — and replaces the terminal engine underneath with
-    <code>libghostty-vt</code>.
-  </p>
-  <!-- ==== END EDIT ==== -->
+    <div class="hero">
+      <figure><img src="docs/assets/revenant.png"
+          alt="A skeleton climbing out of its grave, coffin lid on its shoulder"></figure>
+      <div>
+        <!-- ==== EDIT BELOW: why Revenant exists and where it is going ==== -->
+        <p>
+          Revenant was created to bring more terminal features to a familiar xterm experience.
+          If you like xterm but don't want to give up modern features, give Revenant a try.
+          It is not 100% identical, because it thoughtfully adds new features you may not have
+          used yet — but you will see mostly the same menus, the same translations, and the
+          <code>~/.Xresources</code> lines you wrote twenty years ago, with the terminal engine
+          underneath replaced by <code>libghostty-vt</code>. This is still an ongoing effort.
+        </p>
+        <!-- ==== END EDIT ==== -->
 
-  <div class="cards">
-    <a class="card" href="docs/">
-      <strong>xterm+ documentation</strong>
-      <span>Install, configure, and understand xterm+ — including X resources
-      explained from zero, and every xterm option classified.</span>
-    </a>
-    <a class="card" href="tdn/">
-      <strong>Terminal Developers Network</strong>
-      <span>A reference for terminal protocols across emulators: syntax,
-      behavior, compatibility tables, and probes you can run yourself.</span>
-    </a>
-    <a class="card" href="https://github.com/toppk/xterm-plus">
-      <strong>Source</strong>
-      <span>github.com/toppk/xterm-plus — issues, roadmap, and drift notes.</span>
-    </a>
-  </div>
+        <div class="cards">
+          <a class="card" href="docs/">
+            <strong>Revenant documentation</strong>
+            <span>Install, configure, and understand Revenant — including X resources
+              explained from zero, and every xterm option classified.</span>
+          </a>
+          <a class="card" href="tdn/">
+            <strong>Terminal Developers Network</strong>
+            <span>A reference for terminal protocols across emulators: syntax,
+              behavior, compatibility tables, and probes you can run yourself.</span>
+          </a>
+          <a class="card" href="https://github.com/toppk/xterm-plus">
+            <strong>Source</strong>
+            <span>github.com/toppk/xterm-plus — issues, roadmap, and drift notes.</span>
+          </a>
+        </div>
+      </div>
+    </div>
 
-  <footer>
-    xterm+ documentation is MIT licensed; TDN content is CC BY-SA 4.0;
-    xterm-derived material is covered by the xterm license.
-  </footer>
-</main>
+    <footer>
+      Revenant documentation is MIT licensed; TDN content is CC BY-SA 4.0;
+      xterm-derived material is covered by the xterm license.
+    </footer>
+  </main>
 </body>
+
 </html>

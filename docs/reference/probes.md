@@ -4,7 +4,7 @@ Human-run visual and interactive verification programs use the naming pattern
 `tools/probe-<feature>.<ext>`. This keeps them discoverable separately from
 build utilities and automated `tests/xtp-*` or `tests/xvfb-*` helpers.
 
-Run the same probe inside xterm+, xterm, and Ghostty when comparing behavior.
+Run the same probe inside Revenant, xterm, and Ghostty when comparing behavior.
 Record the emulator version, font configuration, locale, and exact invocation
 with any result.
 

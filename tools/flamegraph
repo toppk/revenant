@@ -95,7 +95,7 @@ if [[ $build == true ]]; then
     meson compile -C "$build_dir"
 fi
 
-readonly executable="$build_dir/xterm+"
+readonly executable="$build_dir/revenant"
 if [[ ! -x "$executable" ]]; then
     echo "tools/flamegraph: executable not found: $executable" >&2
     echo "Run without --no-build, or set XTP_PROFILE_BUILD_DIR." >&2

@@ -49,7 +49,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
-            libfontconfig-dev libxft-dev
+            libfontconfig-dev libxft-dev libxrender-dev
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
       - run: packaging/build-tarball "${{ needs.prepare.outputs.version }}"
@@ -72,11 +72,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential debhelper meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
-            libfontconfig-dev libxft-dev
+            libfontconfig-dev libxft-dev libxrender-dev
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
       - run: packaging/build-deb "${{ needs.prepare.outputs.version }}"
-      - run: sudo apt-get install -y ./dist/*.deb && xterm+ --version
+      - run: sudo apt-get install -y ./dist/*.deb && revenant --version && xterm+ --version
       - uses: actions/upload-artifact@v7
         with:
           name: deb-x86_64
@@ -93,7 +93,7 @@ jobs:
       - run: |
           dnf install -y git rpm-build gcc meson ninja-build python3 jq xz \
             libX11-devel libXt-devel libXaw-devel libXmu-devel libxcb-devel \
-            fontconfig-devel libXft-devel
+            fontconfig-devel libXft-devel libXrender-devel
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
@@ -101,7 +101,7 @@ jobs:
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
       - run: packaging/build-rpm "${{ needs.prepare.outputs.version }}"
-      - run: dnf install -y ./dist/*.rpm && xterm+ --version
+      - run: dnf install -y ./dist/*.rpm && revenant --version && xterm+ --version
       - uses: actions/upload-artifact@v7
         with:
           name: rpm-x86_64
@@ -125,7 +125,7 @@ jobs:
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag }}
-          name: xterm+ ${{ needs.prepare.outputs.version }}
+          name: Revenant ${{ needs.prepare.outputs.version }}
           files: dist/*
           fail_on_unmatched_files: true
       - name: Delete build artifacts

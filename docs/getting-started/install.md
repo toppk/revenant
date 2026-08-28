@@ -1,20 +1,23 @@
 # Install
 
-xterm+ releases provide Linux tarballs plus Debian and RPM packages. You can
+Revenant releases provide Linux tarballs plus Debian and RPM packages. You can
 also build it directly from the repository.
+
+The binary is `revenant`; every package and tarball also installs an `xterm+`
+symlink pointing to it, so either name starts the same program.
 
 ## Prerequisites
 
 You need a C toolchain, Meson and Ninja, and the X11 development libraries
-xterm itself uses: Xlib, Xt, Xaw (Athena), Xft, and fontconfig. Building the
-terminal core additionally needs Zig, because `libghostty-vt` is built from
-Ghostty's source.
+xterm itself uses: Xlib, Xt, Xaw (Athena), Xft, Xrender, and fontconfig.
+Building the terminal core additionally needs Zig, because `libghostty-vt` is
+built from Ghostty's source.
 
 === "Fedora"
 
     ```sh
     sudo dnf install gcc meson ninja-build zig \
-      libX11-devel libXt-devel libXaw-devel libXft-devel fontconfig-devel \
+      libX11-devel libXt-devel libXaw-devel libXft-devel libXrender-devel fontconfig-devel \
       libxcb-devel
     ```
 
@@ -22,7 +25,7 @@ Ghostty's source.
 
     ```sh
     sudo apt install build-essential meson ninja-build zig \
-      libx11-dev libxt-dev libxaw7-dev libxft-dev libfontconfig1-dev \
+      libx11-dev libxt-dev libxaw7-dev libxft-dev libxrender-dev libfontconfig1-dev \
       libxcb1-dev
     ```
 
@@ -41,11 +44,11 @@ tools/fetch-libghostty
 meson setup build-ghostty -Dlibghostty=enabled
 meson compile -C build-ghostty
 meson test -C build-ghostty
-./build-ghostty/xterm+
+./build-ghostty/revenant
 ```
 
 The Ghostty checkout is built into a private static `libghostty-vt` archive.
-Nothing from Ghostty is added to the xterm+ repository.
+Nothing from Ghostty is added to the Revenant repository.
 
 If you already have a Ghostty checkout, point the build at it instead of
 fetching another:
@@ -65,7 +68,7 @@ parse terminal data:
 meson setup build -Dlibghostty=disabled
 meson compile -C build
 meson test -C build
-./build/xterm+
+./build/revenant
 ```
 
 ## Build type
@@ -80,8 +83,8 @@ meson configure build-ghostty -Dbuildtype=debugoptimized
 
 ## Installing alongside xterm
 
-xterm+ carries xterm's `XTerm` app-defaults file as a reference but does not
+Revenant carries xterm's `XTerm` app-defaults file as a reference but does not
 install it: overwriting `/usr/share/X11/app-defaults/XTerm` would conflict
 with a distribution's xterm package. When upstream xterm is installed, Xt
-loads that existing app-defaults file for xterm+ automatically, which is
+loads that existing app-defaults file for Revenant automatically, which is
 exactly what you want — see [X resources, explained](../configuration/xresources.md#where-resources-come-from).

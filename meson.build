@@ -1,7 +1,7 @@
 project(
     'xterm-plus',
     'c',
-    version: '0.2.0',
+    version: '0.3.0',
     meson_version: '>= 1.3',
     default_options: [
         'buildtype=debugoptimized',
@@ -142,7 +142,7 @@ else
 endif
 
 xterm_plus = executable(
-    'xterm+',
+    'revenant',
     sources,
     terminal_sources,
     terminal_link_sources,
@@ -163,6 +163,8 @@ xterm_plus = executable(
     c_args: terminal_compile_args,
     install: true,
 )
+
+install_symlink('xterm+', install_dir: get_option('bindir'), pointing_to: 'revenant')
 
 font_key_test_tool = executable(
     'xtp-send-font-keys',
@@ -304,7 +306,7 @@ endif
 
 summary(
     {
-        'executable': 'xterm+',
+        'executable': 'revenant',
         'X resource class': 'XTerm',
         'X resource instance': 'xterm',
         'libghostty-vt': build_with_ghostty,

@@ -3,7 +3,7 @@
 Every entry from xterm patch-410's `mainMenu` (Ctrl-Button1), `vtMenu`
 (Ctrl-Button2) and `fontMenu` (Ctrl-Button3): what xterm does behind it,
 how much of that lives in libghostty-vt, and how approachable it is for
-xterm+. Reviewed against the then-selected libghostty headers on 2026-08-25.
+Revenant. Reviewed against the then-selected libghostty headers on 2026-08-25.
 
 Status key: **DONE** implemented; **READY** can be wired now with no new
 subsystem; **ROADMAP** waits on a planned
@@ -131,10 +131,10 @@ is a mode of the VT100 engine:
 - GIN mode: crosshair cursor; a keypress sends key plus encoded coordinates.
 - Copy: writes the display list as raw Tek escapes to `COPY` files.
 
-xterm+ would have to intercept bytes before `XtpTerminalFeed`, own a Tek
+Revenant would have to intercept bytes before `XtpTerminalFeed`, own a Tek
 state machine and display list, and add a widget with its own `tekMenu`.
 libghostty contributes nothing. xterm's own `--disable-tek4014` builds leave
-the three items insensitive, which is what xterm+ does today. Recommendation:
+the three items insensitive, which is what Revenant does today. Recommendation:
 record "Tek 4014 not planned" in the [xterm differences ledger](drift.md).
 
 ## Suggested order

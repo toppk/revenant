@@ -1,7 +1,7 @@
 # Default VT bindings
 
 This audit tracks the default VT translation groups assembled by
-`VTInitTranslations()` in upstream xterm patch 410. xterm+ should not grow a
+`VTInitTranslations()` in upstream xterm patch 410. Revenant should not grow a
 separate, accidental keyboard-and-mouse vocabulary: an xterm default is either
 implemented, provided by an equivalent input path, or recorded here as a gap.
 
@@ -11,7 +11,7 @@ options in that function; it does not include user overrides from X resources.
 
 <!-- markdownlint-disable MD013 -->
 
-| xterm group | Default gesture or event | xterm+ status | Notes |
+| xterm group | Default gesture or event | Revenant status | Notes |
 | --- | --- | --- | --- |
 | select | Shift+Select | Missing | Keyboard-driven selection needs `select-cursor-start` and `select-cursor-end`. |
 | select | Shift+Insert | Done | Uses `insert-selection(SELECT, CUT_BUFFER0)` and the bracketed-paste encoder; `SELECT` follows `selectToClipboard`, and named arguments are tried in order. |
@@ -43,7 +43,7 @@ translation route. Local key actions share an event-identity guard so paste,
 paging, and font changes run once per X event without suppressing genuine
 auto-repeat.
 
-Shift+Button 1 on an OSC 8 hyperlink is an intentional xterm+ extension, not
+Shift+Button 1 on an OSC 8 hyperlink is an intentional Revenant extension, not
 one of patch 410's default bindings. Shift-hover underlines the target;
 pressing and releasing on the same target launches only HTTP or HTTPS links.
 On a cell without an OSC 8 target, the same gesture falls through to ordinary

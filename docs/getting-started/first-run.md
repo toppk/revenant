@@ -5,15 +5,15 @@
 Run the binary from your build directory:
 
 ```sh
-./build-ghostty/xterm+
+./build-ghostty/revenant
 ```
 
-Without arguments xterm+ starts `$SHELL` (falling back to `/bin/sh`) with
+Without arguments Revenant starts `$SHELL` (falling back to `/bin/sh`) with
 `TERM=xterm-256color`. To run a specific command instead, use xterm's
 trailing `-e` form; everything after `-e` is the command and its arguments:
 
 ```sh
-./build-ghostty/xterm+ -e sh -lc 'printf "hello from xterm+\n"; exec "$SHELL"'
+./build-ghostty/revenant -e sh -lc 'printf "hello from Revenant\n"; exec "$SHELL"'
 ```
 
 ## The three menus
@@ -55,7 +55,7 @@ xterm's button-based scrolling.
 
 ## Fonts
 
-xterm+ has two renderers and you can switch between them at runtime from the
+Revenant has two renderers and you can switch between them at runtime from the
 VT Fonts menu (`TrueType Fonts`):
 
 - **Bitmap (Xlib)** — pixel-identical to traditional xterm, using X core
@@ -70,6 +70,6 @@ Changing font keeps your rows and columns and resizes the window to fit.
 Almost everything else — colours, fonts, scrollback size, scrollbar side,
 window title — is set through X resources. If that phrase means nothing to
 you yet, read [X resources, explained](../configuration/xresources.md) next.
-If it does, jump to [Configuring xterm+](../configuration/xterm-plus.md).
+If it does, jump to [Configuring Revenant](../configuration/revenant.md).
 
 <!-- markdownlint-enable MD013 -->

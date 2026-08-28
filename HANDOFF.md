@@ -48,6 +48,41 @@ in the [roadmap](docs/maintainers/roadmap.md), not in the drift ledger.
 - XCB may share the Xlib connection where appropriate, but event-queue
   ownership must stay coherent.
 
+## Maintainer role and feedback arbitration
+
+The coding agent is expected to act as an active maintainer and technical
+arbiter, not as a transcription service. It should maintain an independent,
+evidence-based view of the tree, test results, documented product bars, and
+the user's observed daily-driver behavior. External reviews, automated
+findings, and suggestions from other agents are valuable inputs, but none is
+automatically authoritative.
+
+For each material suggestion, the maintainer should inspect the affected code
+and choose to accept, adapt, defer, or reject it. State the reason when the
+choice is not obvious. Prefer work in this order:
+
+1. correctness, security, data integrity, and lossless PTY behavior;
+2. regressions found during real xterm+ use, especially input, resize,
+   selection, scrollback, and rendering failures;
+3. the xterm-visible compatibility contract and the Ghostling promotion gate;
+4. testability, clear module ownership, and sustainable architecture;
+5. performance and cleanup that have measured or concrete maintenance value.
+
+Do not create churn merely to satisfy a stylistic review, silently broaden a
+request, or preserve an internal abstraction at the expense of user-visible
+correctness. Conversely, do not dismiss feedback because xterm has similar
+behavior or because a problem has existed for years. Reproduce it, determine
+which layer owns it, and turn confirmed regressions into focused tests or
+durable documentation whenever practical.
+
+The maintainer owns technical diligence and honest status reporting. The user
+remains the project owner and release authority: product-policy decisions,
+public announcements, commits under the current working agreement, pushes,
+tag changes, and destructive operations remain subject to the user's explicit
+direction. When evidence is incomplete, distinguish a hypothesis from a
+finding and preserve the user's concerns rather than declaring the project
+ready.
+
 ## Code ownership and reference projects
 
 xterm+ does not compile, link, or embed xterm's terminal implementation. The
@@ -213,29 +248,96 @@ middle-button paste are wired, along with application mouse and focus
 reporting. Selection-retention policy and Kitty graphics remain incomplete
 even though libghostty exposes much of the required machinery.
 
-## Immediate continuation order
+## Ideas and possible future identity
 
-1. Complete rendering acceptance using
-   `docs/compatibility/rendering-review.md`. The correctness-first rewrite has
-   removed PTY byte sniffing, content-diff scroll guessing, unsafe window
-   copies, newline-based input scheduling, and broad
-   clears ahead of row painting. Cursor-only frames and cached partial Expose
-   repaint are implemented. Still exercise obscured/off-screen scrolling,
-   DECSTBM/alternate-screen output, xtrace ordering, and scroll throughput
-   before treating the renderer as settled.
-2. Reach semantic parity with the pinned Ghostling skeleton, following the
-   capability matrix in the [roadmap](docs/maintainers/roadmap.md). Add focused tests with each slice so
-   parity does not depend on manual demonstrations alone.
-3. Make xterm+ usable as the maintainer's daily terminal. `scrollKey` and
-   `scrollTtyOutput` policies are implemented as resources, command-line
-   options, and VT menu toggles. Historical mouse selection, visible
-   highlighting, named X11 selections, Button-3 extension, and middle-button
-   paste are also implemented, including edge-drag autoscroll through deep
-   history. `selectToClipboard`, `set-select`, named action arguments, and cut
-   buffers are wired.
-   Application mouse reporting preserves Shift selection and the Ctrl+button
-   popup menus, and focus reporting follows DEC private mode 1004. Next, add
-   the remaining selection-retention and paste-control policies.
+`Revenant` is a possible future project name. It fits the idea of bringing the
+xterm form and interaction model back with a modern engine, but it is only an
+idea, not an approved rename. Before adopting it, check name and package
+collisions, decide whether continuity with the `xterm+` compatibility promise
+is more valuable, and treat the rename as a separate product decision rather
+than feature work.
+
+A useful product lens is that xterm is unusually broad in historical terminal
+protocols but deliberately narrow as a modern terminal application. Patch 410
+implements a deep DEC and xterm-specific tail, including selectable VT levels,
+DECDHL double-size lines, DECUDK, printer controls, rectangle and locator
+operations, Tektronix 4014, and xterm query and keyboard extensions; configured
+builds also provide sixel and ReGIS. That does not make xterm a superset of
+modern terminals. Its gaps extend beyond window tabs and native transparency:
+there is no resize reflow, OSC 8 hyperlink model, Kitty keyboard or graphics
+protocol, general shaping and color-font fallback pipeline, built-in scrollback
+search, split or profile interface, live configuration reload, or native
+Wayland frontend. Window-manager opacity can affect an xterm window, but that
+is not an xterm background/transparency feature.
+
+This split helps define possible xterm+ work without turning it into a promise.
+xterm+ already promotes resize reflow, OSC 8 links, current mouse and focus
+reporting, and the Kitty keyboard protocol through an X11/Athena frontend. It
+still needs the missing and Partial items in the Ghostling parity checklist,
+and it does not yet reproduce all of xterm's historical protocol tail. Future
+daily-driver ideas include scrollback search, richer font fallback and shaping,
+Kitty graphics, and possibly tabs or opacity if they can be added without
+discarding the X11 resource, translation, menu, and window-manager contract.
+Native Wayland and a wholesale GPU-shell redesign are not implied by this idea;
+the current project remains intentionally X11.
+
+Opacity is implemented as compositor-backed 32-bit ARGB rendering with the
+straightforward `XTerm*backgroundOpacity` resource. Alpha applies to the
+default terminal background while explicit cell backgrounds, selections,
+cursor presentation, and menus remain legible; startup falls back cleanly to
+an opaque visual when compositing is unavailable. Do not add urxvt-style
+root-pixmap pseudo-transparency, `inheritPixmap`, desktop wallpaper copying,
+tinting, or shading. The project is a time capsule carried forward, not a
+recreation of obsolete X11 rendering hacks.
+
+## Current phase and immediate continuation order
+
+The project is in private stabilization and daily-driver evaluation, not in
+announcement preparation. The `v0.2.0` build is a useful packaging milestone;
+a successful workflow is not evidence by itself that xterm+ is ready to be
+recommended publicly. The maintainer intends to use xterm+ for several days
+and still has concerns to surface and characterize. Treat those observations
+as the highest-value input during this phase.
+
+The current modern-capability count is 8 Present, 3 Partial, and 1 Missing in
+the [Ghostling parity checklist](docs/compatibility/ghostling-parity.md).
+Italic rendering, font fallback/emoji acceptance, and the complete X11 key
+matrix remain Partial; Kitty graphics remains Missing. The default fixterms
+keyboard behavior is also a major, intentional drift from xterm and must be
+prominent wherever replacement compatibility is discussed. Do not announce
+xterm+ as MVP, fully Ghostling-equivalent, or an unqualified drop-in upgrade
+while those statements are false.
+
+Continue in this order:
+
+1. **Dogfood the terminal.** Use xterm+ for normal shell, editor,
+   multiplexer, remote-session, selection/paste, hyperlink, resize, and
+   scrollback work. Record each concrete concern with reproduction steps and
+   diagnostics, determine the owning layer, and prioritize crashes, byte
+   loss, input errors, stale rendering, and history/selection corruption.
+2. **Finish the unsettled renderer checks.** Follow
+   `docs/compatibility/rendering-review.md` for obscured or off-screen
+   scrolling, DECSTBM and alternate-screen output, X request ordering, and
+   scroll throughput. The correctness-first renderer and cache fixes are in
+   place, but those manual acceptance cases remain relevant before broad use.
+3. **Exercise the v0.2 artifacts without treating them as a launch.** Let the
+   workflow finish, install the tarball, Debian package, and RPM in clean
+   environments where available, and verify startup, shell exit, resources,
+   fonts, menus, and `--version`. Resolve the top-level license for xterm+'s
+   own code before a public release; the packaging metadata currently calls
+   its MIT declaration a placeholder. Pin the Ghostty 1.4 tag when it exists
+   so release jobs no longer resolve moving `main` revisions independently.
+4. **Reassess announcement scope after dogfooding.** Before announcing, write
+   concise release notes and an honest known-limitations list, rerun
+   `just check-all`, verify the published manual, and make an explicit owner
+   decision about whether the message is an early preview or an MVP claim. A
+   preview may document unfinished capability; the existing MVP claim cannot.
+5. **Close the declared MVP gate.** Promote italic rendering, Unicode/font
+   fallback acceptance, the remaining X11 keyboard matrix, and Kitty graphics
+   with focused backend and Xvfb coverage. Continue the remaining
+   selection-retention and paste-control policies as daily use exposes their
+   value; do not let low-impact compatibility inventory displace observed
+   correctness problems.
 
 Do not interpret Ghostling parity as the finish line. Ghostling is the minimum
 engine-integration floor; xterm remains the behavioral oracle for the daily-use

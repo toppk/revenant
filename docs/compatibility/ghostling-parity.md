@@ -1,15 +1,15 @@
 # Ghostling feature-parity gate
 
-Ghostling is xterm+'s minimum modern-terminal capability floor. The goal is
+Ghostling is Revenant's minimum modern-terminal capability floor. The goal is
 not merely to use the same parser: each advertised feature must cross the
 backend boundary and work through the real X11 interface.
 
 MVP requires every item in this checklist to be **Present**, plus the daily
-xterm-driver advantages that make xterm+ more than a Ghostling port: the
+xterm-driver advantages that make Revenant more than a Ghostling port: the
 Xt/Athena interface, xterm resources and bindings, saved-history navigation,
 and X11 selection and paste behavior.
 
-“Partial” means libghostty already supplies state or encoding, but xterm+ has
+“Partial” means libghostty already supplies state or encoding, but Revenant has
 not finished the user-visible integration or acceptance coverage.
 
 <!-- markdownlint-disable MD013 -->
@@ -24,7 +24,7 @@ not finished the user-visible integration or acceptance coverage.
 | Kitty keyboard protocol | Present | Retain exact state-stack and X11 press/repeat/release fixtures; expand non-US XIM coverage as layouts become available in CI. |
 | Kitty graphics protocol | Missing | Expose image placement/lifecycle through `terminal.h` and safely composite it in X11. Parser state alone is not promotion. |
 | X10, normal, button-event, and any-event mouse tracking | Present | Retain backend and Xvfb routing coverage. |
-| SGR, URxvt, UTF-8, and X10 mouse reports | Present | Retain exact encoding coverage; xterm+ also supports SGR-pixel reports. |
+| SGR, URxvt, UTF-8, and X10 mouse reports | Present | Retain exact encoding coverage; Revenant also supports SGR-pixel reports. |
 | Scroll wheel for history or application forwarding | Present | Retain local/application routing and Shift-override coverage. |
 | Draggable scrollbar | Present | Retain Xaw thumb, placement, and deep-history coverage. |
 | Focus reporting (`CSI I` and `CSI O`) | Present | Retain real focus-event coverage gated by DEC private mode 1004. |
@@ -36,7 +36,7 @@ Current total: **8 Present, 3 Partial, 1 Missing**.
 ## Kitty keyboard acceptance backlog
 
 The terminal core parses Kitty keyboard configuration and its encoder consults
-current terminal state. xterm+ now also preserves X11 press, detectable
+current terminal state. Revenant now also preserves X11 press, detectable
 autorepeat, and release actions at that boundary. Promotion is backed by the
 following maintained checks:
 
@@ -80,7 +80,7 @@ and verifies flag-stack restoration.
 
 ## Definition of “better than Ghostling”
 
-Passing this checklist establishes the modern capability floor. xterm+ exceeds
+Passing this checklist establishes the modern capability floor. Revenant exceeds
 it by preserving the xterm daily-driver contract and by shipping tested local
 features such as named X11 selections, reflow-safe historical selection,
 middle-button paste, OSC 8 interaction, popup menus, font switching, cursor
