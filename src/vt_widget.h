@@ -84,7 +84,6 @@ Boolean XtpVtSelectToClipboard(Widget widget);
 void XtpVtSetSelectToClipboard(Widget widget, Boolean enabled);
 void XtpVtScrollOnKeypress(Widget widget);
 void XtpVtSetTerminal(Widget widget, XtpTerminal *terminal);
-void XtpVtSetFocus(Widget widget, Boolean focused);
 void XtpVtUpdate(Widget widget);
 void XtpVtRedraw(Widget widget);
 

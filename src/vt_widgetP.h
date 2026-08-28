@@ -13,6 +13,7 @@
 #include <X11/Xatom.h>
 #include <X11/Xft/Xft.h>
 #include <X11/Xaw/Scrollbar.h>
+#include <X11/XKBlib.h>
 #include <X11/Xmu/Converters.h>
 #include <X11/keysym.h>
 
@@ -216,6 +217,12 @@ typedef struct
         XtIntervalId viewport_update_timer;
         unsigned int viewport_updates_coalesced;
         Boolean suppress_grid_resize;
+        XIM input_method;
+        XIC input_context;
+        Window input_window;
+        uint8_t pressed_keycodes[32];
+        uint8_t filtered_keycodes[32];
+        Boolean detectable_autorepeat;
         KeyActionIdentity recent_key_actions[XTP_RECENT_KEY_ACTIONS];
         unsigned int next_key_action;
         ColorCacheEntry colors[XTP_COLOR_CACHE_SIZE];
@@ -263,6 +270,8 @@ void RepaintCached(Vt100Rec *vt, const XRectangle *damage);
 void Placeholder(Vt100Rec *vt);
 void Redisplay(Widget widget, XEvent *event, Region region);
 
+void InitializeInput(Vt100Rec *vt);
+void DestroyInput(Vt100Rec *vt);
 Boolean HyperlinkUriEqualsCell(Vt100Rec *vt, const XtpRenderCell *cell);
 void HyperlinkEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch);
 void ScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);

@@ -1,6 +1,7 @@
 #include "vt_widgetP.h"
 
 static void Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args);
+static void Realize(Widget widget, XtValueMask *value_mask, XSetWindowAttributes *attributes);
 static void Destroy(Widget widget);
 static void ResizeWidget(Widget widget);
 static Boolean SetValues(Widget current, Widget request, Widget new_widget, ArgList args,
@@ -164,7 +165,7 @@ Vt100ClassRec vt100ClassRec = {
         False,
         Initialize,
         NULL,
-        XtInheritRealize,
+        Realize,
         actions,
         XtNumber(actions),
         resources,
@@ -206,6 +207,15 @@ ClassInitialize(void)
 {
         XtRegisterGrabAction(PopupMenuAction, True, ButtonPressMask | ButtonReleaseMask,
                              GrabModeAsync, GrabModeAsync);
+}
+
+static void
+Realize(Widget widget, XtValueMask *value_mask, XSetWindowAttributes *attributes)
+{
+        WidgetClass superclass = vt100ClassRec.core_class.superclass;
+
+        (*superclass->core_class.realize)(widget, value_mask, attributes);
+        InitializeInput(AsVt(widget));
 }
 
 Vt100Rec *
@@ -866,6 +876,12 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
         vt->vt.viewport_update_timer = (XtIntervalId)0;
         vt->vt.viewport_updates_coalesced = 0;
         vt->vt.suppress_grid_resize = False;
+        vt->vt.input_method = NULL;
+        vt->vt.input_context = NULL;
+        vt->vt.input_window = None;
+        memset(vt->vt.pressed_keycodes, 0, sizeof(vt->vt.pressed_keycodes));
+        memset(vt->vt.filtered_keycodes, 0, sizeof(vt->vt.filtered_keycodes));
+        vt->vt.detectable_autorepeat = False;
         memset(vt->vt.recent_key_actions, 0, sizeof(vt->vt.recent_key_actions));
         vt->vt.next_key_action = 0;
         vt->vt.color_count = 0;
@@ -905,6 +921,7 @@ Destroy(Widget widget)
                 XtRemoveTimeOut(vt->vt.selection_autoscroll_timer);
         if (vt->vt.cursor_blink_timer != (XtIntervalId)0)
                 XtRemoveTimeOut(vt->vt.cursor_blink_timer);
+        DestroyInput(vt);
         ReleaseGc(widget);
         if (vt->vt.xft_draw != NULL)
                 XftDrawDestroy(vt->vt.xft_draw);
@@ -1533,54 +1550,6 @@ XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
         UpdateScrollbar(vt);
         XtpLog(XTP_LOG_INFO, "terminal", "bound terminal=%s", terminal != NULL ? "yes" : "no");
         XtpVtRedraw(widget);
-}
-
-void
-XtpVtSetFocus(Widget widget, Boolean focused)
-{
-        Vt100Rec *vt = AsVt(widget);
-        char encoded[8];
-        size_t written = 0;
-        Boolean repaint_cursor;
-
-        if (vt->vt.focused == focused)
-                return;
-        if (vt->vt.terminal != NULL &&
-            XtpTerminalEncodeFocus(vt->vt.terminal, focused != False, encoded, sizeof(encoded),
-                                   &written) != 0) {
-                XtpLog(XTP_LOG_ERROR, "input", "focus encoding failed focus=%s",
-                       focused ? "in" : "out");
-        } else if (written != 0) {
-                XtpEncodedInput input = {(const uint8_t *)encoded, written};
-
-                XtCallCallbacks(widget, XtNinputCallback, &input);
-        }
-        repaint_cursor = XtIsRealized(widget) && vt->vt.frame_valid &&
-                         vt->vt.cursor_protocol_visible &&
-                         vt->vt.last_cursor_column < vt->vt.frame_columns &&
-                         vt->vt.last_cursor_row < vt->vt.frame_rows;
-        if (vt->vt.last_cursor_visible)
-                EraseLastCursor(vt);
-        StopCursorBlink(vt);
-        vt->vt.cursor_blink_on = True;
-        vt->vt.focused = focused;
-        XtpLog(XTP_LOG_INFO, "render",
-               "cursor focus=%s requested-shape=%d blink-requested=%s blink-effective=%s",
-               focused ? "in" : "out", vt->vt.last_cursor_shape,
-               vt->vt.cursor_blink_requested ? "true" : "false",
-               vt->vt.cursor_blinking ? "true" : "false");
-        if (repaint_cursor) {
-                unsigned int column = vt->vt.last_cursor_column;
-                unsigned int row = vt->vt.last_cursor_row;
-
-                vt->vt.cursor_cell_seen = False;
-                vt->vt.cursor_text_length = 0;
-                DrawCursor(vt, True, column, row, vt->vt.last_cursor_shape);
-                XtpLog(XTP_LOG_DEBUG, "render", "cursor-only repaint column=%u row=%u", column,
-                       row);
-                XFlush(XtDisplay(widget));
-        }
-        ScheduleCursorBlink(vt);
 }
 
 void

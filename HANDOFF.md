@@ -75,8 +75,8 @@ functional comparison, while xterm remains the UI and compatibility oracle.
 
 ## Current architecture
 
-- `src/main.c`: Xt application shell, PTY event loop, input method, key
-  dispatch, menus, geometry, and terminal effects.
+- `src/main.c`: Xt application shell, PTY event loop, menus, geometry, and
+  terminal effects.
 - `src/selftest.c`: the implementation behind the packaged binary's
   `--self-test` health check.
 - `src/command_options.c`: the command-line-to-X-resource table shared by Xt
@@ -87,9 +87,10 @@ functional comparison, while xterm remains the UI and compatibility oracle.
   by the VT widget implementation modules.
 - `src/vt_draw.c`: frame caching, bitmap/Xft cell drawing, cursor painting and
   blinking, damage handling, and redisplay.
-- `src/vt_input.c`: selection ownership and conversion, paste requests,
-  hyperlink interaction, mouse reporting, and local scroll actions. Keyboard
-  and XIM handling still live in `main.c` pending the separate ownership move.
+- `src/vt_input.c`: keyboard mapping and repeat tracking, XIM and focus input,
+  selection ownership and conversion, paste requests, hyperlink interaction,
+  mouse reporting, and local scroll actions. Encoded keyboard, mouse, and focus
+  bytes all leave the widget through `XtNinputCallback`.
 - `src/terminal.h`: backend-neutral terminal state, rendering, input encoding,
   resize, and effects boundary.
 - `src/terminal_ghostty.c`: `libghostty-vt` adapter.
@@ -108,10 +109,9 @@ functional comparison, while xterm remains the UI and compatibility oracle.
 
 As new capability is added, prefer focused modules over continued growth of
 `main.c` and `vt_widget.c`. Keep Ghostty-specific types behind `terminal.h`.
-The private VT-widget boundary is now established. In a separate behavioral
-commit, move keyboard/XIM ownership into `vt_input.c` so keyboard, mouse, and
-focus bytes all leave the widget through `XtNinputCallback`; do not leave
-translation ownership duplicated in two places.
+The private VT-widget boundary is now established, and terminal input ownership
+is consolidated in `vt_input.c`; keep Xt translation exclusions and encoded
+input delivery in that one place.
 Smaller follow-ups are typed menu-entry identifiers instead of string dispatch
 and setup helpers in `main.c` with one failure-cleanup path.
 
