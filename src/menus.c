@@ -1,13 +1,16 @@
 #include "menus.h"
 
 #include "diagnostics.h"
+#include "sme_slider.h"
 
 #include <X11/StringDefs.h>
 #include <X11/Xaw/SimpleMenu.h>
 #include <X11/Xaw/SmeBSB.h>
 #include <X11/Xaw/SmeLine.h>
+#include <X11/Shell.h>
 
 #include <locale.h>
+#include <stdint.h>
 #include <string.h>
 
 typedef struct
@@ -146,12 +149,61 @@ Activate(Widget widget, XtPointer closure, XtPointer call_data)
         binding->menus->dispatch(widget, binding->item, binding->menus->closure);
 }
 
+static void
+OpacityChanged(Widget widget, XtPointer closure, XtPointer call_data)
+{
+        XtpMenus *menus = closure;
+
+        XtpLog(XTP_LOG_INFO, "menu", "opacity slider value=%ld", (long)(intptr_t)call_data);
+        menus->dispatch(widget, XTP_MENU_ITEM_BACKGROUND_OPACITY, menus->closure);
+}
+
+static void
+OpacityPointerEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch)
+{
+        XtpMenus *menus = closure;
+        int x;
+        int y;
+
+        (void)widget;
+        (void)continue_dispatch;
+        if (menus->opacity_slider == NULL)
+                return;
+        if (event->type == MotionNotify) {
+                x = event->xmotion.x;
+                y = event->xmotion.y;
+        } else if (event->type == ButtonPress || event->type == ButtonRelease) {
+                x = event->xbutton.x;
+                y = event->xbutton.y;
+        } else {
+                return;
+        }
+        (void)XtpSmeSliderHandlePointer(menus->opacity_slider, x, y);
+}
+
+static void
+CreateOpacitySlider(XtpMenus *menus, Widget menu)
+{
+        menus->opacity_slider =
+            XtCreateManagedWidget("backgroundOpacity", xtpSmeSliderObjectClass, menu, NULL, 0);
+        XtAddCallback(menus->opacity_slider, XtNcallback, OpacityChanged, menus);
+        XtAddEventHandler(menu, ButtonPressMask | ButtonReleaseMask | ButtonMotionMask, False,
+                          OpacityPointerEvent, menus);
+}
+
 static Widget
 CreateMenu(XtpMenus *menus, Widget parent, const char *name, const MenuSpec *specs, Cardinal count)
 {
-        Widget menu = XtCreatePopupShell(name, simpleMenuWidgetClass, parent, NULL, 0);
+        Screen *screen = XtScreen(parent);
+        Arg args[3];
+        Widget menu;
         Cardinal index;
         Cardinal implemented = 0;
+
+        XtSetArg(args[0], XtNvisual, DefaultVisualOfScreen(screen));
+        XtSetArg(args[1], XtNdepth, DefaultDepthOfScreen(screen));
+        XtSetArg(args[2], XtNcolormap, DefaultColormapOfScreen(screen));
+        menu = XtCreatePopupShell(name, simpleMenuWidgetClass, parent, args, XtNumber(args));
 
         for (index = 0; index < count; ++index) {
                 if (!specs[index].separator && specs[index].implemented)
@@ -162,7 +214,11 @@ CreateMenu(XtpMenus *menus, Widget parent, const char *name, const MenuSpec *spe
                (unsigned int)count, (unsigned int)implemented);
 
         for (index = 0; index < count; ++index) {
-                Widget item = XtCreateManagedWidget(
+                Widget item;
+
+                if (strcmp(name, "mainMenu") == 0 && strcmp(specs[index].name, "line2") == 0)
+                        CreateOpacitySlider(menus, menu);
+                item = XtCreateManagedWidget(
                     specs[index].name,
                     specs[index].separator ? smeLineObjectClass : smeBSBObjectClass, menu, NULL, 0);
 
@@ -201,6 +257,7 @@ XtpMenusCreate(XtpMenus *menus, Widget parent, const char *menu_locale, XtpMenuD
         menus->closure = closure;
         menus->scrollbar_item = NULL;
         menus->render_font_item = NULL;
+        menus->opacity_slider = NULL;
         menus->checkmark = None;
         menus->binding_count = 0;
         XtpLog(XTP_LOG_INFO, "menu", "initializing menuLocale=%s previous-locale=%s",
@@ -294,6 +351,23 @@ XtpMenusSetChecked(XtpMenus *menus, XtpMenuItem item, Boolean checked)
                         return;
                 }
         }
+}
+
+void
+XtpMenusSetOpacity(XtpMenus *menus, int percent, Boolean available)
+{
+        if (menus->opacity_slider == NULL)
+                return;
+        XtpSmeSliderSetValue(menus->opacity_slider, percent);
+        XtSetSensitive(menus->opacity_slider, available);
+        XtpLog(XTP_LOG_DEBUG, "menu", "opacity slider value=%d sensitive=%s", percent,
+               available ? "true" : "false");
+}
+
+int
+XtpMenusOpacity(const XtpMenus *menus)
+{
+        return menus->opacity_slider != NULL ? XtpSmeSliderGetValue(menus->opacity_slider) : 100;
 }
 
 void

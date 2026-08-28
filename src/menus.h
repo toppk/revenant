@@ -12,6 +12,7 @@ typedef enum
 {
         XTP_MENU_ITEM_NONE,
         XTP_MENU_ITEM_REDRAW,
+        XTP_MENU_ITEM_BACKGROUND_OPACITY,
         XTP_MENU_ITEM_BACKARROW_KEY,
         XTP_MENU_ITEM_NUM_LOCK,
         XTP_MENU_ITEM_ALT_ESC,
@@ -55,6 +56,7 @@ typedef struct XtpMenus
         Widget font_menu;
         Widget scrollbar_item;
         Widget render_font_item;
+        Widget opacity_slider;
         Pixmap checkmark;
         XtpMenuDispatch dispatch;
         XtPointer closure;
@@ -68,6 +70,8 @@ void XtpMenusPopup(XtpMenus *menus, const char *name, XEvent *event);
 void XtpMenusSetScrollbar(XtpMenus *menus, Boolean visible);
 void XtpMenusSetRenderFont(XtpMenus *menus, Boolean enabled, Boolean available);
 void XtpMenusSetChecked(XtpMenus *menus, XtpMenuItem item, Boolean checked);
+void XtpMenusSetOpacity(XtpMenus *menus, int percent, Boolean available);
+int XtpMenusOpacity(const XtpMenus *menus);
 void XtpMenusDestroy(XtpMenus *menus, Display *display);
 
 #endif

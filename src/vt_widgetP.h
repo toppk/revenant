@@ -4,6 +4,7 @@
 #include "vt_widget.h"
 
 #include "terminal.h"
+#include "x11_opacity.h"
 
 #include <X11/IntrinsicP.h>
 #include <X11/CoreP.h>
@@ -37,6 +38,7 @@ typedef struct
         uint8_t green;
         uint8_t blue;
         Pixel pixel;
+        Pixel allocation_pixel;
         XftColor xft;
 } ColorCacheEntry;
 
@@ -108,6 +110,7 @@ typedef struct
         String face_name;
         String face_name_doublesize;
         String char_class;
+        String background_opacity_name;
         String face_size_names[XTP_FONT_SLOTS];
         Dimension internal_border;
         int columns;
@@ -136,6 +139,9 @@ typedef struct
         XFontStruct *fonts[XTP_FONT_SLOTS];
         Boolean owned[XTP_FONT_SLOTS];
         Boolean use_xft;
+        Boolean alpha_visual;
+        uint16_t background_alpha;
+        XtpX11AlphaFormat alpha_format;
         XftFont *xft_fonts[XTP_FONT_SLOTS];
         XftFont *xft_bold_fonts[XTP_FONT_SLOTS];
         double xft_sizes[XTP_FONT_SLOTS];
@@ -245,6 +251,8 @@ void VtRestartCursorBlink(Vt100Rec *vt);
 int VtRenderTerminal(Vt100Rec *vt, Boolean force_full);
 void VtRepaintCached(Vt100Rec *vt, const XRectangle *damage);
 void VtPlaceholder(Vt100Rec *vt);
+Pixel VtOpaquePixel(const Vt100Rec *vt, Pixel pixel);
+uint16_t VtPixelAlpha(const Vt100Rec *vt, Pixel pixel);
 void VtRedisplay(Widget widget, XEvent *event, Region region);
 
 void VtInitializeInput(Vt100Rec *vt);

@@ -14,7 +14,7 @@ RgbPixel(Vt100Rec *vt, uint8_t red, uint8_t green, uint8_t blue)
         for (index = 0; index < vt->vt.color_count; ++index) {
                 ColorCacheEntry *entry = &vt->vt.colors[index];
 
-                if (entry->used && entry->red == red && entry->green == green &&
+                if (entry->used && entry->owned && entry->red == red && entry->green == green &&
                     entry->blue == blue)
                         return entry->pixel;
         }
@@ -23,30 +23,35 @@ RgbPixel(Vt100Rec *vt, uint8_t red, uint8_t green, uint8_t blue)
         color.green = (unsigned short)(green * 257U);
         color.blue = (unsigned short)(blue * 257U);
         color.flags = DoRed | DoGreen | DoBlue;
-        if (!XAllocColor(XtDisplay((Widget)vt), DefaultColormapOfScreen(XtScreen((Widget)vt)),
-                         &color))
+        if (!XAllocColor(XtDisplay((Widget)vt), vt->core.colormap, &color))
                 return vt->vt.foreground;
+        {
+                Pixel allocation_pixel = color.pixel;
 
-        if (vt->vt.color_count < XTP_COLOR_CACHE_SIZE) {
-                ColorCacheEntry *entry = &vt->vt.colors[vt->vt.color_count++];
+                color.pixel = VtOpaquePixel(vt, color.pixel);
 
-                entry->used = True;
-                entry->owned = True;
-                entry->red = red;
-                entry->green = green;
-                entry->blue = blue;
-                entry->pixel = color.pixel;
-                entry->xft.pixel = color.pixel;
-                entry->xft.color.red = color.red;
-                entry->xft.color.green = color.green;
-                entry->xft.color.blue = color.blue;
-                entry->xft.color.alpha = 0xffffU;
+                if (vt->vt.color_count < XTP_COLOR_CACHE_SIZE) {
+                        ColorCacheEntry *entry = &vt->vt.colors[vt->vt.color_count++];
+
+                        entry->used = True;
+                        entry->owned = True;
+                        entry->red = red;
+                        entry->green = green;
+                        entry->blue = blue;
+                        entry->pixel = color.pixel;
+                        entry->allocation_pixel = allocation_pixel;
+                        entry->xft.pixel = color.pixel;
+                        entry->xft.color.red = color.red;
+                        entry->xft.color.green = color.green;
+                        entry->xft.color.blue = color.blue;
+                        entry->xft.color.alpha = UINT16_MAX;
+                }
         }
         return color.pixel;
 }
 
 static Pixel
-RenderColor(Vt100Rec *vt, XtpColor color, Boolean foreground)
+RenderOpaqueColor(Vt100Rec *vt, XtpColor color, Boolean foreground)
 {
         Pixel pixel = foreground ? vt->vt.foreground : vt->core.background_pixel;
 
@@ -58,7 +63,7 @@ RenderColor(Vt100Rec *vt, XtpColor color, Boolean foreground)
                 pixel = RgbPixel(vt, color.red, color.green, color.blue);
                 break;
         }
-        return pixel;
+        return VtOpaquePixel(vt, pixel);
 }
 
 int
@@ -125,20 +130,20 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
         size_t index;
         Boolean drawable = cell->utf8_length < sizeof(visual.text);
 
-        visual.foreground = RenderColor(vt, cell->foreground, True);
-        visual.background = RenderColor(vt, cell->background, False);
+        visual.foreground = RenderOpaqueColor(vt, cell->foreground, True);
+        visual.background = cell->background.kind == XTP_COLOR_DEFAULT
+                                ? vt->core.background_pixel
+                                : RenderOpaqueColor(vt, cell->background, False);
         visual.width = cell->width;
         if (cell->inverse) {
-                Pixel temporary = visual.foreground;
-
-                visual.foreground = visual.background;
-                visual.background = temporary;
+                visual.foreground = RenderOpaqueColor(vt, cell->background, False);
+                visual.background = RenderOpaqueColor(vt, cell->foreground, True);
         }
         if (cell->selected) {
                 Pixel temporary = visual.foreground;
 
-                visual.foreground = visual.background;
-                visual.background = temporary;
+                visual.foreground = VtOpaquePixel(vt, visual.background);
+                visual.background = VtOpaquePixel(vt, temporary);
         }
         if (drawable) {
                 for (index = 0; index < cell->utf8_length; ++index) {
@@ -177,9 +182,14 @@ EnsureXftDraw(Vt100Rec *vt)
                 return True;
         if (!XtIsRealized(widget))
                 return False;
-        vt->vt.xft_draw = XftDrawCreate(XtDisplay(widget), XtWindow(widget),
-                                        DefaultVisualOfScreen(XtScreen(widget)),
-                                        DefaultColormapOfScreen(XtScreen(widget)));
+        {
+                XWindowAttributes attributes;
+
+                if (!XGetWindowAttributes(XtDisplay(widget), XtWindow(widget), &attributes))
+                        return False;
+                vt->vt.xft_draw = XftDrawCreate(XtDisplay(widget), XtWindow(widget),
+                                                attributes.visual, attributes.colormap);
+        }
         if (vt->vt.xft_draw == NULL) {
                 XtpLog(XTP_LOG_ERROR, "font", "cannot create Xft draw context");
                 return False;
@@ -201,12 +211,12 @@ CachedXftColor(Vt100Rec *vt, Pixel pixel)
                         return entry->xft;
         }
         xcolor.pixel = pixel;
-        XQueryColor(XtDisplay((Widget)vt), DefaultColormapOfScreen(XtScreen((Widget)vt)), &xcolor);
+        XQueryColor(XtDisplay((Widget)vt), vt->core.colormap, &xcolor);
         color.pixel = pixel;
         color.color.red = xcolor.red;
         color.color.green = xcolor.green;
         color.color.blue = xcolor.blue;
-        color.color.alpha = 0xffffU;
+        color.color.alpha = VtPixelAlpha(vt, pixel);
         if (vt->vt.color_count < XTP_COLOR_CACHE_SIZE) {
                 ColorCacheEntry *entry = &vt->vt.colors[vt->vt.color_count++];
 
@@ -323,8 +333,9 @@ PaintVisualRun(Vt100Rec *vt, const VisualCell *style, const XRectangle *area, in
 
                 if (font == NULL)
                         font = vt->vt.xft_fonts[vt->vt.current_font];
-                XftDrawRect(vt->vt.xft_draw, &background, area->x, area->y, area->width,
-                            area->height);
+                XRenderFillRectangle(XtDisplay(widget), PictOpSrc, XftDrawPicture(vt->vt.xft_draw),
+                                     &background.color, area->x, area->y, area->width,
+                                     area->height);
                 if (xft_length != 0)
                         XftDrawStringUtf8(vt->vt.xft_draw, &foreground, font, x, baseline,
                                           (const FcChar8 *)xft_text, (int)xft_length);
@@ -472,7 +483,7 @@ SetCursorCell(Vt100Rec *vt, const VisualCell *cell)
                 memcpy(vt->vt.cursor_text, cell->text, cell->text_length);
         vt->vt.cursor_fill =
             vt->vt.cursor_color != cell->background ? vt->vt.cursor_color : cell->foreground;
-        vt->vt.cursor_text_color = cell->background;
+        vt->vt.cursor_text_color = VtOpaquePixel(vt, cell->background);
         vt->vt.cursor_bold = cell->bold;
 }
 

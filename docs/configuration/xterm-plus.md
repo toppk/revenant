@@ -20,6 +20,7 @@ XTerm*renderFont:      true
 XTerm*faceName:        Hack
 XTerm*faceSize:        11
 XTerm*background:      #1c1c1c
+XTerm*backgroundOpacity: 0.90
 XTerm*foreground:      #d0d0d0
 XTerm*cursorColor:     #ffaf00
 XTerm*saveLines:       10000
@@ -114,6 +115,39 @@ resource system but not yet applied by the renderer; they are classified
 
 Reverse video is available as a runtime toggle in the VT Options menu; the
 `reverseVideo` resource and `-rv` do not yet apply at startup.
+
+### Compositor-backed background opacity
+
+Set `backgroundOpacity` to a value from `0.0` (fully transparent) through
+`1.0` (opaque, the default):
+
+```xrdb
+XTerm*backgroundOpacity: 0.85
+```
+
+xterm+ uses a 32-bit ARGB window only when an X compositor owns the screen's
+standard compositor selection and the X server offers a suitable visual. If
+either condition is missing, it starts normally with the opaque default
+visual and logs the fallback. The visual is chosen when xterm+ starts, so
+changing the resource requires a new window.
+
+Alpha applies to the default terminal background and scrollbar trough.
+Foreground text, explicit SGR cell backgrounds, selections, the cursor,
+scrollbar thumb, and Athena popup menus remain opaque for legibility. Both the
+Xft and bitmap-font renderers preserve the same policy across redraws.
+
+This is real compositor-backed transparency. xterm+ does not copy the root
+pixmap or implement urxvt-style `transparent`, `inheritPixmap`, tint, or shade
+pseudo-transparency resources.
+
+The Main Options menu contains one Athena-native **Opacity** slider immediately
+below **SVG Screen Dump** for live changes to the current window. It adjusts
+this same background alpha; it does not set whole-window opacity and does not
+fade text. Because an X11 window's visual cannot be changed after creation, the
+slider is active when the window started on the ARGB path and insensitive after
+an opaque-visual fallback.
+Once on the ARGB path, moving the slider to 100% and back remains available
+for the life of the window.
 
 ## Scrollback, selection, and the scrollbar
 

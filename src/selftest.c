@@ -5,6 +5,7 @@
 #include "menus.h"
 #include "pty_process.h"
 #include "terminal.h"
+#include "x11_opacity.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -100,6 +101,35 @@ SelfTestCharClass(XtpTerminal *terminal)
 failure:
         XtpCharClassFree(table);
         return -1;
+}
+
+static int
+SelfTestBackgroundOpacity(void)
+{
+        static const char *const invalid[] = {
+            "", "-0.1", "1.1", "nan", "inf", ".", "0.5e0", "0.5 trailing",
+        };
+        XtpX11AlphaFormat format = {0xffU, 24};
+        uint16_t alpha;
+        Pixel pixel;
+        size_t index;
+
+        if (XtpBackgroundOpacityParse(NULL, &alpha) != 0 || alpha != UINT16_MAX ||
+            XtpBackgroundOpacityParse("0", &alpha) != 0 || alpha != 0 ||
+            XtpBackgroundOpacityParse(" 0.5 ", &alpha) != 0 || alpha < 32767U || alpha > 32768U ||
+            XtpBackgroundOpacityParse(".5", &alpha) != 0 || alpha < 32767U || alpha > 32768U ||
+            XtpBackgroundOpacityParse("+1.", &alpha) != 0 || alpha != UINT16_MAX ||
+            XtpBackgroundOpacityParse("1.0", &alpha) != 0 || alpha != UINT16_MAX)
+                return -1;
+        for (index = 0; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
+                if (XtpBackgroundOpacityParse(invalid[index], &alpha) == 0)
+                        return -1;
+        }
+        pixel = XtpX11PixelWithAlpha(0x00123456UL, &format, 32768U);
+        if ((pixel & 0x00ffffffUL) != 0x00123456UL || (pixel >> 24) != 128U ||
+            XtpX11PixelAlpha(pixel, &format) < 32895U || XtpX11PixelAlpha(pixel, &format) > 32897U)
+                return -1;
+        return 0;
 }
 
 static int
@@ -1097,6 +1127,11 @@ XtpSelfTest(void)
                 return EXIT_FAILURE;
         if (SelfTestCharClass(terminal) != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "charClass check failed");
+                XtpTerminalFree(terminal);
+                return EXIT_FAILURE;
+        }
+        if (SelfTestBackgroundOpacity() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "background-opacity check failed");
                 XtpTerminalFree(terminal);
                 return EXIT_FAILURE;
         }

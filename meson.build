@@ -47,6 +47,7 @@ xaw_dep = dependency('xaw7')
 xmu_dep = dependency('xmu')
 fontconfig_dep = dependency('fontconfig')
 xft_dep = dependency('xft')
+xrender_dep = dependency('xrender')
 util_dep = cc.find_library('util')
 m_dep = cc.find_library('m')
 
@@ -59,11 +60,13 @@ sources = files(
     'src/menus.c',
     'src/pty.c',
     'src/selftest.c',
+    'src/sme_slider.c',
     'src/terminal.c',
     'src/vt_draw.c',
     'src/vt_input.c',
     'src/vt_interaction.c',
     'src/vt_widget.c',
+    'src/x11_opacity.c',
 )
 
 xterm_resource_catalog = custom_target(
@@ -153,6 +156,7 @@ xterm_plus = executable(
         xmu_dep,
         fontconfig_dep,
         xft_dep,
+        xrender_dep,
         util_dep,
         m_dep,
     ],
@@ -209,6 +213,27 @@ resize_test_tool = executable(
     install: false,
 )
 
+compositor_owner_test_tool = executable(
+    'xtp-own-compositor',
+    'tests/xtp-own-compositor.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
+window_alpha_test_tool = executable(
+    'xtp-window-alpha',
+    'tests/xtp-window-alpha.c',
+    dependencies: [x11_dep, xrender_dep],
+    install: false,
+)
+
+opacity_slider_test_tool = executable(
+    'xtp-drag-opacity-slider',
+    'tests/xtp-drag-opacity-slider.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
 test(
     'self-test',
     xterm_plus,
@@ -224,6 +249,20 @@ test(
 xvfb = find_program('Xvfb', required: false)
 if build_with_ghostty and xvfb.found()
     test(
+        'xvfb-opacity',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-opacity.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            compositor_owner_test_tool.full_path(),
+            window_alpha_test_tool.full_path(),
+            opacity_slider_test_tool.full_path(),
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
         'xvfb-selection',
         find_program('sh'),
         args: [
@@ -235,6 +274,7 @@ if build_with_ghostty and xvfb.found()
             shift_click_test_tool.full_path(),
         ],
         timeout: 30,
+        is_parallel: false,
     )
     test(
         'xvfb-keyboard',
@@ -246,6 +286,7 @@ if build_with_ghostty and xvfb.found()
             key_test_tool.full_path(),
         ],
         timeout: 30,
+        is_parallel: false,
     )
     test(
         'xvfb-kitty-keyboard',
@@ -257,6 +298,7 @@ if build_with_ghostty and xvfb.found()
             key_test_tool.full_path(),
         ],
         timeout: 30,
+        is_parallel: false,
     )
 endif
 
@@ -274,6 +316,7 @@ summary(
         'selection reader tool': selection_reader_tool.full_path(),
         'Shift-click test tool': shift_click_test_tool.full_path(),
         'Xvfb selection test': build_with_ghostty and xvfb.found(),
+        'Xvfb opacity test': build_with_ghostty and xvfb.found(),
         'resize test tool': resize_test_tool.full_path(),
         'wheel test tool': wheel_test_tool.full_path(),
     },

@@ -12,7 +12,8 @@ Build-Depends: debhelper-compat (= 13),
                libxaw7-dev,
                libxmu-dev,
                libfontconfig-dev,
-               libxft-dev
+               libxft-dev,
+               libxrender-dev
 Standards-Version: 4.6.2
 Homepage: https://github.com/toppk/xterm-plus
 Rules-Requires-Root: no

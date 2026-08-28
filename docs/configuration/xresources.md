@@ -242,6 +242,7 @@ xterm  (XTerm)              the application shell; title, iconName, geometry liv
 └── vt100  (VT100)          the terminal: fonts, colours, saveLines, scrollBar, translations
     ├── scrollbar  (Scrollbar)   the Athena scrollbar: width, thickness, colours
     ├── mainMenu   (SimpleMenu)  Ctrl+button 1 popup
+    │   └── backgroundOpacity (SmeSlider) live background-alpha control
     ├── vtMenu     (SimpleMenu)  Ctrl+button 2 popup
     └── fontMenu   (SimpleMenu)  Ctrl+button 3 popup
         └── fontdefault, font1 … (SmeBSB)   the menu entries

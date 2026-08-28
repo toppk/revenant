@@ -3,6 +3,7 @@
 #include "command_options.h"
 #include "diagnostics.h"
 #include "resource_catalog.h"
+#include "sme_slider.h"
 #include "vt_widget.h"
 
 #include <fontconfig/fontconfig.h>
@@ -72,6 +73,7 @@ static const ResourceProbe resource_probes[] = {
     {"xterm.menuLocale", "XTerm.MenuLocale"},
     {"xterm.debug", "XTerm.Debug"},
     {"xterm.vt100.background", "XTerm.VT100.Background"},
+    {"xterm.vt100.backgroundOpacity", "XTerm.VT100.BackgroundOpacity"},
     {"xterm.vt100.foreground", "XTerm.VT100.Foreground"},
     {"xterm.vt100.font", "XTerm.VT100.Font"},
     {"xterm.vt100.font1", "XTerm.VT100.Font1"},
@@ -1091,6 +1093,9 @@ ReportToolkitCatalog(XrmDatabase merged, XrmDatabase server, XrmDatabase command
             {"Athena SmeLine separator (including inherited object classes)",
              "XTerm*SimpleMenu*SmeLine*", "xterm.mainMenu.line1", "XTerm.SimpleMenu.SmeLine",
              smeLineObjectClass, "supported by Xaw"},
+            {"xterm+ Athena opacity slider (including inherited object classes)",
+             "XTerm*mainMenu*SmeSlider*", "xterm.mainMenu.backgroundOpacity",
+             "XTerm.SimpleMenu.SmeSlider", xtpSmeSliderObjectClass, "supported by Xt/xterm+"},
             {"Athena Scrollbar", "XTerm*VT100*scrollbar*", "xterm.vt100.scrollbar",
              "XTerm.VT100.Scrollbar", scrollbarWidgetClass, "supported by Xaw/xterm+"},
             {"Athena Form (conditional upstream toolbar component)", "XTerm*form*", "xterm.form",
@@ -1171,6 +1176,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database)
             {"xterm.vt100.rows", "XTerm.VT100.Rows", "24"},
             {"xterm.vt100.foreground", "XTerm.VT100.Foreground", "black"},
             {"xterm.vt100.background", "XTerm.VT100.Background", "white"},
+            {"xterm.vt100.backgroundOpacity", "XTerm.VT100.BackgroundOpacity", "1.0"},
             {"xterm.vt100.cursorColor", "XTerm.VT100.CursorColor", "foreground"},
             {"xterm.vt100.alwaysHighlight", "XTerm.VT100.AlwaysHighlight", "false"},
             {"xterm.vt100.cursorBlink", "XTerm.VT100.CursorBlink", "false"},
@@ -1179,10 +1185,10 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database)
             {"xterm.vt100.internalBorder", "XTerm.VT100.BorderWidth", "2"},
         };
         static const char *const appearance_names[] = {
-            "XTerm*geometry",        "XTerm*columns",        "XTerm*rows",
-            "XTerm*foreground",      "XTerm*background",     "XTerm*cursorColor",
-            "XTerm*alwaysHighlight", "XTerm*cursorBlink",    "XTerm*cursorOnTime",
-            "XTerm*cursorOffTime",   "XTerm*internalBorder",
+            "XTerm*geometry",     "XTerm*columns",         "XTerm*rows",
+            "XTerm*foreground",   "XTerm*background",      "XTerm*backgroundOpacity",
+            "XTerm*cursorColor",  "XTerm*alwaysHighlight", "XTerm*cursorBlink",
+            "XTerm*cursorOnTime", "XTerm*cursorOffTime",   "XTerm*internalBorder",
         };
         static const char *const appearance_help[] = {
             "Initial columns/rows and optional window position.",
@@ -1190,6 +1196,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database)
             "Default terminal rows when geometry does not override it.",
             "Default text color.",
             "Terminal background color.",
+            "Default-background opacity from 0.0 (transparent) to 1.0 (opaque).",
             "Focused block and unfocused outline cursor color.",
             "Keep a filled cursor while unfocused.",
             "Default/application cursor blink policy: false, true, always, or never.",
@@ -1199,7 +1206,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database)
         };
         static const char *const appearance_support[] = {
             "supported", "supported", "supported", "supported", "supported", "supported",
-            "supported", "supported", "supported", "supported", "supported",
+            "supported", "supported", "supported", "supported", "supported", "supported",
         };
         static const ResourceSpec behavior[] = {
             {"xterm.vt100.saveLines", "XTerm.VT100.SaveLines", "1024"},

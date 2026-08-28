@@ -23,7 +23,7 @@ press a mouse button over the terminal:
 
 | Gesture | Menu | What it holds |
 | --- | --- | --- |
-| Ctrl + button 1 | **Main Options** | Window and process controls: modes such as backarrow key, NumLock keypad and Alt-escape; signals; quit |
+| Ctrl + button 1 | **Main Options** | Window and process controls, key modes, the live background-opacity slider, signals, and quit |
 | Ctrl + button 2 | **VT Options** | Terminal behaviour: scrollbar, reverse video, autowrap, application cursor/keypad, scroll-on-key/output |
 | Ctrl + button 3 | **VT Fonts** | Font slots Default through Huge, the TrueType (Xft) toggle |
 
@@ -32,6 +32,11 @@ if a program switches a mode with an escape sequence the menu reflects it.
 Entries that are not implemented yet are shown greyed out; the complete list
 with reasons is in the [popup-menu feasibility](../compatibility/menu-feasibility.md)
 study.
+
+The Main Options opacity control sits immediately below **SVG Screen Dump**. It
+is a single continuous Athena slider, not a set of presets. It is available for
+windows started with compositor-backed background opacity and changes only the
+terminal's default background alpha.
 
 ## Keyboard controls
 

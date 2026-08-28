@@ -2,6 +2,7 @@
 
 #include "diagnostics.h"
 
+#include <X11/Shell.h>
 #include <X11/StringDefs.h>
 #include <X11/Xatom.h>
 #include <X11/Xaw/Scrollbar.h>
@@ -141,6 +142,8 @@ static XtResource resources[] = {
     {"saveLines", "SaveLines", XtRInt, sizeof(int), OFFSET(save_lines), XtRImmediate,
      (XtPointer)1024},
     {"charClass", "CharClass", XtRString, sizeof(String), OFFSET(char_class), XtRImmediate, NULL},
+    {"backgroundOpacity", "BackgroundOpacity", XtRString, sizeof(String),
+     OFFSET(background_opacity_name), XtRString, (XtPointer) "1.0"},
     {"multiClickTime", "MultiClickTime", XtRInt, sizeof(int), OFFSET(multi_click_time),
      XtRImmediate, (XtPointer)250},
     {"cursorBlink", "CursorBlink", XtRString, sizeof(String), OFFSET(cursor_blink_name), XtRString,
@@ -604,13 +607,16 @@ ScrollbarJump(Widget scrollbar, XtPointer closure, XtPointer call_data)
 static void
 EnsureScrollbar(Vt100Rec *vt)
 {
-        Arg args[3];
+        Arg args[6];
 
         if (vt->vt.scrollbar != NULL)
                 return;
         XtSetArg(args[0], XtNorientation, XtorientVertical);
         XtSetArg(args[1], XtNborderWidth, vt->vt.scroll_bar_border);
         XtSetArg(args[2], XtNheight, vt->core.height);
+        XtSetArg(args[3], XtNforeground, VtOpaquePixel(vt, vt->vt.foreground));
+        XtSetArg(args[4], XtNbackground, vt->core.background_pixel);
+        XtSetArg(args[5], XtNborderColor, VtOpaquePixel(vt, vt->core.border_pixel));
         vt->vt.scrollbar =
             XtCreateWidget("scrollbar", scrollbarWidgetClass, (Widget)vt, args, XtNumber(args));
         XtAddCallback(vt->vt.scrollbar, XtNscrollProc, ScrollbarScroll, vt);
@@ -635,6 +641,8 @@ CreateGc(Widget widget)
         Vt100Rec *vt = VtAsRecord(widget);
         XFontStruct *font = vt->vt.fonts[vt->vt.current_font];
         XGCValues values;
+        Drawable drawable;
+        Pixmap pixmap = None;
         XtGCMask mask = GCForeground | GCBackground | GCFont | GCGraphicsExposures;
 
         if (font == NULL)
@@ -643,8 +651,16 @@ CreateGc(Widget widget)
         values.background = vt->core.background_pixel;
         values.font = font->fid;
         values.graphics_exposures = False;
-        vt->vt.gc =
-            XCreateGC(XtDisplay(widget), RootWindowOfScreen(XtScreen(widget)), mask, &values);
+        if (XtIsRealized(widget)) {
+                drawable = XtWindow(widget);
+        } else {
+                pixmap = XCreatePixmap(XtDisplay(widget), RootWindowOfScreen(XtScreen(widget)), 1,
+                                       1, vt->core.depth);
+                drawable = pixmap;
+        }
+        vt->vt.gc = XCreateGC(XtDisplay(widget), drawable, mask, &values);
+        if (pixmap != None)
+                XFreePixmap(XtDisplay(widget), pixmap);
 }
 
 static XFontStruct *
@@ -782,10 +798,8 @@ LogInitialFont(Vt100Rec *vt)
                 name = XGetAtomName(XtDisplay((Widget)vt), (Atom)atom);
         foreground.pixel = vt->vt.foreground;
         background.pixel = vt->core.background_pixel;
-        XQueryColor(XtDisplay((Widget)vt), DefaultColormapOfScreen(XtScreen((Widget)vt)),
-                    &foreground);
-        XQueryColor(XtDisplay((Widget)vt), DefaultColormapOfScreen(XtScreen((Widget)vt)),
-                    &background);
+        XQueryColor(XtDisplay((Widget)vt), vt->core.colormap, &foreground);
+        XQueryColor(XtDisplay((Widget)vt), vt->core.colormap, &background);
         XtpLog(XTP_LOG_INFO, "config",
                "VT100 resolved renderer=%s font=%s faceName=%s faceSize=%.2f cell=%ux%u "
                "foreground=#%02x%02x%02x background=#%02x%02x%02x cursorColor=%lu",
@@ -794,6 +808,10 @@ LogInitialFont(Vt100Rec *vt)
                VtSlotWidth(vt, 0), VtSlotHeight(vt, 0), foreground.red >> 8, foreground.green >> 8,
                foreground.blue >> 8, background.red >> 8, background.green >> 8,
                background.blue >> 8, vt->vt.cursor_color);
+        XtpLog(XTP_LOG_INFO, "config",
+               "VT100 resolved backgroundOpacity=%s effective-alpha=%u visual-alpha=%s depth=%d",
+               vt->vt.background_opacity_name != NULL ? vt->vt.background_opacity_name : "(null)",
+               vt->vt.background_alpha, vt->vt.alpha_visual ? "true" : "false", vt->core.depth);
         XtpLog(XTP_LOG_INFO, "config",
                "VT100 resolved grid=%dx%d internalBorder=%u saveLines=%d scrollBar=%s "
                "rightScrollBar=%s alwaysHighlight=%s selectToClipboard=%s",
@@ -807,6 +825,49 @@ LogInitialFont(Vt100Rec *vt)
         }
         if (name != NULL)
                 XFree(name);
+}
+
+Pixel
+VtOpaquePixel(const Vt100Rec *vt, Pixel pixel)
+{
+        return XtpX11PixelWithAlpha(pixel, vt->vt.alpha_visual ? &vt->vt.alpha_format : NULL,
+                                    UINT16_MAX);
+}
+
+uint16_t
+VtPixelAlpha(const Vt100Rec *vt, Pixel pixel)
+{
+        return XtpX11PixelAlpha(pixel, vt->vt.alpha_visual ? &vt->vt.alpha_format : NULL);
+}
+
+static void
+ResolveBackgroundOpacity(Vt100Rec *vt)
+{
+        Visual *visual = NULL;
+        uint16_t alpha = UINT16_MAX;
+
+        XtVaGetValues(XtParent((Widget)vt), XtNvisual, &visual, NULL);
+        vt->vt.alpha_visual =
+            XtpX11VisualAlphaFormat(XtDisplay((Widget)vt), visual, &vt->vt.alpha_format);
+        if (XtpBackgroundOpacityParse(vt->vt.background_opacity_name, &alpha) != 0) {
+                XtpLog(XTP_LOG_WARNING, "render",
+                       "invalid backgroundOpacity=%s; using opaque background",
+                       vt->vt.background_opacity_name != NULL ? vt->vt.background_opacity_name
+                                                              : "(null)");
+                alpha = UINT16_MAX;
+        }
+        vt->vt.background_alpha = vt->vt.alpha_visual ? alpha : UINT16_MAX;
+}
+
+static void
+NormalizeConfiguredColors(Vt100Rec *vt)
+{
+        vt->vt.foreground = VtOpaquePixel(vt, vt->vt.foreground);
+        vt->vt.cursor_color = VtOpaquePixel(vt, vt->vt.cursor_color);
+        vt->core.border_pixel = VtOpaquePixel(vt, vt->core.border_pixel);
+        vt->core.background_pixel = XtpX11PixelWithAlpha(
+            vt->core.background_pixel, vt->vt.alpha_visual ? &vt->vt.alpha_format : NULL,
+            vt->vt.background_alpha);
 }
 
 static void
@@ -830,6 +891,8 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
                 vt->vt.cursor_on_time = 0;
         if (vt->vt.cursor_off_time < 0)
                 vt->vt.cursor_off_time = 0;
+        ResolveBackgroundOpacity(vt);
+        NormalizeConfiguredColors(vt);
         vt->vt.cursor_blink_policy = ParseCursorBlinkPolicy(vt->vt.cursor_blink_name);
 
         XtpLog(XTP_LOG_INFO, "config",
@@ -889,9 +952,8 @@ Destroy(Widget widget)
         free(vt->vt.pressed_hyperlink);
         for (color = 0; color < vt->vt.color_count; ++color) {
                 if (vt->vt.colors[color].used && vt->vt.colors[color].owned) {
-                        Pixel pixel = vt->vt.colors[color].pixel;
-                        XFreeColors(XtDisplay(widget), DefaultColormapOfScreen(XtScreen(widget)),
-                                    &pixel, 1, 0);
+                        Pixel pixel = vt->vt.colors[color].allocation_pixel;
+                        XFreeColors(XtDisplay(widget), vt->core.colormap, &pixel, 1, 0);
                 }
         }
         for (slot = 1; slot < XTP_FONT_SLOTS; ++slot) {
@@ -971,6 +1033,13 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                 new_vt->vt.cursor_on_time = 0;
         if (new_vt->vt.cursor_off_time < 0)
                 new_vt->vt.cursor_off_time = 0;
+        if ((old_vt->vt.background_opacity_name == NULL) !=
+                (new_vt->vt.background_opacity_name == NULL) ||
+            (old_vt->vt.background_opacity_name != NULL &&
+             new_vt->vt.background_opacity_name != NULL &&
+             strcmp(old_vt->vt.background_opacity_name, new_vt->vt.background_opacity_name) != 0))
+                ResolveBackgroundOpacity(new_vt);
+        NormalizeConfiguredColors(new_vt);
         if (old_vt->vt.save_lines != new_vt->vt.save_lines && new_vt->vt.terminal != NULL &&
             XtpTerminalSetScrollbackLines(new_vt->vt.terminal, (size_t)new_vt->vt.save_lines) != 0)
                 XtpLog(XTP_LOG_ERROR, "scrollback", "cannot set history limit=%d",
@@ -1011,6 +1080,9 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                        new_vt->core.background_pixel);
                 ReleaseGc(new_widget);
                 CreateGc(new_widget);
+                if (XtIsRealized(new_widget))
+                        XSetWindowBackground(XtDisplay(new_widget), XtWindow(new_widget),
+                                             new_vt->core.background_pixel);
                 changed = True;
         }
         if (old_vt->vt.cursor_color != new_vt->vt.cursor_color ||
@@ -1337,6 +1409,48 @@ Boolean
 XtpVtXftAvailable(Widget widget)
 {
         return VtAsRecord(widget)->vt.xft_fonts[0] != NULL;
+}
+
+Boolean
+XtpVtBackgroundOpacityAvailable(Widget widget)
+{
+        return VtAsRecord(widget)->vt.alpha_visual;
+}
+
+unsigned int
+XtpVtBackgroundOpacityPercent(Widget widget)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        return ((unsigned int)vt->vt.background_alpha * 100U + UINT16_MAX / 2U) / UINT16_MAX;
+}
+
+Boolean
+XtpVtSetBackgroundOpacityPercent(Widget widget, unsigned int percent)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+        Pixel background;
+
+        if (!vt->vt.alpha_visual)
+                return False;
+        if (percent > 100U)
+                percent = 100U;
+        vt->vt.background_alpha = (uint16_t)((percent * (unsigned int)UINT16_MAX + 50U) / 100U);
+        background = XtpX11PixelWithAlpha(vt->core.background_pixel, &vt->vt.alpha_format,
+                                          vt->vt.background_alpha);
+        if (background == vt->core.background_pixel)
+                return True;
+        vt->core.background_pixel = background;
+        if (XtIsRealized(widget))
+                XSetWindowBackground(XtDisplay(widget), XtWindow(widget), background);
+        if (vt->vt.scrollbar != NULL)
+                XtVaSetValues(vt->vt.scrollbar, XtNbackground, background, NULL);
+        vt->vt.frame_valid = False;
+        vt->vt.last_cursor_visible = False;
+        XtpLog(XTP_LOG_INFO, "render", "background opacity changed percent=%u alpha=%u", percent,
+               vt->vt.background_alpha);
+        XtpVtRedraw(widget);
+        return True;
 }
 
 Boolean

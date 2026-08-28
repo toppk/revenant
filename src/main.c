@@ -7,6 +7,7 @@
 #include "terminal.h"
 #include "version.h"
 #include "vt_widget.h"
+#include "x11_opacity.h"
 
 #include <X11/Intrinsic.h>
 #include <X11/Shell.h>
@@ -34,6 +35,12 @@ typedef struct
         XtInputId pty_input;
         XtInputId pty_output;
         Atom wm_delete_window;
+        Visual *visual;
+        Colormap colormap;
+        int depth;
+        uint16_t background_alpha;
+        Boolean owns_colormap;
+        Boolean argb_visual;
         Boolean running;
 } App;
 
@@ -95,6 +102,7 @@ static const char *const fallback_resources[] = {
     "*SimpleMenu*menuLabel.vertSpace: 100",
     "*SimpleMenu*HorizontalMargins: 16",
     "*SimpleMenu*Sme.height: 16",
+    "*mainMenu*backgroundOpacity.height: 22",
     "*SimpleMenu*Cursor: left_ptr",
     "*mainMenu.Label:  Main Options",
     "*vtMenu.Label:  VT Options",
@@ -104,6 +112,82 @@ static const char *const fallback_resources[] = {
 };
 
 static void UpdateGeometry(App *app);
+
+static char *
+BackgroundOpacityResource(Display *display)
+{
+        XrmValue value = {0};
+        char *type = NULL;
+        char *result;
+
+        if (!XrmGetResource(XtDatabase(display), "xterm.vt100.backgroundOpacity",
+                            "XTerm.VT100.BackgroundOpacity", &type, &value) ||
+            value.addr == NULL)
+                return XtNewString("1.0");
+        result = XtMalloc(value.size + 1U);
+        if (result == NULL)
+                return NULL;
+        memcpy(result, value.addr, value.size);
+        result[value.size] = '\0';
+        return result;
+}
+
+static void
+ConfigureApplicationVisual(App *app)
+{
+        XVisualInfo visual_info = {0};
+        XtpX11AlphaFormat alpha_format = {0};
+        char *opacity = BackgroundOpacityResource(app->display);
+        int screen = DefaultScreen(app->display);
+
+        app->visual = DefaultVisual(app->display, screen);
+        app->colormap = DefaultColormap(app->display, screen);
+        app->depth = DefaultDepth(app->display, screen);
+        app->background_alpha = UINT16_MAX;
+        if (opacity == NULL || XtpBackgroundOpacityParse(opacity, &app->background_alpha) != 0) {
+                XtpLog(XTP_LOG_WARNING, "render",
+                       "invalid backgroundOpacity=%s; using opaque background",
+                       opacity != NULL ? opacity : "(allocation failure)");
+                app->background_alpha = UINT16_MAX;
+                if (opacity != NULL)
+                        XtFree(opacity);
+                return;
+        }
+        if (app->background_alpha == UINT16_MAX) {
+                XtpLog(XTP_LOG_INFO, "render", "backgroundOpacity=%s visual=default depth=%d",
+                       opacity, app->depth);
+                XtFree(opacity);
+                return;
+        }
+        if (!XtpX11CompositorPresent(app->display, screen)) {
+                XtpLog(XTP_LOG_WARNING, "render",
+                       "backgroundOpacity=%s requested but compositor is unavailable; using "
+                       "opaque default visual",
+                       opacity);
+                app->background_alpha = UINT16_MAX;
+                XtFree(opacity);
+                return;
+        }
+        if (!XtpX11FindArgbVisual(app->display, screen, &visual_info, &alpha_format)) {
+                XtpLog(XTP_LOG_WARNING, "render",
+                       "backgroundOpacity=%s requested but no 32-bit ARGB visual is available; "
+                       "using opaque default visual",
+                       opacity);
+                app->background_alpha = UINT16_MAX;
+                XtFree(opacity);
+                return;
+        }
+        app->visual = visual_info.visual;
+        app->depth = visual_info.depth;
+        app->colormap =
+            XCreateColormap(app->display, RootWindow(app->display, screen), app->visual, AllocNone);
+        app->owns_colormap = True;
+        app->argb_visual = True;
+        XtpLog(XTP_LOG_INFO, "render",
+               "backgroundOpacity=%s visual=0x%lx depth=%d alpha-mask=0x%lx compositor=present",
+               opacity, visual_info.visualid, app->depth, alpha_format.mask);
+        XtFree(opacity);
+}
 
 static void
 SetEarlyDebug(int argc, char **argv)
@@ -332,6 +416,8 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
                            XtpVtScrollTtyOutput(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SELECT_TO_CLIPBOARD,
                            XtpVtSelectToClipboard(app->vt));
+        XtpMenusSetOpacity(&app->menus, (int)XtpVtBackgroundOpacityPercent(app->vt),
+                           XtpVtBackgroundOpacityAvailable(app->vt));
         XtpLog(XTP_LOG_INFO, "menu", "popup requested name=%s", popup->name);
         XtpMenusPopup(&app->menus, popup->name, popup->event);
 }
@@ -413,6 +499,14 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
                 return;
         case XTP_MENU_ITEM_REDRAW:
                 XtpVtRedraw(app->vt);
+                return;
+        case XTP_MENU_ITEM_BACKGROUND_OPACITY:
+                if (!XtpVtSetBackgroundOpacityPercent(app->vt,
+                                                      (unsigned int)XtpMenusOpacity(&app->menus))) {
+                        XBell(app->display, 0);
+                }
+                XtpMenusSetOpacity(&app->menus, (int)XtpVtBackgroundOpacityPercent(app->vt),
+                                   XtpVtBackgroundOpacityAvailable(app->vt));
                 return;
         case XTP_MENU_ITEM_QUIT:
                 app->running = False;
@@ -632,7 +726,7 @@ ResolveChildCommand(int *argc, char **argv, char *default_command[2], char ***co
 static int
 OpenApplication(App *app, int *argc, char **argv, AppResources *resources)
 {
-        Arg args[4];
+        Arg args[7];
         Cardinal num_args = 0;
 
         XtSetLanguageProc(NULL, NULL, NULL);
@@ -653,6 +747,8 @@ OpenApplication(App *app, int *argc, char **argv, AppResources *resources)
         XtpLog(XTP_LOG_INFO, "startup", "display opened name=%s remaining-argc=%d",
                DisplayString(app->display), *argc);
 
+        ConfigureApplicationVisual(app);
+
         XtSetArg(args[num_args], XtNallowShellResize, True);
         ++num_args;
         XtSetArg(args[num_args], XtNtitle, "xterm+");
@@ -660,6 +756,12 @@ OpenApplication(App *app, int *argc, char **argv, AppResources *resources)
         XtSetArg(args[num_args], XtNinput, True);
         ++num_args;
         XtSetArg(args[num_args], XtNmappedWhenManaged, False);
+        ++num_args;
+        XtSetArg(args[num_args], XtNvisual, app->visual);
+        ++num_args;
+        XtSetArg(args[num_args], XtNdepth, app->depth);
+        ++num_args;
+        XtSetArg(args[num_args], XtNcolormap, app->colormap);
         ++num_args;
         app->shell = XtAppCreateShell("xterm", "XTerm", applicationShellWidgetClass, app->display,
                                       args, num_args);
@@ -677,7 +779,8 @@ OpenApplication(App *app, int *argc, char **argv, AppResources *resources)
                XtpLogDebugEnabled() ? "true" : "false");
         XtpLogResourceDatabases(app->display);
 
-        app->vt = XtVaCreateManagedWidget("vt100", vt100WidgetClass, app->shell, NULL);
+        app->vt = XtVaCreateManagedWidget("vt100", vt100WidgetClass, app->shell, XtNdepth,
+                                          app->depth, XtNcolormap, app->colormap, NULL);
         if (app->vt == NULL) {
                 XtpLog(XTP_LOG_ERROR, "startup", "cannot create VT100 widget");
                 return -1;
@@ -700,6 +803,8 @@ WireApplication(App *app, const AppResources *resources)
         XtpMenusSetRenderFont(&app->menus, XtpVtUsingXft(app->vt), XtpVtXftAvailable(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SELECT_TO_CLIPBOARD,
                            XtpVtSelectToClipboard(app->vt));
+        XtpMenusSetOpacity(&app->menus, (int)XtpVtBackgroundOpacityPercent(app->vt),
+                           XtpVtBackgroundOpacityAvailable(app->vt));
 }
 
 static int
@@ -731,8 +836,10 @@ RealizeApplication(App *app)
 {
         UpdateGeometry(app);
         XtRealizeWidget(app->shell);
-        XtpLog(XTP_LOG_INFO, "shell", "realized window=0x%lx pixels=%ux%u", XtWindow(app->shell),
-               XtpVtNaturalWidth(app->vt), XtpVtNaturalHeight(app->vt));
+        XtpLog(XTP_LOG_INFO, "shell",
+               "realized window=0x%lx pixels=%ux%u depth=%d argb=%s background-alpha=%u",
+               XtWindow(app->shell), XtpVtNaturalWidth(app->vt), XtpVtNaturalHeight(app->vt),
+               app->depth, app->argb_visual ? "true" : "false", app->background_alpha);
         UpdateGeometry(app);
         XtSetKeyboardFocus(app->shell, app->vt);
         app->wm_delete_window = XInternAtom(app->display, "WM_DELETE_WINDOW", False);
@@ -778,6 +885,11 @@ DestroyApplication(App *app)
                 XtDestroyWidget(app->shell);
                 app->shell = NULL;
                 app->vt = NULL;
+        }
+        if (app->owns_colormap && app->display != NULL) {
+                XFreeColormap(app->display, app->colormap);
+                app->colormap = None;
+                app->owns_colormap = False;
         }
         XtpMenusDestroy(&app->menus, app->display);
         if (app->display != NULL) {
