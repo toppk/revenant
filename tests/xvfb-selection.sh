@@ -52,6 +52,24 @@ done
 DISPLAY=127.0.0.1:$(sed -n '1p' "$test_dir/display")
 export DISPLAY
 
+wait_for_output()
+{
+    wait_log=$1
+    wait_what=$2
+    attempt=0
+    while ! awk '/terminal: feed bytes=/{fed=1} fed && /render: frame/{found=1} END{exit !found}' "$wait_log" 2>/dev/null
+    do
+        attempt=$((attempt + 1))
+        if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
+        then
+            echo "xterm+ did not render shell output for $wait_what" >&2
+            sed -n '1,220p' "$wait_log" >&2
+            exit 1
+        fi
+        sleep 0.05
+    done
+}
+
 run_case()
 {
     policy=$1
@@ -76,6 +94,7 @@ run_case()
         fi
         sleep 0.05
     done
+    wait_for_output "$log" "selectToClipboard=$policy"
     window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$log" | tail -1)
     cell=$(sed -n 's/.*config: VT100 resolved renderer=.* cell=\([0-9][0-9]*x[0-9][0-9]*\).*/\1/p' "$log" | tail -1)
     cell_width=${cell%x*}
@@ -85,8 +104,20 @@ run_case()
     row_y=$((2 + cell_height / 2))
     "$sender" "$window" "$start_x" "$row_y" "$end_x" "$row_y" >/dev/null
 
-    selected=$("$reader" "$expected_selection")
-    cut_buffer=$("$reader" CUT_BUFFER0)
+    attempt=0
+    while ! grep -q "publish source=SELECT selection=$expected_selection .* owned=true" "$log"
+    do
+        attempt=$((attempt + 1))
+        if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
+        then
+            echo "xterm+ never took ownership of $expected_selection" >&2
+            sed -n '1,220p' "$log" >&2
+            exit 1
+        fi
+        sleep 0.05
+    done
+    selected=$("$reader" "$expected_selection" || echo "<read failed>")
+    cut_buffer=$("$reader" CUT_BUFFER0 || echo "<read failed>")
     if test "$selected" != alpha || test "$cut_buffer" != alpha
     then
         echo "selection mismatch policy=$policy selection=$selected cut=$cut_buffer" >&2
@@ -135,6 +166,7 @@ do
     fi
     sleep 0.05
 done
+wait_for_output "$hyperlink_log" "hyperlink test"
 window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$hyperlink_log" | tail -1)
 cell=$(sed -n 's/.*config: VT100 resolved renderer=.* cell=\([0-9][0-9]*x[0-9][0-9]*\).*/\1/p' "$hyperlink_log" | tail -1)
 cell_width=${cell%x*}
