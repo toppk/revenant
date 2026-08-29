@@ -13,6 +13,7 @@ permissions:
 
 env:
   ZIG_VERSION: 0.16.0
+  FONTTOOLS_VERSION: 4.62.0
   DEBIAN_FRONTEND: noninteractive
 
 jobs:
@@ -49,9 +50,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
-            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev
+            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
+            xvfb xfonts-base rpm2cpio cpio unzip curl
+          python3 -m pip install --user --break-system-packages "fonttools==$FONTTOOLS_VERSION"
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
+      - name: Stage font fixtures for the emoji and font-baseline tests
+        run: tools/stage-font-fixtures
       - run: packaging/build-tarball "${{ needs.prepare.outputs.version }}"
       - uses: actions/upload-artifact@v7
         with:
@@ -72,14 +77,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential debhelper meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
-            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev
+            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
+            xfonts-base
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
       - run: packaging/build-deb "${{ needs.prepare.outputs.version }}"
       - run: |
           sudo apt-get install -y ./dist/*.deb
-          revenant --version
-          xterm+ --version
+          test "$(revenant --version)" = "revenant ${{ needs.prepare.outputs.version }}"
+          test "$(xterm+ --version)" = "revenant ${{ needs.prepare.outputs.version }}"
           test -f /usr/share/applications/revenant.desktop
           test -f /usr/share/icons/hicolor/scalable/apps/revenant.svg
           test -f /usr/share/icons/hicolor/256x256/apps/revenant.png
@@ -109,8 +115,8 @@ jobs:
       - run: packaging/build-rpm "${{ needs.prepare.outputs.version }}"
       - run: |
           dnf install -y ./dist/*.rpm
-          revenant --version
-          xterm+ --version
+          test "$(revenant --version)" = "revenant ${{ needs.prepare.outputs.version }}"
+          test "$(xterm+ --version)" = "revenant ${{ needs.prepare.outputs.version }}"
           test -f /usr/share/applications/revenant.desktop
           test -f /usr/share/icons/hicolor/scalable/apps/revenant.svg
           test -f /usr/share/icons/hicolor/256x256/apps/revenant.png
@@ -128,16 +134,27 @@ jobs:
     permissions:
       contents: write
       actions: write
+      id-token: write
+      attestations: write
     steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
       - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
       - run: ls -l dist
+      - uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: dist/*
+      - name: Render release notes from CHANGELOG.md
+        run: tools/release-notes "${{ needs.prepare.outputs.version }}" dist | tee release-notes.md
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag }}
           name: Revenant ${{ needs.prepare.outputs.version }}
+          body_path: release-notes.md
           files: dist/*
           fail_on_unmatched_files: true
       - name: Delete build artifacts

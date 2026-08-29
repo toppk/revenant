@@ -15,8 +15,13 @@ cc = meson.get_compiler('c')
 fs = import('fs')
 python3 = find_program('python3')
 
+build_version = get_option('release-version')
+if build_version == ''
+    build_version = meson.project_version()
+endif
+
 version_configuration = configuration_data()
-version_configuration.set_quoted('XTP_VERSION', meson.project_version())
+version_configuration.set_quoted('XTP_VERSION', build_version)
 configure_file(
     output: 'version.h',
     configuration: version_configuration,

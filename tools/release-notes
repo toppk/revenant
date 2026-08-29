@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""Render the GitHub release body for one CHANGELOG.md entry.
+
+usage: tools/release-notes VERSION [DIST_DIR]
+
+Prints Markdown with three sections: the entry's summary paragraph(s), its
+Features / Bug fixes / Other change lists, and a table of the artifacts found
+in DIST_DIR (default: dist) with sizes and SHA-256 sums. Exits 1 when the
+changelog has no entry for VERSION or any change bullet lacks a trailing commit
+link, which stops a release from shipping incomplete notes.
+"""
+
+import hashlib
+import os
+import re
+import sys
+
+REPO = os.environ.get("GITHUB_REPOSITORY", "toppk/revenant")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+HEADING = re.compile(r"^## (\S+) — (\S+)\s*$")
+COMMIT_LINK_PATTERN = (
+    r"\[([0-9a-f]{7,40})\]"
+    r"\(https://github\.com/[^/\s]+/[^/\s]+/commit/([0-9a-f]{40})\)"
+)
+COMMIT_LINK = re.compile(COMMIT_LINK_PATTERN)
+TRAILING_COMMIT_LINKS = re.compile(
+    rf"\({COMMIT_LINK_PATTERN}(?:, {COMMIT_LINK_PATTERN})*\)$"
+)
+
+
+def entry(version):
+    lines = (
+        open(os.path.join(ROOT, "CHANGELOG.md"), encoding="utf-8").read().splitlines()
+    )
+    body, inside, date = [], False, None
+    for line in lines:
+        match = HEADING.match(line)
+        if match:
+            if inside:
+                break
+            inside = match.group(1) == version
+            date = match.group(2)
+            continue
+        if inside:
+            body.append(line)
+    if not inside:
+        sys.exit(f"CHANGELOG.md has no entry for {version}")
+    text = "\n".join(body).strip("\n")
+    first_bullet = re.search(r"^(- |### )", text, re.M)
+    summary = unwrap(text[: first_bullet.start()].strip() if first_bullet else text)
+    bullets = unwrap(text[first_bullet.start() :].strip() if first_bullet else "")
+    if not bullets:
+        sys.exit(f"CHANGELOG.md entry for {version} has no change bullets")
+    validate_commit_links(version, bullets)
+    return date, summary, bullets
+
+
+def unwrap(text):
+    """Join soft-wrapped lines; GitHub renders release-body newlines as breaks."""
+    return re.sub(r"(?<=\S)\n[ \t]+(?=\S)|(?<=[^\n\s])\n(?=[^\n\s#-])", " ", text)
+
+
+def validate_commit_links(version, bullets):
+    invalid = []
+    for line in bullets.splitlines():
+        if not line.startswith("- "):
+            continue
+        trailing = TRAILING_COMMIT_LINKS.search(line)
+        links = COMMIT_LINK.findall(trailing.group(0)) if trailing else []
+        if not links or any(short != full[: len(short)] for short, full in links):
+            invalid.append(line)
+    if invalid:
+        details = "\n".join(f"  {line}" for line in invalid)
+        sys.exit(
+            f"CHANGELOG.md entry for {version} has bullets without valid "
+            f"trailing commit links:\n{details}"
+        )
+
+
+def human(size):
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if size < 1024 or unit == "GiB":
+            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+
+
+def describe(name):
+    if name.endswith(".rpm"):
+        return "Fedora package; `sudo dnf install ./" + name + "`"
+    if name.endswith(".deb"):
+        return "Debian/Ubuntu package; `sudo apt install ./" + name + "`"
+    if name.endswith(".tar.gz"):
+        arch = name.rsplit("-", 1)[-1].removesuffix(".tar.gz")
+        return f"Linux {arch} binary archive (dynamically linked): stripped `revenant`, `xterm+` symlink, README, licenses"
+    return ""
+
+
+def artifacts(dist):
+    rows = []
+    if not os.path.isdir(dist):
+        return rows
+    for name in sorted(os.listdir(dist)):
+        path = os.path.join(dist, name)
+        if not os.path.isfile(path):
+            continue
+        digest = hashlib.sha256(open(path, "rb").read()).hexdigest()
+        rows.append((name, os.path.getsize(path), digest))
+    return rows
+
+
+def main(argv):
+    if len(argv) not in (2, 3):
+        sys.exit(__doc__.strip())
+    version = argv[1].removeprefix("v")
+    dist = argv[2] if len(argv) == 3 else os.path.join(ROOT, "dist")
+    date, summary, bullets = entry(version)
+    out = [
+        "## Highlights",
+        "",
+        summary,
+        "",
+        "## Changes",
+        "",
+        f"Released {date}. Full history in [CHANGELOG.md](https://github.com/{REPO}/blob/v{version}/CHANGELOG.md).",
+        "",
+        bullets,
+        "",
+        "## Artifacts",
+        "",
+    ]
+    rows = artifacts(dist)
+    if rows:
+        out += ["| File | Size | Notes |", "|---|---|---|"]
+        out += [f"| `{n}` | {human(s)} | {describe(n)} |" for n, s, _ in rows]
+        out += ["", "SHA-256:", "", "```"]
+        out += [f"{d}  {n}" for n, _, d in rows]
+        out += ["```"]
+    else:
+        out.append("_No artifacts found._")
+    out += [
+        "",
+        "Each file carries a signed [build provenance attestation]"
+        f"(https://github.com/{REPO}/attestations) from the workflow run; verify a download with "
+        f"`gh attestation verify FILE --repo {REPO}`.",
+        "",
+        "All builds link the pinned libghostty-vt from `tools/fetch-libghostty` and were built by the "
+        "[Release workflow](https://github.com/"
+        + REPO
+        + "/actions/workflows/release.yml).",
+    ]
+    print("\n".join(out))
+
+
+if __name__ == "__main__":
+    main(sys.argv)

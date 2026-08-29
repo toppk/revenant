@@ -15,8 +15,9 @@ revenant ($version-1) unstable; urgency=medium
  -- Kenneth Topp <toppk@bllue.org>  $(date -R)
 CHANGELOG
 
-dpkg-buildpackage -b -us -uc
+# Not dpkg-buildpackage: its dpkg-genbuildinfo walks the whole host package
+# database, which costs minutes on CI, and the .buildinfo is discarded anyway.
+REVENANT_RELEASE_VERSION="$version" DEB_RULES_REQUIRES_ROOT=no debian/rules binary
 mkdir -p dist
 mv ../revenant_"$version"-1_*.deb dist/
-rm -f ../revenant_"$version"-1_*.{buildinfo,changes}
 ls dist/*.deb

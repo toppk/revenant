@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly reference=main
+readonly reference=5aeb693b7727b0dc6fcc9193bc1d2453af3bcb9a
 readonly repository=https://github.com/ghostty-org/ghostty.git
-readonly project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+project_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+readonly project_root
 readonly destination="$project_root/upstream/ghostty"
 
 if [[ -e "$destination/.git" ]]; then
@@ -18,7 +19,8 @@ else
 fi
 
 git -C "$destination" fetch origin "$reference"
-readonly revision=$(git -C "$destination" rev-parse FETCH_HEAD)
+revision=$(git -C "$destination" rev-parse FETCH_HEAD)
+readonly revision
 git -C "$destination" checkout --detach "$revision"
 test "$(git -C "$destination" rev-parse HEAD)" = "$revision"
 printf 'libghostty source selected from %s at %s\n' "$reference" "$revision"

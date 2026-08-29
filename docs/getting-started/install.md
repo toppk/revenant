@@ -11,6 +11,52 @@ Revenant launcher and application icons in the standard freedesktop locations.
 The launcher identifies the window as XTerm so desktop environments associate
 it with Revenant's existing X11 application class.
 
+## Install a release
+
+Each [release](https://github.com/toppk/revenant/releases) provides
+`revenant-<version>-linux-<arch>.tar.gz` for x86_64 and aarch64, a Debian
+package, and a Fedora RPM. The release page lists a SHA-256 for every file.
+
+=== "Fedora"
+
+    ```sh
+    sudo dnf install ./revenant-<version>-1.fc*.x86_64.rpm
+    ```
+
+=== "Debian / Ubuntu"
+
+    ```sh
+    sudo apt install ./revenant_<version>-1_amd64.deb
+    ```
+
+=== "Tarball"
+
+    ```sh
+    tar xzf revenant-<version>-linux-x86_64.tar.gz
+    ./revenant-<version>-linux-x86_64/revenant
+    ```
+
+    The archive contains a dynamically linked `revenant`, the `xterm+`
+    symlink, the README, and licenses. It needs the runtime X11, Xaw, Xft,
+    fontconfig, Cairo, and HarfBuzz libraries but no development packages,
+    and it does not install the launcher or icons.
+
+### Verify a download
+
+Every release file carries a build-provenance attestation signed through
+GitHub's Sigstore instance. It proves the file was produced by the Revenant
+release workflow from a specific commit, rather than uploaded by hand. With
+the [GitHub CLI](https://cli.github.com/) installed:
+
+```sh
+gh attestation verify revenant_<version>-1_amd64.deb --repo toppk/revenant
+```
+
+A successful check prints the workflow, commit, and signer identity. Add
+`--format json` to see the full provenance statement, including the exact
+build inputs. The attestations are also listed at
+<https://github.com/toppk/revenant/attestations>.
+
 ## Prerequisites
 
 You need a C toolchain, Meson and Ninja, the X11 development libraries xterm

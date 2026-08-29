@@ -23,6 +23,17 @@ def png_chunk(kind: bytes, data: bytes) -> bytes:
     )
 
 
+def stored_zlib(data: bytes) -> bytes:
+    """Wrap DATA in one stored deflate block; zlib and zlib-ng compress differently."""
+    return (
+        b"\x78\x01"
+        + b"\x01"
+        + struct.pack("<HH", len(data), len(data) ^ 0xFFFF)
+        + data
+        + struct.pack(">I", zlib.adler32(data) & 0xFFFFFFFF)
+    )
+
+
 def make_png() -> bytes:
     """Return a 16x16 RGBA checker that is visually unmistakable."""
     rows = []
@@ -36,7 +47,7 @@ def make_png() -> bytes:
     return (
         b"\x89PNG\r\n\x1a\n"
         + png_chunk(b"IHDR", header)
-        + png_chunk(b"IDAT", zlib.compress(b"".join(rows), 9))
+        + png_chunk(b"IDAT", stored_zlib(b"".join(rows)))
         + png_chunk(b"IEND", b"")
     )
 

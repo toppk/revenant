@@ -18,3 +18,10 @@ option(
     value: false,
     description: 'Keep frame pointers for profiler call stacks',
 )
+
+option(
+    'release-version',
+    type: 'string',
+    value: '',
+    description: 'Override the version compiled into release artifacts',
+)

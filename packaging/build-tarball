@@ -8,9 +8,11 @@ name="revenant-$version-linux-$arch"
 build="$root/build-release"
 stage="$root/dist/stage/$name"
 
-meson setup "$build" --reconfigure -Dlibghostty=enabled -Dbuildtype=release
+meson setup "$build" --reconfigure -Dlibghostty=enabled -Dbuildtype=release \
+    -Drelease-version="$version"
 meson compile -C "$build"
 meson test -C "$build" --print-errorlogs
+test "$("$build/revenant" --version)" = "revenant $version"
 rm -rf "$stage" && mkdir -p "$stage"
 cp "$build/revenant" "$stage/"
 strip "$stage/revenant"

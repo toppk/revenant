@@ -62,7 +62,7 @@ wait_for_terminal()
     log=$1
     description=$2
     attempt=0
-    while ! grep -F -q -- 'emoji-routing-ready' "$log" 2>/dev/null
+    while ! grep -F -q -- 'title changed bytes=19 preview="emoji-routing-ready"' "$log" 2>/dev/null
     do
         attempt=$((attempt + 1))
         if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
