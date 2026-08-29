@@ -1,4 +1,4 @@
-# xterm+ maintainer guide
+# Revenant maintainer guide
 
 This is the durable continuation brief for maintainers. Current feature
 priorities and the Ghostling capability comparison live in the
@@ -8,8 +8,10 @@ file list or a single transient commit as project state here.
 
 ## Mission
 
-xterm+ is a faithful, sustainable X11 replacement for xterm's visible user
-experience with a modern terminal engine underneath. It has two product bars:
+Revenant is a faithful, sustainable X11 replacement for xterm's visible user
+experience with a modern terminal engine underneath. It installs as
+`revenant`, retains `xterm+` as a compatibility symlink, and has two product
+bars:
 
 - preserve the xterm/Xt/Athena skin and compatibility contract;
 - promote every advertised Ghostling capability through the X11 boundary,
@@ -62,7 +64,7 @@ and choose to accept, adapt, defer, or reject it. State the reason when the
 choice is not obvious. Prefer work in this order:
 
 1. correctness, security, data integrity, and lossless PTY behavior;
-2. regressions found during real xterm+ use, especially input, resize,
+2. regressions found during real Revenant use, especially input, resize,
    selection, scrollback, and rendering failures;
 3. the xterm-visible compatibility contract and the Ghostling promotion gate;
 4. testability, clear module ownership, and sustainable architecture;
@@ -85,9 +87,9 @@ ready.
 
 ## Code ownership and reference projects
 
-xterm+ does not compile, link, or embed xterm's terminal implementation. The
+Revenant does not compile, link, or embed xterm's terminal implementation. The
 PTY/event loop, Xt widget, X11 renderer, diagnostics, menu wiring, and
-libghostty adapter are xterm+ code. `libghostty-vt` owns parsing, terminal
+libghostty adapter are Revenant code. `libghostty-vt` owns parsing, terminal
 state, key and mouse encoding, query responses, resize reflow, history,
 selection primitives, and graphics protocol state.
 
@@ -103,10 +105,10 @@ behavioral oracle. The checked-in compatibility material is:
 Those portions are covered by `LICENSES/xterm.txt`. Consult xterm to reproduce
 external behavior; do not copy its terminal engine wholesale.
 
-See the [upstream reference guide](docs/maintainers/upstream.md) for the ignored Ghostty,
-Ghostling, xterm snapshot, and
-xterm.dev checkouts and their update rules. Ghostling is now the minimum
-functional comparison, while xterm remains the UI and compatibility oracle.
+See the [upstream reference guide](docs/maintainers/upstream.md) for the ignored
+Ghostty, Ghostling, xterm snapshot, and xterm.dev checkouts and their update
+rules. Ghostling is now the minimum functional comparison, while xterm remains
+the UI and compatibility oracle.
 
 ## Current architecture
 
@@ -155,7 +157,7 @@ wrapped-prompt regression. A 45-column OSC 133-marked prompt resized
 nonprinting run from its cursor calculation; the SGR control lands at column
 41 after dropping a four-byte run. Bash development commit `1e9f5e10b2`
 unconditionally refreshes the affected prompt metadata after `SIGWINCH`.
-xterm+ executes the resulting bytes correctly and must not add a terminal-side
+Revenant executes the resulting bytes correctly and must not add a terminal-side
 workaround. Run `just reflow-prompt`, copy the logged top-level window ID, then
 run `just reflow-resize WINDOW_ID`; one cycle is sufficient. The source
 diagnosis, upstream links, version boundary, and fixed-build checks are in
@@ -240,22 +242,30 @@ diagnosis, upstream links, version boundary, and fixed-build checks are in
   recorded explicitly.
 - Consolidated `-report-config` inventory for resources, app-defaults,
   inherited Xt/Athena resources, translations, and actions.
-- Structured diagnostics and CPU flamegraph tooling.
+- Structured diagnostics with a warning-and-above default, `-log` severity
+  selection, xterm-compatible `-/+debug` aliases, and CPU flamegraph tooling.
+- Compositor-backed default-background opacity with opaque ink, cursor,
+  selection, decoration, and explicit-background policy.
+- Independent widget `reverseVideo`, terminal-wide DECSCNM, and per-cell SGR 7
+  composition, including forced full repaint on DECSCNM transitions and
+  opacity-aware color provenance.
 
-The authoritative missing-capability order is the [roadmap](docs/maintainers/roadmap.md). Basic scrollback,
-its Xaw scrollbar, historical and named selection, cut-buffer fallback, and
-middle-button paste are wired, along with application mouse and focus
-reporting. Selection-retention policy and Kitty graphics remain incomplete
-even though libghostty exposes much of the required machinery.
+The authoritative missing-capability order is the
+[roadmap](docs/maintainers/roadmap.md). Basic scrollback, its Xaw scrollbar,
+historical and named selection, cut-buffer fallback, and middle-button paste
+are wired, along with application mouse and focus reporting.
+Selection-retention policy and Kitty graphics remain incomplete even though
+libghostty exposes much of the required machinery.
 
-## Ideas and possible future identity
+## Project identity
 
-`Revenant` is a possible future project name. It fits the idea of bringing the
-xterm form and interaction model back with a modern engine, but it is only an
-idea, not an approved rename. Before adopting it, check name and package
-collisions, decide whether continuity with the `xterm+` compatibility promise
-is more valuable, and treat the rename as a separate product decision rather
-than feature work.
+The project and repository are named Revenant. The installed binary is
+`revenant`; `xterm+` remains an installed compatibility symlink. The `XTerm`
+application class, `xterm` instance, `vt100` widget name, resources, menus, and
+translations remain intentional compatibility surfaces and must not be renamed
+as cosmetic cleanup. Use Revenant for project prose and package names while
+using xterm+ only when referring to the compatibility executable or historical
+work recorded under that name.
 
 A useful product lens is that xterm is unusually broad in historical terminal
 protocols but deliberately narrow as a modern terminal application. Patch 410
@@ -270,8 +280,8 @@ search, split or profile interface, live configuration reload, or native
 Wayland frontend. Window-manager opacity can affect an xterm window, but that
 is not an xterm background/transparency feature.
 
-This split helps define possible xterm+ work without turning it into a promise.
-xterm+ already promotes resize reflow, OSC 8 links, current mouse and focus
+This split helps define possible Revenant work without turning it into a promise.
+Revenant already promotes resize reflow, OSC 8 links, current mouse and focus
 reporting, and the Kitty keyboard protocol through an X11/Athena frontend. It
 still needs the missing and Partial items in the Ghostling parity checklist,
 and it does not yet reproduce all of xterm's historical protocol tail. Future
@@ -290,43 +300,93 @@ root-pixmap pseudo-transparency, `inheritPixmap`, desktop wallpaper copying,
 tinting, or shading. The project is a time capsule carried forward, not a
 recreation of obsolete X11 rendering hacks.
 
+### Reverse video and opacity invariants
+
+Keep the three sources of reversed presentation distinct even though their
+visible color result has parity/XOR behavior:
+
+- the `-rv`/`reverseVideo` resource and `Enable Reverse Video` menu action are
+  widget-level swaps of the configured default foreground and background;
+- DECSCNM (`CSI ? 5 h`/`CSI ? 5 l`) is a screen-wide terminal rendering mode;
+- SGR 7 is per-cell inverse styling.
+
+Do not implement DECSCNM by permanently rewriting stored cell colors or by
+folding it into SGR 7. SGR 7 while DECSCNM is enabled must render with normal
+color polarity because the two rendering inversions cancel. The order and
+provenance still matter for opacity: SGR 7 by itself moves the default
+foreground into the cell background and that background is opaque ink, as the
+existing Xvfb opacity test asserts. DECSCNM by itself changes the screen's
+effective default-background color, but that screen background remains
+translucent. An SGR 7 cell under DECSCNM is double-inverted and its restored
+default background is translucent. This opaque-to-translucent change for an
+SGR 7 cell across `?5h`/`?5l` is intentional and needs a test comment so it is
+not later "fixed" from a screenshot alone. The widget-level `-rv` swap changes
+which concrete color the default background names; it must not detach opacity
+from the background surface or require special slider behavior.
+
+The implementation now carries `GHOSTTY_MODE_REVERSE_COLORS` as explicit
+frame-level state while preserving `GhosttyStyle.inverse` as the independent
+SGR 7 bit. A DECSCNM transition forces a full repaint, so cells the application
+does not rewrite still change. The X11 renderer resolves only default colors
+through DECSCNM; explicit RGB and palette colors remain concrete. It determines
+the final background source before applying alpha, retaining an opaque form for
+cursor and selection presentation.
+
+The RGB-aware Xvfb opacity scenario pins the complete composition: untouched
+cell repaint, premultiplied reversed background, SGR 7 cancellation under
+DECSCNM, explicit orange preservation, complete `?5l` restoration, and
+64-percent opacity under widget `-rv`. The backend self-test separately checks
+frame state and full-repaint transitions. `tools/probe-reverse-video.sh` is the
+Enter-gated human comparison for SGR 7, DECSCNM, and the widget/menu toggle.
+
+Preserve the established rendering rules: derive translucent pixels from the
+retained opaque background, use `PictOpSrc` for background fills, keep Xft
+glyph compositing as `Over`, and keep explicit SGR backgrounds, cursor,
+selection, decorations, and other ink opaque. Do not reopen this composition
+from screenshot intuition alone; change it only with corresponding pixel-level
+coverage.
+
 ## Current phase and immediate continuation order
 
-The project is in private stabilization and daily-driver evaluation, not in
-announcement preparation. The `v0.2.0` build is a useful packaging milestone;
-a successful workflow is not evidence by itself that xterm+ is ready to be
-recommended publicly. The maintainer intends to use xterm+ for several days
-and still has concerns to surface and characterize. Treat those observations
-as the highest-value input during this phase.
+The project is in daily-driver evaluation, not announcement preparation.
+`v0.3.0` is published with tarball, Debian, and binary RPM assets; `master`
+additionally defaults structured logging to warning and above and carries the
+interactive reverse-video probe. Do not rewrite the published `v0.3.0` release
+for that follow-up. Accumulate release-worthy fixes and bump the version before
+the next package build.
 
-The current modern-capability count is 8 Present, 3 Partial, and 1 Missing in
-the [Ghostling parity checklist](docs/compatibility/ghostling-parity.md).
-Italic rendering, font fallback/emoji acceptance, and the complete X11 key
-matrix remain Partial; Kitty graphics remains Missing. The default fixterms
-keyboard behavior is also a major, intentional drift from xterm and must be
-prominent wherever replacement compatibility is discussed. Do not announce
-xterm+ as MVP, fully Ghostling-equivalent, or an unqualified drop-in upgrade
-while those statements are false.
+The top-level MIT license, package metadata, desktop launcher, and icons are in
+place. The [Ghostling parity checklist](docs/compatibility/ghostling-parity.md)
+remains the authoritative capability status: rendering styles, font
+fallback/emoji acceptance, resize, palette resources, default bindings, and
+the complete X11 key matrix remain Partial; Kitty graphics remains Missing.
+The default fixterms keyboard behavior is also a major, intentional drift from
+xterm and must be prominent wherever replacement compatibility is discussed.
+Do not announce Revenant as fully Ghostling-equivalent or an unqualified
+drop-in upgrade while those statements are false.
 
 Continue in this order:
 
-1. **Dogfood the terminal.** Use xterm+ for normal shell, editor,
+1. **Dogfood the terminal.** Use Revenant from the maintainer's `./build` for
+   normal shell, editor,
    multiplexer, remote-session, selection/paste, hyperlink, resize, and
    scrollback work. Record each concrete concern with reproduction steps and
    diagnostics, determine the owning layer, and prioritize crashes, byte
-   loss, input errors, stale rendering, and history/selection corruption.
+   loss, input errors, stale rendering, and history/selection corruption. A
+   healthy default launch is quiet; use `-log info` for lifecycle context and
+   `-log debug` only for a focused reproduction.
 2. **Finish the unsettled renderer checks.** Follow
    `docs/compatibility/rendering-review.md` for obscured or off-screen
    scrolling, DECSTBM and alternate-screen output, X request ordering, and
-   scroll throughput. The correctness-first renderer and cache fixes are in
-   place, but those manual acceptance cases remain relevant before broad use.
-3. **Exercise the v0.2 artifacts without treating them as a launch.** Let the
-   workflow finish, install the tarball, Debian package, and RPM in clean
-   environments where available, and verify startup, shell exit, resources,
-   fonts, menus, and `--version`. Resolve the top-level license for xterm+'s
-   own code before a public release; the packaging metadata currently calls
-   its MIT declaration a placeholder. Pin the Ghostty 1.4 tag when it exists
-   so release jobs no longer resolve moving `main` revisions independently.
+   scroll throughput. This is an acceptance pass for the implemented direct
+   renderer, not permission to replace it: reproduce any failure first and add
+   a focused fixture before changing drawing policy.
+3. **Exercise the v0.3.0 artifacts without treating them as an MVP launch.**
+   Install the tarball, Debian package, and RPM in clean environments where
+   available, and verify startup, shell exit, resources, fonts, menus, desktop
+   integration, and `--version`. Pin a stable Ghostty release before the next
+   publication so separate release jobs cannot resolve moving `main` revisions
+   independently.
 4. **Reassess announcement scope after dogfooding.** Before announcing, write
    concise release notes and an honest known-limitations list, rerun
    `just check-all`, verify the published manual, and make an explicit owner
@@ -342,7 +402,7 @@ Continue in this order:
 Do not interpret Ghostling parity as the finish line. Ghostling is the minimum
 engine-integration floor; xterm remains the behavioral oracle for the daily-use
 interaction contract. When ordering similarly sized work, prefer changes that
-let the maintainer run xterm+ for real work and expose the next correctness
+let the maintainer run Revenant for real work and expose the next correctness
 problem quickly.
 
 ## Compatibility discipline
@@ -362,12 +422,12 @@ problem quickly.
 
 ## Style
 
-The [C style guide](docs/maintainers/style.md) is the adopted classic-X style. Use the
-checked-in `.clang-format`
-for C sources and headers. Functions use mixed case, public interfaces retain
-the `Xtp` prefix, important types are capitalized, and eight-column indentation
-gives the code its traditional vertical rhythm. Keep formatting-only changes
-separate from behavioral changes when practical.
+The [C style guide](docs/maintainers/style.md) is the adopted classic-X style.
+Use the checked-in `.clang-format` for C sources and headers. Functions use
+mixed case, public interfaces retain the `Xtp` prefix, important types are
+capitalized, and eight-column indentation gives the code its traditional
+vertical rhythm. Keep formatting-only changes separate from behavioral changes
+when practical.
 
 ## Verification
 
@@ -385,16 +445,17 @@ The compiler/backend checks can also be run independently:
 just test-gcc
 just test-clang
 just test-stub
-just check                         # strict xterm+ and TDN documentation
+just check                         # strict Revenant and TDN documentation
 ```
 
 Useful runtime checks:
 
 ```sh
-./build-agent-gcc/xterm+ -debug 2>xterm-plus.log
-./build-agent-gcc/xterm+ -report-config
+./build-agent-gcc/revenant -log debug 2>revenant.log
+./build-agent-gcc/revenant -report-config
 ./build-agent-gcc/xtp-send-font-keys WINDOW_ID + 4
 ./build-agent-gcc/xtp-send-font-keys WINDOW_ID - 4
+just probe-reverse-video
 just resize-loop WINDOW_ID 8 20
 just reflow-prompt
 just reflow-resize WINDOW_ID
@@ -402,20 +463,19 @@ just reflow-resize WINDOW_ID
 
 The current self-test has focused backend checks for rendering, cursor state,
 modes, selection and deep scrollback, tty-output viewport anchoring, mouse and
-focus encoding, resize, PTY setup, and write backpressure without byte loss,
-but it remains one in-process harness. When Xvfb is available, Meson also runs
-an X11 integration test which drags across real terminal cells, verifies the
-selected bytes through a separate X client, checks PRIMARY versus CLIPBOARD
-resolution for both `selectToClipboard` policies, checks `CUT_BUFFER0`, and
-uses a fake `xdg-open` to prove that Shift-click launches an HTTP OSC 8 target
-while leaving a `file:` target inert.
-Split the remaining harness into focused tests and grow Xvfb coverage; do not
-treat either test alone as evidence of full UI compatibility.
+focus encoding, resize, PTY setup, log-level parsing, and write backpressure
+without byte loss, but it remains one in-process harness. When Xvfb is
+available, Meson also runs integration suites for opacity/reverse-video pixel
+policy and logging thresholds; named selections, cut buffers, and OSC 8 launch
+policy; legacy/fixterms keyboard delivery; and Kitty keyboard press, repeat,
+and release. Split the remaining harness into focused tests and grow Xvfb
+coverage; do not treat any one suite alone as evidence of full UI
+compatibility.
 
 ## Performance and longer-term direction
 
 Keep debug logging off for throughput measurements. Compare xterm, Ghostty,
-Ghostling where useful, and xterm+ under equivalent optimized conditions.
+Ghostling where useful, and Revenant under equivalent optimized conditions.
 Separate parser, PTY, X drawing, X synchronization, and renderer costs. Use
 `tools/flamegraph` for representative output workloads.
 
