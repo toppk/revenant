@@ -299,15 +299,18 @@ FreeHandles(XtpTerminal *terminal)
 }
 
 XtpTerminal *
-XtpTerminalNew(uint16_t columns, uint16_t rows, uint32_t cell_width, uint32_t cell_height)
+XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_width,
+                                uint32_t cell_height, bool unicode_width)
 {
         XtpTerminal *terminal = calloc(1, sizeof(*terminal));
+        GhosttyTerminalModeConfig grapheme_mode = {GHOSTTY_MODE_GRAPHEME_CLUSTER, unicode_width};
 
         if (terminal == NULL)
                 return NULL;
 
-        XtpLog(XTP_LOG_INFO, "terminal", "creating backend=libghostty-vt grid=%ux%u cell=%ux%u",
-               columns, rows, cell_width, cell_height);
+        XtpLog(XTP_LOG_INFO, "terminal",
+               "creating backend=libghostty-vt grid=%ux%u cell=%ux%u graphemeWidth=%s", columns,
+               rows, cell_width, cell_height, unicode_width ? "unicode" : "legacy");
 
         if (ghostty_terminal_new(NULL, &terminal->handle, columns, rows) != GHOSTTY_SUCCESS ||
             ghostty_render_state_new(NULL, &terminal->render_state) != GHOSTTY_SUCCESS ||
@@ -332,6 +335,8 @@ XtpTerminalNew(uint16_t columns, uint16_t rows, uint32_t cell_width, uint32_t ce
                 GHOSTTY_SUCCESS ||
             ghostty_terminal_resize(terminal->handle, columns, rows, cell_width, cell_height) !=
                 GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_MODE_DEFAULT,
+                                 &grapheme_mode) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_USERDATA, terminal) !=
                 GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_WRITE_PTY,
@@ -346,6 +351,12 @@ XtpTerminalNew(uint16_t columns, uint16_t rows, uint32_t cell_width, uint32_t ce
         }
 
         return terminal;
+}
+
+XtpTerminal *
+XtpTerminalNew(uint16_t columns, uint16_t rows, uint32_t cell_width, uint32_t cell_height)
+{
+        return XtpTerminalNewWithGraphemeWidth(columns, rows, cell_width, cell_height, false);
 }
 
 void

@@ -22,6 +22,7 @@ These results use Xft 2.3.8, Cairo 1.18, and the fonts pinned by
 | Fixture path | U+1F600 result |
 |---|---|
 | CBDT at 109 ppem | color |
+| Historical Noto 2.034 CBDT at 109 ppem | color |
 | CBDT at 61 ppem | color |
 | COLRv0 + genuine outline base | color |
 | COLRv1 + empty outline base | color |
@@ -59,6 +60,24 @@ both directions: CBDT 61/109 ppem downscale and sbix 16 ppem upscale.
 `tests/xvfb-emoji-routing.sh` adds Unicode defaults, VS15/VS16, policy
 overrides, emoji-to-doublesize fall-through, CJK isolation, one-cell width
 preservation, genuine outline fallback, and empty/degenerate-base rejection.
+It also requires single-run shaping for keycap, skin-tone, ZWJ, family,
+regional-indicator, subdivision-tag, adjacent-flag, and combining sequences,
+plus atomic whole-grapheme role fallback. Current Noto paints the tested family
+sequence through COLRv1 with an achromatic gray palette, so the pixel probe
+correctly reports `mono` even though routing and rendering still use the color
+font path.
+
+The historical Noto Emoji 2.034 fixture is byte-identical to the font embedded
+by Ghostty tags 1.2.1, 1.3.0, and 1.3.1. It preserves the earlier colorful
+family artwork from before Google's Emoji 15.1 redesign and, because it
+predates U+1FAE8, supplies a realistic color-face miss for the emoji
+fall-through test. It complements rather than replaces the current pinned Noto
+CBDT fixture.
+
+The combining case then redraws ordinary primary-face text and requires normal
+vertical cell margins. This guards the ownership boundary between HarfBuzz and
+Xft: shaping uses an independent OpenType face and must not change Xft's live
+FreeType face state.
 Its policy adversaries put a color emoji font in the doublesize role under
 `emojiPresentation: text`, and put an outline-less CBDT font in the primary
 role under `colorGlyphs: false`; neither case may leak color.

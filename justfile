@@ -72,6 +72,10 @@ probe-osc8:
 probe-emoji *args:
     python3 tools/probe-emoji.py {{args}}
 
+# Inspect combining marks, conjuncts, and text shaping
+probe-fonts *args:
+    python3 tools/probe-fonts.py {{args}}
+
 # Build and test all supported compiler/backend combinations
 test: test-gcc test-clang test-stub
 

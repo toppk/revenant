@@ -22,6 +22,7 @@ typedef struct
         unsigned int cell_height;
         cairo_font_face_t *face;
         cairo_scaled_font_t *scaled;
+        double size;
         double ascent;
         double descent;
 } CairoFontEntry;
@@ -184,6 +185,7 @@ FindFont(XtpCairo *renderer, XftFont *font, unsigned int available_width, unsign
         entry->cell_height = cell_height;
         entry->face = face;
         entry->scaled = scaled;
+        entry->size = size;
         entry->ascent = extents.ascent;
         entry->descent = extents.descent;
         XtpLog(XTP_LOG_DEBUG, "font",
@@ -193,44 +195,66 @@ FindFont(XtpCairo *renderer, XftFont *font, unsigned int available_width, unsign
 }
 
 static Boolean
-ResolveGlyph(cairo_scaled_font_t *scaled, uint32_t codepoint, FT_UInt *glyph)
+BuildCairoGlyphs(const CairoFontEntry *entry, const XtpGlyphRun *run, const XRectangle *area,
+                 cairo_glyph_t glyphs[XTP_GLYPH_RUN_CAPACITY])
 {
-        FT_Face face;
-        FT_CharMap previous_charmap;
-
-        if (scaled == NULL || glyph == NULL)
-                return False;
-        face = cairo_ft_scaled_font_lock_face(scaled);
-        if (face == NULL)
-                return False;
-        previous_charmap = face->charmap;
-        (void)FT_Select_Charmap(face, FT_ENCODING_UNICODE);
-        *glyph = FT_Get_Char_Index(face, codepoint);
-        if (previous_charmap != NULL)
-                (void)FT_Set_Charmap(face, previous_charmap);
-        cairo_ft_scaled_font_unlock_face(scaled);
-        return *glyph != 0;
-}
-
-static void
-GlyphOrigin(const CairoFontEntry *entry, FT_UInt glyph, const XRectangle *area, double *x,
-            double *baseline)
-{
-        cairo_glyph_t cairo_glyph;
         cairo_text_extents_t extents;
-        double line_height = entry->ascent + entry->descent;
+        double scale;
+        double pen_x = 0.0;
+        double pen_y = 0.0;
+        double origin_x;
+        double baseline;
+        double line_height;
+        unsigned int index;
 
-        cairo_glyph.index = glyph;
-        cairo_glyph.x = 0.0;
-        cairo_glyph.y = 0.0;
-        cairo_scaled_font_glyph_extents(entry->scaled, &cairo_glyph, 1, &extents);
-        *x = (double)area->x + ((double)area->width - extents.width) / 2.0 - extents.x_bearing;
-        *baseline = (double)area->y + ((double)area->height - line_height) / 2.0 + entry->ascent;
+        if (entry == NULL || run == NULL || run->count == 0 ||
+            run->count > XTP_GLYPH_RUN_CAPACITY || run->units_per_em == 0)
+                return False;
+        scale = entry->size / (double)run->units_per_em;
+        for (index = 0; index < run->count; ++index) {
+                glyphs[index].index = run->glyphs[index].index;
+                glyphs[index].x = pen_x + (double)run->glyphs[index].x_offset * scale;
+                glyphs[index].y = -(pen_y + (double)run->glyphs[index].y_offset * scale);
+                pen_x += (double)run->glyphs[index].x_advance * scale;
+                pen_y += (double)run->glyphs[index].y_advance * scale;
+        }
+        cairo_scaled_font_glyph_extents(entry->scaled, glyphs, (int)run->count, &extents);
+        origin_x =
+            (double)area->x + ((double)area->width - extents.width) / 2.0 - extents.x_bearing;
+        line_height = entry->ascent + entry->descent;
+        baseline = (double)area->y + ((double)area->height - line_height) / 2.0 + entry->ascent;
+        for (index = 0; index < run->count; ++index) {
+                glyphs[index].x += origin_x;
+                glyphs[index].y += baseline;
+        }
+        return True;
 }
 
 static Boolean
-PaintOutline(cairo_t *cr, cairo_scaled_font_t *scaled, FT_UInt glyph, uint32_t codepoint, double x,
-             double baseline)
+GlyphHasOutline(cairo_scaled_font_t *scaled, FT_UInt glyph)
+{
+        FT_Face face;
+        FT_Error error;
+        Boolean available;
+
+        face = cairo_ft_scaled_font_lock_face(scaled);
+        if (face == NULL)
+                return False;
+        error = FT_Load_Glyph(face, glyph, FT_LOAD_NO_BITMAP);
+        available = error == 0 && face->glyph->format == FT_GLYPH_FORMAT_OUTLINE &&
+                    face->glyph->outline.n_contours > 0 && face->glyph->outline.n_points >= 3;
+        if (!available)
+                XtpLog(XTP_LOG_DEBUG, "font",
+                       "outline fallback rejected glyph=%u error=%d format=%lu contours=%d "
+                       "points=%d",
+                       glyph, error, (unsigned long)face->glyph->format,
+                       face->glyph->outline.n_contours, face->glyph->outline.n_points);
+        cairo_ft_scaled_font_unlock_face(scaled);
+        return available;
+}
+
+static Boolean
+PaintOutline(cairo_t *cr, cairo_scaled_font_t *scaled, FT_UInt glyph, double x, double baseline)
 {
         static const FT_Outline_Funcs functions = {
             OutlineMoveTo, OutlineLineTo, OutlineConicTo, OutlineCubicTo, 0, 0,
@@ -245,11 +269,6 @@ PaintOutline(cairo_t *cr, cairo_scaled_font_t *scaled, FT_UInt glyph, uint32_t c
         error = FT_Load_Glyph(face, glyph, FT_LOAD_NO_BITMAP);
         if (error != 0 || face->glyph->format != FT_GLYPH_FORMAT_OUTLINE ||
             face->glyph->outline.n_contours <= 0 || face->glyph->outline.n_points < 3) {
-                XtpLog(XTP_LOG_DEBUG, "font",
-                       "outline fallback rejected base=U+%04X glyph=%u error=%d format=%lu "
-                       "contours=%d points=%d",
-                       codepoint, glyph, error, (unsigned long)face->glyph->format,
-                       face->glyph->outline.n_contours, face->glyph->outline.n_points);
                 cairo_ft_scaled_font_unlock_face(scaled);
                 return False;
         }
@@ -268,23 +287,28 @@ PaintOutline(cairo_t *cr, cairo_scaled_font_t *scaled, FT_UInt glyph, uint32_t c
 }
 
 static Boolean
-PaintGlyph(cairo_t *cr, const CairoFontEntry *entry, FT_UInt glyph, uint32_t codepoint,
-           Boolean color_glyphs, const XRectangle *area)
+PaintGlyphRun(cairo_t *cr, const CairoFontEntry *entry, const XtpGlyphRun *run,
+              Boolean color_glyphs, const XRectangle *area)
 {
-        double x;
-        double baseline;
+        cairo_glyph_t glyphs[XTP_GLYPH_RUN_CAPACITY];
+        unsigned int index;
 
-        GlyphOrigin(entry, glyph, area, &x, &baseline);
-        if (!color_glyphs)
-                return PaintOutline(cr, entry->scaled, glyph, codepoint, x, baseline);
-        {
-                cairo_glyph_t cairo_glyph;
-
-                cairo_glyph.index = glyph;
-                cairo_glyph.x = x;
-                cairo_glyph.y = baseline;
+        if (!BuildCairoGlyphs(entry, run, area, glyphs))
+                return False;
+        if (!color_glyphs) {
+                /* Decline the complete run before painting any partial outline. */
+                for (index = 0; index < run->count; ++index) {
+                        if (!GlyphHasOutline(entry->scaled, (FT_UInt)glyphs[index].index))
+                                return False;
+                }
+                for (index = 0; index < run->count; ++index) {
+                        if (!PaintOutline(cr, entry->scaled, (FT_UInt)glyphs[index].index,
+                                          glyphs[index].x, glyphs[index].y))
+                                return False;
+                }
+        } else {
                 cairo_set_scaled_font(cr, entry->scaled);
-                cairo_show_glyphs(cr, &cairo_glyph, 1);
+                cairo_show_glyphs(cr, glyphs, (int)run->count);
         }
         return cairo_status(cr) == CAIRO_STATUS_SUCCESS;
 }
@@ -339,8 +363,8 @@ XtpCairoDestroy(XtpCairo *renderer)
 }
 
 Boolean
-XtpCairoGlyphHasInk(XtpCairo *renderer, XftFont *font, uint32_t codepoint, Boolean color_glyphs,
-                    unsigned int available_width, unsigned int cell_height)
+XtpCairoGlyphRunHasInk(XtpCairo *renderer, XftFont *font, const XtpGlyphRun *run,
+                       Boolean color_glyphs, unsigned int available_width, unsigned int cell_height)
 {
         unsigned int width = 3U * available_width;
         unsigned int height = 3U * cell_height;
@@ -348,7 +372,6 @@ XtpCairoGlyphHasInk(XtpCairo *renderer, XftFont *font, uint32_t codepoint, Boole
         cairo_t *cr;
         CairoFontEntry *entry;
         XRectangle area;
-        FT_UInt glyph;
         unsigned char *data;
         int stride;
         unsigned int x;
@@ -356,7 +379,7 @@ XtpCairoGlyphHasInk(XtpCairo *renderer, XftFont *font, uint32_t codepoint, Boole
         Boolean ink = False;
 
         entry = FindFont(renderer, font, available_width, cell_height);
-        if (entry == NULL || !ResolveGlyph(entry->scaled, codepoint, &glyph))
+        if (entry == NULL || run == NULL || run->missing)
                 return False;
         surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, (int)width, (int)height);
         if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
@@ -375,7 +398,11 @@ XtpCairoGlyphHasInk(XtpCairo *renderer, XftFont *font, uint32_t codepoint, Boole
         area.height = (unsigned short)cell_height;
         cairo_rectangle(cr, area.x, area.y, area.width, area.height);
         cairo_clip(cr);
-        (void)PaintGlyph(cr, entry, glyph, codepoint, color_glyphs, &area);
+        if (!PaintGlyphRun(cr, entry, run, color_glyphs, &area)) {
+                cairo_destroy(cr);
+                cairo_surface_destroy(surface);
+                return False;
+        }
         cairo_destroy(cr);
         cairo_surface_flush(surface);
         data = cairo_image_surface_get_data(surface);
@@ -395,17 +422,17 @@ XtpCairoGlyphHasInk(XtpCairo *renderer, XftFont *font, uint32_t codepoint, Boole
 }
 
 Boolean
-XtpCairoDrawGlyph(XtpCairo *renderer, XftFont *font, uint32_t codepoint, Boolean color_glyphs,
-                  const XRenderColor *foreground, const XRectangle *area, const XRectangle *clip)
+XtpCairoDrawGlyphRun(XtpCairo *renderer, XftFont *font, const XtpGlyphRun *run,
+                     Boolean color_glyphs, const XRenderColor *foreground, const XRectangle *area,
+                     const XRectangle *clip)
 {
         CairoFontEntry *entry;
-        FT_UInt glyph;
         Boolean drawn;
 
         if (renderer == NULL || foreground == NULL || area == NULL || clip == NULL)
                 return False;
         entry = FindFont(renderer, font, area->width, area->height);
-        if (entry == NULL || !ResolveGlyph(entry->scaled, codepoint, &glyph))
+        if (entry == NULL || run == NULL || run->missing)
                 return False;
         cairo_surface_flush(renderer->surface);
         cairo_surface_mark_dirty_rectangle(renderer->surface, clip->x, clip->y, clip->width,
@@ -416,7 +443,7 @@ XtpCairoDrawGlyph(XtpCairo *renderer, XftFont *font, uint32_t codepoint, Boolean
         cairo_set_source_rgba(
             renderer->cr, (double)foreground->red / 65535.0, (double)foreground->green / 65535.0,
             (double)foreground->blue / 65535.0, (double)foreground->alpha / 65535.0);
-        drawn = PaintGlyph(renderer->cr, entry, glyph, codepoint, color_glyphs, area);
+        drawn = PaintGlyphRun(renderer->cr, entry, run, color_glyphs, area);
         cairo_restore(renderer->cr);
         cairo_surface_flush(renderer->surface);
         return drawn;

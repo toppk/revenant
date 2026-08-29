@@ -134,6 +134,7 @@ run_case()
 # This matrix isolates each rendering primitive by selecting the fixture as
 # the primary Xft face.
 run_case cbdt 'Noto Color Emoji' color cbdt - 😀
+run_case cbdt-legacy 'Noto Color Emoji' color cbdt-legacy - 😀
 run_case cbdt-lowres Twemoji color cbdt-lowres - 😀
 run_case colrv0 OpenMoji color colrv0 - 😀
 run_case colrv1 'Noto Color Emoji' color colrv1 - 😀
@@ -152,3 +153,28 @@ run_case mono 'DejaVu Sans Mono' mono fd-mono 'Noto Emoji' 😀
 run_case svginot 'DejaVu Sans Mono' color fd-svg 'Twitter Color Emoji' 😀
 run_case sbix 'DejaVu Sans Mono' color fd-sbix 'Revenant Synthetic sbix' 😀
 run_case cjk 'DejaVu Sans Mono' mono fd-cjk 'Noto Sans Mono CJK JP' 日
+
+# Xterm gives an embedded size in the first faceName item precedence over the
+# separate faceSize resource, then removes it before deriving other menu slots.
+embedded_log=$test_dir/embedded-size.log
+embedded_done=$test_dir/embedded-size.done
+# The single-quoted program is expanded by the child bash, not this shell.
+# shellcheck disable=SC2016
+"$fixture_root/run" base "$terminal" -debug +sb -geometry 8x4 \
+    -fa 'DejaVu Sans Mono:size=11:rgba=none' -fs 16 \
+    -xrm 'xterm.vt100.internalBorder: 4' \
+    -xrm 'xterm.vt100.renderFont: true' \
+    -e bash -c 'printf "\033]2;font-baseline-ready\007"; while ! test -d "$1"; do sleep 0.05; done' \
+    bash "$embedded_done" >"$test_dir/embedded-size.out" 2>"$embedded_log" &
+terminal_pid=$!
+wait_for_terminal "$embedded_log" embedded-size
+if ! grep -F -q \
+    'loaded Xft slot=0 face=DejaVu Sans Mono:rgba=none points=11.00' "$embedded_log"
+then
+    echo 'embedded-size expected faceName size=11 to override faceSize=16' >&2
+    sed -n '1,300p' "$embedded_log" >&2
+    exit 1
+fi
+mkdir "$embedded_done"
+wait "$terminal_pid" 2>/dev/null || true
+terminal_pid=

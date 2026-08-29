@@ -3,6 +3,7 @@
 #include "diagnostics.h"
 #include "emoji_presentation.h"
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -249,48 +250,6 @@ EnsureCairoDraw(Vt100Rec *vt)
         return True;
 }
 
-static Boolean
-DecodeUtf8(const char *text, size_t length, uint32_t *codepoint, size_t *consumed)
-{
-        const unsigned char *bytes = (const unsigned char *)text;
-        uint32_t value;
-        size_t count;
-        size_t index;
-
-        if (length == 0 || codepoint == NULL || consumed == NULL)
-                return False;
-        if (bytes[0] < 0x80U) {
-                *codepoint = bytes[0];
-                *consumed = 1;
-                return True;
-        }
-        if (bytes[0] >= 0xc2U && bytes[0] <= 0xdfU) {
-                value = bytes[0] & 0x1fU;
-                count = 2;
-        } else if (bytes[0] >= 0xe0U && bytes[0] <= 0xefU) {
-                value = bytes[0] & 0x0fU;
-                count = 3;
-        } else if (bytes[0] >= 0xf0U && bytes[0] <= 0xf4U) {
-                value = bytes[0] & 0x07U;
-                count = 4;
-        } else {
-                return False;
-        }
-        if (length < count)
-                return False;
-        for (index = 1; index < count; ++index) {
-                if ((bytes[index] & 0xc0U) != 0x80U)
-                        return False;
-                value = (value << 6) | (bytes[index] & 0x3fU);
-        }
-        if ((count == 3 && value < 0x800U) || (count == 4 && value < 0x10000U) ||
-            (value >= 0xd800U && value <= 0xdfffU) || value > 0x10ffffU)
-                return False;
-        *codepoint = value;
-        *consumed = count;
-        return True;
-}
-
 static XftFont *
 RoleFont(XftFont *normal, XftFont *bold_font, Boolean bold)
 {
@@ -298,14 +257,18 @@ RoleFont(XftFont *normal, XftFont *bold_font, Boolean bold)
 }
 
 static Boolean
-FontHasInk(Vt100Rec *vt, XftFont *font, uint32_t codepoint, unsigned int width,
-           Boolean color_glyphs)
+FontHasCluster(Vt100Rec *vt, XftFont *font, const char *text, size_t length, unsigned int width,
+               Boolean color_glyphs, Boolean requires_composition, XtpGlyphRun *run)
 {
-        FcChar32 character = codepoint;
+        FT_UInt glyphs[XTP_GLYPH_RUN_CAPACITY];
         XGlyphInfo extents = {0};
         size_t index;
 
-        if (font == NULL || !XftCharExists(XtDisplay((Widget)vt), font, codepoint))
+        if (font == NULL || length == 0 || length >= XTP_VISUAL_TEXT_CAPACITY ||
+            !(requires_composition
+                  ? XtpShapeUtf8ForComposition(vt->vt.shaper, font, text, length, run)
+                  : XtpShapeUtf8(vt->vt.shaper, font, text, length, run)) ||
+            run->missing || (requires_composition && run->count != 1U))
                 return False;
         if (XtpCairoFontIsColor(font)) {
                 Boolean has_ink;
@@ -313,17 +276,19 @@ FontHasInk(Vt100Rec *vt, XftFont *font, uint32_t codepoint, unsigned int width,
 
                 for (index = 0; index < XTP_GLYPH_INK_CACHE_SIZE; ++index) {
                         entry = &vt->vt.glyph_ink_cache[index];
-                        if (entry->font == font && entry->codepoint == codepoint &&
-                            entry->width == width && entry->color_glyphs == color_glyphs)
+                        if (entry->font == font && entry->text_length == length &&
+                            memcmp(entry->text, text, length) == 0 && entry->width == width &&
+                            entry->color_glyphs == color_glyphs)
                                 return entry->has_ink;
                 }
                 has_ink = EnsureCairoDraw(vt) &&
-                          XtpCairoGlyphHasInk(vt->vt.cairo_draw, font, codepoint, color_glyphs,
-                                              width * VtSlotWidth(vt, vt->vt.current_font),
-                                              VtSlotHeight(vt, vt->vt.current_font));
+                          XtpCairoGlyphRunHasInk(vt->vt.cairo_draw, font, run, color_glyphs,
+                                                 width * VtSlotWidth(vt, vt->vt.current_font),
+                                                 VtSlotHeight(vt, vt->vt.current_font));
                 entry = &vt->vt.glyph_ink_cache[vt->vt.next_glyph_ink_cache];
                 entry->font = font;
-                entry->codepoint = codepoint;
+                memcpy(entry->text, text, length);
+                entry->text_length = (uint8_t)length;
                 entry->width = (uint8_t)width;
                 entry->color_glyphs = color_glyphs;
                 entry->has_ink = has_ink;
@@ -331,71 +296,70 @@ FontHasInk(Vt100Rec *vt, XftFont *font, uint32_t codepoint, unsigned int width,
                     (vt->vt.next_glyph_ink_cache + 1U) % XTP_GLYPH_INK_CACHE_SIZE;
                 return has_ink;
         }
-        XftTextExtents32(XtDisplay((Widget)vt), font, &character, 1, &extents);
+        for (index = 0; index < run->count; ++index)
+                glyphs[index] = (FT_UInt)run->glyphs[index].index;
+        XftGlyphExtents(XtDisplay((Widget)vt), font, glyphs, (int)run->count, &extents);
         return extents.width != 0 && extents.height != 0;
 }
 
 static XftFont *
-RoleFontWithInk(Vt100Rec *vt, XftFont *normal, XftFont *bold_font, Boolean bold, uint32_t codepoint,
-                unsigned int width, Boolean color_glyphs)
+RoleFontWithCluster(Vt100Rec *vt, XftFont *normal, XftFont *bold_font, Boolean bold,
+                    const char *text, size_t length, unsigned int width, Boolean color_glyphs,
+                    Boolean requires_composition, XtpGlyphRun *run)
 {
         XftFont *font = RoleFont(normal, bold_font, bold);
 
-        if (FontHasInk(vt, font, codepoint, width, color_glyphs))
+        if (FontHasCluster(vt, font, text, length, width, color_glyphs, requires_composition, run))
                 return font;
-        if (bold && font != normal && FontHasInk(vt, normal, codepoint, width, color_glyphs))
+        if (bold && font != normal &&
+            FontHasCluster(vt, normal, text, length, width, color_glyphs, requires_composition,
+                           run))
                 return normal;
         return NULL;
 }
 
 static XftFont *
 SelectXftFont(Vt100Rec *vt, const char *text, size_t length, unsigned int width, Boolean bold,
-              const char **role_name, uint32_t *base_out, XtpEmojiStyle *style_out)
+              const char **role_name, uint32_t *base_out, XtpEmojiStyle *style_out,
+              XtpGlyphRun *run_out)
 {
         int slot = vt->vt.current_font;
-        uint32_t base = 0;
-        uint32_t selector = 0;
-        size_t first_length = 0;
-        size_t selector_length = 0;
-        XtpEmojiStyle style = XTP_EMOJI_STYLE_NONE;
+        XtpEmojiClusterStyle cluster =
+            XtpEmojiResolveClusterStyle(text, length, vt->vt.emoji_presentation);
+        uint32_t base = cluster.base;
+        XtpEmojiStyle style = cluster.style;
         Boolean color_glyphs;
         XftFont *font;
 
-        if (DecodeUtf8(text, length, &base, &first_length)) {
-                uint32_t second = 0;
+        if (run_out != NULL)
+                memset(run_out, 0, sizeof(*run_out));
 
-                if (DecodeUtf8(text + first_length, length - first_length, &second,
-                               &selector_length) &&
-                    (second == 0xfe0eU || second == 0xfe0fU))
-                        selector = second;
-                style = XtpEmojiResolveStyle(base, selector, vt->vt.emoji_presentation);
-        }
         if (base_out != NULL)
                 *base_out = base;
         if (style_out != NULL)
                 *style_out = style;
         color_glyphs = vt->vt.color_glyphs && style != XTP_EMOJI_STYLE_TEXT;
         if (style == XTP_EMOJI_STYLE_EMOJI) {
-                font = RoleFontWithInk(vt, vt->vt.xft_emoji_fonts[slot],
-                                       vt->vt.xft_emoji_bold_fonts[slot], bold, base, width,
-                                       color_glyphs);
+                font = RoleFontWithCluster(
+                    vt, vt->vt.xft_emoji_fonts[slot], vt->vt.xft_emoji_bold_fonts[slot], bold, text,
+                    length, width, color_glyphs, cluster.requires_composition, run_out);
                 if (font != NULL) {
                         if (role_name != NULL)
                                 *role_name = "emoji";
                         return font;
                 }
-                font = RoleFontWithInk(vt, vt->vt.xft_wide_fonts[slot],
-                                       vt->vt.xft_wide_bold_fonts[slot], bold, base, width,
-                                       color_glyphs);
+                font = RoleFontWithCluster(
+                    vt, vt->vt.xft_wide_fonts[slot], vt->vt.xft_wide_bold_fonts[slot], bold, text,
+                    length, width, color_glyphs, cluster.requires_composition, run_out);
                 if (font != NULL) {
                         if (role_name != NULL)
                                 *role_name = "doublesize";
                         return font;
                 }
         } else if (width > 1U) {
-                font = RoleFontWithInk(vt, vt->vt.xft_wide_fonts[slot],
-                                       vt->vt.xft_wide_bold_fonts[slot], bold, base, width,
-                                       color_glyphs);
+                font = RoleFontWithCluster(
+                    vt, vt->vt.xft_wide_fonts[slot], vt->vt.xft_wide_bold_fonts[slot], bold, text,
+                    length, width, color_glyphs, cluster.requires_composition, run_out);
                 if (font != NULL) {
                         if (role_name != NULL)
                                 *role_name = "doublesize";
@@ -404,7 +368,10 @@ SelectXftFont(Vt100Rec *vt, const char *text, size_t length, unsigned int width,
         }
         if (role_name != NULL)
                 *role_name = "primary";
-        return RoleFont(vt->vt.xft_fonts[slot], vt->vt.xft_bold_fonts[slot], bold);
+        font = RoleFont(vt->vt.xft_fonts[slot], vt->vt.xft_bold_fonts[slot], bold);
+        if (run_out != NULL)
+                (void)XtpShapeUtf8(vt->vt.shaper, font, text, length, run_out);
+        return font;
 }
 
 static XftColor
@@ -442,17 +409,59 @@ CachedXftColor(Vt100Rec *vt, Pixel pixel)
 }
 
 static Boolean
-DrawCairoFontGlyph(Vt100Rec *vt, XftFont *font, Pixel pixel, uint32_t codepoint,
-                   Boolean color_glyphs, const XRectangle *area, const XRectangle *clip)
+DrawCairoFontRun(Vt100Rec *vt, XftFont *font, Pixel pixel, const XtpGlyphRun *run,
+                 Boolean color_glyphs, const XRectangle *area, const XRectangle *clip)
 {
         XftColor color;
 
-        if (!XtpCairoFontIsColor(font) || codepoint == 0 || area == NULL || clip == NULL ||
-            !EnsureCairoDraw(vt))
+        if (!XtpCairoFontIsColor(font) || run == NULL || run->count == 0 || run->missing ||
+            area == NULL || clip == NULL || !EnsureCairoDraw(vt))
                 return False;
         color = CachedXftColor(vt, pixel);
-        return XtpCairoDrawGlyph(vt->vt.cairo_draw, font, codepoint, color_glyphs, &color.color,
-                                 area, clip);
+        return XtpCairoDrawGlyphRun(vt->vt.cairo_draw, font, run, color_glyphs, &color.color, area,
+                                    clip);
+}
+
+static void
+DrawXftGlyphRun(Vt100Rec *vt, XftFont *font, const XftColor *color, int x, int baseline,
+                const XtpGlyphRun *run)
+{
+        XftGlyphFontSpec specs[XTP_GLYPH_RUN_CAPACITY];
+        double pen_x = 0.0;
+        double pen_y = 0.0;
+        unsigned int index;
+
+        for (index = 0; index < run->count; ++index) {
+                specs[index].font = font;
+                specs[index].glyph = run->glyphs[index].index;
+                specs[index].x = (short)lround((double)x + (pen_x + run->glyphs[index].x_offset) *
+                                                               run->x_pixel_scale);
+                specs[index].y = (short)lround(
+                    (double)baseline - (pen_y + run->glyphs[index].y_offset) * run->y_pixel_scale);
+                pen_x += run->glyphs[index].x_advance;
+                pen_y += run->glyphs[index].y_advance;
+        }
+        XftDrawGlyphFontSpec(vt->vt.xft_draw, color, specs, (int)run->count);
+}
+
+static void
+PaintShapedText(Vt100Rec *vt, XftFont *font, Pixel pixel, const XftColor *color,
+                const XtpGlyphRun *run, const char *text, size_t length, Boolean color_glyphs,
+                int x, int baseline, const XRectangle *area, const XRectangle *clip)
+{
+        Boolean color_font = XtpCairoFontIsColor(font);
+        Boolean drawn = DrawCairoFontRun(vt, font, pixel, run, color_glyphs, area, clip);
+
+        if (drawn)
+                return;
+        if (!color_font && run != NULL && run->count != 0 && !run->missing) {
+                DrawXftGlyphRun(vt, font, color, x, baseline, run);
+                return;
+        }
+        if ((!color_font || color_glyphs) && (run == NULL || run->count == 0 || run->missing))
+                XftDrawStringUtf8(vt->vt.xft_draw, color, font, x, baseline, (const FcChar8 *)text,
+                                  (int)length);
+        /* A declined color font without a genuine outline intentionally paints nothing. */
 }
 
 static Boolean
@@ -508,7 +517,7 @@ ClearTextClip(Vt100Rec *vt)
 
 static void
 DrawTextClipped(Vt100Rec *vt, Pixel pixel, int x, int baseline, const char *text, size_t length,
-                Boolean bold, XftFont *selected_font, uint32_t codepoint, Boolean color_glyphs,
+                Boolean bold, XftFont *selected_font, const XtpGlyphRun *run, Boolean color_glyphs,
                 const XRectangle *area, const XRectangle *clip)
 {
         Widget widget = (Widget)vt;
@@ -532,17 +541,12 @@ DrawTextClipped(Vt100Rec *vt, Pixel pixel, int x, int baseline, const char *text
         if (vt->vt.use_xft && EnsureXftDraw(vt)) {
                 XftColor color = CachedXftColor(vt, pixel);
                 XftFont *font = selected_font;
-                Boolean drawn;
 
                 if (font == NULL)
                         font = RoleFont(vt->vt.xft_fonts[vt->vt.current_font],
                                         vt->vt.xft_bold_fonts[vt->vt.current_font], bold);
-                drawn = DrawCairoFontGlyph(vt, font, pixel, codepoint, color_glyphs, area,
-                                           effective_clip);
-
-                if (!drawn && (!XtpCairoFontIsColor(font) || color_glyphs || codepoint == 0))
-                        XftDrawStringUtf8(vt->vt.xft_draw, &color, font, x, baseline,
-                                          (const FcChar8 *)text, (int)length);
+                PaintShapedText(vt, font, pixel, &color, run, text, length, color_glyphs, x,
+                                baseline, area, effective_clip);
         } else {
                 XSetForeground(XtDisplay(widget), vt->vt.gc, pixel);
                 XDrawString(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x, baseline, text,
@@ -566,7 +570,7 @@ DrawText(Vt100Rec *vt, Pixel pixel, int x, int baseline, const char *text, size_
 static void
 PaintVisualRun(Vt100Rec *vt, const VisualCell *style, const XRectangle *area, int x, int baseline,
                const char *xft_text, size_t xft_length, const char *bitmap_text,
-               size_t bitmap_length, XftFont *selected_font, uint32_t codepoint,
+               size_t bitmap_length, XftFont *selected_font, const XtpGlyphRun *run,
                Boolean color_glyphs)
 {
         Widget widget = (Widget)vt;
@@ -578,7 +582,6 @@ PaintVisualRun(Vt100Rec *vt, const VisualCell *style, const XRectangle *area, in
                 XftColor background = CachedXftColor(vt, style->background);
                 XftColor foreground = CachedXftColor(vt, style->foreground);
                 XftFont *font = selected_font;
-                Boolean drawn;
 
                 if (font == NULL)
                         font = RoleFont(vt->vt.xft_fonts[vt->vt.current_font],
@@ -586,14 +589,9 @@ PaintVisualRun(Vt100Rec *vt, const VisualCell *style, const XRectangle *area, in
                 XRenderFillRectangle(XtDisplay(widget), PictOpSrc, XftDrawPicture(vt->vt.xft_draw),
                                      &background.color, area->x, area->y, area->width,
                                      area->height);
-                drawn =
-                    xft_length != 0 && DrawCairoFontGlyph(vt, font, style->foreground, codepoint,
-                                                          color_glyphs, area, &effective);
-
-                if (xft_length != 0 && !drawn &&
-                    (!XtpCairoFontIsColor(font) || color_glyphs || codepoint == 0))
-                        XftDrawStringUtf8(vt->vt.xft_draw, &foreground, font, x, baseline,
-                                          (const FcChar8 *)xft_text, (int)xft_length);
+                if (xft_length != 0)
+                        PaintShapedText(vt, font, style->foreground, &foreground, run, xft_text,
+                                        xft_length, color_glyphs, x, baseline, area, &effective);
         } else {
                 XSetForeground(XtDisplay(widget), vt->vt.gc, style->foreground);
                 XSetBackground(XtDisplay(widget), vt->vt.gc, style->background);
@@ -649,22 +647,24 @@ DrawVisualCell(Vt100Rec *vt, const VisualCell *cell, unsigned int column, unsign
                 const char *role = "bitmap";
                 uint32_t base = 0;
                 XtpEmojiStyle style = XTP_EMOJI_STYLE_NONE;
+                XtpGlyphRun run = {0};
 
                 if (cell->text_length != 0)
                         image[0] = cell->text[0];
                 if (vt->vt.use_xft)
                         font = SelectXftFont(vt, cell->text, cell->text_length, columns, cell->bold,
-                                             &role, &base, &style);
+                                             &role, &base, &style, &run);
                 PaintVisualRun(vt, cell, &area, x, y + VtSlotAscent(vt, vt->vt.current_font),
-                               cell->text, cell->text_length, image, columns, font, base,
+                               cell->text, cell->text_length, image, columns, font, &run,
                                vt->vt.color_glyphs && style != XTP_EMOJI_STYLE_TEXT);
                 if (cell->text_length != 0)
                         XtpLog(XTP_LOG_DEBUG, "font",
-                               "route base=U+%04X width=%u presentation=%s role=%s", base, columns,
+                               "route base=U+%04X width=%u presentation=%s role=%s glyphs=%u", base,
+                               columns,
                                style == XTP_EMOJI_STYLE_EMOJI
                                    ? "emoji"
                                    : (style == XTP_EMOJI_STYLE_TEXT ? "text" : "none"),
-                               role);
+                               role, run.count);
         }
         DrawDecorations(vt, cell, &area);
 }
@@ -732,9 +732,10 @@ DrawVisualRowRange(Vt100Rec *vt, unsigned int row, unsigned int first_column,
                                 area.y = (short)y;
                                 area.width = (unsigned short)(length * width);
                                 area.height = (unsigned short)height;
-                                PaintVisualRun(
-                                    vt, first, &area, x, y + VtSlotAscent(vt, vt->vt.current_font),
-                                    run, visible, run, length, first_font, 0, vt->vt.color_glyphs);
+                                PaintVisualRun(vt, first, &area, x,
+                                               y + VtSlotAscent(vt, vt->vt.current_font), run,
+                                               visible, run, length, first_font, NULL,
+                                               vt->vt.color_glyphs);
                                 DrawDecorations(vt, first, &area);
                         }
                 } else {
@@ -813,19 +814,20 @@ VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int ro
                                 XRectangle glyph_area = area;
                                 uint32_t base = 0;
                                 XtpEmojiStyle style = XTP_EMOJI_STYLE_NONE;
+                                XtpGlyphRun run = {0};
                                 XftFont *font =
                                     vt->vt.use_xft
                                         ? SelectXftFont(vt, vt->vt.cursor_text,
                                                         vt->vt.cursor_text_length,
                                                         vt->vt.cursor_width, vt->vt.cursor_bold,
-                                                        NULL, &base, &style)
+                                                        NULL, &base, &style, &run)
                                         : NULL;
 
                                 glyph_area.width = (unsigned short)(vt->vt.cursor_width * width);
                                 DrawTextClipped(
                                     vt, vt->vt.cursor_text_color, x,
                                     y + VtSlotAscent(vt, vt->vt.current_font), vt->vt.cursor_text,
-                                    vt->vt.cursor_text_length, vt->vt.cursor_bold, font, base,
+                                    vt->vt.cursor_text_length, vt->vt.cursor_bold, font, &run,
                                     vt->vt.color_glyphs && style != XTP_EMOJI_STYLE_TEXT,
                                     &glyph_area, &area);
                         }

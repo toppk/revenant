@@ -845,9 +845,9 @@ CreateTerminal(App *app)
             app,
         };
 
-        app->terminal =
-            XtpTerminalNew((uint16_t)XtpVtColumns(app->vt), (uint16_t)XtpVtRows(app->vt),
-                           XtpVtCellWidth(app->vt), XtpVtCellHeight(app->vt));
+        app->terminal = XtpTerminalNewWithGraphemeWidth(
+            (uint16_t)XtpVtColumns(app->vt), (uint16_t)XtpVtRows(app->vt), XtpVtCellWidth(app->vt),
+            XtpVtCellHeight(app->vt), XtpVtGraphemeWidthUnicode(app->vt));
         if (app->terminal == NULL) {
                 XtpLog(XTP_LOG_ERROR, "terminal", "cannot initialize backend=%s",
                        XtpTerminalBackend());

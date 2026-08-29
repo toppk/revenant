@@ -48,6 +48,19 @@ The boundaries are deliberate:
   cache, cell fitting, and color/outline glyph delegate. It receives the
   effective damage/cursor clip from `vt_draw.c`; it does not decide terminal
   geometry.
+- `src/glyph_shape.c` owns HarfBuzz state and the per-Xft-font shaping cache.
+  It shapes one complete grapheme supplied by the backend and returns
+  positioned glyph IDs; it never changes the backend's committed cell width.
+  Font ownership is intentionally isolated: Xft owns its live FreeType face,
+  Cairo creates an independent cairo-ft face, and HarfBuzz maps a separate face
+  from the font file. Sharing Xft's live face lets one consumer change another
+  consumer's size state and is forbidden. The HarfBuzz reconstruction currently
+  uses the file and face index but not `FC_FONT_VARIATIONS` or named-instance
+  coordinates, so configured variable-font axes can differ in multi-glyph run
+  positioning. Runs are shaped per repaint without a text-run cache; profile
+  redraw before adding one. Atomic emoji-sequence probes preserve HarfBuzz
+  default-ignorables while checking for one composed glyph; ordinary drawing
+  removes unresolved controls only after that support decision is made.
 - `src/terminal.h` is the backend-neutral terminal boundary.
   `src/terminal.c` holds policy shared by both backends, currently output feed
   plus viewport anchoring. The `terminal_ghostty.c` and `terminal_stub.c`

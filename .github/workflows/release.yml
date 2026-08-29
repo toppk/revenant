@@ -49,7 +49,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
-            libfontconfig-dev libxft-dev libxrender-dev
+            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
       - run: packaging/build-tarball "${{ needs.prepare.outputs.version }}"
@@ -72,7 +72,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential debhelper meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
-            libfontconfig-dev libxft-dev libxrender-dev
+            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
       - run: packaging/build-deb "${{ needs.prepare.outputs.version }}"
@@ -99,7 +99,7 @@ jobs:
       - run: |
           dnf install -y git rpm-build gcc meson ninja-build python3 jq xz \
             libX11-devel libXt-devel libXaw-devel libXmu-devel libxcb-devel \
-            fontconfig-devel libXft-devel libXrender-devel
+            fontconfig-devel libXft-devel libXrender-devel cairo-devel harfbuzz-devel
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}

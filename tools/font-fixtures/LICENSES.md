@@ -11,6 +11,7 @@ for each entry below.
 | DejaVu Sans Mono Regular/Bold | DejaVu Fonts 2.37 | Bitstream Vera-derived permissive license | Neutral text face. |
 | Noto Sans Mono CJK JP Regular/Bold | Noto Sans CJK 2.004 | SIL OFL 1.1 | Standalone CFF OTFs; not TTC or variable fonts. |
 | Noto Color Emoji CBDT/COLRv1 | Noto Emoji 2.051 | SIL OFL 1.1 | Same family, two color technologies. |
+| Noto Color Emoji historical CBDT | Noto Emoji 2.034 | SIL OFL 1.1 | Exact bytes embedded by Ghostty 1.2.1, 1.3.0, and 1.3.1. Retains the earlier colorful family artwork and lacks U+1FAE8. |
 | Noto Emoji Regular | Noto Emoji 2.028 | SIL OFL 1.1 | Monochrome outline and coverage-miss fixture. |
 | OpenMoji COLRv0 | OpenMoji 17.0 | CC BY-SA 4.0 | Attribution: “All emojis designed by OpenMoji.” Share-alike means this fixture must not be copied into shipped artwork without a separate license review. |
 | Twemoji CBDT | Fedora `twitter-twemoji-fonts` 14.0.2-10 | CC BY 4.0 artwork; MIT source; Apache 2.0 build tooling; Noto/OFL ancestry | Low-resolution 61 ppem strike. The conservative ledger follows the complete Fedora source-package license expression, not only the font name table. |

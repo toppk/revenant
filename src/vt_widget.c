@@ -123,6 +123,8 @@ static XtResource resources[] = {
      XtRString, NULL},
     {"emojiPresentation", "EmojiPresentation", XtRString, sizeof(String),
      OFFSET(emoji_presentation_name), XtRString, (XtPointer) "unicode"},
+    {"graphemeWidth", "GraphemeWidth", XtRString, sizeof(String), OFFSET(grapheme_width_name),
+     XtRString, (XtPointer) "legacy"},
     {"colorGlyphs", "ColorGlyphs", XtRBoolean, sizeof(Boolean), OFFSET(color_glyphs), XtRImmediate,
      (XtPointer)True},
     {"faceSize", "FaceSize", XtRString, sizeof(String), XtOffsetOf(Vt100Rec, vt.face_size_names[0]),
@@ -363,6 +365,18 @@ ParseEmojiPolicy(const char *value)
                "invalid emojiPresentation=%s; using unicode (expected unicode, text, or emoji)",
                value);
         return XTP_EMOJI_POLICY_UNICODE;
+}
+
+static Boolean
+ParseGraphemeWidth(const char *value)
+{
+        if (value == NULL || strcasecmp(value, "legacy") == 0)
+                return False;
+        if (strcasecmp(value, "unicode") == 0)
+                return True;
+        XtpLog(XTP_LOG_ERROR, "config",
+               "invalid graphemeWidth=%s; using legacy (expected legacy or unicode)", value);
+        return False;
 }
 
 static Boolean
@@ -862,6 +876,7 @@ InitializeXft(Vt100Rec *vt)
         vt->vt.use_xft = False;
         vt->vt.xft_draw = NULL;
         vt->vt.cairo_draw = NULL;
+        vt->vt.shaper = NULL;
         memset(vt->vt.xft_fonts, 0, sizeof(vt->vt.xft_fonts));
         memset(vt->vt.xft_bold_fonts, 0, sizeof(vt->vt.xft_bold_fonts));
         memset(vt->vt.xft_wide_fonts, 0, sizeof(vt->vt.xft_wide_fonts));
@@ -907,8 +922,12 @@ InitializeXft(Vt100Rec *vt)
                 LoadXftRoleSlot(vt, slot, "emoji", emoji_face, size, vt->vt.xft_emoji_fonts,
                                 vt->vt.xft_emoji_bold_fonts);
         }
-        if (requested && vt->vt.xft_fonts[0] != NULL)
+        if (requested && vt->vt.xft_fonts[0] != NULL) {
                 vt->vt.use_xft = True;
+                vt->vt.shaper = XtpShaperCreate();
+                if (vt->vt.shaper == NULL)
+                        XtpLog(XTP_LOG_WARNING, "font", "cannot create HarfBuzz shaper");
+        }
 
 done:
         XtpLog(XTP_LOG_INFO, "font",
@@ -1047,6 +1066,7 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
         NormalizeConfiguredColors(vt);
         vt->vt.cursor_blink_policy = ParseCursorBlinkPolicy(vt->vt.cursor_blink_name);
         vt->vt.emoji_presentation = ParseEmojiPolicy(vt->vt.emoji_presentation_name);
+        vt->vt.grapheme_width_unicode = ParseGraphemeWidth(vt->vt.grapheme_width_name);
 
         XtpLog(XTP_LOG_INFO, "config",
                "VT100 compiled defaults grid=80x24 font=fixed internalBorder=2 saveLines=1024 "
@@ -1098,6 +1118,7 @@ Destroy(Widget widget)
         if (vt->vt.xft_draw != NULL)
                 XftDrawDestroy(vt->vt.xft_draw);
         XtpCairoDestroy(vt->vt.cairo_draw);
+        XtpShaperDestroy(vt->vt.shaper);
         free(vt->vt.frame_cells);
         free(vt->vt.pending_cells);
         free(vt->vt.selection_text);
@@ -1556,6 +1577,12 @@ XtpVtRows(Widget widget)
         Vt100Rec *vt = VtAsRecord(widget);
 
         return (unsigned int)vt->vt.rows;
+}
+
+Boolean
+XtpVtGraphemeWidthUnicode(Widget widget)
+{
+        return VtAsRecord(widget)->vt.grapheme_width_unicode;
 }
 
 Boolean

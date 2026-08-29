@@ -54,6 +54,17 @@ SelfTestLogLevels(void)
 static int
 SelfTestEmojiPresentation(void)
 {
+        static const char keycap[] = "1\xef\xb8\x8f\xe2\x83\xa3";
+        static const char invalid_keycap[] = "A\xe2\x83\xa3";
+        static const char modifier[] = "\xf0\x9f\x91\x8b\xf0\x9f\x8f\xbd";
+        static const char ri_pair[] = "\xf0\x9f\x87\xba\xf0\x9f\x87\xb8";
+        static const char tag_flag[] =
+            "\xf0\x9f\x8f\xb4\xf3\xa0\x81\xa7\xf3\xa0\x81\xa2\xf3\xa0\x81\xb3"
+            "\xf3\xa0\x81\xa3\xf3\xa0\x81\xb4\xf3\xa0\x81\xbf";
+        static const char trailing_zwj[] = "\xf0\x9f\x91\xa8\xe2\x80\x8d";
+        static const char technologist[] = "\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x92\xbb";
+        XtpEmojiClusterStyle cluster;
+
         if (strcmp(XtpEmojiUnicodeVersion(), "17.0") != 0 || !XtpEmojiHasProperty(0x1f600U) ||
             !XtpEmojiHasDefaultPresentation(0x1f600U) || !XtpEmojiHasProperty(0x263aU) ||
             XtpEmojiHasDefaultPresentation(0x263aU) || !XtpEmojiHasProperty(0x2764U) ||
@@ -71,6 +82,38 @@ SelfTestEmojiPresentation(void)
             XtpEmojiResolveStyle('1', 0, XTP_EMOJI_POLICY_EMOJI) != XTP_EMOJI_STYLE_TEXT ||
             XtpEmojiResolveStyle('1', 0xfe0fU, XTP_EMOJI_POLICY_UNICODE) != XTP_EMOJI_STYLE_EMOJI ||
             XtpEmojiResolveStyle(0x65e5U, 0xfe0fU, XTP_EMOJI_POLICY_EMOJI) != XTP_EMOJI_STYLE_NONE)
+                return -1;
+        cluster =
+            XtpEmojiResolveClusterStyle(keycap, sizeof(keycap) - 1U, XTP_EMOJI_POLICY_UNICODE);
+        if (cluster.base != '1' || cluster.style != XTP_EMOJI_STYLE_EMOJI ||
+            !cluster.requires_composition)
+                return -1;
+        cluster = XtpEmojiResolveClusterStyle(invalid_keycap, sizeof(invalid_keycap) - 1U,
+                                              XTP_EMOJI_POLICY_UNICODE);
+        if (cluster.base != 'A' || cluster.style != XTP_EMOJI_STYLE_NONE ||
+            cluster.requires_composition)
+                return -1;
+        cluster =
+            XtpEmojiResolveClusterStyle(modifier, sizeof(modifier) - 1U, XTP_EMOJI_POLICY_UNICODE);
+        if (cluster.base != 0x1f44bU || !cluster.requires_composition)
+                return -1;
+        cluster =
+            XtpEmojiResolveClusterStyle(ri_pair, sizeof(ri_pair) - 1U, XTP_EMOJI_POLICY_UNICODE);
+        if (cluster.base != 0x1f1faU || !cluster.requires_composition)
+                return -1;
+        cluster =
+            XtpEmojiResolveClusterStyle(tag_flag, sizeof(tag_flag) - 1U, XTP_EMOJI_POLICY_UNICODE);
+        if (cluster.base != 0x1f3f4U || !cluster.requires_composition)
+                return -1;
+        cluster = XtpEmojiResolveClusterStyle(trailing_zwj, sizeof(trailing_zwj) - 1U,
+                                              XTP_EMOJI_POLICY_UNICODE);
+        if (cluster.base != 0x1f468U || cluster.style != XTP_EMOJI_STYLE_EMOJI ||
+            cluster.requires_composition)
+                return -1;
+        cluster = XtpEmojiResolveClusterStyle(technologist, sizeof(technologist) - 1U,
+                                              XTP_EMOJI_POLICY_UNICODE);
+        if (cluster.base != 0x1f469U || cluster.style != XTP_EMOJI_STYLE_EMOJI ||
+            !cluster.requires_composition)
                 return -1;
         return 0;
 }

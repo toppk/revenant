@@ -78,6 +78,34 @@ out of the rendering path, so enable debug only while reproducing something:
 revenant -log debug 2> revenant.log
 ```
 
+## Inspecting one font with HarfBuzz
+
+When a sequence looks surprising, inspect the font independently of terminal
+routing, cell sizing, and clipping. `hb-shape` reports the glyph IDs, clusters,
+and positions selected by HarfBuzz; `hb-view` shapes the same text and writes
+the font's rasterized result to a PNG:
+
+```sh
+hb-shape font-fixtures-stage/fonts/NotoColorEmoji.ttf '👨‍👩‍👧‍👦'
+hb-view --font-file=font-fixtures-stage/fonts/NotoColorEmoji.ttf \
+  --output-file=family-current.png '👨‍👩‍👧‍👦'
+hb-view --font-file=font-fixtures-stage/fonts/NotoColorEmoji-2.034.ttf \
+  --output-file=family-2.034.png '👨‍👩‍👧‍👦'
+```
+
+This is the quickest way to distinguish font artwork from a Revenant shaping
+or rendering bug. If the standalone PNG has the same design, the terminal is
+faithfully painting that font. If its glyph selection or image differs, inspect
+Revenant's `font: route` debug record and clipping next. The historical 2.034
+fixture is useful here because it has the earlier colorful family artwork,
+while the current pinned Noto release has the achromatic family design
+introduced by [Google's Emoji 15.1 update](https://blog.emojipedia.org/googles-emoji-15-1-support-in-noto-color-emoji/).
+
+Use `tools/font-fixture-info.py FONT...` alongside these commands to inspect
+format tables, strikes, coverage, and per-probe ink paths. `hb-view` is a
+diagnostic, not an acceptance oracle: terminal tests must still assert committed
+cell width, clipping, fallback, and cursor behavior under Xvfb.
+
 ## Regression helpers
 
 ### Live xterm font compatibility

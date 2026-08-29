@@ -19,7 +19,8 @@ struct XtpTerminal
 };
 
 XtpTerminal *
-XtpTerminalNew(uint16_t columns, uint16_t rows, uint32_t cell_width, uint32_t cell_height)
+XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_width,
+                                uint32_t cell_height, bool unicode_width)
 {
         XtpTerminal *terminal = calloc(1, sizeof(*terminal));
 
@@ -29,9 +30,16 @@ XtpTerminalNew(uint16_t columns, uint16_t rows, uint32_t cell_width, uint32_t ce
                 terminal->cell_width = cell_width;
                 terminal->cell_height = cell_height;
         }
-        XtpLog(XTP_LOG_INFO, "terminal", "creating backend=stub grid=%ux%u cell=%ux%u", columns,
-               rows, cell_width, cell_height);
+        XtpLog(XTP_LOG_INFO, "terminal",
+               "creating backend=stub grid=%ux%u cell=%ux%u graphemeWidth=%s", columns, rows,
+               cell_width, cell_height, unicode_width ? "unicode" : "legacy");
         return terminal;
+}
+
+XtpTerminal *
+XtpTerminalNew(uint16_t columns, uint16_t rows, uint32_t cell_width, uint32_t cell_height)
+{
+        return XtpTerminalNewWithGraphemeWidth(columns, rows, cell_width, cell_height, false);
 }
 
 void

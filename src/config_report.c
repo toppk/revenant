@@ -88,6 +88,7 @@ static const ResourceProbe resource_probes[] = {
     {"xterm.vt100.faceNameDoublesize", "XTerm.VT100.FaceNameDoublesize"},
     {"xterm.vt100.faceNameEmoji", "XTerm.VT100.FaceNameEmoji"},
     {"xterm.vt100.emojiPresentation", "XTerm.VT100.EmojiPresentation"},
+    {"xterm.vt100.graphemeWidth", "XTerm.VT100.GraphemeWidth"},
     {"xterm.vt100.colorGlyphs", "XTerm.VT100.ColorGlyphs"},
     {"xterm.vt100.faceSize", "XTerm.VT100.FaceSize"},
     {"xterm.vt100.renderFont", "XTerm.VT100.RenderFont"},
@@ -455,6 +456,11 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
             "XTerm.VT100.EmojiPresentation",
             "unicode",
         };
+        ResourceSpec grapheme_width_spec = {
+            "xterm.vt100.graphemeWidth",
+            "XTerm.VT100.GraphemeWidth",
+            "legacy",
+        };
         ResourceSpec color_glyphs_spec = {
             "xterm.vt100.colorGlyphs",
             "XTerm.VT100.ColorGlyphs",
@@ -466,6 +472,7 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
         Resolved base_size = ResolveResource(merged, server, command, &size_spec);
         Resolved emoji_face = ResolveResource(merged, server, command, &emoji_spec);
         Resolved presentation = ResolveResource(merged, server, command, &presentation_spec);
+        Resolved grapheme_width = ResolveResource(merged, server, command, &grapheme_width_spec);
         Resolved color_glyphs = ResolveResource(merged, server, command, &color_glyphs_spec);
         FontChoice choices[8];
         FontChoice ordered[8];
@@ -493,6 +500,9 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
                       "Preferred face for Unicode emoji presentation.", &emoji_face);
         PrintResolved("XTerm*emojiPresentation", "supported",
                       "Selector-less policy: unicode, text, or emoji.", &presentation);
+        PrintResolved("XTerm*graphemeWidth", "supported",
+                      "Initial/RIS width contract: legacy or unicode (mode 2027 on).",
+                      &grapheme_width);
         PrintResolved("XTerm*colorGlyphs", "supported",
                       "Color-glyph policy; false uses real outline bases and rejects empty ones.",
                       &color_glyphs);
@@ -596,6 +606,10 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
         free(face.value);
         free(double_face.value);
         free(base_size.value);
+        free(emoji_face.value);
+        free(presentation.value);
+        free(grapheme_width.value);
+        free(color_glyphs.value);
 }
 
 static void
@@ -838,8 +852,8 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "multiClickTime") == 0 || strcmp(name, "charClass") == 0 ||
             strcmp(name, "renderFont") == 0 || strcmp(name, "faceName") == 0 ||
             strcmp(name, "faceNameDoublesize") == 0 || strcmp(name, "faceNameEmoji") == 0 ||
-            strcmp(name, "emojiPresentation") == 0 || strcmp(name, "colorGlyphs") == 0 ||
-            strncmp(name, "faceSize", 8) == 0)
+            strcmp(name, "emojiPresentation") == 0 || strcmp(name, "graphemeWidth") == 0 ||
+            strcmp(name, "colorGlyphs") == 0 || strncmp(name, "faceSize", 8) == 0)
                 return "supported";
         if (strcmp(name, "cursorBlinkXOR") == 0 || strncmp(name, "color", 5) == 0 ||
             strcmp(name, "pointerColor") == 0 || strcmp(name, "pointerColorBackground") == 0 ||

@@ -145,6 +145,12 @@ reference](https://toppk.github.io/revenant/tdn/csi/cursor/) documents the
 wire controls, the Revenant policy, the xterm policy reference, and versioned
 observations from other terminals.
 
+Revenant supports DEC private mode 2027 for negotiated Unicode grapheme-cluster
+widths. Unlike Ghostty, it defaults that mode off (`graphemeWidth: legacy`) to
+preserve xterm and wcwidth application arithmetic. `graphemeWidth: unicode`
+changes the initial and reset default; applications may still select or reset
+the mode explicitly.
+
 ## Transitional gaps, not intended differences
 
 The following are incomplete compatibility work and should not be treated as
@@ -153,9 +159,9 @@ design decisions:
 - `renderFont`, the primary `faceName`, and `faceSize`/`faceSize1` through
   `faceSize7` select the Xft/fontconfig renderer. The Xlib bitmap path remains
   available when `renderFont` is false. `faceNameDoublesize`, `faceNameEmoji`,
-  Unicode/VS emoji presentation, color emoji, and empty-ink fallback are
-  implemented. General font fallback, comma-separated override faces, and
-  sequence shaping beyond the backend's current grapheme output remain open.
+  Unicode/VS emoji presentation, color emoji, HarfBuzz grapheme shaping, and
+  atomic empty-ink fallback are implemented. General font fallback and
+  comma-separated override faces remain open.
 - The xterm color palette and pointer resources are merged by Xt but are not
   all applied by the drawer.
 - `-report-config` is a Revenant diagnostic which presents resolved resources,

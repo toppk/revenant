@@ -291,6 +291,8 @@ typedef enum
 
 XtpTerminal *XtpTerminalNew(uint16_t columns, uint16_t rows, uint32_t cell_width,
                             uint32_t cell_height);
+XtpTerminal *XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_width,
+                                             uint32_t cell_height, bool unicode_width);
 void XtpTerminalFree(XtpTerminal *terminal);
 void XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length);
 int XtpTerminalFeedOutput(XtpTerminal *terminal, const uint8_t *bytes, size_t length,

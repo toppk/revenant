@@ -88,6 +88,7 @@ run_case()
     presentation=$9
     color_glyphs=${10}
     primary_face=${11:-DejaVu Sans Mono:rgba=none}
+    grapheme_width=${12:-default}
     log=$test_dir/$case_name.log
     cpr=$test_dir/$case_name.cpr
     done_dir=$test_dir/$case_name.done
@@ -105,6 +106,10 @@ run_case()
     else
         set -- "$@" -xrm 'xterm.vt100.faceNameDoublesize:'
     fi
+    if test "$grapheme_width" != default
+    then
+        set -- "$@" -xrm "xterm.vt100.graphemeWidth: $grapheme_width"
+    fi
 
     # The single-quoted program is expanded by the child bash, not this shell.
     # shellcheck disable=SC2016
@@ -117,7 +122,7 @@ run_case()
         -xrm 'xterm.vt100.renderFont: true' \
         -xrm "xterm.vt100.emojiPresentation: $presentation" \
         -xrm "xterm.vt100.colorGlyphs: $color_glyphs" \
-        -e bash -c 'stty raw -echo; printf "\033[2J\033[H\033[?25l%s\033[6n" "$2"; IFS= read -r -d R reply; printf "%sR" "$reply" >"$1"; printf "\033]2;emoji-routing-ready\007"; while ! test -d "$3"; do sleep 0.05; done' bash "$cpr" "$probe" "$done_dir" \
+        -e bash -c 'stty raw -echo; printf "\033[2J\033[H\033[?25l%s\033[6n" "$2"; IFS= read -r -d R reply; printf "%sR" "$reply" >"$1"; if test "$4" = sequence-combining; then printf "\033[2;1HM"; fi; printf "\033]2;emoji-routing-ready\007"; while ! test -d "$3"; do sleep 0.05; done' bash "$cpr" "$probe" "$done_dir" "$case_name" \
         >"$test_dir/$case_name.out" 2>"$log" &
     terminal_pid=$!
     wait_for_terminal "$log" "$case_name"
@@ -135,6 +140,8 @@ run_case()
     case $expected_width in
     1) expected_cpr=1b5b313b3252 ;;
     2) expected_cpr=1b5b313b3352 ;;
+    4) expected_cpr=1b5b313b3552 ;;
+    6) expected_cpr=1b5b313b3752 ;;
     *) echo "unsupported expected width: $expected_width" >&2; exit 2 ;;
     esac
 
@@ -146,7 +153,7 @@ run_case()
         sed -n '1,320p' "$log" >&2
         exit 1
     fi
-    if test "$case_name" = heart-vs16
+    if test "$case_name" = heart-vs16-unicode
     then
         damage_width=$((cell_width / 2))
         damage_result=$("$window_ink" "$window" --damage-guard 4 4 "$cell_width" "$cell_height" \
@@ -160,9 +167,59 @@ run_case()
         echo "emoji-default expected vertically fitted ink with top and bottom margins: $result" >&2
         exit 1
     fi
+    if test "$case_name" = sequence-combining
+    then
+        ascii_result=$("$window_ink" "$window" --expose 4 $((4 + cell_height)) \
+            "$cell_width" "$cell_height" 0x000000)
+        ascii_class=$(printf '%s\n' "$ascii_result" | sed -n 's/^class=\([^ ]*\).*/\1/p')
+        ascii_y=$(printf '%s\n' "$ascii_result" | \
+            sed -n 's/.* bounds=[0-9][0-9]*,\([0-9][0-9]*\),[0-9][0-9]*,[0-9][0-9]*$/\1/p')
+        ascii_height=$(printf '%s\n' "$ascii_result" | \
+            sed -n 's/.* bounds=[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*,\([0-9][0-9]*\)$/\1/p')
+        printf '%-18s %s\n' xft-face-isolation "$ascii_result"
+        if test "$ascii_class" != mono || test -z "$ascii_y" || \
+           test -z "$ascii_height" || test "$ascii_y" -eq 0 || \
+           test $((ascii_y + ascii_height)) -ge "$cell_height"
+        then
+            echo "xft-face-isolation expected ordinary text to retain vertical cell margins after shaping" >&2
+            exit 1
+        fi
+    fi
+    if test "$case_name" = sequence-family-default
+    then
+        component=0
+        while test "$component" -lt 3
+        do
+            component_result=$("$window_ink" "$window" --expose \
+                $((4 + component * 2 * cell_width)) 4 $((2 * cell_width)) \
+                "$cell_height" 0x000000)
+            component_class=$(printf '%s\n' "$component_result" | \
+                sed -n 's/^class=\([^ ]*\).*/\1/p')
+            if test "$component_class" = blank
+            then
+                echo "sequence-family-default component $component has no ink: $component_result" >&2
+                exit 1
+            fi
+            component=$((component + 1))
+        done
+    fi
     mkdir "$done_dir"
     wait "$terminal_pid" 2>/dev/null || true
     terminal_pid=
+}
+
+run_unicode_case()
+{
+    if test "$#" -eq 10
+    then
+        run_case "$@" 'DejaVu Sans Mono:rgba=none' unicode
+    elif test "$#" -eq 11
+    then
+        run_case "$@" unicode
+    else
+        echo "run_unicode_case expected 10 or 11 arguments, got $#" >&2
+        exit 2
+    fi
 }
 
 run_cursor_clip_case()
@@ -183,9 +240,9 @@ run_cursor_clip_case()
         -xrm 'xterm.vt100.cursorColor: #FFFFFF' \
         -xrm 'xterm.vt100.alwaysHighlight: true' \
         -xrm 'xterm.vt100.renderFont: true' \
-        -xrm 'xterm.vt100.emojiPresentation: unicode' \
+        -xrm 'xterm.vt100.emojiPresentation: emoji' \
         -xrm 'xterm.vt100.colorGlyphs: true' \
-        -e bash -c 'stty raw -echo; printf "\033[2J\033[H%s\033[D" "$1"; printf "\033]2;emoji-routing-ready\007"; while ! test -d "$2"; do sleep 0.05; done' bash '❤️' "$done_dir" \
+        -e bash -c 'stty raw -echo; printf "\033[2J\033[H%s\033[D" "$1"; printf "\033]2;emoji-routing-ready\007"; while ! test -d "$2"; do sleep 0.05; done' bash '❤' "$done_dir" \
         >"$test_dir/cursor-clip.out" 2>"$log" &
     terminal_pid=$!
     wait_for_terminal "$log" cursor-clip
@@ -211,6 +268,7 @@ run_cursor_clip_case()
 # Unicode defaults and explicit selectors route independently of width.
 bold_grin=$(printf '\033[1m😀')
 bold_cjk=$(printf '\033[1m日')
+combining_acute=$(printf 'e\314\201')
 run_case routing emoji-default 😀 color 2 \
     'base=U+1F600 width=2 presentation=emoji role=emoji' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
@@ -226,23 +284,81 @@ run_case routing cjk-bold "$bold_cjk" mono 2 \
 run_case routing heart-text ❤ mono 1 \
     'base=U+2764 width=1 presentation=text role=primary' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
-run_case routing heart-vs16 ❤️ color 1 \
-    'base=U+2764 width=1 presentation=emoji role=emoji' \
+run_unicode_case routing heart-vs16-unicode ❤️ color 2 \
+    'base=U+2764 width=2 presentation=emoji role=emoji' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+run_case routing heart-vs16-default ❤️ color 1 \
+    'base=U+2764 width=1 presentation=emoji role=emoji' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' default
 run_case routing heart-vs15 '❤︎' mono 1 \
     'base=U+2764 width=1 presentation=text role=primary' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
 run_case routing info-text ℹ mono 1 \
     'base=U+2139 width=1 presentation=text role=primary' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
-run_case routing info-vs16 ℹ️ color 1 \
-    'base=U+2139 width=1 presentation=emoji role=emoji' \
+run_unicode_case routing info-vs16-unicode ℹ️ color 2 \
+    'base=U+2139 width=2 presentation=emoji role=emoji' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+
+# HarfBuzz receives each complete backend grapheme. These sequences must
+# resolve to one positioned glyph without changing libghostty's cell width.
+run_unicode_case routing sequence-keycap 1️⃣ color 2 \
+    'base=U+0031 width=2 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+run_case routing keycap-default 1️⃣ color 1 \
+    'base=U+0031 width=1 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' default
+run_unicode_case routing sequence-tone 👋🏽 color 2 \
+    'base=U+1F44B width=2 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+run_unicode_case routing sequence-zwj 👩‍💻 color 2 \
+    'base=U+1F469 width=2 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+# Current Noto deliberately paints family sequences with an achromatic gray
+# COLRv1 palette. "mono" here describes sampled pixels, not the font format.
+run_unicode_case routing sequence-family 👨‍👩‍👧 mono 2 \
+    'base=U+1F468 width=2 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+run_case routing sequence-family-default 👨‍👩‍👧 color 6 \
+    'base=U+1F468 width=2 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+run_unicode_case routing sequence-flag 🇺🇸 color 2 \
+    'base=U+1F1FA width=2 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+run_unicode_case routing sequence-tag-flag 🏴󠁧󠁢󠁳󠁣󠁴󠁿 color 2 \
+    'base=U+1F3F4 width=2 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+# Twitter's SVG font has the black-flag base but not the Scotland ligature.
+# Preserved tag components must reject it before drawing can erase them.
+run_unicode_case atomic-tag sequence-tag-atomic-fallback 🏴󠁧󠁢󠁳󠁣󠁴󠁿 color 2 \
+    'base=U+1F3F4 width=2 presentation=emoji role=doublesize glyphs=1' \
+    'Twitter Color Emoji' 'Noto Color Emoji' unicode true
+run_unicode_case routing adjacent-flags 🇺🇸🇯🇵 color 4 \
+    'base=U+1F1FA width=2 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+run_unicode_case routing sequence-combining "$combining_acute" mono 1 \
+    'base=U+0065 width=1 presentation=none role=primary glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+
+# A partial match in the preferred emoji face must not split the cluster.
+run_unicode_case routing sequence-atomic-fallback ❤️‍🔥 color 2 \
+    'base=U+2764 width=2 presentation=emoji role=doublesize glyphs=1' \
+    'DejaVu Sans Mono' 'Noto Color Emoji' unicode true
+# Noto Emoji has both component glyphs but no woman-technologist ligature. It
+# must also fall through atomically, rather than squeezing both into one cell.
+run_unicode_case routing sequence-ligature-fallback 👩‍💻 color 2 \
+    'base=U+1F469 width=2 presentation=emoji role=doublesize glyphs=1' \
+    'Noto Emoji' 'Noto Color Emoji' unicode true
 
 # An emoji-face miss falls through to doublesize; policy never changes width.
 run_case routing emoji-fallthrough 🫨 color 2 \
-    'base=U+1FAE8 width=2 presentation=emoji role=doublesize' \
-    'Noto Emoji' 'Noto Color Emoji' unicode true
+	'base=U+1FAE8 width=2 presentation=emoji role=doublesize' \
+	'Noto Emoji' 'Noto Color Emoji' unicode true
+run_case legacy-routing legacy-cbdt-fallthrough 🫨 color 2 \
+	'base=U+1FAE8 width=2 presentation=emoji role=doublesize' \
+	'Noto Color Emoji' OpenMoji unicode true
 run_case routing policy-emoji-heart ❤ color 1 \
     'base=U+2764 width=1 presentation=emoji role=emoji' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' emoji true

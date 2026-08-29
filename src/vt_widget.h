@@ -66,6 +66,7 @@ unsigned int XtpVtCellWidth(Widget widget);
 unsigned int XtpVtCellHeight(Widget widget);
 unsigned int XtpVtColumns(Widget widget);
 unsigned int XtpVtRows(Widget widget);
+Boolean XtpVtGraphemeWidthUnicode(Widget widget);
 Boolean XtpVtFontSlotInfo(Widget widget, int slot, XtpFontSlotInfo *info);
 const char *XtpVtRendererName(Widget widget);
 Boolean XtpVtUsingXft(Widget widget);

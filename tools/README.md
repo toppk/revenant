@@ -6,6 +6,7 @@ Human-run terminal verification programs are named
 - `probe-color.sh`
 - `probe-osc8.sh`
 - `probe-emoji.py`
+- `probe-fonts.py`
 - `probe-keymodes.py`
 
 See [`docs/reference/probes.md`](../docs/reference/probes.md) for their scope

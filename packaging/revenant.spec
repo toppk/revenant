@@ -20,6 +20,10 @@ BuildRequires:  pkgconfig(xmu)
 BuildRequires:  pkgconfig(fontconfig)
 BuildRequires:  pkgconfig(xft)
 BuildRequires:  pkgconfig(xrender)
+BuildRequires:  pkgconfig(cairo) >= 1.18
+BuildRequires:  pkgconfig(cairo-ft) >= 1.18
+BuildRequires:  pkgconfig(cairo-xlib) >= 1.18
+BuildRequires:  pkgconfig(harfbuzz)
 # zig >= 0.16 must be on PATH; Fedora's packaged zig is not used.
 
 %description

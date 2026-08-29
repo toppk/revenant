@@ -34,6 +34,7 @@ sources=$(cat <<'EOF'
 dejavu-2.37|dejavu-fonts-ttf-2.37.zip|7576310b219e04159d35ff61dd4a4ec4cdba4f35c00e002a136f00e96a908b0a|https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip
 noto-cjk-sans-2.004|11_NotoSansMonoCJKjp.zip|6c8faf475ce78fa37486dd5d8920e4bb4450b1b0f3c497edf3ba2d25cf52ab78|https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/11_NotoSansMonoCJKjp.zip
 noto-emoji-2.051|noto-emoji-2.051.zip|8bf6ee50a5ae5873880a9541be3d532f9db10673013892084a04673c8c1e580b|https://github.com/googlefonts/noto-emoji/archive/refs/tags/v2.051.zip
+noto-emoji-2.034|noto-emoji-2.034.zip|d5d37552030d4140975ec75f547be20035aa3b66fb4d3fc48742094db490d591|https://github.com/googlefonts/noto-emoji/archive/refs/tags/v2.034.zip
 noto-emoji-2.028|noto-emoji-2.028.zip|a5354c70df3b174029891fd1cc7eb0302c246859565155a21b14fecf45efdc4f|https://github.com/googlefonts/noto-emoji/archive/refs/tags/v2.028.zip
 openmoji-17.0.0|openmoji-font.zip|1de61d8dcb38d0bebbdd13c7057a65f5d957ead36ce4b61bd635f84e6f3cadba|https://github.com/hfg-gmuend/openmoji/releases/download/17.0.0/openmoji-font.zip
 twemoji-source-14.0.2|twemoji-14.0.2.zip|e10e955c58b49d1de9218f08b48bf52913c6deeee7c569daa97ba7a4df4a3716|https://github.com/jdecked/twemoji/archive/refs/tags/v14.0.2.zip
@@ -208,6 +209,10 @@ extract_zip noto-emoji-2.051.zip noto-emoji-2.051/fonts/NotoColorEmoji.ttf \
 	"$work/fonts/NotoColorEmoji.ttf"
 extract_zip noto-emoji-2.051.zip noto-emoji-2.051/fonts/LICENSE \
 	"$work/licenses/NotoEmoji-2.051.txt"
+extract_zip noto-emoji-2.034.zip noto-emoji-2.034/fonts/NotoColorEmoji.ttf \
+	"$work/fonts/NotoColorEmoji-2.034.ttf"
+extract_zip noto-emoji-2.034.zip noto-emoji-2.034/fonts/LICENSE \
+	"$work/licenses/NotoEmoji-2.034.txt"
 extract_zip noto-emoji-2.028.zip noto-emoji-2.028/fonts/NotoEmoji-Regular.ttf \
 	"$work/fonts/NotoEmoji-Regular.ttf"
 extract_zip noto-emoji-2.028.zip noto-emoji-2.028/fonts/LICENSE \
@@ -281,11 +286,14 @@ readonly base_bold=DejaVuSansMono-Bold.ttf
 make_universe empty
 make_universe base "$base_regular" "$base_bold"
 make_universe cbdt "$base_regular" "$base_bold" NotoColorEmoji.ttf
+make_universe cbdt-legacy "$base_regular" "$base_bold" NotoColorEmoji-2.034.ttf
 make_universe cbdt-lowres "$base_regular" "$base_bold" Twemoji.ttf
 make_universe colrv0 "$base_regular" "$base_bold" OpenMoji-COLRv0.ttf
 make_universe colrv1 "$base_regular" "$base_bold" Noto-COLRv1.ttf
 make_universe mono "$base_regular" "$base_bold" NotoEmoji-Regular.ttf
 make_universe svginot "$base_regular" "$base_bold" TwitterColorEmoji-SVGinOT.ttf
+make_universe atomic-tag "$base_regular" "$base_bold" \
+	TwitterColorEmoji-SVGinOT.ttf Noto-COLRv1.ttf
 make_universe sbix "$base_regular" "$base_bold" RevenantSyntheticSbix.ttf
 make_universe cjk "$base_regular" "$base_bold" \
 	NotoSansMonoCJKjp-Regular.otf NotoSansMonoCJKjp-Bold.otf
@@ -294,6 +302,8 @@ make_universe cjk-emoji "$base_regular" "$base_bold" \
 make_universe routing "$base_regular" "$base_bold" \
 	NotoSansMonoCJKjp-Regular.otf NotoSansMonoCJKjp-Bold.otf \
 	NotoEmoji-Regular.ttf Noto-COLRv1.ttf
+make_universe legacy-routing "$base_regular" "$base_bold" \
+	NotoColorEmoji-2.034.ttf OpenMoji-COLRv0.ttf
 
 {
 	printf 'path\tsha256\tsource\tlicense\n'
@@ -304,6 +314,8 @@ make_universe routing "$base_regular" "$base_bold" \
 		NotoSansMonoCJK*) source=noto-cjk-sans-2.004; license=licenses/NotoSansCJK-2.004.txt ;;
 		Noto-COLRv1.ttf | NotoColorEmoji.ttf)
 			source=noto-emoji-2.051; license=licenses/NotoEmoji-2.051.txt ;;
+		NotoColorEmoji-2.034.ttf)
+			source=noto-emoji-2.034; license=licenses/NotoEmoji-2.034.txt ;;
 		NotoEmoji-Regular.ttf)
 			source=noto-emoji-2.028; license=licenses/NotoEmoji-2.028.txt ;;
 		OpenMoji-COLRv0.ttf)
@@ -403,10 +415,10 @@ probe. See the maintained `tools/font-fixtures/README.md` for the full schema
 contract.
 
 The `empty` universe deliberately contains no fonts. The `base`, `cbdt`,
-`cbdt-lowres`, `colrv0`, `colrv1`, `mono`, `svginot`, `sbix`, `cjk`,
-`cjk-emoji`, and `routing` universes isolate the remaining rendering and
-fallback scenarios. Moving this entire tree is safe because its Fontconfig
-paths and font links are relative.
+`cbdt-legacy`, `cbdt-lowres`, `colrv0`, `colrv1`, `mono`, `svginot`,
+`atomic-tag`, `sbix`, `cjk`, `cjk-emoji`, `routing`, and `legacy-routing`
+universes isolate the remaining rendering and fallback scenarios. Moving this
+entire tree is safe because its Fontconfig paths and font links are relative.
 EOF
 
 python3 "$project_root/tools/font-fixture-info.py" --check "$work/manifest.json"

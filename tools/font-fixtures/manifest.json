@@ -76,6 +76,24 @@
         "information_text_default": "bitmap"
       }
     },
+    "NotoColorEmoji-2.034.ttf": {
+      "sha256": "bf2a8506b80614ba190a34c7b037af1269a7d614fe9f3b613cc15cdeec6f814b",
+      "family": "Noto Color Emoji",
+      "technologies": ["CBDT"],
+      "outline": "none",
+      "strikes": {"CBDT": [109]},
+      "axes": [],
+      "glyphs": 3722,
+      "codepoints": 1467,
+      "probes": {
+        "grinning_face": "bitmap",
+        "heart_text_default": "bitmap",
+        "shaking_face_emoji_15": "missing",
+        "regional_indicator_u": "bitmap",
+        "cjk_sentinel": "missing",
+        "information_text_default": "bitmap"
+      }
+    },
     "NotoEmoji-Regular.ttf": {
       "sha256": "415dc6290378574135b64c808dc640c1df7531973290c4970c51fdeb849cb0c5",
       "family": "Noto Emoji",

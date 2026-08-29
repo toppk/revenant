@@ -2,6 +2,7 @@
 #define XTERM_PLUS_EMOJI_PRESENTATION_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 typedef enum
@@ -18,9 +19,18 @@ typedef enum
         XTP_EMOJI_STYLE_EMOJI,
 } XtpEmojiStyle;
 
+typedef struct
+{
+        uint32_t base;
+        XtpEmojiStyle style;
+        bool requires_composition;
+} XtpEmojiClusterStyle;
+
 const char *XtpEmojiUnicodeVersion(void);
 bool XtpEmojiHasProperty(uint32_t codepoint);
 bool XtpEmojiHasDefaultPresentation(uint32_t codepoint);
 XtpEmojiStyle XtpEmojiResolveStyle(uint32_t base, uint32_t selector, XtpEmojiPolicy policy);
+XtpEmojiClusterStyle XtpEmojiResolveClusterStyle(const char *text, size_t length,
+                                                 XtpEmojiPolicy policy);
 
 #endif

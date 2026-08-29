@@ -38,7 +38,7 @@ present, but the complete user-visible integration is not yet available.
 | Resize with primary-screen reflow | Partial | Retain geometry regression coverage; the [Readline 8.3 wrapped-prompt regression](../reference/bash-readline-resize.md) is fixed upstream and requires no terminal workaround. |
 | 24-bit and 256-color terminal output | Partial | Terminal colors render, but xterm `color0` through `color15` resource overrides are not all applied. |
 | Bold, italic, inverse, and decorations | Partial | Xft uses a real clipped bold face; bitmap bold remains synthetic, italic is incomplete, and style/color combinations need compatibility tests. |
-| Unicode and multi-codepoint graphemes | Partial | Unicode 17 emoji presentation, selectors, color formats, CJK/emoji roles, and empty-ink fallback work; general fallback and sequence shaping remain. |
+| Unicode and multi-codepoint graphemes | Partial | Unicode 17 emoji presentation, color formats, atomic role fallback, and HarfBuzz sequence shaping work; general-purpose fallback remains. |
 | Mode-aware keyboard input and modifiers | Partial | Kitty keyboard flags and press/repeat/release delivery are promoted. Complete the remaining X11 key map and application-mode matrix. |
 | Default VT bindings | Partial | The patch-410 binding groups are audited; add Shift+Select, Alt+Return fullscreen, Scroll Lock, and clear-saved-lines as their actions become available. |
 | Scrollback viewport | Present | Add saved-line clearing and retain deep-selection regression coverage. |
@@ -151,8 +151,9 @@ semantics and describes the implemented named-selection path.
 
 - Apply xterm palette and pointer resources.
 - Retain real clipped bold Xft faces, Unicode emoji/CJK role routing, color
-  formats, and fixed cell placement; add italic faces, general font fallback,
-  and sequence shaping while preserving display-aware Xft point sizing.
+  formats, HarfBuzz grapheme shaping, and fixed cell placement; add italic
+  faces and general font fallback while preserving display-aware Xft point
+  sizing.
 - Retain application-selected block, underline, and bar cursor and blink
   coverage and the four-value `cursorBlink` startup policy; wire the remaining
   startup shape resources and menu toggle.

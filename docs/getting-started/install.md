@@ -14,16 +14,16 @@ it with Revenant's existing X11 application class.
 ## Prerequisites
 
 You need a C toolchain, Meson and Ninja, the X11 development libraries xterm
-itself uses (Xlib, Xt, Xaw, Xft, Xrender, and fontconfig), and Cairo 1.18 with
-its FreeType and Xlib backends. Building the terminal core additionally needs
-Zig, because `libghostty-vt` is built from Ghostty's source.
+itself uses (Xlib, Xt, Xaw, Xft, Xrender, and fontconfig), HarfBuzz, and Cairo
+1.18 with its FreeType and Xlib backends. Building the terminal core
+additionally needs Zig, because `libghostty-vt` is built from Ghostty's source.
 
 === "Fedora"
 
     ```sh
     sudo dnf install gcc meson ninja-build zig \
       libX11-devel libXt-devel libXaw-devel libXft-devel libXrender-devel \
-      fontconfig-devel cairo-devel libxcb-devel
+      fontconfig-devel cairo-devel harfbuzz-devel libxcb-devel
     ```
 
 === "Debian / Ubuntu"
@@ -31,7 +31,7 @@ Zig, because `libghostty-vt` is built from Ghostty's source.
     ```sh
     sudo apt install build-essential meson ninja-build zig \
       libx11-dev libxt-dev libxaw7-dev libxft-dev libxrender-dev \
-      libfontconfig1-dev libcairo2-dev libxcb1-dev
+      libfontconfig1-dev libcairo2-dev libharfbuzz-dev libxcb1-dev
     ```
 
 !!! note

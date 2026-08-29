@@ -51,6 +51,7 @@ xrender_dep = dependency('xrender')
 cairo_dep = dependency('cairo', version: '>= 1.18')
 cairo_ft_dep = dependency('cairo-ft', version: '>= 1.18')
 cairo_xlib_dep = dependency('cairo-xlib', version: '>= 1.18')
+harfbuzz_dep = dependency('harfbuzz')
 util_dep = cc.find_library('util')
 m_dep = cc.find_library('m')
 
@@ -61,6 +62,7 @@ sources = files(
     'src/diagnostics.c',
     'src/emoji_presentation.c',
     'src/glyph_cairo.c',
+    'src/glyph_shape.c',
     'src/main.c',
     'src/menus.c',
     'src/pty.c',
@@ -165,6 +167,7 @@ xterm_plus = executable(
         cairo_dep,
         cairo_ft_dep,
         cairo_xlib_dep,
+        harfbuzz_dep,
         util_dep,
         m_dep,
     ],

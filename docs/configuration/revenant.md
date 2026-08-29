@@ -81,6 +81,7 @@ XTerm*faceNameDoublesize: Noto Sans Mono CJK JP
 XTerm*faceNameEmoji:      Noto Color Emoji
 XTerm*emojiPresentation:  unicode  ! unicode, text, or emoji
 XTerm*colorGlyphs:        true
+XTerm*graphemeWidth:      legacy   ! legacy or unicode
 ```
 
 VS15 always requests text presentation and VS16 always requests emoji
@@ -88,7 +89,12 @@ presentation. Without a selector, `emojiPresentation` chooses Unicode's
 default, forces text, or forces emoji. Emoji presentation tries
 `faceNameEmoji`, then `faceNameDoublesize`, then the primary face; wide
 non-emoji text tries `faceNameDoublesize` and then the primary face. A face is
-skipped when the codepoint is absent or its selected ink path is empty.
+skipped when the complete grapheme cannot be shaped by that face or its
+selected ink path is empty. Fallback is atomic: a partially covered ZWJ or
+modifier sequence, keycap, regional-indicator flag, or terminated subdivision
+tag flag is retried in the next role as a whole. Validation shaping preserves
+default-ignorables so an unsupported tag sequence cannot masquerade as its
+generic black-flag base; accepted drawing runs remove unresolved controls.
 Text presentation never permits a color paint: a color-capable doublesize or
 primary face is usable only when it has a genuine outline for that glyph.
 
@@ -100,6 +106,16 @@ Revenant uses Cairo 1.18 for color formats that Xft does not render, including
 COLRv1 and SVGinOT. The delegate caches its Xlib surface and scaled role fonts,
 fits from the selected face's own extents, and uses the same cell, damage, and
 cursor clips as the Xft path.
+
+HarfBuzz shapes the complete grapheme bytes supplied by `libghostty-vt`, so
+keycaps, skin-tone modifiers, ZWJ emoji, regional-indicator and tag flags, and
+ordinary combining clusters can resolve to positioned glyph runs.
+`graphemeWidth: legacy` is the default: it leaves DEC private mode 2027 off so
+wcwidth-based applications retain xterm-compatible cursor arithmetic.
+`graphemeWidth: unicode` enables mode 2027 initially and after reset for
+cluster-aware environments. Applications can still negotiate either state
+explicitly with DECSET/DECRST 2027. Libghostty remains responsible for cluster
+boundaries and terminal width; rendering never changes the chosen width.
 
 Revenant resolves those point sizes using the active X screen's Xft defaults,
 including its DPI. This keeps the initial font and every font-menu slot at the
@@ -128,11 +144,10 @@ runtime, and the Xt action `set-render-font(toggle)` does the same from a
 translation.
 
 !!! note "Not yet"
-    General-purpose fallback faces, comma-separated override faces, italic
-    faces, and sequence shaping beyond the terminal engine's current grapheme
-    output are not implemented. Emoji routing currently selects a face from
-    the first base codepoint plus VS15/VS16; it does not add an independent
-    ZWJ/flag/skin-tone shaping engine.
+    General-purpose fallback faces, comma-separated override faces, and italic
+    faces are not implemented. Emoji presentation policy is still selected
+    from the first base codepoint, VS15/VS16, and keycap syntax; HarfBuzz then
+    shapes the complete backend grapheme in the selected role.
 
 ## Colours
 

@@ -6,6 +6,7 @@
 #include "terminal.h"
 #include "emoji_presentation.h"
 #include "glyph_cairo.h"
+#include "glyph_shape.h"
 #include "x11_opacity.h"
 
 #include <X11/IntrinsicP.h>
@@ -16,6 +17,7 @@
 #define XTP_FONT_SLOTS 8
 #define XTP_COLOR_CACHE_SIZE 512
 #define XTP_GLYPH_INK_CACHE_SIZE 256
+#define XTP_VISUAL_TEXT_CAPACITY 64
 
 #define XtNfont1 "font1"
 #define XtNfont2 "font2"
@@ -48,7 +50,8 @@ typedef struct
 typedef struct
 {
         XftFont *font;
-        uint32_t codepoint;
+        char text[XTP_VISUAL_TEXT_CAPACITY];
+        uint8_t text_length;
         uint8_t width;
         Boolean color_glyphs;
         Boolean has_ink;
@@ -104,7 +107,7 @@ typedef struct
         Pixel foreground;
         Pixel background;
         Pixel opaque_background;
-        char text[64];
+        char text[XTP_VISUAL_TEXT_CAPACITY];
         size_t text_length;
         uint8_t width;
         Boolean bold;
@@ -125,6 +128,8 @@ typedef struct
         String face_name_emoji;
         String emoji_presentation_name;
         XtpEmojiPolicy emoji_presentation;
+        String grapheme_width_name;
+        Boolean grapheme_width_unicode;
         Boolean color_glyphs;
         String char_class;
         String background_opacity_name;
@@ -170,6 +175,7 @@ typedef struct
         double xft_sizes[XTP_FONT_SLOTS];
         XftDraw *xft_draw;
         XtpCairo *cairo_draw;
+        XtpShaper *shaper;
         int current_font;
         XtpTerminal *terminal;
         uint8_t *selection_text;
