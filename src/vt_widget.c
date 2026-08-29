@@ -426,6 +426,54 @@ PrimaryFaceName(const char *configured)
         return NULL;
 }
 
+/*
+ * Xterm treats a size embedded in the first faceName item as the Default
+ * menu's faceSize, with precedence over the separate faceSize resource.  It
+ * removes the field before constructing the Xft pattern so derived menu slots
+ * can supply their own sizes.  Preserve that slightly surprising resource
+ * interaction for zero-option compatibility with existing XTerm resources.
+ */
+static Boolean
+TrimFaceSize(char *face, double *size)
+{
+        char *field;
+        char *end;
+        char *tail;
+        Boolean valid;
+        double parsed;
+
+        if (!Nonempty(face))
+                return False;
+        field = strstr(face, ":size=");
+        if (field != NULL)
+                ++field;
+        else if (strncmp(face, "size=", 5) == 0)
+                field = face;
+        else
+                return False;
+
+        tail = strchr(field, ':');
+        if (tail != NULL)
+                *tail = '\0';
+        parsed = strtod(field + 5, &end);
+        valid = end != field + 5 && *end == '\0';
+        if (tail != NULL)
+                *tail = ':';
+
+        if (tail != NULL)
+                memmove(field, tail + 1, strlen(tail + 1) + 1);
+        else if (field == face)
+                *field = '\0';
+        else
+                field[-1] = '\0';
+
+        if (!valid)
+                return False;
+        if (size != NULL)
+                *size = parsed;
+        return True;
+}
+
 Dimension
 VtScrollbarTotalWidth(Vt100Rec *vt)
 {
@@ -807,6 +855,7 @@ InitializeXft(Vt100Rec *vt)
         char *emoji_face = PrimaryFaceName(vt->vt.face_name_emoji);
         Boolean requested = ResourceBoolean(vt->vt.render_font_name, Nonempty(vt->vt.face_name));
         double base_size = PositiveNumber(vt->vt.face_size_names[0], 8.0);
+        double embedded_size;
         unsigned long base_area;
         int slot;
 
@@ -822,6 +871,13 @@ InitializeXft(Vt100Rec *vt)
         memset(vt->vt.xft_sizes, 0, sizeof(vt->vt.xft_sizes));
         memset(vt->vt.glyph_ink_cache, 0, sizeof(vt->vt.glyph_ink_cache));
         vt->vt.next_glyph_ink_cache = 0;
+        if (TrimFaceSize(face, &embedded_size)) {
+                base_size = embedded_size > 0.0 ? embedded_size : 8.0;
+                XtpLog(XTP_LOG_DEBUG, "font", "faceName embedded size selects points=%.2f",
+                       base_size);
+        }
+        (void)TrimFaceSize(wide_face, NULL);
+        (void)TrimFaceSize(emoji_face, NULL);
         if (!Nonempty(face)) {
                 if (requested)
                         XtpLog(XTP_LOG_WARNING, "font",
@@ -835,7 +891,8 @@ InitializeXft(Vt100Rec *vt)
         if (base_area == 0)
                 base_area = 1;
         for (slot = 0; slot < XTP_FONT_SLOTS; ++slot) {
-                double size = PositiveNumber(vt->vt.face_size_names[slot], 0.0);
+                double size =
+                    slot == 0 ? base_size : PositiveNumber(vt->vt.face_size_names[slot], 0.0);
 
                 if (size <= 0.0) {
                         XFontStruct *bitmap =

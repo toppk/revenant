@@ -56,6 +56,10 @@ probe-keymodes *args:
 probe-color:
     tools/probe-color.sh
 
+# Compare live xterm/Revenant font geometry on the current graphical display
+xterm-font-compat build_dir="build":
+    tools/check-xterm-font-compat "{{build_dir}}"
+
 # Step through SGR 7, DECSCNM, and widget reverse-video rendering
 probe-reverse-video *args:
     tools/probe-reverse-video.sh {{args}}

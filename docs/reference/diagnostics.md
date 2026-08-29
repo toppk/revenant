@@ -80,6 +80,30 @@ revenant -log debug 2> revenant.log
 
 ## Regression helpers
 
+### Live xterm font compatibility
+
+Use the optional live comparison when font loading, point-size handling, or
+font-menu sizing changes:
+
+```sh
+just xterm-font-compat
+just xterm-font-compat build-agent-gcc
+```
+
+It opens disposable xterm and Revenant windows on the current `$DISPLAY`, so
+it works directly inside an existing VNC desktop. The helper supplies
+`tools/xterm-font-compat.Xresources` to both programs with command-line `-xrm`
+entries; it neither reads a dotfile nor changes the server's resource database.
+The profile deliberately combines `faceName: DejaVu Sans Mono:size=11` with a
+conflicting `faceSize: 16`, then checks exact window size, requested size,
+resize increments, and base size at the default, largest, and smallest
+font-menu positions.
+
+This is an external compatibility oracle, not part of `just test`, Meson, or
+normal CI. It depends on the installed xterm, the live X server and window
+manager, `wmctrl`, and DejaVu Sans Mono. Missing dependencies produce a focused
+error; a mismatch leaves both program logs in a named temporary directory.
+
 Five small X11 utilities are built alongside Revenant but not installed. Give
 them the top-level window ID reported by the `shell: realized` log line:
 

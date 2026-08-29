@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+repo_root=$(cd -- "$script_dir/.." && pwd)
+build_dir=${1:-build}
+case $build_dir in
+/*) ;;
+*) build_dir=$repo_root/$build_dir ;;
+esac
+
+terminal=$build_dir/revenant
+sender=$build_dir/xtp-send-font-keys
+resources=$script_dir/xterm-font-compat.Xresources
+run_dir=$(mktemp -d "${TMPDIR:-/tmp}/revenant-xterm-font-compat.XXXXXX")
+xterm_pid=
+revenant_pid=
+passed=false
+
+cleanup()
+{
+	status=$?
+	if test -n "$xterm_pid"; then
+		kill "$xterm_pid" 2>/dev/null || true
+		wait "$xterm_pid" 2>/dev/null || true
+	fi
+	if test -n "$revenant_pid"; then
+		kill "$revenant_pid" 2>/dev/null || true
+		wait "$revenant_pid" 2>/dev/null || true
+	fi
+	if test "$passed" = true && test "$status" -eq 0; then
+		rm -rf -- "$run_dir"
+	else
+		printf 'compatibility artifacts kept in %s\n' "$run_dir" >&2
+	fi
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+die()
+{
+	printf 'check-xterm-font-compat: %s\n' "$*" >&2
+	exit 1
+}
+
+for command_name in xterm xprop xwininfo wmctrl fc-match; do
+	command -v "$command_name" >/dev/null 2>&1 || die "missing required command: $command_name"
+done
+test -n "${DISPLAY:-}" || die 'DISPLAY is unset; run this from the graphical/VNC session'
+xwininfo -root >/dev/null 2>&1 || die "cannot query X display $DISPLAY"
+test -x "$terminal" || die "missing $terminal; build Revenant first"
+test -x "$sender" || die "missing $sender; build Revenant first"
+test -r "$resources" || die "missing $resources"
+
+matched_family=$(fc-match --format '%{family}\n' 'DejaVu Sans Mono' | head -1)
+case $matched_family in
+*DejaVu\ Sans\ Mono*) ;;
+*) die "DejaVu Sans Mono is unavailable (fontconfig selected: $matched_family)" ;;
+esac
+
+resource_args=()
+while IFS= read -r resource_line || test -n "$resource_line"; do
+	resource_line=${resource_line%$'\r'}
+	case $resource_line in
+	''|'!'*|'#'*) continue ;;
+	esac
+	resource_args+=(-xrm "$resource_line")
+done <"$resources"
+
+tag=revenant-font-compat-$$
+xterm_title=$tag-xterm
+revenant_title=$tag-revenant
+xterm_log=$run_dir/xterm.log
+revenant_log=$run_dir/revenant.log
+
+xterm "${resource_args[@]}" -title "$xterm_title" -geometry 80x24 \
+	-e sh -c 'exec sleep 300' >"$run_dir/xterm.out" 2>"$xterm_log" &
+xterm_pid=$!
+"$terminal" -debug "${resource_args[@]}" -title "$revenant_title" -geometry 80x24 \
+	-e sh -c 'exec sleep 300' >"$run_dir/revenant.out" 2>"$revenant_log" &
+revenant_pid=$!
+
+xterm_window=
+revenant_window=
+for ((attempt = 0; attempt < 100; ++attempt)); do
+	xterm_window=$(wmctrl -lp | awk -v pid="$xterm_pid" '$3 == pid { print $1; exit }')
+	revenant_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' \
+		"$revenant_log" | tail -1)
+	if test -n "$xterm_window" && test -n "$revenant_window"; then
+		break
+	fi
+	if ! kill -0 "$xterm_pid" 2>/dev/null; then
+		die "xterm exited during startup; see $xterm_log"
+	fi
+	if ! kill -0 "$revenant_pid" 2>/dev/null; then
+		die "Revenant exited during startup; see $revenant_log"
+	fi
+	sleep 0.05
+done
+test -n "$xterm_window" || die "could not find xterm window titled $xterm_title"
+test -n "$revenant_window" || die "could not find Revenant's realized window"
+
+geometry_metrics()
+{
+	window=$1
+	window_info=$(xwininfo -id "$window")
+	hints=$(xprop -id "$window" WM_NORMAL_HINTS)
+	width=$(awk '$1 == "Width:" { print $2; exit }' <<<"$window_info")
+	height=$(awk '$1 == "Height:" { print $2; exit }' <<<"$window_info")
+	program=$(sed -n 's/.*program specified size: *\([0-9][0-9]*\) by \([0-9][0-9]*\).*/\1x\2/p' \
+		<<<"$hints")
+	increment=$(sed -n 's/.*program specified resize increment: *\([0-9][0-9]*\) by \([0-9][0-9]*\).*/\1x\2/p' \
+		<<<"$hints")
+	base=$(sed -n 's/.*program specified base size: *\([0-9][0-9]*\) by \([0-9][0-9]*\).*/\1x\2/p' \
+		<<<"$hints")
+	test -n "$width" && test -n "$height" && test -n "$program" && test -n "$increment" &&
+		test -n "$base" || die "incomplete WM_NORMAL_HINTS for window $window"
+	printf 'window=%sx%s program=%s increment=%s base=%s' \
+		"$width" "$height" "$program" "$increment" "$base"
+}
+
+compare_stage()
+{
+	stage=$1
+	xterm_metrics=$(geometry_metrics "$xterm_window")
+	revenant_metrics=$(geometry_metrics "$revenant_window")
+	printf '%-8s xterm     %s\n' "$stage" "$xterm_metrics"
+	printf '%-8s Revenant  %s\n' "$stage" "$revenant_metrics"
+	if test "$xterm_metrics" != "$revenant_metrics"; then
+		printf '%s geometry mismatch\n' "$stage" >&2
+		return 1
+	fi
+}
+
+compare_stage default
+"$sender" "$xterm_window" + 8 >/dev/null
+"$sender" "$revenant_window" + 8 >/dev/null
+compare_stage largest
+"$sender" "$xterm_window" - 8 >/dev/null
+"$sender" "$revenant_window" - 8 >/dev/null
+compare_stage smallest
+
+printf 'xterm font geometry compatibility: OK (display %s)\n' "$DISPLAY"
+passed=true

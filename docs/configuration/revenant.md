@@ -105,6 +105,12 @@ Revenant resolves those point sizes using the active X screen's Xft defaults,
 including its DPI. This keeps the initial font and every font-menu slot at the
 same physical scale as xterm on displays whose DPI is not 96.
 
+For xterm compatibility, a `size=` field in the first `faceName` item takes
+precedence over the separate `faceSize` resource. Revenant removes that field
+from the fontconfig pattern and uses it as the Default menu size, so the other
+font-menu entries can still derive their own sizes. Prefer setting the size in
+one place to avoid this intentionally surprising precedence rule.
+
 If you leave `faceSize`*N* unset, Revenant derives sizes from the bitmap slot
 proportions the way xterm does. `fc-match 'DejaVu Sans Mono'` shows what
 fontconfig will actually pick; `-report-config` prints the same match.
