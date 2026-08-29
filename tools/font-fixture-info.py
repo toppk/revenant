@@ -8,7 +8,7 @@ import re
 import sys
 from pathlib import Path
 
-from fontTools.pens.boundsPen import BoundsPen
+from fontTools.pens.areaPen import AreaPen
 from fontTools.ttLib import TTFont
 
 PROBES = {
@@ -56,12 +56,12 @@ def outline_ink(font: TTFont, glyph_name: str | None) -> bool:
     if glyph_name is None or outline_kind(font) == "none":
         return False
     glyphs = font.getGlyphSet()
-    pen = BoundsPen(glyphs)
+    pen = AreaPen(glyphs)
     try:
         glyphs[glyph_name].draw(pen)
     except (KeyError, TypeError):
         return False
-    return pen.bounds is not None
+    return pen.value != 0
 
 
 def cbdt_glyphs(font: TTFont) -> set[str]:
@@ -201,10 +201,7 @@ def report(fonts: dict[str, dict]) -> None:
             print(f"  strikes:    {values}")
         if info["axes"]:
             print(f"  axes:       {info['axes']}")
-        print(
-            f"  size:       {info['glyphs']} glyphs, "
-            f"{info['codepoints']} codepoints"
-        )
+        print(f"  size:       {info['glyphs']} glyphs, {info['codepoints']} codepoints")
         for label, state in info["probes"].items():
             print(f"  probe:      {label}={state}")
 

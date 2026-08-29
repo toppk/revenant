@@ -86,6 +86,9 @@ static const ResourceProbe resource_probes[] = {
     {"xterm.vt100.font7", "XTerm.VT100.Font7"},
     {"xterm.vt100.faceName", "XTerm.VT100.FaceName"},
     {"xterm.vt100.faceNameDoublesize", "XTerm.VT100.FaceNameDoublesize"},
+    {"xterm.vt100.faceNameEmoji", "XTerm.VT100.FaceNameEmoji"},
+    {"xterm.vt100.emojiPresentation", "XTerm.VT100.EmojiPresentation"},
+    {"xterm.vt100.colorGlyphs", "XTerm.VT100.ColorGlyphs"},
     {"xterm.vt100.faceSize", "XTerm.VT100.FaceSize"},
     {"xterm.vt100.renderFont", "XTerm.VT100.RenderFont"},
     {"xterm.vt100.internalBorder", "XTerm.VT100.BorderWidth"},
@@ -442,10 +445,28 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
             "XTerm.VT100.FaceSize",
             "8.0",
         };
+        ResourceSpec emoji_spec = {
+            "xterm.vt100.faceNameEmoji",
+            "XTerm.VT100.FaceNameEmoji",
+            NULL,
+        };
+        ResourceSpec presentation_spec = {
+            "xterm.vt100.emojiPresentation",
+            "XTerm.VT100.EmojiPresentation",
+            "unicode",
+        };
+        ResourceSpec color_glyphs_spec = {
+            "xterm.vt100.colorGlyphs",
+            "XTerm.VT100.ColorGlyphs",
+            "true",
+        };
         Resolved render = ResolveResource(merged, server, command, &render_spec);
         Resolved face = ResolveResource(merged, server, command, &face_spec);
         Resolved double_face = ResolveResource(merged, server, command, &double_spec);
         Resolved base_size = ResolveResource(merged, server, command, &size_spec);
+        Resolved emoji_face = ResolveResource(merged, server, command, &emoji_spec);
+        Resolved presentation = ResolveResource(merged, server, command, &presentation_spec);
+        Resolved color_glyphs = ResolveResource(merged, server, command, &color_glyphs_spec);
         FontChoice choices[8];
         FontChoice ordered[8];
         double base_points = NumberValue(&base_size, 8.0);
@@ -465,16 +486,23 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
             &face);
         PrintResolved("XTerm*faceSize", "supported", "Point size for the Default font-menu entry.",
                       &base_size);
-        PrintResolved("XTerm*faceNameDoublesize", "unsupported",
-                      "Double-width terminal glyphs; this is not the emoji fallback font.",
+        PrintResolved("XTerm*faceNameDoublesize", "supported",
+                      "Preferred face for wide text and the compatibility emoji fallback.",
                       &double_face);
+        PrintResolved("XTerm*faceNameEmoji", "supported",
+                      "Preferred face for Unicode emoji presentation.", &emoji_face);
+        PrintResolved("XTerm*emojiPresentation", "supported",
+                      "Selector-less policy: unicode, text, or emoji.", &presentation);
+        PrintResolved("XTerm*colorGlyphs", "supported",
+                      "Color-glyph policy; false uses real outline bases and rejects empty ones.",
+                      &color_glyphs);
         primary = PrimaryFontconfigFace(face.value);
         PrintFontconfigMatch(XtDisplay(vt), XScreenNumberOfScreen(XtScreen(vt)), primary,
                              base_points);
         free(primary);
         printf("! active xterm+ renderer: %s\n", XtpVtRendererName(vt));
-        puts("! Xft currently uses the primary face for UTF-8 text. Font fallback,");
-        puts("! color emoji, and faceNameDoublesize remain compatibility work.");
+        puts("! Xft routes wide text and emoji presentation through their configured faces,");
+        puts("! falling back on cmap misses without changing libghostty's committed width.");
 
         puts("\n! Eight configured font-menu sizes");
         puts("! xterm has ten menu choices: these eight configured choices plus two");
@@ -809,11 +837,13 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "scrollTtyOutput") == 0 || strcmp(name, "selectToClipboard") == 0 ||
             strcmp(name, "multiClickTime") == 0 || strcmp(name, "charClass") == 0 ||
             strcmp(name, "renderFont") == 0 || strcmp(name, "faceName") == 0 ||
+            strcmp(name, "faceNameDoublesize") == 0 || strcmp(name, "faceNameEmoji") == 0 ||
+            strcmp(name, "emojiPresentation") == 0 || strcmp(name, "colorGlyphs") == 0 ||
             strncmp(name, "faceSize", 8) == 0)
                 return "supported";
-        if (strcmp(name, "cursorBlinkXOR") == 0 || strcmp(name, "faceNameDoublesize") == 0 ||
-            strncmp(name, "color", 5) == 0 || strcmp(name, "pointerColor") == 0 ||
-            strcmp(name, "pointerColorBackground") == 0 || strcmp(name, "pointerShape") == 0)
+        if (strcmp(name, "cursorBlinkXOR") == 0 || strncmp(name, "color", 5) == 0 ||
+            strcmp(name, "pointerColor") == 0 || strcmp(name, "pointerColorBackground") == 0 ||
+            strcmp(name, "pointerShape") == 0)
                 return "accepted but ignored";
         return "unsupported";
 }

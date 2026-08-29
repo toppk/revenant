@@ -2,6 +2,7 @@
 
 #include "char_class.h"
 #include "diagnostics.h"
+#include "emoji_presentation.h"
 #include "menus.h"
 #include "pty_process.h"
 #include "terminal.h"
@@ -47,6 +48,30 @@ SelfTestLogLevels(void)
         if (XtpLogLevelCurrent() != XTP_LOG_ERROR)
                 return -1;
         XtpLogSetLevel(original);
+        return 0;
+}
+
+static int
+SelfTestEmojiPresentation(void)
+{
+        if (strcmp(XtpEmojiUnicodeVersion(), "17.0") != 0 || !XtpEmojiHasProperty(0x1f600U) ||
+            !XtpEmojiHasDefaultPresentation(0x1f600U) || !XtpEmojiHasProperty(0x263aU) ||
+            XtpEmojiHasDefaultPresentation(0x263aU) || !XtpEmojiHasProperty(0x2764U) ||
+            XtpEmojiHasDefaultPresentation(0x2764U) || !XtpEmojiHasProperty(0x2139U) ||
+            XtpEmojiHasDefaultPresentation(0x2139U) || !XtpEmojiHasProperty(0x1fae8U) ||
+            !XtpEmojiHasDefaultPresentation(0x1fae8U) || XtpEmojiHasProperty(0x65e5U) ||
+            XtpEmojiHasDefaultPresentation(0x65e5U))
+                return -1;
+        if (XtpEmojiResolveStyle(0x1f600U, 0, XTP_EMOJI_POLICY_UNICODE) != XTP_EMOJI_STYLE_EMOJI ||
+            XtpEmojiResolveStyle(0x263aU, 0, XTP_EMOJI_POLICY_UNICODE) != XTP_EMOJI_STYLE_TEXT ||
+            XtpEmojiResolveStyle(0x263aU, 0xfe0fU, XTP_EMOJI_POLICY_TEXT) !=
+                XTP_EMOJI_STYLE_EMOJI ||
+            XtpEmojiResolveStyle(0x1f600U, 0xfe0eU, XTP_EMOJI_POLICY_EMOJI) !=
+                XTP_EMOJI_STYLE_TEXT ||
+            XtpEmojiResolveStyle('1', 0, XTP_EMOJI_POLICY_EMOJI) != XTP_EMOJI_STYLE_TEXT ||
+            XtpEmojiResolveStyle('1', 0xfe0fU, XTP_EMOJI_POLICY_UNICODE) != XTP_EMOJI_STYLE_EMOJI ||
+            XtpEmojiResolveStyle(0x65e5U, 0xfe0fU, XTP_EMOJI_POLICY_EMOJI) != XTP_EMOJI_STYLE_NONE)
+                return -1;
         return 0;
 }
 
@@ -1219,6 +1244,11 @@ XtpSelfTest(void)
         if (SelfTestLogLevels() != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "log-level check failed");
                 goto failure;
+        }
+        if (SelfTestEmojiPresentation() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "emoji-presentation check failed");
+                XtpTerminalFree(terminal);
+                return EXIT_FAILURE;
         }
         if (SelfTestCharClass(terminal) != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "charClass check failed");

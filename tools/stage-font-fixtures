@@ -291,6 +291,9 @@ make_universe cjk "$base_regular" "$base_bold" \
 	NotoSansMonoCJKjp-Regular.otf NotoSansMonoCJKjp-Bold.otf
 make_universe cjk-emoji "$base_regular" "$base_bold" \
 	NotoSansMonoCJKjp-Regular.otf NotoSansMonoCJKjp-Bold.otf Noto-COLRv1.ttf
+make_universe routing "$base_regular" "$base_bold" \
+	NotoSansMonoCJKjp-Regular.otf NotoSansMonoCJKjp-Bold.otf \
+	NotoEmoji-Regular.ttf Noto-COLRv1.ttf
 
 {
 	printf 'path\tsha256\tsource\tlicense\n'
@@ -400,9 +403,10 @@ probe. See the maintained `tools/font-fixtures/README.md` for the full schema
 contract.
 
 The `empty` universe deliberately contains no fonts. The `base`, `cbdt`,
-`cbdt-lowres`, `colrv0`, `colrv1`, `mono`, `svginot`, `sbix`, `cjk`, and
-`cjk-emoji` universes isolate the remaining routing scenarios. Moving this
-entire tree is safe because its Fontconfig paths and font links are relative.
+`cbdt-lowres`, `colrv0`, `colrv1`, `mono`, `svginot`, `sbix`, `cjk`,
+`cjk-emoji`, and `routing` universes isolate the remaining rendering and
+fallback scenarios. Moving this entire tree is safe because its Fontconfig
+paths and font links are relative.
 EOF
 
 python3 "$project_root/tools/font-fixture-info.py" --check "$work/manifest.json"

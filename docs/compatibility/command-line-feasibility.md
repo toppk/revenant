@@ -97,7 +97,7 @@ Two structural gaps come first, because they affect every row:
 | `-fn fontname` | Bitmap Default slot | — | — | DONE |
 | `-fa pattern` | Xft face | — | — | DONE |
 | `-fs size` | Xft size | — | — | DONE |
-| `-fd pattern` | Double-width Xft face | Resource merged; renderer ignores | Roadmap #5 wide-glyph work | ACCEPTED |
+| `-fd pattern` | Double-width Xft face | Routed for wide text and emoji fallback | — | DONE |
 | `-fb fontname` | `boldFont` for the bitmap path | Renderer: bitmap bold is synthetic today | Load a second `XFontStruct`; medium | ROADMAP #5 |
 | `-fw` / `-fwb fontname` | Bitmap wide and wide-bold fonts | Renderer | Needs wide-cell bitmap drawing | ROADMAP #5 |
 | `-fc fontmenu` | Start on a named font-menu slot | Font slot code exists | Look up slot by name at startup | READY |

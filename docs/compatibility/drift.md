@@ -152,8 +152,10 @@ design decisions:
 
 - `renderFont`, the primary `faceName`, and `faceSize`/`faceSize1` through
   `faceSize7` select the Xft/fontconfig renderer. The Xlib bitmap path remains
-  available when `renderFont` is false. Font fallback, comma-separated
-  override faces, color emoji, and `faceNameDoublesize` are not implemented.
+  available when `renderFont` is false. `faceNameDoublesize`, `faceNameEmoji`,
+  Unicode/VS emoji presentation, color emoji, and empty-ink fallback are
+  implemented. General font fallback, comma-separated override faces, and
+  sequence shaping beyond the backend's current grapheme output remain open.
 - The xterm color palette and pointer resources are merged by Xt but are not
   all applied by the drawer.
 - `-report-config` is a Revenant diagnostic which presents resolved resources,

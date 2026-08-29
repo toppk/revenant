@@ -4,6 +4,8 @@
 #include "vt_widget.h"
 
 #include "terminal.h"
+#include "emoji_presentation.h"
+#include "glyph_cairo.h"
 #include "x11_opacity.h"
 
 #include <X11/IntrinsicP.h>
@@ -13,6 +15,7 @@
 
 #define XTP_FONT_SLOTS 8
 #define XTP_COLOR_CACHE_SIZE 512
+#define XTP_GLYPH_INK_CACHE_SIZE 256
 
 #define XtNfont1 "font1"
 #define XtNfont2 "font2"
@@ -41,6 +44,15 @@ typedef struct
         Pixel allocation_pixel;
         XftColor xft;
 } ColorCacheEntry;
+
+typedef struct
+{
+        XftFont *font;
+        uint32_t codepoint;
+        uint8_t width;
+        Boolean color_glyphs;
+        Boolean has_ink;
+} GlyphInkCacheEntry;
 
 #define XTP_RECENT_KEY_ACTIONS 16
 #define XTP_SCROLL_RENDER_DELAY_MS 8
@@ -110,6 +122,10 @@ typedef struct
         String render_font_name;
         String face_name;
         String face_name_doublesize;
+        String face_name_emoji;
+        String emoji_presentation_name;
+        XtpEmojiPolicy emoji_presentation;
+        Boolean color_glyphs;
         String char_class;
         String background_opacity_name;
         String face_size_names[XTP_FONT_SLOTS];
@@ -147,8 +163,13 @@ typedef struct
         Pixel opaque_background_pixel;
         XftFont *xft_fonts[XTP_FONT_SLOTS];
         XftFont *xft_bold_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_wide_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_wide_bold_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_emoji_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_emoji_bold_fonts[XTP_FONT_SLOTS];
         double xft_sizes[XTP_FONT_SLOTS];
         XftDraw *xft_draw;
+        XtpCairo *cairo_draw;
         int current_font;
         XtpTerminal *terminal;
         uint8_t *selection_text;
@@ -180,6 +201,7 @@ typedef struct
         Boolean cursor_cell_seen;
         char cursor_text[64];
         size_t cursor_text_length;
+        uint8_t cursor_width;
         Pixel cursor_fill;
         Pixel cursor_text_color;
         Boolean cursor_bold;
@@ -214,6 +236,8 @@ typedef struct
         unsigned int next_key_action;
         ColorCacheEntry colors[XTP_COLOR_CACHE_SIZE];
         size_t color_count;
+        GlyphInkCacheEntry glyph_ink_cache[XTP_GLYPH_INK_CACHE_SIZE];
+        size_t next_glyph_ink_cache;
 } Vt100Part;
 
 typedef struct _Vt100Rec

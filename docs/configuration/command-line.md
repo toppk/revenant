@@ -25,7 +25,8 @@ behaviour; the table gives the resource value each form sets.
 | `-fn font` | `vt100.font` | Bitmap font for the Default slot |
 | `-fa pattern` | `vt100.faceName` | Xft face (fontconfig pattern) |
 | `-fs size` | `vt100.faceSize` | Xft point size |
-| `-fd pattern` | `vt100.faceNameDoublesize` | Accepted; not applied yet |
+| `-fd pattern` | `vt100.faceNameDoublesize` | Xft face for wide text and emoji fallback |
+| `-fe pattern` | `vt100.faceNameEmoji` | Preferred Xft face for emoji presentation |
 
 ## Colours, window, geometry
 

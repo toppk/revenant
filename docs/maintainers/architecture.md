@@ -26,7 +26,7 @@ X11 keyboard / mouse / focus
    cells, styles, cursor, effects
              |
              v
-       Xlib / Xft renderer
+   Xlib / Xft + Cairo renderer
 ```
 
 The boundaries are deliberate:
@@ -42,8 +42,12 @@ The boundaries are deliberate:
 - `src/vt_interaction.c` owns selection and paste, hyperlinks, mouse encoding,
   and local pointer and scroll actions. Encoded terminal input leaves the
   widget through `XtNinputCallback`.
-- `src/vt_draw.c` owns frame caching, bitmap/Xft cell drawing, cursor painting,
-  damage restoration, and redisplay.
+- `src/vt_draw.c` owns frame caching, bitmap/Xft cell drawing, font-role
+  routing, cursor painting, damage restoration, and redisplay.
+- `src/glyph_cairo.c` owns the persistent Cairo Xlib surface, scaled-font
+  cache, cell fitting, and color/outline glyph delegate. It receives the
+  effective damage/cursor clip from `vt_draw.c`; it does not decide terminal
+  geometry.
 - `src/terminal.h` is the backend-neutral terminal boundary.
   `src/terminal.c` holds policy shared by both backends, currently output feed
   plus viewport anchoring. The `terminal_ghostty.c` and `terminal_stub.c`

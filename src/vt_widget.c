@@ -119,6 +119,12 @@ static XtResource resources[] = {
     {"faceName", "FaceName", XtRString, sizeof(String), OFFSET(face_name), XtRString, NULL},
     {"faceNameDoublesize", "FaceNameDoublesize", XtRString, sizeof(String),
      OFFSET(face_name_doublesize), XtRString, NULL},
+    {"faceNameEmoji", "FaceNameEmoji", XtRString, sizeof(String), OFFSET(face_name_emoji),
+     XtRString, NULL},
+    {"emojiPresentation", "EmojiPresentation", XtRString, sizeof(String),
+     OFFSET(emoji_presentation_name), XtRString, (XtPointer) "unicode"},
+    {"colorGlyphs", "ColorGlyphs", XtRBoolean, sizeof(Boolean), OFFSET(color_glyphs), XtRImmediate,
+     (XtPointer)True},
     {"faceSize", "FaceSize", XtRString, sizeof(String), XtOffsetOf(Vt100Rec, vt.face_size_names[0]),
      XtRString, (XtPointer) "8.0"},
     {"faceSize1", "FaceSize1", XtRString, sizeof(String),
@@ -342,6 +348,21 @@ ParseCursorBlinkPolicy(const char *value)
                     "invalid cursorBlink=%s; using false (expected false, true, always, or never)",
                     value);
         return XTP_CURSOR_BLINK_DEFAULT_FALSE;
+}
+
+static XtpEmojiPolicy
+ParseEmojiPolicy(const char *value)
+{
+        if (value == NULL || strcasecmp(value, "unicode") == 0)
+                return XTP_EMOJI_POLICY_UNICODE;
+        if (strcasecmp(value, "text") == 0)
+                return XTP_EMOJI_POLICY_TEXT;
+        if (strcasecmp(value, "emoji") == 0)
+                return XTP_EMOJI_POLICY_EMOJI;
+        XtpLog(XTP_LOG_ERROR, "config",
+               "invalid emojiPresentation=%s; using unicode (expected unicode, text, or emoji)",
+               value);
+        return XTP_EMOJI_POLICY_UNICODE;
 }
 
 static Boolean
@@ -739,9 +760,51 @@ LoadXftSlot(Vt100Rec *vt, int slot, const char *face, double size)
 }
 
 static void
+LoadXftRoleSlot(Vt100Rec *vt, int slot, const char *role, const char *face, double size,
+                XftFont **fonts, XftFont **bold_fonts)
+{
+        unsigned int role_height;
+        unsigned int target_height;
+        double role_size = size;
+        double cell_scale = 1.0;
+
+        if (slot < 0 || slot >= XTP_FONT_SLOTS || !Nonempty(face) || vt->vt.xft_fonts[slot] == NULL)
+                return;
+        target_height = XftFontHeight(vt->vt.xft_fonts[slot]);
+        fonts[slot] = OpenXftFont(vt, face, role_size, False);
+        if (fonts[slot] == NULL) {
+                XtpLog(XTP_LOG_WARNING, "font", "failed Xft role=%s slot=%d face=%s points=%.2f",
+                       role, slot, face, size);
+                return;
+        }
+        role_height = XftFontHeight(fonts[slot]);
+        if (target_height != 0 && role_height != 0 &&
+            (role_height * 10U < target_height * 9U || role_height * 9U > target_height * 10U)) {
+                cell_scale = (double)target_height / (double)role_height;
+                role_size *= cell_scale;
+                XftFontClose(XtDisplay((Widget)vt), fonts[slot]);
+                fonts[slot] = OpenXftFont(vt, face, role_size, False);
+                if (fonts[slot] == NULL) {
+                        XtpLog(XTP_LOG_WARNING, "font",
+                               "failed scaled Xft role=%s slot=%d face=%s points=%.2f scale=%.3f",
+                               role, slot, face, size, cell_scale);
+                        return;
+                }
+        }
+        bold_fonts[slot] = OpenXftFont(vt, face, role_size, True);
+        XtpLog(XTP_LOG_INFO, "font",
+               "loaded Xft role=%s slot=%d face=%s points=%.2f glyph-box=%ux%u ascent=%d "
+               "cell-scale=%.3f bold=%s",
+               role, slot, face, size, XftFontWidth(fonts[slot]), XftFontHeight(fonts[slot]),
+               fonts[slot]->ascent, cell_scale, bold_fonts[slot] != NULL ? "yes" : "fallback");
+}
+
+static void
 InitializeXft(Vt100Rec *vt)
 {
         char *face = PrimaryFaceName(vt->vt.face_name);
+        char *wide_face = PrimaryFaceName(vt->vt.face_name_doublesize);
+        char *emoji_face = PrimaryFaceName(vt->vt.face_name_emoji);
         Boolean requested = ResourceBoolean(vt->vt.render_font_name, Nonempty(vt->vt.face_name));
         double base_size = PositiveNumber(vt->vt.face_size_names[0], 8.0);
         unsigned long base_area;
@@ -749,9 +812,16 @@ InitializeXft(Vt100Rec *vt)
 
         vt->vt.use_xft = False;
         vt->vt.xft_draw = NULL;
+        vt->vt.cairo_draw = NULL;
         memset(vt->vt.xft_fonts, 0, sizeof(vt->vt.xft_fonts));
         memset(vt->vt.xft_bold_fonts, 0, sizeof(vt->vt.xft_bold_fonts));
+        memset(vt->vt.xft_wide_fonts, 0, sizeof(vt->vt.xft_wide_fonts));
+        memset(vt->vt.xft_wide_bold_fonts, 0, sizeof(vt->vt.xft_wide_bold_fonts));
+        memset(vt->vt.xft_emoji_fonts, 0, sizeof(vt->vt.xft_emoji_fonts));
+        memset(vt->vt.xft_emoji_bold_fonts, 0, sizeof(vt->vt.xft_emoji_bold_fonts));
         memset(vt->vt.xft_sizes, 0, sizeof(vt->vt.xft_sizes));
+        memset(vt->vt.glyph_ink_cache, 0, sizeof(vt->vt.glyph_ink_cache));
+        vt->vt.next_glyph_ink_cache = 0;
         if (!Nonempty(face)) {
                 if (requested)
                         XtpLog(XTP_LOG_WARNING, "font",
@@ -775,16 +845,28 @@ InitializeXft(Vt100Rec *vt)
                         size = base_size * sqrt((double)area / (double)base_area);
                 }
                 (void)LoadXftSlot(vt, slot, face, size);
+                LoadXftRoleSlot(vt, slot, "doublesize", wide_face, size, vt->vt.xft_wide_fonts,
+                                vt->vt.xft_wide_bold_fonts);
+                LoadXftRoleSlot(vt, slot, "emoji", emoji_face, size, vt->vt.xft_emoji_fonts,
+                                vt->vt.xft_emoji_bold_fonts);
         }
         if (requested && vt->vt.xft_fonts[0] != NULL)
                 vt->vt.use_xft = True;
 
 done:
-        XtpLog(XTP_LOG_INFO, "font", "renderer=%s renderFont=%s faceName=%s faceSize=%.2f",
+        XtpLog(XTP_LOG_INFO, "font",
+               "renderer=%s renderFont=%s faceName=%s faceNameDoublesize=%s faceNameEmoji=%s "
+               "faceSize=%.2f emojiPresentation=%s colorGlyphs=%s Unicode=%s",
                vt->vt.use_xft ? "xft" : "xlib-bitmap",
                vt->vt.render_font_name != NULL ? vt->vt.render_font_name : "(null)",
-               vt->vt.face_name != NULL ? vt->vt.face_name : "(null)", base_size);
+               vt->vt.face_name != NULL ? vt->vt.face_name : "(null)",
+               vt->vt.face_name_doublesize != NULL ? vt->vt.face_name_doublesize : "(null)",
+               vt->vt.face_name_emoji != NULL ? vt->vt.face_name_emoji : "(null)", base_size,
+               vt->vt.emoji_presentation_name != NULL ? vt->vt.emoji_presentation_name : "unicode",
+               vt->vt.color_glyphs ? "true" : "false", XtpEmojiUnicodeVersion());
         free(face);
+        free(wide_face);
+        free(emoji_face);
 }
 
 static void
@@ -907,6 +989,7 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
                 SwapDefaultColors(vt);
         NormalizeConfiguredColors(vt);
         vt->vt.cursor_blink_policy = ParseCursorBlinkPolicy(vt->vt.cursor_blink_name);
+        vt->vt.emoji_presentation = ParseEmojiPolicy(vt->vt.emoji_presentation_name);
 
         XtpLog(XTP_LOG_INFO, "config",
                "VT100 compiled defaults grid=80x24 font=fixed internalBorder=2 saveLines=1024 "
@@ -957,6 +1040,7 @@ Destroy(Widget widget)
         ReleaseGc(widget);
         if (vt->vt.xft_draw != NULL)
                 XftDrawDestroy(vt->vt.xft_draw);
+        XtpCairoDestroy(vt->vt.cairo_draw);
         free(vt->vt.frame_cells);
         free(vt->vt.pending_cells);
         free(vt->vt.selection_text);
@@ -978,6 +1062,14 @@ Destroy(Widget widget)
                         XftFontClose(XtDisplay(widget), vt->vt.xft_fonts[slot]);
                 if (vt->vt.xft_bold_fonts[slot] != NULL)
                         XftFontClose(XtDisplay(widget), vt->vt.xft_bold_fonts[slot]);
+                if (vt->vt.xft_wide_fonts[slot] != NULL)
+                        XftFontClose(XtDisplay(widget), vt->vt.xft_wide_fonts[slot]);
+                if (vt->vt.xft_wide_bold_fonts[slot] != NULL)
+                        XftFontClose(XtDisplay(widget), vt->vt.xft_wide_bold_fonts[slot]);
+                if (vt->vt.xft_emoji_fonts[slot] != NULL)
+                        XftFontClose(XtDisplay(widget), vt->vt.xft_emoji_fonts[slot]);
+                if (vt->vt.xft_emoji_bold_fonts[slot] != NULL)
+                        XftFontClose(XtDisplay(widget), vt->vt.xft_emoji_bold_fonts[slot]);
         }
 }
 
@@ -995,6 +1087,7 @@ ResizeWidget(Widget widget)
         unsigned int rows =
             vt->core.height > vertical ? (vt->core.height - vertical) / cell_height : 1U;
 
+        XtpCairoResize(vt->vt.cairo_draw, (int)vt->core.width, (int)vt->core.height);
         LayoutScrollbar(vt);
         XtpLog(XTP_LOG_DEBUG, "resize",
                "VT100 pixels=%ux%u usable=%ux%u candidate-grid=%ux%u current-grid=%dx%d "
@@ -1087,6 +1180,19 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                 new_vt->vt.cursor_blinking = effective;
                 XtpLog(XTP_LOG_INFO, "config", "VT100 cursorBlink=%s effective=%s",
                        new_vt->vt.cursor_blink_name, effective ? "true" : "false");
+                changed = True;
+        }
+
+        new_vt->vt.emoji_presentation = ParseEmojiPolicy(new_vt->vt.emoji_presentation_name);
+        if (old_vt->vt.emoji_presentation != new_vt->vt.emoji_presentation ||
+            old_vt->vt.color_glyphs != new_vt->vt.color_glyphs) {
+                memset(new_vt->vt.glyph_ink_cache, 0, sizeof(new_vt->vt.glyph_ink_cache));
+                new_vt->vt.next_glyph_ink_cache = 0;
+                XtpLog(XTP_LOG_INFO, "font", "emojiPresentation=%s colorGlyphs=%s",
+                       new_vt->vt.emoji_presentation_name != NULL
+                           ? new_vt->vt.emoji_presentation_name
+                           : "unicode",
+                       new_vt->vt.color_glyphs ? "true" : "false");
                 changed = True;
         }
 

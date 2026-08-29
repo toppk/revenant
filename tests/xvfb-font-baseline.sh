@@ -15,7 +15,6 @@ fixture_root=$4
 test_dir=$(mktemp -d)
 xvfb_pid=
 terminal_pid=
-doublesize_golden=
 
 cleanup()
 {
@@ -90,7 +89,8 @@ run_case()
 
     if test "$doublesize" = -
     then
-        set --
+        set -- -xrm 'xterm.vt100.faceNameDoublesize:' \
+            -xrm 'xterm.vt100.faceNameEmoji:'
     else
         set -- -fd "$doublesize"
     fi
@@ -119,17 +119,6 @@ run_case()
     cpr_hex=$(od -An -tx1 -v "$cpr" | tr -d ' \n')
 
     printf '%-14s class=%-5s cpr=%s %s\n' "$case_name" "$class" "$cpr_hex" "$result"
-    if test "$doublesize" != -
-    then
-        if test -z "$doublesize_golden"
-        then
-            doublesize_golden=$result
-        elif test "$result" != "$doublesize_golden"
-        then
-            echo "$case_name did not match the current ignored-doublesize pixel baseline" >&2
-            exit 1
-        fi
-    fi
     if test "$class" != "$expected" || test "$cpr_hex" != 1b5b313b3352 || \
        test "$overflow_class" != blank
     then
@@ -142,27 +131,24 @@ run_case()
     terminal_pid=
 }
 
-# This matrix isolates the rendering primitive by selecting the fixture as the
-# primary Xft face. It does not claim faceNameDoublesize routing: Revenant
-# currently accepts that resource but documents it as unsupported.
+# This matrix isolates each rendering primitive by selecting the fixture as
+# the primary Xft face.
 run_case cbdt 'Noto Color Emoji' color cbdt - 😀
 run_case cbdt-lowres Twemoji color cbdt-lowres - 😀
 run_case colrv0 OpenMoji color colrv0 - 😀
-run_case colrv1 'Noto Color Emoji' blank colrv1 - 😀
+run_case colrv1 'Noto Color Emoji' color colrv1 - 😀
 run_case mono 'Noto Emoji' mono mono - 😀
-run_case svginot 'Twitter Color Emoji' blank svginot - 😀
+run_case svginot 'Twitter Color Emoji' color svginot - 😀
 run_case sbix 'Revenant Synthetic sbix' color sbix - 😀
 run_case cjk 'Noto Sans Mono CJK JP' mono cjk - 日
 
-# Characterize the resource boundary separately. The primary DejaVu face is
-# held constant and every doublesize request currently produces its same
-# missing-glyph outline. This is intentionally not labeled as stock-xterm
-# compatibility; these cells must change when faceNameDoublesize is applied.
-run_case cbdt 'DejaVu Sans Mono' mono fd-cbdt 'Noto Color Emoji' 😀
-run_case cbdt-lowres 'DejaVu Sans Mono' mono fd-cbdt-low Twemoji 😀
-run_case colrv0 'DejaVu Sans Mono' mono fd-colrv0 OpenMoji 😀
-run_case colrv1 'DejaVu Sans Mono' mono fd-colrv1 'Noto Color Emoji' 😀
+# Exercise the same formats through faceNameDoublesize with a primary face
+# that lacks the probes. Every role must fit two cells without changing width.
+run_case cbdt 'DejaVu Sans Mono' color fd-cbdt 'Noto Color Emoji' 😀
+run_case cbdt-lowres 'DejaVu Sans Mono' color fd-cbdt-low Twemoji 😀
+run_case colrv0 'DejaVu Sans Mono' color fd-colrv0 OpenMoji 😀
+run_case colrv1 'DejaVu Sans Mono' color fd-colrv1 'Noto Color Emoji' 😀
 run_case mono 'DejaVu Sans Mono' mono fd-mono 'Noto Emoji' 😀
-run_case svginot 'DejaVu Sans Mono' mono fd-svg 'Twitter Color Emoji' 😀
-run_case sbix 'DejaVu Sans Mono' mono fd-sbix 'Revenant Synthetic sbix' 😀
+run_case svginot 'DejaVu Sans Mono' color fd-svg 'Twitter Color Emoji' 😀
+run_case sbix 'DejaVu Sans Mono' color fd-sbix 'Revenant Synthetic sbix' 😀
 run_case cjk 'DejaVu Sans Mono' mono fd-cjk 'Noto Sans Mono CJK JP' 日

@@ -19,7 +19,7 @@ not finished the user-visible integration or acceptance coverage.
 | Resize with text reflow | Present | Retain live Readline, large-history, and stale-frame regression coverage. |
 | Full 24-bit color and 256-color palette | Present | The terminal output works; applying xterm `color0` through `color15` resources is a separate xterm-fidelity task. |
 | Bold, italic, and inverse styles | Partial | Add an italic Xft face/path and complete style-combination coverage. |
-| Unicode and multi-codepoint graphemes, without shaping or layout | Partial | Full grapheme bytes reach Xft; add fallback faces and acceptance coverage for unsupported glyphs, combining text, and emoji. |
+| Unicode and multi-codepoint graphemes, without shaping or layout | Partial | Unicode 17 emoji/CJK roles, selectors, color formats, and empty-ink fallback are covered; add general fallback and sequence shaping. |
 | Keyboard input with Shift, Ctrl, Alt, and Super | Partial | Complete the X11 key map and exact modifier/application-mode regression matrix. |
 | Kitty keyboard protocol | Present | Retain exact state-stack and X11 press/repeat/release fixtures; expand non-US XIM coverage as layouts become available in CI. |
 | Kitty graphics protocol | Missing | Expose image placement/lifecycle through `terminal.h` and safely composite it in X11. Parser state alone is not promotion. |

@@ -7,6 +7,7 @@ XrmOptionDescRec XtpCommandOptions[] = {
     {"-fn", "*vt100.font", XrmoptionSepArg, NULL},
     {"-fa", "*vt100.faceName", XrmoptionSepArg, NULL},
     {"-fd", "*vt100.faceNameDoublesize", XrmoptionSepArg, NULL},
+    {"-fe", "*vt100.faceNameEmoji", XrmoptionSepArg, NULL},
     {"-fs", "*vt100.faceSize", XrmoptionSepArg, NULL},
     {"-b", "*vt100.internalBorder", XrmoptionSepArg, NULL},
     {"-sb", "*vt100.scrollBar", XrmoptionNoArg, (XPointer) "true"},

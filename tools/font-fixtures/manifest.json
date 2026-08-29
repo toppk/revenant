@@ -140,12 +140,12 @@
       "glyphs": 41369,
       "codepoints": 1898,
       "probes": {
-        "grinning_face": "outline+color",
-        "heart_text_default": "outline+color",
-        "shaking_face_emoji_15": "outline+color",
-        "regional_indicator_u": "outline+color",
+        "grinning_face": "color",
+        "heart_text_default": "color",
+        "shaking_face_emoji_15": "color",
+        "regional_indicator_u": "color",
         "cjk_sentinel": "missing",
-        "information_text_default": "outline+color"
+        "information_text_default": "color"
       }
     },
     "RevenantSyntheticSbix.ttf": {

@@ -48,6 +48,9 @@ xmu_dep = dependency('xmu')
 fontconfig_dep = dependency('fontconfig')
 xft_dep = dependency('xft')
 xrender_dep = dependency('xrender')
+cairo_dep = dependency('cairo', version: '>= 1.18')
+cairo_ft_dep = dependency('cairo-ft', version: '>= 1.18')
+cairo_xlib_dep = dependency('cairo-xlib', version: '>= 1.18')
 util_dep = cc.find_library('util')
 m_dep = cc.find_library('m')
 
@@ -56,6 +59,8 @@ sources = files(
     'src/command_options.c',
     'src/config_report.c',
     'src/diagnostics.c',
+    'src/emoji_presentation.c',
+    'src/glyph_cairo.c',
     'src/main.c',
     'src/menus.c',
     'src/pty.c',
@@ -157,6 +162,9 @@ xterm_plus = executable(
         fontconfig_dep,
         xft_dep,
         xrender_dep,
+        cairo_dep,
+        cairo_ft_dep,
+        cairo_xlib_dep,
         util_dep,
         m_dep,
     ],
@@ -281,6 +289,19 @@ if build_with_ghostty and xvfb.found()
         find_program('sh'),
         args: [
             files('tests/xvfb-font-baseline.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            window_ink_test_tool.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-emoji-routing',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-emoji-routing.sh'),
             xvfb.full_path(),
             xterm_plus.full_path(),
             window_ink_test_tool.full_path(),

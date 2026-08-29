@@ -73,6 +73,34 @@ XTerm*faceSize3: 8
 XTerm*faceSize5: 14
 ```
 
+Wide text and emoji can use separate faces without changing the grid width
+already chosen by the terminal engine:
+
+```xrdb
+XTerm*faceNameDoublesize: Noto Sans Mono CJK JP
+XTerm*faceNameEmoji:      Noto Color Emoji
+XTerm*emojiPresentation:  unicode  ! unicode, text, or emoji
+XTerm*colorGlyphs:        true
+```
+
+VS15 always requests text presentation and VS16 always requests emoji
+presentation. Without a selector, `emojiPresentation` chooses Unicode's
+default, forces text, or forces emoji. Emoji presentation tries
+`faceNameEmoji`, then `faceNameDoublesize`, then the primary face; wide
+non-emoji text tries `faceNameDoublesize` and then the primary face. A face is
+skipped when the codepoint is absent or its selected ink path is empty.
+Text presentation never permits a color paint: a color-capable doublesize or
+primary face is usable only when it has a genuine outline for that glyph.
+
+`colorGlyphs: false` declines CBDT, sbix, COLR, and SVG color paint. A genuine
+outline base is drawn in the foreground; an empty or degenerate base falls
+through to the next configured face. If the primary face itself has no
+outline, the cell remains blank rather than leaking color through Xft.
+Revenant uses Cairo 1.18 for color formats that Xft does not render, including
+COLRv1 and SVGinOT. The delegate caches its Xlib surface and scaled role fonts,
+fits from the selected face's own extents, and uses the same cell, damage, and
+cursor clips as the Xft path.
+
 Revenant resolves those point sizes using the active X screen's Xft defaults,
 including its DPI. This keeps the initial font and every font-menu slot at the
 same physical scale as xterm on displays whose DPI is not 96.
@@ -94,10 +122,11 @@ runtime, and the Xt action `set-render-font(toggle)` does the same from a
 translation.
 
 !!! note "Not yet"
-    Fallback faces for glyphs missing from the primary font, comma-separated
-    face lists, italic faces, colour emoji, and `faceNameDoublesize` are not
-    implemented. Text state is intact in the terminal engine; the glyphs
-    simply draw as the font's missing-glyph box until the renderer catches up.
+    General-purpose fallback faces, comma-separated override faces, italic
+    faces, and sequence shaping beyond the terminal engine's current grapheme
+    output are not implemented. Emoji routing currently selects a face from
+    the first base codepoint plus VS15/VS16; it does not add an independent
+    ZWJ/flag/skin-tone shaping engine.
 
 ## Colours
 
@@ -271,9 +300,10 @@ the configured default blink. `always` and `never` ignore application blink
 requests without suppressing application shape or visibility changes. The
 command-line forms are `-bc`, `+bc`, `-bcn milliseconds`, and
 `-bcf milliseconds`. A focused block is filled and an unfocused block is an
-outline. See the [TDN cursor-controls reference](https://toppk.github.io/revenant/tdn/csi/cursor/) for the
-wire protocol and compatibility notes. Wiring `cursorUnderLine` and `cursorBar`
-as startup shape resources remains roadmap work.
+outline. See the [TDN cursor-controls
+reference](https://toppk.github.io/revenant/tdn/csi/cursor/) for the wire
+protocol and compatibility notes. Wiring `cursorUnderLine` and `cursorBar` as
+startup shape resources remains roadmap work.
 
 In table form, `cursorBlink` is a default or a forced rule, never one operand
 of a Boolean expression:
