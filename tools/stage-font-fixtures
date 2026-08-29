@@ -1,0 +1,429 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Build an inspectable, isolated font fixture tree from pinned upstream
+# releases.  This deliberately does not read individual installed fonts: an
+# archive is accepted only when it has the expected upstream SHA-256.
+
+project_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+readonly project_root
+output="$project_root/font-fixtures-stage"
+offline=false
+declare -a seed_dirs=()
+
+usage()
+{
+	cat <<EOF
+usage: tools/stage-font-fixtures [OPTIONS] [OUTPUT]
+
+Create a new, inspectable font-fixture tree.  OUTPUT must not exist.
+
+  --seed DIR   reuse verified downloads from DIR (may be repeated)
+  --offline    fail rather than download a missing source
+  --list       print the pinned source inventory and exit
+  -h, --help   show this help
+
+The existing fonttest/ directory is never modified.  To reuse its archives:
+
+  tools/stage-font-fixtures --seed fonttest
+EOF
+}
+
+# id|filename|sha256|url
+sources=$(cat <<'EOF'
+dejavu-2.37|dejavu-fonts-ttf-2.37.zip|7576310b219e04159d35ff61dd4a4ec4cdba4f35c00e002a136f00e96a908b0a|https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip
+noto-cjk-sans-2.004|11_NotoSansMonoCJKjp.zip|6c8faf475ce78fa37486dd5d8920e4bb4450b1b0f3c497edf3ba2d25cf52ab78|https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/11_NotoSansMonoCJKjp.zip
+noto-emoji-2.051|noto-emoji-2.051.zip|8bf6ee50a5ae5873880a9541be3d532f9db10673013892084a04673c8c1e580b|https://github.com/googlefonts/noto-emoji/archive/refs/tags/v2.051.zip
+noto-emoji-2.028|noto-emoji-2.028.zip|a5354c70df3b174029891fd1cc7eb0302c246859565155a21b14fecf45efdc4f|https://github.com/googlefonts/noto-emoji/archive/refs/tags/v2.028.zip
+openmoji-17.0.0|openmoji-font.zip|1de61d8dcb38d0bebbdd13c7057a65f5d957ead36ce4b61bd635f84e6f3cadba|https://github.com/hfg-gmuend/openmoji/releases/download/17.0.0/openmoji-font.zip
+twemoji-source-14.0.2|twemoji-14.0.2.zip|e10e955c58b49d1de9218f08b48bf52913c6deeee7c569daa97ba7a4df4a3716|https://github.com/jdecked/twemoji/archive/refs/tags/v14.0.2.zip
+fedora-twitter-twemoji-14.0.2-10|twitter-twemoji-fonts-14.0.2-10.fc44.noarch.rpm|fb580bd15bce8fd6e737f5b62803941d7b884436c4332b2d46e89a2c6f0af01a|https://kojipkgs.fedoraproject.org/packages/twitter-twemoji-fonts/14.0.2/10.fc44/noarch/twitter-twemoji-fonts-14.0.2-10.fc44.noarch.rpm
+twitter-color-emoji-15.1.0|TwitterColorEmoji-SVGinOT-Linux-15.1.0.tar.gz|c8a5302ee4e4c2188ce785edd84c50c616a07f6e99fe1b91aecba4e1db341295|https://github.com/13rac1/twemoji-color-font/releases/download/v15.1.0/TwitterColorEmoji-SVGinOT-Linux-15.1.0.tar.gz
+unicode-emoji-17.0.0|emoji-data.txt|2cb2bb9455cda83e8481541ecf5b6dfda66a3bb89efa3fa7c5297eccf607b72b|https://www.unicode.org/Public/17.0.0/ucd/emoji/emoji-data.txt
+openmoji-license-17.0.0|openmoji-17.0.0-LICENSE.txt|5e436ff8ffbb77d8607220e9bce20c8915d860010feeb6c1ebef5a85688e9b39|https://raw.githubusercontent.com/hfg-gmuend/openmoji/17.0.0/LICENSE.txt
+unicode-license-v3|unicode-LICENSE.txt|e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96|https://www.unicode.org/license.txt
+EOF
+)
+readonly sources
+
+list_sources()
+{
+	printf 'id\tfilename\tsha256\turl\n'
+	while IFS='|' read -r id filename sha url; do
+		printf '%s\t%s\t%s\t%s\n' "$id" "$filename" "$sha" "$url"
+	done <<<"$sources"
+}
+
+while (($# != 0)); do
+	case $1 in
+	--seed)
+		if (($# < 2)); then
+			echo "--seed requires a directory" >&2
+			exit 2
+		fi
+		seed_dirs+=("$(CDPATH='' cd -- "$2" && pwd)")
+		shift 2
+		;;
+	--offline)
+		offline=true
+		shift
+		;;
+	--list)
+		list_sources
+		exit 0
+		;;
+	-h | --help)
+		usage
+		exit 0
+		;;
+	--)
+		shift
+		break
+		;;
+	-*)
+		printf 'unknown option: %s\n' "$1" >&2
+		usage >&2
+		exit 2
+		;;
+	*)
+		break
+		;;
+	esac
+done
+if (($# > 1)); then
+	usage >&2
+	exit 2
+fi
+if (($# == 1)); then
+	case $1 in
+	/*) output=$1 ;;
+	*) output="$PWD/$1" ;;
+	esac
+fi
+
+if [[ -e $output ]]; then
+	printf 'refusing to replace existing output: %s\n' "$output" >&2
+	exit 1
+fi
+if [[ ! -d $(dirname -- "$output") ]]; then
+	printf 'output parent does not exist: %s\n' "$(dirname -- "$output")" >&2
+	exit 1
+fi
+
+work=$(mktemp -d "$(dirname -- "$output")/.font-fixtures.XXXXXX")
+trap 'rm -rf -- "$work"' EXIT
+mkdir -p "$work/sources" "$work/fonts" "$work/licenses" "$work/data" "$work/universes"
+
+for command in cpio curl python3 rpm2cpio sha256sum tar unzip; do
+	if ! command -v "$command" >/dev/null 2>&1; then
+		printf 'required command is unavailable: %s\n' "$command" >&2
+		exit 1
+	fi
+done
+if ! python3 -c 'import fontTools' >/dev/null 2>&1; then
+	echo "Python fontTools is required to generate the sbix fixture" >&2
+	exit 1
+fi
+
+verified()
+{
+	local path=$1
+	local expected=$2
+	local actual
+
+	[[ -f $path ]] || return 1
+	actual=$(sha256sum -- "$path")
+	actual=${actual%% *}
+	[[ $actual == "$expected" ]]
+}
+
+fetch_source()
+{
+	local id=$1
+	local filename=$2
+	local expected=$3
+	local url=$4
+	local destination="$work/sources/$filename"
+	local seed candidate
+
+	for seed in "${seed_dirs[@]}"; do
+		candidate="$seed/$filename"
+		if [[ -e $candidate ]]; then
+			if ! verified "$candidate" "$expected"; then
+				printf 'seed has wrong SHA-256: %s\n' "$candidate" >&2
+				exit 1
+			fi
+			cp -- "$candidate" "$destination"
+			printf 'seeded %-24s %s\n' "$id" "$candidate"
+			return
+		fi
+	done
+
+	if $offline; then
+		printf 'offline source is missing: %s\n' "$filename" >&2
+		exit 1
+	fi
+	printf 'fetching %-23s %s\n' "$id" "$url"
+	curl -L --fail --silent --show-error --output "$destination" "$url"
+	if ! verified "$destination" "$expected"; then
+		printf 'download has wrong SHA-256: %s\n' "$url" >&2
+		exit 1
+	fi
+}
+
+while IFS='|' read -r id filename sha url; do
+	fetch_source "$id" "$filename" "$sha" "$url"
+done <<<"$sources"
+
+extract_zip()
+{
+	local archive=$1
+	local member=$2
+	local destination=$3
+
+	if ! unzip -p "$work/sources/$archive" "$member" >"$destination"; then
+		printf 'cannot extract %s from %s\n' "$member" "$archive" >&2
+		exit 1
+	fi
+}
+
+extract_zip dejavu-fonts-ttf-2.37.zip \
+	dejavu-fonts-ttf-2.37/ttf/DejaVuSansMono.ttf \
+	"$work/fonts/DejaVuSansMono.ttf"
+extract_zip dejavu-fonts-ttf-2.37.zip \
+	dejavu-fonts-ttf-2.37/ttf/DejaVuSansMono-Bold.ttf \
+	"$work/fonts/DejaVuSansMono-Bold.ttf"
+extract_zip dejavu-fonts-ttf-2.37.zip \
+	dejavu-fonts-ttf-2.37/LICENSE "$work/licenses/DejaVu-2.37.txt"
+
+extract_zip 11_NotoSansMonoCJKjp.zip NotoSansMonoCJKjp-Regular.otf \
+	"$work/fonts/NotoSansMonoCJKjp-Regular.otf"
+extract_zip 11_NotoSansMonoCJKjp.zip NotoSansMonoCJKjp-Bold.otf \
+	"$work/fonts/NotoSansMonoCJKjp-Bold.otf"
+extract_zip 11_NotoSansMonoCJKjp.zip LICENSE "$work/licenses/NotoSansCJK-2.004.txt"
+
+extract_zip noto-emoji-2.051.zip noto-emoji-2.051/fonts/Noto-COLRv1.ttf \
+	"$work/fonts/Noto-COLRv1.ttf"
+extract_zip noto-emoji-2.051.zip noto-emoji-2.051/fonts/NotoColorEmoji.ttf \
+	"$work/fonts/NotoColorEmoji.ttf"
+extract_zip noto-emoji-2.051.zip noto-emoji-2.051/fonts/LICENSE \
+	"$work/licenses/NotoEmoji-2.051.txt"
+extract_zip noto-emoji-2.028.zip noto-emoji-2.028/fonts/NotoEmoji-Regular.ttf \
+	"$work/fonts/NotoEmoji-Regular.ttf"
+extract_zip noto-emoji-2.028.zip noto-emoji-2.028/fonts/LICENSE \
+	"$work/licenses/NotoEmoji-2.028.txt"
+
+extract_zip openmoji-font.zip \
+	OpenMoji-color-glyf_colr_0/OpenMoji-color-glyf_colr_0.ttf \
+	"$work/fonts/OpenMoji-COLRv0.ttf"
+
+rpm_root="$work/rpm-twitter-twemoji"
+mkdir -p "$rpm_root"
+(
+	cd "$rpm_root"
+	rpm2cpio "$work/sources/twitter-twemoji-fonts-14.0.2-10.fc44.noarch.rpm" | \
+		cpio -idm --quiet
+)
+cp -- "$rpm_root/usr/share/fonts/twemoji/Twemoji.ttf" "$work/fonts/Twemoji.ttf"
+cp -- "$rpm_root/usr/share/licenses/twitter-twemoji-fonts/LICENSE-BUILD" \
+	"$work/licenses/Twemoji-build-Apache-2.0.txt"
+extract_zip twemoji-14.0.2.zip twemoji-14.0.2/LICENSE \
+	"$work/licenses/Twemoji-14.0.2-MIT.txt"
+extract_zip twemoji-14.0.2.zip twemoji-14.0.2/LICENSE-GRAPHICS \
+	"$work/licenses/Twemoji-14.0.2-CC-BY-4.0.txt"
+
+tar_root=TwitterColorEmoji-SVGinOT-Linux-15.1.0
+tar -xOf "$work/sources/TwitterColorEmoji-SVGinOT-Linux-15.1.0.tar.gz" \
+	"$tar_root/TwitterColorEmoji-SVGinOT.ttf" \
+	>"$work/fonts/TwitterColorEmoji-SVGinOT.ttf"
+tar -xOf "$work/sources/TwitterColorEmoji-SVGinOT-Linux-15.1.0.tar.gz" \
+	"$tar_root/LICENSE-MIT.txt" >"$work/licenses/TwitterColorEmoji-MIT.txt"
+tar -xOf "$work/sources/TwitterColorEmoji-SVGinOT-Linux-15.1.0.tar.gz" \
+	"$tar_root/LICENSE-CC-BY.txt" >"$work/licenses/TwitterColorEmoji-CC-BY-4.0.txt"
+tar -xOf "$work/sources/TwitterColorEmoji-SVGinOT-Linux-15.1.0.tar.gz" \
+	"$tar_root/LICENSE.md" >"$work/licenses/TwitterColorEmoji-NOTICE.md"
+
+python3 "$project_root/tools/font-fixtures/make-sbix.py" \
+	"$work/fonts/RevenantSyntheticSbix.ttf"
+cp -- "$project_root/LICENSE" "$work/licenses/Revenant-MIT.txt"
+cp -- "$work/sources/openmoji-17.0.0-LICENSE.txt" \
+	"$work/licenses/OpenMoji-17.0.0-CC-BY-SA-4.0.txt"
+cp -- "$work/sources/emoji-data.txt" "$work/data/emoji-data.txt"
+cp -- "$work/sources/unicode-LICENSE.txt" "$work/licenses/Unicode-v3.txt"
+
+make_universe()
+{
+	local name=$1
+	shift
+	local directory="$work/universes/$name"
+	local font
+
+	mkdir -p "$directory/fonts" "$directory/cache"
+	for font in "$@"; do
+		if [[ ! -f $work/fonts/$font ]]; then
+			printf 'universe %s names missing font %s\n' "$name" "$font" >&2
+			exit 1
+		fi
+		ln -s "../../../fonts/$font" "$directory/fonts/$font"
+	done
+	cat >"$directory/fontconfig.conf" <<'EOF'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <dir prefix="relative">fonts</dir>
+  <cachedir prefix="xdg">fontconfig</cachedir>
+</fontconfig>
+EOF
+}
+
+readonly base_regular=DejaVuSansMono.ttf
+readonly base_bold=DejaVuSansMono-Bold.ttf
+make_universe empty
+make_universe base "$base_regular" "$base_bold"
+make_universe cbdt "$base_regular" "$base_bold" NotoColorEmoji.ttf
+make_universe cbdt-lowres "$base_regular" "$base_bold" Twemoji.ttf
+make_universe colrv0 "$base_regular" "$base_bold" OpenMoji-COLRv0.ttf
+make_universe colrv1 "$base_regular" "$base_bold" Noto-COLRv1.ttf
+make_universe mono "$base_regular" "$base_bold" NotoEmoji-Regular.ttf
+make_universe svginot "$base_regular" "$base_bold" TwitterColorEmoji-SVGinOT.ttf
+make_universe sbix "$base_regular" "$base_bold" RevenantSyntheticSbix.ttf
+make_universe cjk "$base_regular" "$base_bold" \
+	NotoSansMonoCJKjp-Regular.otf NotoSansMonoCJKjp-Bold.otf
+make_universe cjk-emoji "$base_regular" "$base_bold" \
+	NotoSansMonoCJKjp-Regular.otf NotoSansMonoCJKjp-Bold.otf Noto-COLRv1.ttf
+
+{
+	printf 'path\tsha256\tsource\tlicense\n'
+	for path in "$work/fonts"/*; do
+		filename=${path##*/}
+		case $filename in
+		DejaVu*) source=dejavu-2.37; license=licenses/DejaVu-2.37.txt ;;
+		NotoSansMonoCJK*) source=noto-cjk-sans-2.004; license=licenses/NotoSansCJK-2.004.txt ;;
+		Noto-COLRv1.ttf | NotoColorEmoji.ttf)
+			source=noto-emoji-2.051; license=licenses/NotoEmoji-2.051.txt ;;
+		NotoEmoji-Regular.ttf)
+			source=noto-emoji-2.028; license=licenses/NotoEmoji-2.028.txt ;;
+		OpenMoji-COLRv0.ttf)
+			source=openmoji-17.0.0
+			license=licenses/OpenMoji-17.0.0-CC-BY-SA-4.0.txt
+			;;
+		Twemoji.ttf)
+			source=fedora-twitter-twemoji-14.0.2-10+twemoji-source-14.0.2
+			license=licenses/Twemoji-14.0.2-CC-BY-4.0.txt
+			;;
+		TwitterColorEmoji-SVGinOT.ttf)
+			source=twitter-color-emoji-15.1.0
+			license=licenses/TwitterColorEmoji-CC-BY-4.0.txt
+			;;
+		RevenantSyntheticSbix.ttf)
+			source=generated-revenant-sbix
+			license=licenses/Revenant-MIT.txt
+			;;
+		*) echo "unmapped staged font: $filename" >&2; exit 1 ;;
+		esac
+		sha=$(sha256sum -- "$path")
+		printf 'fonts/%s\t%s\t%s\t%s\n' "$filename" "${sha%% *}" "$source" "$license"
+	done
+} >"$work/MANIFEST.tsv"
+
+{
+	printf 'id\tfilename\tsha256\turl\n'
+	while IFS='|' read -r id filename sha url; do
+		printf '%s\t%s\t%s\t%s\n' "$id" "$filename" "$sha" "$url"
+	done <<<"$sources"
+} >"$work/SOURCES.tsv"
+
+cp -- "$project_root/tools/font-fixtures/LICENSES.md" "$work/LICENSES.md"
+cp -- "$project_root/tools/font-fixtures/manifest.json" "$work/manifest.json"
+
+cat >"$work/run" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+fixture_root=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+readonly fixture_root
+if (($# < 2)); then
+	echo "usage: run UNIVERSE COMMAND [ARG ...]" >&2
+	exit 2
+fi
+readonly universe=$1
+shift
+readonly universe_root="$fixture_root/universes/$universe"
+if [[ ! -f $universe_root/fontconfig.conf ]]; then
+	printf 'unknown fixture universe: %s\n' "$universe" >&2
+	exit 2
+fi
+mkdir -p "$universe_root/cache"
+export FONTCONFIG_FILE="$universe_root/fontconfig.conf"
+export XDG_CACHE_HOME="$universe_root/cache"
+exec "$@"
+EOF
+chmod +x "$work/run"
+
+cat >"$work/README.md" <<'EOF'
+# Revenant font fixture staging tree
+
+This directory was generated by `tools/stage-font-fixtures`. It is an
+inspection intermediate, not a committed fixture bundle. Every source is
+pinned by SHA-256 in `SOURCES.tsv`; every extracted font and its license are
+mapped in `MANIFEST.tsv`.
+
+The base face is DejaVu Sans Mono Regular/Bold. It covers ordinary terminal
+text and selected text-presentation symbols without supplying CJK or the
+supplementary emoji range. The CJK role is the standalone, non-variable Noto
+Sans Mono CJK JP Regular/Bold release. Those faces also exercise CFF outlines
+and the OpenType ceiling of 65,535 glyphs. Emoji faces cover high- and
+low-resolution CBDT, COLRv0, COLRv1, SVGinOT with outline fallback,
+monochrome outlines, and synthetic sbix.
+
+Each directory below `universes/` is a self-contained Fontconfig universe.
+Its configuration uses only that universe's `fonts/` links and private
+`cache/`; it does not include the host configuration. For example:
+
+```sh
+font-fixtures-stage/run cjk-emoji fc-list
+font-fixtures-stage/run colrv1 fc-match 'Noto Color Emoji'
+```
+
+To classify all staged fonts or verify their hashes, table types, axes,
+strikes, coverage, and per-probe ink paths:
+
+```sh
+tools/font-fixture-info.py --dir font-fixtures-stage/fonts
+tools/font-fixture-info.py --check font-fixtures-stage/manifest.json
+```
+
+The manifest's top-level `outline` value names the outline table technology;
+the per-probe paths report actual nonempty ink. In particular, a `glyf` font
+whose probe says only `color` or `bitmap` has an empty outline base for that
+probe. See the maintained `tools/font-fixtures/README.md` for the full schema
+contract.
+
+The `empty` universe deliberately contains no fonts. The `base`, `cbdt`,
+`cbdt-lowres`, `colrv0`, `colrv1`, `mono`, `svginot`, `sbix`, `cjk`, and
+`cjk-emoji` universes isolate the remaining routing scenarios. Moving this
+entire tree is safe because its Fontconfig paths and font links are relative.
+EOF
+
+python3 "$project_root/tools/font-fixture-info.py" --check "$work/manifest.json"
+
+# Exercise the generated configurations before publishing the tree.  fc-list
+# must see exactly the symlinked files and must not leak host fonts.
+if command -v fc-list >/dev/null 2>&1; then
+	for universe in "$work/universes"/*; do
+		expected=$(find "$universe/fonts" -type l | wc -l)
+		actual=$(XDG_CACHE_HOME="$universe/cache" \
+			FONTCONFIG_FILE="$universe/fontconfig.conf" fc-list : file | \
+			sed -n 's/:.*//p' | sort -u | wc -l)
+		if [[ $actual -ne $expected ]]; then
+			printf 'Fontconfig universe %s has %s files; expected %s\n' \
+				"${universe##*/}" "$actual" "$expected" >&2
+			exit 1
+		fi
+	done
+fi
+
+mv -- "$work" "$output"
+trap - EXIT
+printf '\nstaged font fixtures in %s\n' "$output"
+printf 'inspect with: tools/font-fixture-info.py --check %q\n' "$output/manifest.json"

@@ -1,0 +1,206 @@
+{
+  "schema": 1,
+  "unicode_version": "17.0",
+  "unicode_data": "data/emoji-data.txt",
+  "font_directory": "fonts",
+  "fonts": {
+    "DejaVuSansMono-Bold.ttf": {
+      "sha256": "bce60f1b4421acd9ea51ba6623d7024ecbe6817a953e3654df62a5e6bdf8f769",
+      "family": "DejaVu Sans Mono",
+      "technologies": ["monochrome"],
+      "outline": "glyf",
+      "strikes": {},
+      "axes": [],
+      "glyphs": 3316,
+      "codepoints": 3261,
+      "probes": {
+        "grinning_face": "missing",
+        "heart_text_default": "outline",
+        "shaking_face_emoji_15": "missing",
+        "regional_indicator_u": "missing",
+        "cjk_sentinel": "missing",
+        "information_text_default": "missing"
+      }
+    },
+    "DejaVuSansMono.ttf": {
+      "sha256": "b4a6c3e4faab8773f4ff761d56451646409f29abedd68f05d38c2df667d3c582",
+      "family": "DejaVu Sans Mono",
+      "technologies": ["monochrome"],
+      "outline": "glyf",
+      "strikes": {},
+      "axes": [],
+      "glyphs": 3377,
+      "codepoints": 3322,
+      "probes": {
+        "grinning_face": "missing",
+        "heart_text_default": "outline",
+        "shaking_face_emoji_15": "missing",
+        "regional_indicator_u": "missing",
+        "cjk_sentinel": "missing",
+        "information_text_default": "missing"
+      }
+    },
+    "Noto-COLRv1.ttf": {
+      "sha256": "0ae57fe58645638523ba35f388d93739d292539a9acb84df5700c81b1e1a28d2",
+      "family": "Noto Color Emoji",
+      "technologies": ["COLRv1"],
+      "outline": "glyf",
+      "strikes": {},
+      "axes": [],
+      "glyphs": 41863,
+      "codepoints": 1499,
+      "probes": {
+        "grinning_face": "color",
+        "heart_text_default": "color",
+        "shaking_face_emoji_15": "color",
+        "regional_indicator_u": "color",
+        "cjk_sentinel": "missing",
+        "information_text_default": "color"
+      }
+    },
+    "NotoColorEmoji.ttf": {
+      "sha256": "72a635cb3d2f3524c51620cdde406b217204e8a6a06c6a096ff8ed4b5fd6e27b",
+      "family": "Noto Color Emoji",
+      "technologies": ["CBDT"],
+      "outline": "none",
+      "strikes": {"CBDT": [109]},
+      "axes": [],
+      "glyphs": 4027,
+      "codepoints": 1501,
+      "probes": {
+        "grinning_face": "bitmap",
+        "heart_text_default": "bitmap",
+        "shaking_face_emoji_15": "bitmap",
+        "regional_indicator_u": "bitmap",
+        "cjk_sentinel": "missing",
+        "information_text_default": "bitmap"
+      }
+    },
+    "NotoEmoji-Regular.ttf": {
+      "sha256": "415dc6290378574135b64c808dc640c1df7531973290c4970c51fdeb849cb0c5",
+      "family": "Noto Emoji",
+      "technologies": ["monochrome"],
+      "outline": "glyf",
+      "strikes": {},
+      "axes": [],
+      "glyphs": 888,
+      "codepoints": 887,
+      "probes": {
+        "grinning_face": "outline",
+        "heart_text_default": "outline",
+        "shaking_face_emoji_15": "missing",
+        "regional_indicator_u": "outline",
+        "cjk_sentinel": "missing",
+        "information_text_default": "outline"
+      }
+    },
+    "NotoSansMonoCJKjp-Bold.otf": {
+      "sha256": "dfdffe149bc6cbf52860dabd8b8dadbca40ae87a4fbe143b55c0258db2dadfb8",
+      "family": "Noto Sans Mono CJK JP",
+      "technologies": ["monochrome"],
+      "outline": "CFF",
+      "strikes": {},
+      "axes": [],
+      "glyphs": 65535,
+      "codepoints": 44810,
+      "probes": {
+        "grinning_face": "missing",
+        "heart_text_default": "missing",
+        "shaking_face_emoji_15": "missing",
+        "regional_indicator_u": "missing",
+        "cjk_sentinel": "outline",
+        "information_text_default": "missing"
+      }
+    },
+    "NotoSansMonoCJKjp-Regular.otf": {
+      "sha256": "4d01725be822d144cf9a56ade981e6fb920cd7a610b8fc24cc601a920beea5b9",
+      "family": "Noto Sans Mono CJK JP",
+      "technologies": ["monochrome"],
+      "outline": "CFF",
+      "strikes": {},
+      "axes": [],
+      "glyphs": 65535,
+      "codepoints": 44810,
+      "probes": {
+        "grinning_face": "missing",
+        "heart_text_default": "missing",
+        "shaking_face_emoji_15": "missing",
+        "regional_indicator_u": "missing",
+        "cjk_sentinel": "outline",
+        "information_text_default": "missing"
+      }
+    },
+    "OpenMoji-COLRv0.ttf": {
+      "sha256": "8376fee074649ece235faba0d157d851f3d93632f0540ad1165feba1aba9ba37",
+      "family": "OpenMoji",
+      "technologies": ["COLRv0"],
+      "outline": "glyf",
+      "strikes": {},
+      "axes": [],
+      "glyphs": 41369,
+      "codepoints": 1898,
+      "probes": {
+        "grinning_face": "outline+color",
+        "heart_text_default": "outline+color",
+        "shaking_face_emoji_15": "outline+color",
+        "regional_indicator_u": "outline+color",
+        "cjk_sentinel": "missing",
+        "information_text_default": "outline+color"
+      }
+    },
+    "RevenantSyntheticSbix.ttf": {
+      "sha256": "a480bc4f4842c07cfec930875728c79508fc4630020b5dbc9488b9e8717f1b6f",
+      "family": "Revenant Synthetic sbix",
+      "technologies": ["sbix"],
+      "outline": "glyf",
+      "strikes": {"sbix": [16]},
+      "axes": [],
+      "glyphs": 2,
+      "codepoints": 1,
+      "probes": {
+        "grinning_face": "bitmap",
+        "heart_text_default": "missing",
+        "shaking_face_emoji_15": "missing",
+        "regional_indicator_u": "missing",
+        "cjk_sentinel": "missing",
+        "information_text_default": "missing"
+      }
+    },
+    "Twemoji.ttf": {
+      "sha256": "59c88b3836312e3a28eb431a570bf8bd76183951d0adf4692f93768b203359f7",
+      "family": "Twemoji",
+      "technologies": ["CBDT"],
+      "outline": "none",
+      "strikes": {"CBDT": [61]},
+      "axes": [],
+      "glyphs": 3737,
+      "codepoints": 1468,
+      "probes": {
+        "grinning_face": "bitmap",
+        "heart_text_default": "bitmap",
+        "shaking_face_emoji_15": "missing",
+        "regional_indicator_u": "bitmap",
+        "cjk_sentinel": "missing",
+        "information_text_default": "bitmap"
+      }
+    },
+    "TwitterColorEmoji-SVGinOT.ttf": {
+      "sha256": "42d4b2a827c9ed557dff88c2f4723cb93985003a81dee76797324d66d04a57b8",
+      "family": "Twitter Color Emoji",
+      "technologies": ["SVGinOT"],
+      "outline": "glyf",
+      "strikes": {},
+      "axes": [],
+      "glyphs": 3850,
+      "codepoints": 1423,
+      "probes": {
+        "grinning_face": "outline+svg",
+        "heart_text_default": "outline+svg",
+        "shaking_face_emoji_15": "outline+svg",
+        "regional_indicator_u": "outline+svg",
+        "cjk_sentinel": "missing",
+        "information_text_default": "outline+svg"
+      }
+    }
+  }
+}

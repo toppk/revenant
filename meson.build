@@ -234,6 +234,13 @@ window_alpha_test_tool = executable(
     install: false,
 )
 
+window_ink_test_tool = executable(
+    'xtp-window-ink',
+    'tests/xtp-window-ink.c',
+    dependencies: [x11_dep, xrender_dep],
+    install: false,
+)
+
 opacity_slider_test_tool = executable(
     'xtp-drag-opacity-slider',
     'tests/xtp-drag-opacity-slider.c',
@@ -265,6 +272,19 @@ if build_with_ghostty and xvfb.found()
             compositor_owner_test_tool.full_path(),
             window_alpha_test_tool.full_path(),
             opacity_slider_test_tool.full_path(),
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-font-baseline',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-font-baseline.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            window_ink_test_tool.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
         ],
         timeout: 30,
         is_parallel: false,

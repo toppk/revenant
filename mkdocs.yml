@@ -75,6 +75,7 @@ nav:
       - Command-line feasibility: compatibility/command-line-feasibility.md
       - Popup-menu feasibility: compatibility/menu-feasibility.md
       - Rendering review: compatibility/rendering-review.md
+      - Font format baseline: compatibility/font-format-baseline.md
   - Maintainers:
       - Architecture: maintainers/architecture.md
       - Roadmap: maintainers/roadmap.md
