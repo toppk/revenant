@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# usage: packaging/build-arch VERSION  -> dist/revenant-VERSION-1-ARCH.pkg.tar.zst
+set -euo pipefail
+version=${1:?version}
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$root"
+
+# makepkg refuses to run as root; CI containers start that way.
+if [[ $EUID -eq 0 ]]; then
+    id builder >/dev/null 2>&1 || useradd -m builder
+    chown -R builder "$root" "$(dirname -- "$(command -v zig)")"
+    exec runuser -u builder --preserve-environment -- "$0" "$version"
+fi
+
+pkgdir="$root/build-arch/pkg"
+rm -rf "$pkgdir" && mkdir -p "$pkgdir"
+cp packaging/PKGBUILD "$pkgdir/"
+mkdir -p dist
+(
+    cd "$pkgdir"
+    REVENANT_RELEASE_VERSION="$version" REVENANT_SOURCE="$root" PKGDEST="$root/dist" \
+        makepkg --noconfirm --nodeps --noextract --cleanbuild --force
+)
+ls dist/revenant-"$version"-1-*.pkg.tar.zst

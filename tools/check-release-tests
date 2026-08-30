@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Fail unless a Meson build directory ran its complete test suite with no skips.
+
+usage: tools/check-release-tests BUILD_DIR
+
+Every release package must be gated by the same tests. Release configurations
+require Xvfb at Meson setup; this check prevents skipped tests or unstaged font
+fixtures from quietly shrinking the gate after configuration.
+"""
+
+import json
+import subprocess
+import sys
+
+
+def main(argv):
+    if len(argv) != 2:
+        sys.exit(__doc__.strip())
+    build = argv[1]
+    listed = subprocess.run(
+        ["meson", "test", "-C", build, "--list"], capture_output=True, text=True, check=True
+    ).stdout.split()
+    listed = {name.split(":")[-1] for name in listed}
+    results = {}
+    try:
+        with open(f"{build}/meson-logs/testlog.json", encoding="utf-8") as log:
+            for line in log:
+                entry = json.loads(line)
+                results[entry["name"].split(":")[-1]] = entry["result"]
+    except FileNotFoundError:
+        sys.exit(f"{build}: no meson-logs/testlog.json; run meson test first")
+    problems = [f"{name}: not run" for name in sorted(listed - results.keys())]
+    problems += [f"{name}: {result}" for name, result in sorted(results.items()) if result != "OK"]
+    if problems:
+        sys.exit("release test gate failed:\n  " + "\n  ".join(problems))
+    print(f"release test gate: {len(results)} tests OK, none skipped")
+
+
+if __name__ == "__main__":
+    main(sys.argv)

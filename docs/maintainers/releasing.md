@@ -105,9 +105,11 @@ then dispatches the workflow against that tag.
 
 ## What the workflow does
 
-- **Check tag** fails immediately if the tag does not exist on `origin`, and
+- **Check tag** fails immediately if the tag does not exist on `origin`,
   derives the package version by stripping the leading `v` (`v0.3.0` →
-  `0.3.0`). Every packaging path passes that value through Meson's
+  `0.3.0`), and renders the changelog entry with `tools/release-notes` so a
+  missing entry or an unlinked bullet fails in seconds rather than after the
+  builds. Every packaging path passes that value through Meson's
   `release-version` option, overriding the next-development version in the
   tagged source. Installed-package checks require `revenant --version` and
   `xterm+ --version` to match the tag exactly.
@@ -115,31 +117,74 @@ then dispatches the workflow against that tag.
   come from that tagged commit. `tools/fetch-libghostty` pins one exact Ghostty
   commit; advance that pin as an ordinary reviewed change before a release.
   Every artifact in one release therefore builds the same libghostty source.
-- **tar.gz** builds on x86_64 and aarch64 runners. This job also installs
-  Xvfb and stages the pinned font fixtures with `tools/stage-font-fixtures`,
-  so `meson test` there runs all eight tests, including
-  `xvfb-font-baseline` and `xvfb-emoji-routing`. The archive is
+- **tar.gz** builds on x86_64 and aarch64 runners. The archive is
   `revenant-<version>-linux-<arch>.tar.gz` containing a stripped `revenant`,
   an `xterm+` symlink, `README.md`, and `LICENSES/`.
 - **deb** builds on `ubuntu-latest` with `debian/rules binary` from
   `packaging/debian/` (not `dpkg-buildpackage`: its `.buildinfo` generation
-  scans the whole runner package database and is discarded anyway). It runs
-  the six tests that do not require staged font fixtures, then installs the
-  result and checks `revenant --version`, `xterm+ --version`, and the desktop
-  files.
+  scans the whole runner package database and is discarded anyway), then
+  installs the result and checks `revenant --version`, `xterm+ --version`,
+  and the desktop files.
 - **rpm** builds in a `fedora:latest` container with
-  `rpmbuild --build-in-place` from `packaging/revenant.spec`. With no Xvfb in
-  that container it runs the parser and self-test only, then installs the
-  result and runs the same binary and desktop-integration checks.
+  `rpmbuild --build-in-place` from `packaging/revenant.spec`, then installs
+  the result and runs the same binary and desktop-integration checks.
+- **pkg.tar.zst** builds in an `archlinux:latest` container with `makepkg`
+  from `packaging/PKGBUILD` via `packaging/build-arch` (which drops to an
+  unprivileged `builder` user, since `makepkg` refuses root), then installs
+  the result and runs the same checks. The container needs
+  `xorg-mkfontscale` and an explicit `mkfontdir` so Xvfb can serve the misc
+  bitmap fonts.
+- Every build job installs Xvfb and the X bitmap fonts, pins fontTools, and
+  stages the font fixtures with `tools/stage-font-fixtures`. Every packaging
+  configuration passes `-Dxvfb-tests=enabled`, so Meson fails immediately if
+  Xvfb or the libghostty backend is unavailable. After `meson test`, each path
+  runs `tools/check-release-tests`, which fails unless every test Meson lists
+  ran and passed with no skips. The only checks outside this gate are the
+  interactive probes and `tools/check-xterm-font-compat`, which need a live
+  xterm and display.
+- **Font fixtures** runs before the builders. It restores the staged
+  fixture tree from `actions/cache` (keyed on `tools/stage-font-fixtures`,
+  `tools/font-fixtures/`, and `FONTTOOLS_VERSION`), stages it with
+  `tools/stage-font-fixtures` only on a miss, and saves it. Each builder
+  then restores the same key with `actions/cache/restore` and
+  `fail-on-cache-miss`, which is several times faster than passing a run
+  artifact around. If the cache were evicted mid-run the builder fails
+  loudly and a re-dispatch repopulates it. The upstream font sources are
+  therefore fetched once per pin change rather than five times per release,
+  and the builder images need none of the staging toolchain (fontTools,
+  cpio, rpm2cpio, unzip).
+- Every build job restores a Zig cache with `actions/cache`. The key is
+  self-describing:
+
+      libghostty-<runner os>-<zig target>-<zig cpu>-zig<ZIG_VERSION>-ghostty<commit>-<hash of tools/build-libghostty>-<runner cpu model>
+
+  `tools/build-libghostty --print-target` and `tools/fetch-libghostty
+  --print-reference` supply the target tuple and pinned commit, so the key
+  changes exactly when the libghostty inputs do. The distro is deliberately
+  absent: zig uses its own compiler and libc headers for an explicit target,
+  so one cache serves the tarball, deb, rpm, and Arch jobs of an
+  architecture. The runner CPU model is present because Ghostty compiles its
+  build-time generators for the native host CPU and zig has no override
+  ([ziglang/zig#22663](https://github.com/ziglang/zig/issues/22663)); a
+  `restore-keys` prefix restores the newest same-architecture cache on a
+  model mismatch and the union saved afterward converges to a cache that
+  hits on every model. A warm cache turns the libghostty build into a few
+  seconds.
+- `build-libghostty` passes an explicit `-Dtarget` and `-Dcpu`
+  (`x86_64-linux-gnu`/`x86_64_v3`, `aarch64-linux-gnu`/`baseline`) so the
+  released library never depends on the build host. The x86_64-v3 floor is
+  stated in the install guide and in every release body; drop to
+  `x86_64_v2` or `baseline` only in response to user reports.
 - **GitHub release** downloads every artifact, signs a build-provenance
   attestation for each with `actions/attest-build-provenance` (verify with
   `gh attestation verify FILE --repo toppk/revenant`), renders the release body
-  with `tools/release-notes` (highlights, changes with linked commits, and
-  an artifact table with SHA-256 sums), publishes the release, and then
-  deletes the run's build artifacts. The job fails if `CHANGELOG.md` has no
+  with `tools/release-notes` (highlights, changes with linked commits, an
+  artifact table with SHA-256 sums, and the CPU floor), and publishes the
+  release.
+- The package artifacts that carry builds to the release job expire after
+  one day; nothing deletes them earlier. The job fails if `CHANGELOG.md` has no
   entry for the version or any change bullet lacks a valid trailing commit
-  link. Artifacts are also uploaded with a 3-day expiry, so a failed run leaves
-  them around briefly for debugging.
+  link.
 
 The synthetic sbix fixture is byte-exact only for the fontTools release
 pinned in the workflow's `FONTTOOLS_VERSION`; regenerate
@@ -187,7 +232,4 @@ git tag -d "$tag"
   distribution's xterm package instead of carrying its own copy, the deb and
   rpm need a `Depends`/`Requires` on `xterm` (or on whichever subpackage
   owns those files).
-- The rpm release container does not install Xvfb or stage the font fixtures,
-  so its package build runs only two tests. The tarball jobs provide the full
-  eight-test release gate today.
 - No macOS or Windows builds; the X11 story there is unresolved.

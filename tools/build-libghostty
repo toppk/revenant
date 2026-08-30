@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Released binaries target a fixed CPU floor instead of the build host: zig
+# would otherwise tune to one runner model. x86_64-v3 = AVX2 (Haswell/Zen+).
+case "$(uname -m)" in
+    x86_64) target=x86_64-linux-gnu cpu=x86_64_v3 ;;
+    aarch64) target=aarch64-linux-gnu cpu=baseline ;;
+    *) echo "build-libghostty: unsupported machine $(uname -m)" >&2; exit 1 ;;
+esac
+readonly target cpu
+if [[ ${1:-} == --print-target ]]; then
+    echo "$target-$cpu"
+    exit 0
+fi
 if [[ $# -ne 4 ]]; then
-    echo "usage: build-libghostty ZIG SOURCE OUTPUT BUILDTYPE" >&2
+    echo "usage: build-libghostty ZIG SOURCE OUTPUT BUILDTYPE | --print-target" >&2
     exit 2
 fi
 
@@ -12,8 +24,10 @@ readonly output=$3
 readonly buildtype=$4
 readonly output_dir=$(dirname -- "$output")
 readonly prefix="$output_dir/libghostty-prefix"
-readonly cache_dir="$output_dir/libghostty-zig-cache"
-readonly global_cache_dir="$output_dir/libghostty-zig-global-cache"
+# LIBGHOSTTY_ZIG_CACHE_DIR lets CI keep the Zig caches outside the build tree.
+readonly cache_root="${LIBGHOSTTY_ZIG_CACHE_DIR:-$output_dir}"
+readonly cache_dir="$cache_root/libghostty-zig-cache"
+readonly global_cache_dir="$cache_root/libghostty-zig-global-cache"
 
 case "$buildtype" in
     debug)
@@ -30,6 +44,12 @@ case "$buildtype" in
         ;;
 esac
 
+report_cache() {
+    printf 'libghostty zig cache %s: %s (%s)\n' "$1" "$cache_root" \
+        "$(du -sh "$cache_dir" "$global_cache_dir" 2>/dev/null | awk '{printf "%s%s ", $1, (NR==1?" local,":" global")}')" >&2
+}
+printf 'libghostty target=%s cpu=%s optimize=%s\n' "$target" "$cpu" "$optimize" >&2
+report_cache before
 # DESTDIR belongs to the outer install; zig would otherwise install its prefix into the package tree.
 env -u DESTDIR "$zig" build \
     --build-file "$source/build.zig" \
@@ -37,7 +57,10 @@ env -u DESTDIR "$zig" build \
     --global-cache-dir "$global_cache_dir" \
     --prefix "$prefix" \
     -Demit-lib-vt \
+    -Dtarget="$target" \
+    -Dcpu="$cpu" \
     -Doptimize="$optimize"
+report_cache after
 
 if ! cmp -s "$prefix/lib/libghostty-vt.a" "$output"; then
     cp "$prefix/lib/libghostty-vt.a" "$output"

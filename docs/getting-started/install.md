@@ -15,7 +15,13 @@ it with Revenant's existing X11 application class.
 
 Each [release](https://github.com/toppk/revenant/releases) provides
 `revenant-<version>-linux-<arch>.tar.gz` for x86_64 and aarch64, a Debian
-package, and a Fedora RPM. The release page lists a SHA-256 for every file.
+package, a Fedora RPM, and an Arch Linux package. The release page lists a
+SHA-256 for every file.
+
+The x86_64 builds target the `x86_64-v3` level (AVX2: Intel Haswell 2013 and
+later, AMD Zen 2019 and later); aarch64 builds target generic ARMv8. On an
+older CPU the terminal exits with an illegal-instruction error — build from
+source instead, or open an issue so the floor can be reconsidered.
 
 === "Fedora"
 
@@ -27,6 +33,12 @@ package, and a Fedora RPM. The release page lists a SHA-256 for every file.
 
     ```sh
     sudo apt install ./revenant_<version>-1_amd64.deb
+    ```
+
+=== "Arch Linux"
+
+    ```sh
+    sudo pacman -U ./revenant-<version>-1-x86_64.pkg.tar.zst
     ```
 
 === "Tarball"

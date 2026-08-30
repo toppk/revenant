@@ -25,3 +25,10 @@ option(
     value: '',
     description: 'Override the version compiled into release artifacts',
 )
+
+option(
+    'xvfb-tests',
+    type: 'feature',
+    value: 'auto',
+    description: 'Build the Xvfb integration tests; release builds require them',
+)

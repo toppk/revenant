@@ -32,7 +32,7 @@ interface and X resource contract while using libghostty-vt as its terminal
 core. It installs as revenant, with an xterm+ compatibility symlink.
 
 %build
-%meson -Dlibghostty=enabled -Drelease-version=%{version}
+%meson -Dlibghostty=enabled -Dxvfb-tests=enabled -Drelease-version=%{version}
 %meson_build
 
 %install
@@ -40,6 +40,7 @@ core. It installs as revenant, with an xterm+ compatibility symlink.
 
 %check
 %meson_test
+tools/check-release-tests %{_vpath_builddir}
 
 %files
 %license LICENSE

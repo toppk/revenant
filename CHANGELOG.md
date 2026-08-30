@@ -8,9 +8,36 @@ artifacts take their version from the tag, not from the development version in
 
 ## 0.5.0 — Unreleased
 
+Release builds become reproducible across runner hardware, add Arch packaging,
+and apply the same complete test gate to every artifact. No terminal behavior
+changes.
+
+### Features
+
+- Publish an Arch Linux package alongside the tarballs, Debian package, and
+  Fedora RPM.
+
+### Bug fixes
+
+- Build libghostty for explicit `x86_64-linux-gnu`/`x86_64-v3` and
+  `aarch64-linux-gnu`/`baseline` targets. Earlier releases could contain
+  instructions unsupported on older CPUs; the install guide and every release
+  body now state the supported CPU floor.
+
 ### Other
 
-- Document release installation and provenance verification.
+- Pin Ghostty to one exact commit, rebuild it only when its inputs change, and
+  share a Zig cache keyed by target, CPU, Zig version, Ghostty commit, build
+  script, and runner CPU model across packages of the same architecture.
+- Require every tarball, Debian, RPM, and Arch build to run the complete Xvfb
+  and font-fixture suite without skips.
+- Stage and cache the pinned font fixtures once, require every builder to
+  restore that exact cache entry, and remove the staging toolchain from package
+  builders.
+- Validate changelog release notes before starting builds and let intermediate
+  package artifacts expire after one day.
+- Document installation, CPU requirements, release provenance, and local
+  package construction.
 
 ## 0.4.0 — 2026-08-29
 

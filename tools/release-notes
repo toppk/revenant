@@ -87,6 +87,8 @@ def human(size):
 def describe(name):
     if name.endswith(".rpm"):
         return "Fedora package; `sudo dnf install ./" + name + "`"
+    if name.endswith(".pkg.tar.zst"):
+        return "Arch Linux package; `sudo pacman -U ./" + name + "`"
     if name.endswith(".deb"):
         return "Debian/Ubuntu package; `sudo apt install ./" + name + "`"
     if name.endswith(".tar.gz"):
@@ -138,6 +140,10 @@ def main(argv):
     else:
         out.append("_No artifacts found._")
     out += [
+        "",
+        "CPU floor: x86_64 builds target `x86_64-v3` (AVX2 — Intel Haswell 2013+, AMD Zen 2019+); "
+        "aarch64 builds target generic ARMv8. Older CPUs fail with an illegal-instruction error; "
+        "open an issue if that affects you.",
         "",
         "Each file carries a signed [build provenance attestation]"
         f"(https://github.com/{REPO}/attestations) from the workflow run; verify a download with "

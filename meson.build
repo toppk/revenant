@@ -128,10 +128,12 @@ if build_with_ghostty
     ghostty_archive = custom_target(
         'libghostty-vt',
         output: 'libghostty-vt.a',
-        # The checkout is intentionally outside Meson's source manifest. Let
-        # Zig's cache decide whether work is needed so a changed Ghostty HEAD
-        # can never leave an old archive paired with new headers.
-        build_always_stale: true,
+        # The checkout is outside Meson's source manifest; tools/fetch-libghostty
+        # always detaches, so .git/HEAD holds the commit and changes with the pin.
+        depend_files: [
+            ghostty_source_dir / '.git' / 'HEAD',
+            files('tools/fetch-libghostty', 'tools/build-libghostty'),
+        ],
         command: [
             ghostty_builder,
             zig,
@@ -276,7 +278,12 @@ test(
     args: [files('tools/probe-keymodes.py'), '--self-test'],
 )
 
-xvfb = find_program('Xvfb', required: false)
+xvfb_tests_option = get_option('xvfb-tests')
+if xvfb_tests_option.enabled() and not build_with_ghostty
+    error('xvfb-tests was enabled, but the libghostty backend is unavailable')
+endif
+
+xvfb = find_program('Xvfb', required: xvfb_tests_option)
 if build_with_ghostty and xvfb.found()
     test(
         'xvfb-opacity',

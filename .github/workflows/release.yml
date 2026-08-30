@@ -15,6 +15,7 @@ env:
   ZIG_VERSION: 0.16.0
   FONTTOOLS_VERSION: 4.62.0
   DEBIAN_FRONTEND: noninteractive
+  LIBGHOSTTY_ZIG_CACHE_DIR: ${{ github.workspace }}/libghostty-zig
 
 jobs:
   prepare:
@@ -29,10 +30,36 @@ jobs:
         run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
         env:
           TAG: ${{ inputs.tag }}
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Check the changelog entry before building anything
+        run: tools/release-notes "${{ steps.version.outputs.version }}" /nonexistent >/dev/null
+
+  fixtures:
+    name: Font fixtures
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - name: Restore staged fixtures for the pinned font sources
+        id: cache
+        uses: actions/cache@v6
+        with:
+          path: font-fixtures-stage
+          key: font-fixtures-${{ hashFiles('tools/stage-font-fixtures', 'tools/font-fixtures/**') }}-fonttools${{ env.FONTTOOLS_VERSION }}
+      - if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm2cpio cpio unzip curl fontconfig
+          python3 -m pip install --user --break-system-packages "fonttools==$FONTTOOLS_VERSION"
+          tools/stage-font-fixtures
 
   tarball:
     name: tar.gz (${{ matrix.arch }})
-    needs: prepare
+    needs: [prepare, fixtures]
     strategy:
       fail-fast: false
       matrix:
@@ -51,23 +78,42 @@ jobs:
           sudo apt-get install -y build-essential meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
-            xvfb xfonts-base rpm2cpio cpio unzip curl
-          python3 -m pip install --user --break-system-packages "fonttools==$FONTTOOLS_VERSION"
+            xvfb xfonts-base
+      - name: Describe the libghostty build for the Zig cache key
+        id: zigkey
+        run: |
+          # Ghostty compiles its build-time generators for the native CPU (ziglang/zig#22663),
+          # so the runner model is part of the key; the shipped library is not affected.
+          model=$(grep -m1 -E 'model name|CPU part' /proc/cpuinfo | cut -d: -f2 | tr -cs '[:alnum:]' '-' | sed 's/^-*//;s/-*$//')
+          base="libghostty-${{ runner.os }}-$(tools/build-libghostty --print-target)-zig$ZIG_VERSION-ghostty$(tools/fetch-libghostty --print-reference)-${{ hashFiles('tools/build-libghostty') }}"
+          echo "runner cpu: $model"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "key=$base-$model" >> "$GITHUB_OUTPUT"
+      - name: Restore the Zig cache for the pinned libghostty commit
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.LIBGHOSTTY_ZIG_CACHE_DIR }}
+          key: ${{ steps.zigkey.outputs.key }}
+          restore-keys: ${{ steps.zigkey.outputs.base }}-
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
-      - name: Stage font fixtures for the emoji and font-baseline tests
-        run: tools/stage-font-fixtures
+      - name: Restore the staged font fixtures saved by the fixtures job
+        uses: actions/cache/restore@v6
+        with:
+          path: font-fixtures-stage
+          key: font-fixtures-${{ hashFiles('tools/stage-font-fixtures', 'tools/font-fixtures/**') }}-fonttools${{ env.FONTTOOLS_VERSION }}
+          fail-on-cache-miss: true
       - run: packaging/build-tarball "${{ needs.prepare.outputs.version }}"
       - uses: actions/upload-artifact@v7
         with:
           name: tarball-${{ matrix.arch }}
           path: dist/*.tar.gz
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 1
 
   deb:
     name: deb (ubuntu-latest, x86_64)
-    needs: prepare
+    needs: [prepare, fixtures]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -78,9 +124,31 @@ jobs:
           sudo apt-get install -y build-essential debhelper meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
-            xfonts-base
+            xvfb xfonts-base
+      - name: Describe the libghostty build for the Zig cache key
+        id: zigkey
+        run: |
+          # Ghostty compiles its build-time generators for the native CPU (ziglang/zig#22663),
+          # so the runner model is part of the key; the shipped library is not affected.
+          model=$(grep -m1 -E 'model name|CPU part' /proc/cpuinfo | cut -d: -f2 | tr -cs '[:alnum:]' '-' | sed 's/^-*//;s/-*$//')
+          base="libghostty-${{ runner.os }}-$(tools/build-libghostty --print-target)-zig$ZIG_VERSION-ghostty$(tools/fetch-libghostty --print-reference)-${{ hashFiles('tools/build-libghostty') }}"
+          echo "runner cpu: $model"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "key=$base-$model" >> "$GITHUB_OUTPUT"
+      - name: Restore the Zig cache for the pinned libghostty commit
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.LIBGHOSTTY_ZIG_CACHE_DIR }}
+          key: ${{ steps.zigkey.outputs.key }}
+          restore-keys: ${{ steps.zigkey.outputs.base }}-
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
+      - name: Restore the staged font fixtures saved by the fixtures job
+        uses: actions/cache/restore@v6
+        with:
+          path: font-fixtures-stage
+          key: font-fixtures-${{ hashFiles('tools/stage-font-fixtures', 'tools/font-fixtures/**') }}-fonttools${{ env.FONTTOOLS_VERSION }}
+          fail-on-cache-miss: true
       - run: packaging/build-deb "${{ needs.prepare.outputs.version }}"
       - run: |
           sudo apt-get install -y ./dist/*.deb
@@ -94,24 +162,47 @@ jobs:
           name: deb-x86_64
           path: dist/*.deb
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 1
 
   rpm:
     name: rpm (fedora-latest, x86_64)
-    needs: prepare
+    needs: [prepare, fixtures]
     runs-on: ubuntu-latest
     container: fedora:latest
     steps:
       - run: |
           dnf install -y git rpm-build gcc meson ninja-build python3 jq xz \
             libX11-devel libXt-devel libXaw-devel libXmu-devel libxcb-devel \
-            fontconfig-devel libXft-devel libXrender-devel cairo-devel harfbuzz-devel
+            fontconfig-devel libXft-devel libXrender-devel cairo-devel harfbuzz-devel \
+            xorg-x11-server-Xvfb xorg-x11-fonts-misc
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
       - run: git config --global --add safe.directory '*'
+      - name: Describe the libghostty build for the Zig cache key
+        id: zigkey
+        run: |
+          # Ghostty compiles its build-time generators for the native CPU (ziglang/zig#22663),
+          # so the runner model is part of the key; the shipped library is not affected.
+          model=$(grep -m1 -E 'model name|CPU part' /proc/cpuinfo | cut -d: -f2 | tr -cs '[:alnum:]' '-' | sed 's/^-*//;s/-*$//')
+          base="libghostty-${{ runner.os }}-$(tools/build-libghostty --print-target)-zig$ZIG_VERSION-ghostty$(tools/fetch-libghostty --print-reference)-${{ hashFiles('tools/build-libghostty') }}"
+          echo "runner cpu: $model"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "key=$base-$model" >> "$GITHUB_OUTPUT"
+      - name: Restore the Zig cache for the pinned libghostty commit
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.LIBGHOSTTY_ZIG_CACHE_DIR }}
+          key: ${{ steps.zigkey.outputs.key }}
+          restore-keys: ${{ steps.zigkey.outputs.base }}-
       - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
       - run: tools/fetch-libghostty
+      - name: Restore the staged font fixtures saved by the fixtures job
+        uses: actions/cache/restore@v6
+        with:
+          path: font-fixtures-stage
+          key: font-fixtures-${{ hashFiles('tools/stage-font-fixtures', 'tools/font-fixtures/**') }}-fonttools${{ env.FONTTOOLS_VERSION }}
+          fail-on-cache-miss: true
       - run: packaging/build-rpm "${{ needs.prepare.outputs.version }}"
       - run: |
           dnf install -y ./dist/*.rpm
@@ -125,15 +216,68 @@ jobs:
           name: rpm-x86_64
           path: dist/*.rpm
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 1
+
+  arch:
+    name: pkg.tar.zst (archlinux-latest, x86_64)
+    needs: [prepare, fixtures]
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - run: |
+          pacman -Syu --noconfirm --needed base-devel git meson ninja pkgconf python jq xz \
+            libx11 libxt libxaw libxmu libxcb fontconfig libxft libxrender cairo harfbuzz \
+            xorg-server-xvfb xorg-fonts-misc xorg-mkfontscale
+          mkfontdir /usr/share/fonts/misc
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      - run: git config --global --add safe.directory '*'
+      - name: Describe the libghostty build for the Zig cache key
+        id: zigkey
+        run: |
+          # Ghostty compiles its build-time generators for the native CPU (ziglang/zig#22663),
+          # so the runner model is part of the key; the shipped library is not affected.
+          model=$(grep -m1 -E 'model name|CPU part' /proc/cpuinfo | cut -d: -f2 | tr -cs '[:alnum:]' '-' | sed 's/^-*//;s/-*$//')
+          base="libghostty-${{ runner.os }}-$(tools/build-libghostty --print-target)-zig$ZIG_VERSION-ghostty$(tools/fetch-libghostty --print-reference)-${{ hashFiles('tools/build-libghostty') }}"
+          echo "runner cpu: $model"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "key=$base-$model" >> "$GITHUB_OUTPUT"
+      - name: Restore the Zig cache for the pinned libghostty commit
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.LIBGHOSTTY_ZIG_CACHE_DIR }}
+          key: ${{ steps.zigkey.outputs.key }}
+          restore-keys: ${{ steps.zigkey.outputs.base }}-
+      - run: packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP" && echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+      - run: tools/fetch-libghostty
+      - name: Restore the staged font fixtures saved by the fixtures job
+        uses: actions/cache/restore@v6
+        with:
+          path: font-fixtures-stage
+          key: font-fixtures-${{ hashFiles('tools/stage-font-fixtures', 'tools/font-fixtures/**') }}-fonttools${{ env.FONTTOOLS_VERSION }}
+          fail-on-cache-miss: true
+      - run: packaging/build-arch "${{ needs.prepare.outputs.version }}"
+      - run: |
+          pacman -U --noconfirm ./dist/*.pkg.tar.zst
+          test "$(revenant --version)" = "revenant ${{ needs.prepare.outputs.version }}"
+          test "$(xterm+ --version)" = "revenant ${{ needs.prepare.outputs.version }}"
+          test -f /usr/share/applications/revenant.desktop
+          test -f /usr/share/icons/hicolor/scalable/apps/revenant.svg
+          test -f /usr/share/icons/hicolor/256x256/apps/revenant.png
+      - uses: actions/upload-artifact@v7
+        with:
+          name: arch-x86_64
+          path: dist/*.pkg.tar.zst
+          if-no-files-found: error
+          retention-days: 1
 
   release:
     name: GitHub release
-    needs: [prepare, tarball, deb, rpm]
+    needs: [prepare, tarball, deb, rpm, arch]
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      actions: write
       id-token: write
       attestations: write
     steps:
@@ -157,10 +301,3 @@ jobs:
           body_path: release-notes.md
           files: dist/*
           fail_on_unmatched_files: true
-      - name: Delete build artifacts
-        run: |
-          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
-            -q '.artifacts[].id' |
-          xargs -I{} gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/{}"
-        env:
-          GH_TOKEN: ${{ github.token }}

@@ -44,7 +44,7 @@ treating Revenant as a transparent replacement.
 
 ## Build and run
 
-Releases provide Linux archives and Debian and RPM packages; system packages
+Releases provide Linux archives and Debian, RPM, and Arch packages; system packages
 also install a Revenant application-menu launcher and icons. The
 [installation guide](docs/getting-started/install.md) lists dependencies and
 packaging details. To build the full terminal from a checkout:

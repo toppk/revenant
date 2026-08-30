@@ -4,5 +4,9 @@
 	dh $@ --buildsystem=meson
 
 override_dh_auto_configure:
-	dh_auto_configure -- -Dlibghostty=enabled \
+	dh_auto_configure -- -Dlibghostty=enabled -Dxvfb-tests=enabled \
 		-Drelease-version="$(REVENANT_RELEASE_VERSION)"
+
+override_dh_auto_test:
+	dh_auto_test
+	tools/check-release-tests obj-*
