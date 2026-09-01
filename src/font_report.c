@@ -1,5 +1,6 @@
 #include "font_report.h"
 #include "emoji_presentation.h"
+#include "unicode_script.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,45 +112,6 @@ PatternIdentity(const FcPattern *pattern, bool *present, char *file, size_t file
                 CopyText(coords, coords_capacity, "");
 }
 
-static bool
-DecodeUtf8(const char *text, size_t length, uint32_t *codepoint, size_t *consumed)
-{
-        const unsigned char *bytes = (const unsigned char *)text;
-        uint32_t value;
-        size_t need;
-        size_t index;
-
-        if (length == 0)
-                return false;
-        if (bytes[0] < 0x80U) {
-                *codepoint = bytes[0];
-                *consumed = 1;
-                return true;
-        }
-        if ((bytes[0] & 0xe0U) == 0xc0U) {
-                value = bytes[0] & 0x1fU;
-                need = 2;
-        } else if ((bytes[0] & 0xf0U) == 0xe0U) {
-                value = bytes[0] & 0x0fU;
-                need = 3;
-        } else if ((bytes[0] & 0xf8U) == 0xf0U) {
-                value = bytes[0] & 0x07U;
-                need = 4;
-        } else {
-                return false;
-        }
-        if (length < need)
-                return false;
-        for (index = 1; index < need; ++index) {
-                if ((bytes[index] & 0xc0U) != 0x80U)
-                        return false;
-                value = (value << 6U) | (bytes[index] & 0x3fU);
-        }
-        *codepoint = value;
-        *consumed = need;
-        return true;
-}
-
 static void
 FormatAtom(const XtpFontRouteKey *key, char *output, size_t capacity)
 {
@@ -164,7 +126,8 @@ FormatAtom(const XtpFontRouteKey *key, char *output, size_t capacity)
                 size_t consumed;
                 int amount;
 
-                if (!DecodeUtf8(key->text + input, key->text_length - input, &codepoint, &consumed))
+                if (!XtpUtf8Decode(key->text + input, key->text_length - input, &codepoint,
+                                   &consumed))
                         break;
                 amount = snprintf(output + used, capacity - used, "%s%04X", used != 0 ? " " : "",
                                   codepoint);

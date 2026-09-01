@@ -22,6 +22,44 @@ wait_for_terminal()
     xtp_wait_for_title "$1" font-baseline-ready "$2" 260
 }
 
+run_bitmap_case()
+{
+    case_name=bitmap-text
+    log=$test_dir/$case_name.log
+    done_dir=$test_dir/$case_name.done
+
+    "$terminal" -debug +sb -geometry 8x4 -fn fixed \
+        -xrm 'xterm.vt100.internalBorder: 4' \
+        -xrm 'xterm.vt100.background: #000000' \
+        -xrm 'xterm.vt100.foreground: #FFFFFF' \
+        -xrm 'xterm.vt100.cursorColor: #000000' \
+        -xrm 'xterm.vt100.renderFont: false' \
+        -e sh -c 'stty raw -echo; printf "\033[2J\033[H\033[?25lMM\033]2;font-baseline-ready\007"; while ! test -d "$1"; do sleep 0.05; done' \
+        sh "$done_dir" >"$test_dir/$case_name.out" 2>"$log" &
+    terminal_pid=$!
+    wait_for_terminal "$log" "$case_name"
+
+    window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$log" | tail -1)
+    cell_width=$(sed -n 's/.*VT100 resolved renderer=.* cell=\([0-9][0-9]*\)x[0-9][0-9]* .*/\1/p' "$log" | tail -1)
+    cell_height=$(sed -n 's/.*VT100 resolved renderer=.* cell=[0-9][0-9]*x\([0-9][0-9]*\) .*/\1/p' "$log" | tail -1)
+    result=$("$window_ink" "$window" --expose 4 4 $((2 * cell_width)) "$cell_height" 0x000000)
+    class=$(printf '%s\n' "$result" | sed -n 's/^class=\([^ ]*\).*/\1/p')
+    overflow=$("$window_ink" "$window" --expose $((4 + 2 * cell_width)) 4 "$cell_width" "$cell_height" 0x000000)
+    overflow_class=$(printf '%s\n' "$overflow" | sed -n 's/^class=\([^ ]*\).*/\1/p')
+
+    printf '%-14s class=%-5s %s\n' "$case_name" "$class" "$result"
+    if test "$class" != mono || test "$overflow_class" != blank || \
+       ! grep -q 'active renderer=xlib-bitmap' "$log"
+    then
+        echo "$case_name expected bitmap glyph ink in two cells and no third-cell ink" >&2
+        sed -n '1,300p' "$log" >&2
+        exit 1
+    fi
+    mkdir "$done_dir"
+    wait "$terminal_pid" 2>/dev/null || true
+    terminal_pid=
+}
+
 run_case()
 {
     universe=$1
@@ -77,6 +115,9 @@ run_case()
     wait "$terminal_pid" 2>/dev/null || true
     terminal_pid=
 }
+
+# Preserve the core-font path independently of every Xft fixture below.
+run_bitmap_case
 
 # This matrix isolates each rendering primitive by selecting the fixture as
 # the primary Xft face.

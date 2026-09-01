@@ -67,8 +67,8 @@ XtpLogSetQuiet(int enabled)
         quiet_enabled = enabled != 0;
 }
 
-static int
-LogEnabled(XtpLogLevel level)
+int
+XtpLogEnabled(XtpLogLevel level)
 {
         return !quiet_enabled && level >= minimum_level;
 }
@@ -100,7 +100,7 @@ XtpLog(XtpLogLevel level, const char *subsystem, const char *format, ...)
         va_list arguments;
         int use_color;
 
-        if (!LogEnabled(level))
+        if (!XtpLogEnabled(level))
                 return;
 
         if (localtime_r(&now, &local) == NULL ||
@@ -135,7 +135,7 @@ XtpLogBytePreview(XtpLogLevel level, const char *subsystem, const char *event, c
         size_t input_offset;
         size_t output_offset = 0;
 
-        if (!LogEnabled(level))
+        if (!XtpLogEnabled(level))
                 return;
         if (input == NULL && length != 0) {
                 XtpLog(level, subsystem, "%s bytes=%zu preview=<invalid-null-buffer>", event,

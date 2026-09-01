@@ -38,7 +38,8 @@ SelfTestLogLevels(void)
         XtpLogLevel parsed = XTP_LOG_DEBUG;
         size_t item;
 
-        if (original != XTP_LOG_WARNING)
+        if (original != XTP_LOG_WARNING || XtpLogEnabled(XTP_LOG_DEBUG) ||
+            !XtpLogEnabled(XTP_LOG_WARNING))
                 return -1;
         for (item = 0; item < sizeof(valid) / sizeof(valid[0]); ++item) {
                 if (XtpLogLevelParse(valid[item].text, &parsed) != 0 ||
@@ -50,7 +51,8 @@ SelfTestLogLevels(void)
             XtpLogLevelParse("", &parsed) == 0 || XtpLogLevelParse("debug", NULL) == 0)
                 return -1;
         XtpLogSetLevel(XTP_LOG_ERROR);
-        if (XtpLogLevelCurrent() != XTP_LOG_ERROR)
+        if (XtpLogLevelCurrent() != XTP_LOG_ERROR || XtpLogEnabled(XTP_LOG_WARNING) ||
+            !XtpLogEnabled(XTP_LOG_ERROR))
                 return -1;
         XtpLogSetLevel(original);
         return 0;
