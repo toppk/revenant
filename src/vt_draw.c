@@ -1,7 +1,9 @@
 #include "vt_widgetP.h"
 
 #include "font_metrics.h"
+#include "font_router.h"
 #include "font_role.h"
+#include "vt_font.h"
 
 #include "diagnostics.h"
 #include "emoji_presentation.h"
@@ -217,781 +219,6 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
         return visual;
 }
 
-static Boolean
-EnsureXftDraw(Vt100Rec *vt)
-{
-        Widget widget = (Widget)vt;
-
-        if (!vt->vt.use_xft)
-                return False;
-        if (vt->vt.xft_draw != NULL)
-                return True;
-        if (!XtIsRealized(widget))
-                return False;
-        {
-                XWindowAttributes attributes;
-
-                if (!XGetWindowAttributes(XtDisplay(widget), XtWindow(widget), &attributes))
-                        return False;
-                vt->vt.xft_draw = XftDrawCreate(XtDisplay(widget), XtWindow(widget),
-                                                attributes.visual, attributes.colormap);
-        }
-        if (vt->vt.xft_draw == NULL) {
-                XtpLog(XTP_LOG_ERROR, "font", "cannot create Xft draw context");
-                return False;
-        }
-        return True;
-}
-
-static Boolean
-EnsureCairoDraw(Vt100Rec *vt)
-{
-        Widget widget = (Widget)vt;
-        XWindowAttributes attributes;
-
-        if (!vt->vt.use_xft)
-                return False;
-        if (vt->vt.cairo_draw != NULL)
-                return True;
-        if (!XtIsRealized(widget) ||
-            !XGetWindowAttributes(XtDisplay(widget), XtWindow(widget), &attributes))
-                return False;
-        vt->vt.cairo_draw = XtpCairoCreate(XtDisplay(widget), XtWindow(widget), attributes.visual,
-                                           attributes.width, attributes.height);
-        if (vt->vt.cairo_draw == NULL) {
-                XtpLog(XTP_LOG_ERROR, "font", "cannot create Cairo draw context");
-                return False;
-        }
-        return True;
-}
-
-static Boolean
-ExactHanVariationSupported(XftFont *font, const char *text, size_t length)
-{
-        uint32_t base;
-        uint32_t selector = 0;
-        size_t consumed;
-        size_t offset;
-        FT_Face face;
-        FT_UInt glyph;
-
-        if (!XtpUtf8Decode(text, length, &base, &consumed) || !XtpUnicodeScriptHan(base))
-                return True;
-        offset = consumed;
-        while (offset < length) {
-                uint32_t codepoint;
-
-                if (!XtpUtf8Decode(text + offset, length - offset, &codepoint, &consumed))
-                        return False;
-                if ((codepoint >= 0xfe00U && codepoint <= 0xfe0fU) ||
-                    (codepoint >= 0xe0100U && codepoint <= 0xe01efU)) {
-                        selector = codepoint;
-                        break;
-                }
-                offset += consumed;
-        }
-        if (selector == 0)
-                return True;
-        face = font != NULL ? XftLockFace(font) : NULL;
-        if (face == NULL)
-                return False;
-        glyph = FT_Face_GetCharVariantIndex(face, base, selector);
-        XftUnlockFace(font);
-        return glyph != 0;
-}
-
-static Boolean
-ResourceIsSet(const char *value)
-{
-        return value != NULL && value[0] != '\0';
-}
-
-static XftFont *
-FinishMissingCluster(Vt100Rec *vt, XftFont *blank_font, const char *text, size_t length,
-                     const char **role_name, XtpGlyphRun *run)
-{
-        if (XtpUnicodeClusterRequiresInk(text, length)) {
-                if (role_name != NULL)
-                        *role_name = "tofu";
-                if (run != NULL) {
-                        memset(run, 0, sizeof(*run));
-                        run->missing = true;
-                }
-                return NULL;
-        }
-        if (run != NULL && blank_font != NULL)
-                (void)XtpShapeUtf8(vt->vt.shaper, blank_font, text, length, run);
-        return blank_font;
-}
-
-static Boolean
-FontHasCluster(Vt100Rec *vt, XftFont *font, const char *text, size_t length, unsigned int width,
-               Boolean color_glyphs, Boolean requires_composition, XtpGlyphRun *run,
-               XtpFontRouteMissCode *miss_out)
-{
-        FT_UInt glyphs[XTP_GLYPH_RUN_CAPACITY];
-        XGlyphInfo extents = {0};
-        size_t offset = 0;
-        size_t index;
-
-        if (miss_out != NULL)
-                *miss_out = XTP_FONT_MISS_SHAPE;
-        if (font == NULL || length == 0 || length >= XTP_VISUAL_TEXT_CAPACITY) {
-                if (miss_out != NULL)
-                        *miss_out = XTP_FONT_MISS_CMAP;
-                return False;
-        }
-        if (!ExactHanVariationSupported(font, text, length)) {
-                if (miss_out != NULL)
-                        *miss_out = XTP_FONT_MISS_UVS;
-                return False;
-        }
-        while (offset < length) {
-                uint32_t codepoint;
-                size_t consumed;
-
-                if (!XtpUtf8Decode(text + offset, length - offset, &codepoint, &consumed))
-                        return False;
-                if (!XtpUnicodeSequenceControl(codepoint) &&
-                    !XftCharExists(XtDisplay((Widget)vt), font, codepoint)) {
-                        if (miss_out != NULL)
-                                *miss_out = XTP_FONT_MISS_CMAP;
-                        return False;
-                }
-                offset += consumed;
-        }
-        if (!(requires_composition
-                  ? XtpShapeUtf8ForComposition(vt->vt.shaper, font, text, length, run)
-                  : XtpShapeUtf8(vt->vt.shaper, font, text, length, run)) ||
-            run->missing || (requires_composition && run->count != 1U))
-                return False;
-        if (XtpCairoFontIsColor(font)) {
-                Boolean has_ink;
-                GlyphInkCacheEntry *entry;
-
-                for (index = 0; index < XTP_GLYPH_INK_CACHE_SIZE; ++index) {
-                        entry = &vt->vt.glyph_ink_cache[index];
-                        if (entry->font == font && entry->text_length == length &&
-                            memcmp(entry->text, text, length) == 0 && entry->width == width &&
-                            entry->color_glyphs == color_glyphs) {
-                                if (!entry->has_ink && miss_out != NULL)
-                                        *miss_out = XTP_FONT_MISS_INK;
-                                return entry->has_ink;
-                        }
-                }
-                has_ink = EnsureCairoDraw(vt) &&
-                          XtpCairoGlyphRunHasInk(vt->vt.cairo_draw, font, run, color_glyphs,
-                                                 width * VtSlotWidth(vt, vt->vt.current_font),
-                                                 VtSlotHeight(vt, vt->vt.current_font));
-                entry = &vt->vt.glyph_ink_cache[vt->vt.next_glyph_ink_cache];
-                entry->font = font;
-                memcpy(entry->text, text, length);
-                entry->text_length = (uint8_t)length;
-                entry->width = (uint8_t)width;
-                entry->color_glyphs = color_glyphs;
-                entry->has_ink = has_ink;
-                vt->vt.next_glyph_ink_cache =
-                    (vt->vt.next_glyph_ink_cache + 1U) % XTP_GLYPH_INK_CACHE_SIZE;
-                if (!has_ink && miss_out != NULL)
-                        *miss_out = XTP_FONT_MISS_INK;
-                return has_ink;
-        }
-        for (index = 0; index < run->count; ++index)
-                glyphs[index] = (FT_UInt)run->glyphs[index].index;
-        XftGlyphExtents(XtDisplay((Widget)vt), font, glyphs, (int)run->count, &extents);
-        if (extents.width == 0 || extents.height == 0) {
-                if (miss_out != NULL)
-                        *miss_out = XTP_FONT_MISS_INK;
-                return False;
-        }
-        return True;
-}
-
-static double
-GlyphRunAdvance(const XtpGlyphRun *run)
-{
-        double advance = 0.0;
-        unsigned int index;
-
-        if (run == NULL)
-                return 0.0;
-        for (index = 0; index < run->count; ++index)
-                advance += (double)run->glyphs[index].x_advance * run->x_pixel_scale;
-        return advance;
-}
-
-static XftFont *
-RoleFontWithCluster(Vt100Rec *vt, XftFont *normal, const char *text, size_t length,
-                    unsigned int width, Boolean color_glyphs, Boolean requires_composition,
-                    XtpGlyphRun *run, XtpFontRouteMissCode *miss_out)
-{
-        if (!FontHasCluster(vt, normal, text, length, width, color_glyphs, requires_composition,
-                            run, miss_out))
-                return NULL;
-        return normal;
-}
-
-static XftFont *
-OpenFallbackCandidate(Vt100Rec *vt, XtpXftFallbackCandidate *candidate, int slot)
-{
-        FcPattern *pattern;
-
-        if (!candidate->attempted) {
-                pattern =
-                    candidate->pattern != NULL ? FcPatternDuplicate(candidate->pattern) : NULL;
-                candidate->attempted = True;
-                candidate->font = VtOpenNormalizedXftPattern(vt, pattern, slot, NULL);
-        }
-        return candidate->font;
-}
-
-static XftFont *
-FallbackStyleWithCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot, XftFont *normal,
-                         Boolean bold, Boolean italic, const char *text, size_t length,
-                         unsigned int width, Boolean color_glyphs, Boolean requires_composition,
-                         XtpGlyphRun *run)
-{
-        unsigned int style = XtpFontStyleIndex(bold, italic);
-        uint8_t index;
-
-        if (style == 0 || normal == NULL)
-                return normal;
-        for (index = 0; index < fallbacks->counts[slot][style]; ++index) {
-                XtpXftFallbackCandidate *candidate = &fallbacks->candidates[slot][style][index];
-                XftFont *font;
-
-                if (!XtpFontSameFamily(normal->pattern, candidate->pattern))
-                        continue;
-                font = OpenFallbackCandidate(vt, candidate, slot);
-                if (XtpFontStyleIsReal(normal, font, bold, italic) &&
-                    FontHasCluster(vt, font, text, length, width, color_glyphs,
-                                   requires_composition, run, NULL))
-                        return font;
-        }
-        return normal;
-}
-
-static XftFont *
-FallbackFontRangeWithCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot, uint8_t first,
-                             uint8_t limit, const char *text, size_t length, unsigned int width,
-                             Boolean color_glyphs, Boolean requires_composition, XtpGlyphRun *run,
-                             XtpFontRouteTrace *trace, XtpFontRouteRung *rung_out,
-                             uint8_t *named_out)
-{
-        const unsigned int style = 0;
-        uint8_t fallback;
-
-        if (limit > fallbacks->counts[slot][style])
-                limit = fallbacks->counts[slot][style];
-        for (fallback = first; fallback < limit; ++fallback) {
-                XtpXftFallbackCandidate *candidate = &fallbacks->candidates[slot][style][fallback];
-                XftFont *font;
-                XtpFontRouteRung rung;
-                XtpFontRouteMissCode miss;
-
-                if (fallback < fallbacks->explicit_counts[slot][style])
-                        rung = XTP_FONT_RUNG_ENTRY2;
-                else if (candidate->named_index != 0)
-                        rung = XTP_FONT_RUNG_NAMED;
-                else
-                        rung = XTP_FONT_RUNG_SYSTEM;
-
-                if (!candidate->activated && fallbacks->activated_counts[slot][style] >=
-                                                 (unsigned int)vt->vt.effective_limit_fontsets) {
-                        XtpFontRouteTraceAdd(trace, rung, candidate->named_index,
-                                             XTP_FONT_MISS_BUDGET);
-                        continue;
-                }
-                font = OpenFallbackCandidate(vt, candidate, slot);
-
-                if (FontHasCluster(vt, font, text, length, width, color_glyphs,
-                                   requires_composition, run, &miss)) {
-                        double advance;
-
-                        if (!candidate->activated) {
-                                candidate->activated = True;
-                                ++fallbacks->activated_counts[slot][style];
-                                XtpLog(
-                                    XTP_LOG_INFO, "font",
-                                    "activated Xft fallback slot=%d style=%u entry=%u source=%s%u "
-                                    "budget=%u/%d",
-                                    slot, style, (unsigned int)fallback + 1U,
-                                    candidate->named_index != 0 ? "fallbackFace" : "chain",
-                                    candidate->named_index,
-                                    fallbacks->activated_counts[slot][style],
-                                    vt->vt.effective_limit_fontsets);
-                        }
-                        advance = GlyphRunAdvance(run);
-                        if (!XtpFontFallbackAdvanceFits(advance,
-                                                        VtSlotWidth(vt, vt->vt.current_font), width,
-                                                        vt->vt.effective_limit_fontwidth)) {
-                                XtpLog(XTP_LOG_DEBUG, "font",
-                                       "deferred Xft fallback slot=%d entry=%u advance=%.3f "
-                                       "cell=%u width=%u limit=%d",
-                                       slot, (unsigned int)fallback + 1U, advance,
-                                       VtSlotWidth(vt, vt->vt.current_font), width,
-                                       vt->vt.effective_limit_fontwidth);
-                                XtpFontRouteTraceAdd(trace, rung, candidate->named_index,
-                                                     XTP_FONT_MISS_SHAPE);
-                                continue;
-                        }
-                        if (rung_out != NULL)
-                                *rung_out = rung;
-                        if (named_out != NULL)
-                                *named_out = candidate->named_index;
-                        return font;
-                }
-                XtpFontRouteTraceAdd(trace, rung, candidate->named_index, miss);
-        }
-        return NULL;
-}
-
-static XftFont *
-ExplicitFallbackWithCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot, const char *text,
-                            size_t length, unsigned int width, Boolean color_glyphs,
-                            Boolean requires_composition, XtpGlyphRun *run,
-                            XtpFontRouteTrace *trace, XtpFontRouteRung *rung_out,
-                            uint8_t *named_out)
-{
-        return FallbackFontRangeWithCluster(
-            vt, fallbacks, slot, 0, fallbacks->explicit_counts[slot][0], text, length, width,
-            color_glyphs, requires_composition, run, trace, rung_out, named_out);
-}
-
-static XftFont *
-SystemFallbackWithCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot, const char *text,
-                          size_t length, unsigned int width, Boolean color_glyphs,
-                          Boolean requires_composition, XtpGlyphRun *run, XtpFontRouteTrace *trace,
-                          XtpFontRouteRung *rung_out, uint8_t *named_out)
-{
-        return FallbackFontRangeWithCluster(
-            vt, fallbacks, slot, fallbacks->named_counts[slot][0], fallbacks->counts[slot][0], text,
-            length, width, color_glyphs, requires_composition, run, trace, rung_out, named_out);
-}
-
-static XftFont *
-NamedFallbackWithCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot, const char *text,
-                         size_t length, unsigned int width, Boolean color_glyphs,
-                         Boolean requires_composition, XtpGlyphRun *run, XtpFontRouteTrace *trace,
-                         XtpFontRouteRung *rung_out, uint8_t *named_out)
-{
-        return FallbackFontRangeWithCluster(
-            vt, fallbacks, slot, fallbacks->explicit_counts[slot][0],
-            fallbacks->named_counts[slot][0], text, length, width, color_glyphs,
-            requires_composition, run, trace, rung_out, named_out);
-}
-
-static XftFont *
-AllFallbacksWithCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot, const char *text,
-                        size_t length, unsigned int width, Boolean color_glyphs,
-                        Boolean requires_composition, XtpGlyphRun *run, XtpFontRouteTrace *trace,
-                        XtpFontRouteRung *rung_out, uint8_t *named_out)
-{
-        return FallbackFontRangeWithCluster(vt, fallbacks, slot, 0, fallbacks->counts[slot][0],
-                                            text, length, width, color_glyphs, requires_composition,
-                                            run, trace, rung_out, named_out);
-}
-
-static const char *
-FontRouteName(XtpFontRouteKind kind)
-{
-        switch (kind) {
-        case XTP_FONT_ROUTE_PRIMARY:
-                return "primary";
-        case XTP_FONT_ROUTE_PRIMARY_FALLBACK:
-                return "fallback";
-        case XTP_FONT_ROUTE_WIDE:
-                return "doublesize";
-        case XTP_FONT_ROUTE_WIDE_FALLBACK:
-                return "doublesize-fallback";
-        case XTP_FONT_ROUTE_EMOJI:
-                return "emoji";
-        case XTP_FONT_ROUTE_EMOJI_FALLBACK:
-                return "emoji-fallback";
-        case XTP_FONT_ROUTE_HAN:
-                return "han";
-        case XTP_FONT_ROUTE_HAN_FALLBACK:
-                return "han-fallback";
-        case XTP_FONT_ROUTE_TOFU:
-                return "tofu";
-        }
-        return "primary-missing";
-}
-
-static XtpXftFallbackSet *
-FontRouteFallbacks(Vt100Rec *vt, XtpFontRouteKind kind)
-{
-        switch (kind) {
-        case XTP_FONT_ROUTE_PRIMARY_FALLBACK:
-                return &vt->vt.xft_fallbacks;
-        case XTP_FONT_ROUTE_WIDE_FALLBACK:
-                return &vt->vt.xft_wide_fallbacks;
-        case XTP_FONT_ROUTE_EMOJI_FALLBACK:
-                return &vt->vt.xft_emoji_fallbacks;
-        case XTP_FONT_ROUTE_HAN_FALLBACK:
-                return &vt->vt.xft_han_fallbacks;
-        case XTP_FONT_ROUTE_PRIMARY:
-        case XTP_FONT_ROUTE_WIDE:
-        case XTP_FONT_ROUTE_EMOJI:
-        case XTP_FONT_ROUTE_HAN:
-        case XTP_FONT_ROUTE_TOFU:
-                break;
-        }
-        return NULL;
-}
-
-static XftFont *
-FontRouteStyle(Vt100Rec *vt, XtpFontRouteKind kind, XftFont *normal, int slot, Boolean bold,
-               Boolean italic, const char *text, size_t length, unsigned int width,
-               Boolean color_glyphs, Boolean requires_composition, const XtpGlyphRun *normal_run,
-               XtpGlyphRun *run, Boolean *style_fallback_out)
-{
-        XtpXftFallbackSet *fallbacks = FontRouteFallbacks(vt, kind);
-        XftFont *font = normal;
-
-        if (run != NULL)
-                *run = *normal_run;
-        if (style_fallback_out != NULL)
-                *style_fallback_out = False;
-        if (!bold && !italic)
-                return normal;
-        if (fallbacks != NULL) {
-                font = FallbackStyleWithCluster(vt, fallbacks, slot, normal, bold, italic, text,
-                                                length, width, color_glyphs, requires_composition,
-                                                run);
-                if (font == normal) {
-                        if (run != NULL)
-                                *run = *normal_run;
-                        if (style_fallback_out != NULL)
-                                *style_fallback_out = True;
-                }
-                return font;
-        }
-        switch (kind) {
-        case XTP_FONT_ROUTE_PRIMARY:
-                font = XtpFontRoleSelect(normal, vt->vt.xft_bold_fonts[slot],
-                                         vt->vt.xft_italic_fonts[slot],
-                                         vt->vt.xft_bold_italic_fonts[slot], bold, italic);
-                break;
-        case XTP_FONT_ROUTE_WIDE:
-                font = XtpFontRoleSelect(normal, vt->vt.xft_wide_bold_fonts[slot],
-                                         vt->vt.xft_wide_italic_fonts[slot],
-                                         vt->vt.xft_wide_bold_italic_fonts[slot], bold, italic);
-                break;
-        case XTP_FONT_ROUTE_EMOJI:
-                font = XtpFontRoleSelect(normal, vt->vt.xft_emoji_bold_fonts[slot],
-                                         vt->vt.xft_emoji_italic_fonts[slot],
-                                         vt->vt.xft_emoji_bold_italic_fonts[slot], bold, italic);
-                break;
-        case XTP_FONT_ROUTE_HAN:
-                font = XtpFontRoleSelect(normal, vt->vt.xft_han_bold_fonts[slot],
-                                         vt->vt.xft_han_italic_fonts[slot],
-                                         vt->vt.xft_han_bold_italic_fonts[slot], bold, italic);
-                break;
-        case XTP_FONT_ROUTE_PRIMARY_FALLBACK:
-        case XTP_FONT_ROUTE_WIDE_FALLBACK:
-        case XTP_FONT_ROUTE_EMOJI_FALLBACK:
-        case XTP_FONT_ROUTE_HAN_FALLBACK:
-        case XTP_FONT_ROUTE_TOFU:
-                return normal;
-        }
-        if (font != normal && XtpFontStyleIsReal(normal, font, bold, italic) &&
-            FontHasCluster(vt, font, text, length, width, color_glyphs, requires_composition, run,
-                           NULL))
-                return font;
-        if (run != NULL)
-                *run = *normal_run;
-        if (style_fallback_out != NULL)
-                *style_fallback_out = True;
-        return normal;
-}
-
-static Boolean
-BuildFontRouteKey(Vt100Rec *vt, const char *text, size_t length, unsigned int width,
-                  XtpEmojiStyle presentation, uint8_t capturing_slot, XtpFontRouteKey *key)
-{
-        if (key == NULL || length == 0 || length >= XTP_FONT_ROUTE_TEXT_CAPACITY ||
-            width > UINT8_MAX)
-                return False;
-        memset(key, 0, sizeof(*key));
-        memcpy(key->text, text, length);
-        key->text_length = (uint8_t)length;
-        key->width = (uint8_t)width;
-        key->presentation = (uint8_t)presentation;
-        key->presentation_policy = (uint8_t)vt->vt.emoji_presentation;
-        key->slot = (uint8_t)vt->vt.current_font;
-        key->capturing_slot = capturing_slot;
-        key->color_glyphs = vt->vt.effective_color_glyphs;
-        key->system_fallback = vt->vt.effective_system_fallback;
-        key->generation = vt->vt.font_generation;
-        return True;
-}
-
-static XftFont *
-FinishFontRoute(Vt100Rec *vt, const XtpFontRouteKey *key, Boolean cacheable, XtpFontRouteKind kind,
-                XtpFontRouteRung rung, uint8_t named_index, XftFont *normal, Boolean bold,
-                Boolean italic, const char *text, size_t length, unsigned int width,
-                Boolean color_glyphs, Boolean requires_composition, const XtpGlyphRun *normal_run,
-                const XtpFontRouteTrace *trace, const char **role_name, XtpGlyphRun *run)
-{
-        XtpFontRouteValue value = {kind, rung, named_index, normal};
-        Boolean style_fallback = False;
-        XftFont *font;
-
-        if (role_name != NULL)
-                *role_name = FontRouteName(kind);
-        font =
-            FontRouteStyle(vt, kind, normal, vt->vt.current_font, bold, italic, text, length, width,
-                           color_glyphs, requires_composition, normal_run, run, &style_fallback);
-        if (cacheable) {
-                (void)XtpFontRouteCacheStore(vt->vt.font_route_cache, key, value);
-                XtpFontRoutingReportRoute(vt->vt.font_routing_report, key, value, normal->pattern,
-                                          trace, XtpFontStyleName(bold, italic),
-                                          style_fallback != False);
-        } else if (style_fallback)
-                XtpFontRoutingReportStyleFallback(vt->vt.font_routing_report, key,
-                                                  XtpFontStyleName(bold, italic));
-        return font;
-}
-
-static XftFont *
-FinishTofuRoute(Vt100Rec *vt, const XtpFontRouteKey *key, Boolean cacheable, const char *text,
-                size_t length, const XtpFontRouteTrace *trace, const char **role_name,
-                XtpGlyphRun *run)
-{
-        XtpFontRouteValue value = {XTP_FONT_ROUTE_TOFU, XTP_FONT_RUNG_TOFU, 0, NULL};
-
-        if (cacheable) {
-                (void)XtpFontRouteCacheStore(vt->vt.font_route_cache, key, value);
-                XtpFontRoutingReportRoute(vt->vt.font_routing_report, key, value, NULL, trace,
-                                          "normal", false);
-        }
-        return FinishMissingCluster(vt, NULL, text, length, role_name, run);
-}
-
-static XftFont *
-SelectXftFont(Vt100Rec *vt, const char *text, size_t length, unsigned int width, Boolean bold,
-              Boolean italic, const char **role_name, uint32_t *base_out, XtpEmojiStyle *style_out,
-              XtpGlyphRun *run_out)
-{
-        int slot = vt->vt.current_font;
-        XtpEmojiClusterStyle cluster =
-            XtpEmojiResolveClusterStyle(text, length, vt->vt.emoji_presentation);
-        uint32_t base = cluster.base;
-        XtpEmojiStyle style = cluster.style;
-        Boolean emoji_slot_set = ResourceIsSet(vt->vt.face_name_emoji);
-        Boolean wide_slot_set = ResourceIsSet(vt->vt.face_name_doublesize);
-        Boolean han_slot_set = ResourceIsSet(vt->vt.face_name_han);
-        Boolean color_glyphs;
-        Boolean cacheable;
-        uint8_t capturing_slot;
-        XtpFontRouteKey key = {0};
-        XtpFontRouteValue cached;
-        XtpFontRouteTrace trace = {0};
-        XtpFontRouteRung route_rung = XTP_FONT_RUNG_ENTRY1;
-        XtpFontRouteMissCode route_miss = XTP_FONT_MISS_SHAPE;
-        uint8_t named_index = 0;
-        XtpGlyphRun route_run = {0};
-        XtpGlyphRun *output_run = run_out != NULL ? run_out : &route_run;
-        XftFont *font;
-
-        memset(output_run, 0, sizeof(*output_run));
-
-        if (base_out != NULL)
-                *base_out = base;
-        if (style_out != NULL)
-                *style_out = style;
-        color_glyphs = vt->vt.effective_color_glyphs && style != XTP_EMOJI_STYLE_TEXT;
-        if (style != XTP_EMOJI_STYLE_EMOJI && han_slot_set && XtpUnicodeScriptHan(base))
-                capturing_slot = 3;
-        else if (style == XTP_EMOJI_STYLE_EMOJI && emoji_slot_set)
-                capturing_slot = 2;
-        else if ((style == XTP_EMOJI_STYLE_EMOJI && wide_slot_set) ||
-                 (style != XTP_EMOJI_STYLE_EMOJI && width > 1U && wide_slot_set))
-                capturing_slot = 1;
-        else
-                capturing_slot = 0;
-        cacheable = vt->vt.font_route_cache != NULL &&
-                    BuildFontRouteKey(vt, text, length, width, style, capturing_slot, &key);
-        if (cacheable && XtpFontRouteCacheLookup(vt->vt.font_route_cache, &key, &cached)) {
-                XtpGlyphRun normal_run = {0};
-
-                if (XtpLogEnabled(XTP_LOG_DEBUG))
-                        XtpLog(XTP_LOG_DEBUG, "font",
-                               "route-cache hit base=U+%04X slot=%d width=%u role=%s", base, slot,
-                               width, FontRouteName(cached.kind));
-                if (cached.kind == XTP_FONT_ROUTE_TOFU)
-                        return FinishTofuRoute(vt, &key, False, text, length, NULL, role_name,
-                                               output_run);
-                font = cached.normal_font;
-                if (FontHasCluster(vt, font, text, length, width, color_glyphs,
-                                   cluster.requires_composition, &normal_run, NULL))
-                        return FinishFontRoute(vt, &key, False, cached.kind, cached.rung,
-                                               cached.named_index, font, bold, italic, text, length,
-                                               width, color_glyphs, cluster.requires_composition,
-                                               &normal_run, NULL, role_name, output_run);
-                if (XtpLogEnabled(XTP_LOG_DEBUG))
-                        XtpLog(XTP_LOG_DEBUG, "font",
-                               "route-cache stale base=U+%04X slot=%d width=%u role=%s", base, slot,
-                               width, FontRouteName(cached.kind));
-        } else if (cacheable) {
-                if (XtpLogEnabled(XTP_LOG_DEBUG))
-                        XtpLog(XTP_LOG_DEBUG, "font",
-                               "route-cache miss base=U+%04X slot=%d width=%u capture=%u", base,
-                               slot, width, (unsigned int)capturing_slot);
-        }
-        if (style != XTP_EMOJI_STYLE_EMOJI && han_slot_set && XtpUnicodeScriptHan(base)) {
-                font = RoleFontWithCluster(vt, vt->vt.xft_han_fonts[slot], text, length, width,
-                                           color_glyphs, cluster.requires_composition, &route_run,
-                                           &route_miss);
-                if (font != NULL)
-                        return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_HAN,
-                                               XTP_FONT_RUNG_ENTRY1, 0, font, bold, italic, text,
-                                               length, width, color_glyphs,
-                                               cluster.requires_composition, &route_run, &trace,
-                                               role_name, output_run);
-                XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_ENTRY1, 0, route_miss);
-                font = AllFallbacksWithCluster(vt, &vt->vt.xft_han_fallbacks, slot, text, length,
-                                               width, color_glyphs, cluster.requires_composition,
-                                               &route_run, &trace, &route_rung, &named_index);
-                if (font != NULL)
-                        return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_HAN_FALLBACK,
-                                               route_rung, named_index, font, bold, italic, text,
-                                               length, width, color_glyphs,
-                                               cluster.requires_composition, &route_run, &trace,
-                                               role_name, output_run);
-        }
-        if (style == XTP_EMOJI_STYLE_EMOJI) {
-                font = RoleFontWithCluster(vt, vt->vt.xft_emoji_fonts[slot], text, length, width,
-                                           color_glyphs, cluster.requires_composition, &route_run,
-                                           &route_miss);
-                if (font != NULL)
-                        return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_EMOJI,
-                                               XTP_FONT_RUNG_ENTRY1, 0, font, bold, italic, text,
-                                               length, width, color_glyphs,
-                                               cluster.requires_composition, &route_run, &trace,
-                                               role_name, output_run);
-                if (emoji_slot_set)
-                        XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_ENTRY1, 0, route_miss);
-                font = ExplicitFallbackWithCluster(
-                    vt, &vt->vt.xft_emoji_fallbacks, slot, text, length, width, color_glyphs,
-                    cluster.requires_composition, &route_run, &trace, &route_rung, &named_index);
-                if (font != NULL)
-                        return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_EMOJI_FALLBACK,
-                                               route_rung, named_index, font, bold, italic, text,
-                                               length, width, color_glyphs,
-                                               cluster.requires_composition, &route_run, &trace,
-                                               role_name, output_run);
-                font = RoleFontWithCluster(vt, vt->vt.xft_wide_fonts[slot], text, length, width,
-                                           color_glyphs, cluster.requires_composition, &route_run,
-                                           &route_miss);
-                if (font != NULL)
-                        return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_WIDE,
-                                               XTP_FONT_RUNG_ENTRY1, 0, font, bold, italic, text,
-                                               length, width, color_glyphs,
-                                               cluster.requires_composition, &route_run, &trace,
-                                               role_name, output_run);
-                if (wide_slot_set)
-                        XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_ENTRY1, 0, route_miss);
-                font = AllFallbacksWithCluster(vt, &vt->vt.xft_wide_fallbacks, slot, text, length,
-                                               width, color_glyphs, cluster.requires_composition,
-                                               &route_run, &trace, &route_rung, &named_index);
-                if (font != NULL)
-                        return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_WIDE_FALLBACK,
-                                               route_rung, named_index, font, bold, italic, text,
-                                               length, width, color_glyphs,
-                                               cluster.requires_composition, &route_run, &trace,
-                                               role_name, output_run);
-                font = NamedFallbackWithCluster(vt, &vt->vt.xft_emoji_fallbacks, slot, text, length,
-                                                width, color_glyphs, cluster.requires_composition,
-                                                &route_run, &trace, &route_rung, &named_index);
-                if (font != NULL)
-                        return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_EMOJI_FALLBACK,
-                                               route_rung, named_index, font, bold, italic, text,
-                                               length, width, color_glyphs,
-                                               cluster.requires_composition, &route_run, &trace,
-                                               role_name, output_run);
-                font = SystemFallbackWithCluster(
-                    vt, &vt->vt.xft_emoji_fallbacks, slot, text, length, width, color_glyphs,
-                    cluster.requires_composition, &route_run, &trace, &route_rung, &named_index);
-                if (font != NULL)
-                        return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_EMOJI_FALLBACK,
-                                               route_rung, named_index, font, bold, italic, text,
-                                               length, width, color_glyphs,
-                                               cluster.requires_composition, &route_run, &trace,
-                                               role_name, output_run);
-                if (emoji_slot_set || wide_slot_set) {
-                        if (!vt->vt.effective_system_fallback)
-                                XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_SYSTEM, 0,
-                                                     XTP_FONT_MISS_TRUNCATED);
-                        if (XtpUnicodeClusterRequiresInk(text, length))
-                                return FinishTofuRoute(vt, &key, cacheable, text, length, &trace,
-                                                       role_name, output_run);
-                        font = emoji_slot_set ? vt->vt.xft_emoji_fonts[slot]
-                                              : vt->vt.xft_wide_fonts[slot];
-                        return FinishMissingCluster(vt, font, text, length, role_name, output_run);
-                }
-        } else if (width > 1U) {
-                font = RoleFontWithCluster(vt, vt->vt.xft_wide_fonts[slot], text, length, width,
-                                           color_glyphs, cluster.requires_composition, &route_run,
-                                           &route_miss);
-                if (font != NULL)
-                        return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_WIDE,
-                                               XTP_FONT_RUNG_ENTRY1, 0, font, bold, italic, text,
-                                               length, width, color_glyphs,
-                                               cluster.requires_composition, &route_run, &trace,
-                                               role_name, output_run);
-                if (wide_slot_set)
-                        XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_ENTRY1, 0, route_miss);
-                font = AllFallbacksWithCluster(vt, &vt->vt.xft_wide_fallbacks, slot, text, length,
-                                               width, color_glyphs, cluster.requires_composition,
-                                               &route_run, &trace, &route_rung, &named_index);
-                if (font != NULL)
-                        return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_WIDE_FALLBACK,
-                                               route_rung, named_index, font, bold, italic, text,
-                                               length, width, color_glyphs,
-                                               cluster.requires_composition, &route_run, &trace,
-                                               role_name, output_run);
-                if (wide_slot_set) {
-                        if (!vt->vt.effective_system_fallback)
-                                XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_SYSTEM, 0,
-                                                     XTP_FONT_MISS_TRUNCATED);
-                        if (XtpUnicodeClusterRequiresInk(text, length))
-                                return FinishTofuRoute(vt, &key, cacheable, text, length, &trace,
-                                                       role_name, output_run);
-                        return FinishMissingCluster(vt, vt->vt.xft_wide_fonts[slot], text, length,
-                                                    role_name, output_run);
-                }
-        }
-        font = RoleFontWithCluster(vt, vt->vt.xft_fonts[slot], text, length, width, color_glyphs,
-                                   cluster.requires_composition, &route_run, &route_miss);
-        if (font != NULL)
-                return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_PRIMARY,
-                                       XTP_FONT_RUNG_ENTRY1, 0, font, bold, italic, text, length,
-                                       width, color_glyphs, cluster.requires_composition,
-                                       &route_run, &trace, role_name, output_run);
-        XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_ENTRY1, 0, route_miss);
-        font = AllFallbacksWithCluster(vt, &vt->vt.xft_fallbacks, slot, text, length, width,
-                                       color_glyphs, cluster.requires_composition, &route_run,
-                                       &trace, &route_rung, &named_index);
-        if (font != NULL)
-                return FinishFontRoute(vt, &key, cacheable, XTP_FONT_ROUTE_PRIMARY_FALLBACK,
-                                       route_rung, named_index, font, bold, italic, text, length,
-                                       width, color_glyphs, cluster.requires_composition,
-                                       &route_run, &trace, role_name, output_run);
-        if (XtpUnicodeClusterRequiresInk(text, length)) {
-                if (!vt->vt.effective_system_fallback)
-                        XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_SYSTEM, 0,
-                                             XTP_FONT_MISS_TRUNCATED);
-                return FinishTofuRoute(vt, &key, cacheable, text, length, &trace, role_name,
-                                       output_run);
-        }
-        if (role_name != NULL)
-                *role_name = "primary-missing";
-        return FinishMissingCluster(vt, vt->vt.xft_fonts[slot], text, length, role_name,
-                                    output_run);
-}
-
 static XftColor
 CachedXftColor(Vt100Rec *vt, Pixel pixel)
 {
@@ -1033,11 +260,11 @@ DrawCairoFontRun(Vt100Rec *vt, XftFont *font, Pixel pixel, const XtpGlyphRun *ru
         XftColor color;
 
         if (!XtpCairoFontIsColor(font) || run == NULL || run->count == 0 || run->missing ||
-            area == NULL || clip == NULL || !EnsureCairoDraw(vt))
+            area == NULL || clip == NULL || !VtFontEnsureCairoDraw(vt))
                 return False;
         color = CachedXftColor(vt, pixel);
-        return XtpCairoDrawGlyphRun(vt->vt.cairo_draw, font, run, color_glyphs, &color.color, area,
-                                    clip);
+        return XtpCairoDrawGlyphRun(vt->vt.font_universe->cairo, font, run, color_glyphs,
+                                    &color.color, area, clip);
 }
 
 static void
@@ -1059,7 +286,7 @@ DrawXftGlyphRun(Vt100Rec *vt, XftFont *font, const XftColor *color, int x, int b
                 pen_x += run->glyphs[index].x_advance;
                 pen_y += run->glyphs[index].y_advance;
         }
-        XftDrawGlyphFontSpec(vt->vt.xft_draw, color, specs, (int)run->count);
+        XftDrawGlyphFontSpec(vt->vt.font_universe->draw, color, specs, (int)run->count);
 }
 
 static int
@@ -1103,8 +330,8 @@ PaintShapedText(Vt100Rec *vt, XftFont *font, Pixel pixel, const XftColor *color,
                 return;
         }
         if ((!color_font || color_glyphs) && (run == NULL || run->count == 0 || run->missing))
-                XftDrawStringUtf8(vt->vt.xft_draw, color, font, x, baseline, (const FcChar8 *)text,
-                                  (int)length);
+                XftDrawStringUtf8(vt->vt.font_universe->draw, color, font, x, baseline,
+                                  (const FcChar8 *)text, (int)length);
         /* A declined color font without a genuine outline intentionally paints nothing. */
 }
 
@@ -1144,8 +371,8 @@ SetTextClip(Vt100Rec *vt, const XRectangle *requested, XRectangle *effective)
         if (effective != NULL)
                 *effective = *clip;
         XSetClipRectangles(XtDisplay(widget), vt->vt.gc, 0, 0, (XRectangle *)clip, 1, Unsorted);
-        if (vt->vt.use_xft && EnsureXftDraw(vt))
-                (void)XftDrawSetClipRectangles(vt->vt.xft_draw, 0, 0, clip, 1);
+        if (vt->vt.use_xft && VtFontEnsureXftDraw(vt))
+                (void)XftDrawSetClipRectangles(vt->vt.font_universe->draw, 0, 0, clip, 1);
         return True;
 }
 
@@ -1155,8 +382,8 @@ ClearTextClip(Vt100Rec *vt)
         Widget widget = (Widget)vt;
 
         XSetClipMask(XtDisplay(widget), vt->vt.gc, None);
-        if (vt->vt.use_xft && vt->vt.xft_draw != NULL)
-                (void)XftDrawSetClip(vt->vt.xft_draw, NULL);
+        if (vt->vt.use_xft && vt->vt.font_universe->draw != NULL)
+                (void)XftDrawSetClip(vt->vt.font_universe->draw, NULL);
 }
 
 static void
@@ -1182,16 +409,13 @@ DrawTextClipped(Vt100Rec *vt, Pixel pixel, int x, int baseline, const char *text
                 effective_clip = &effective;
                 clip_set = True;
         }
-        if (vt->vt.use_xft && EnsureXftDraw(vt)) {
+        if (vt->vt.use_xft && VtFontEnsureXftDraw(vt)) {
                 XftColor color = CachedXftColor(vt, pixel);
                 XftFont *font = selected_font;
 
                 if (font == NULL)
-                        font = XtpFontRoleSelect(vt->vt.xft_fonts[vt->vt.current_font],
-                                                 vt->vt.xft_bold_fonts[vt->vt.current_font],
-                                                 vt->vt.xft_italic_fonts[vt->vt.current_font],
-                                                 vt->vt.xft_bold_italic_fonts[vt->vt.current_font],
-                                                 bold, italic);
+                        font = VtFontRoleStyle(vt, XTP_FONT_ROLE_PRIMARY, vt->vt.current_font, bold,
+                                               italic);
                 PaintShapedText(vt, font, pixel, &color, run, text, length, color_glyphs, x,
                                 baseline, area, effective_clip);
         } else {
@@ -1211,7 +435,7 @@ DrawText(Vt100Rec *vt, Pixel pixel, int x, int baseline, const char *text, size_
          Boolean bold, XftFont *selected_font)
 {
         DrawTextClipped(vt, pixel, x, baseline, text, length, bold, False, selected_font, 0,
-                        vt->vt.effective_color_glyphs, NULL, NULL);
+                        vt->vt.font_universe->color_glyphs, NULL, NULL);
 }
 
 static void
@@ -1246,20 +470,17 @@ PaintVisualRun(Vt100Rec *vt, const VisualCell *style, const XRectangle *area, in
 
         if (!SetTextClip(vt, area, &effective))
                 return;
-        if (vt->vt.use_xft && EnsureXftDraw(vt)) {
+        if (vt->vt.use_xft && VtFontEnsureXftDraw(vt)) {
                 XftColor background = CachedXftColor(vt, style->background);
                 XftColor foreground = CachedXftColor(vt, style->foreground);
                 XftFont *font = selected_font;
 
                 if (font == NULL && (run == NULL || !run->missing))
-                        font = XtpFontRoleSelect(vt->vt.xft_fonts[vt->vt.current_font],
-                                                 vt->vt.xft_bold_fonts[vt->vt.current_font],
-                                                 vt->vt.xft_italic_fonts[vt->vt.current_font],
-                                                 vt->vt.xft_bold_italic_fonts[vt->vt.current_font],
-                                                 style->bold, style->italic);
-                XRenderFillRectangle(XtDisplay(widget), PictOpSrc, XftDrawPicture(vt->vt.xft_draw),
-                                     &background.color, area->x, area->y, area->width,
-                                     area->height);
+                        font = VtFontRoleStyle(vt, XTP_FONT_ROLE_PRIMARY, vt->vt.current_font,
+                                               style->bold, style->italic);
+                XRenderFillRectangle(XtDisplay(widget), PictOpSrc,
+                                     XftDrawPicture(vt->vt.font_universe->draw), &background.color,
+                                     area->x, area->y, area->width, area->height);
                 if (font == NULL && run != NULL && run->missing) {
                         DrawDeterministicTofu(vt, style->foreground, area);
                 } else if (xft_length != 0) {
@@ -1326,11 +547,12 @@ DrawVisualCell(Vt100Rec *vt, const VisualCell *cell, unsigned int column, unsign
                 if (cell->text_length != 0)
                         image[0] = cell->text[0];
                 if (vt->vt.use_xft)
-                        font = SelectXftFont(vt, cell->text, cell->text_length, columns, cell->bold,
-                                             cell->italic, &role, &base, &style, &run);
+                        font =
+                            VtSelectXftFont(vt, cell->text, cell->text_length, columns, cell->bold,
+                                            cell->italic, &role, &base, &style, &run);
                 PaintVisualRun(vt, cell, &area, x, y + VtSlotAscent(vt, vt->vt.current_font),
                                cell->text, cell->text_length, image, columns, font, &run,
-                               vt->vt.effective_color_glyphs && style != XTP_EMOJI_STYLE_TEXT);
+                               vt->vt.font_universe->color_glyphs && style != XTP_EMOJI_STYLE_TEXT);
                 if (cell->text_length != 0 && XtpLogEnabled(XTP_LOG_DEBUG))
                         XtpLog(XTP_LOG_DEBUG, "font",
                                "route base=U+%04X width=%u presentation=%s role=%s glyphs=%u "
@@ -1363,8 +585,8 @@ ComplexTextCell(Vt100Rec *vt, const VisualCell *cell)
 
         if (cell == NULL || cell->width == 0 || cell->text_length <= 1)
                 return False;
-        cluster =
-            XtpEmojiResolveClusterStyle(cell->text, cell->text_length, vt->vt.emoji_presentation);
+        cluster = XtpEmojiResolveClusterStyle(cell->text, cell->text_length,
+                                              vt->vt.font_universe->emoji_presentation);
         return cluster.style == XTP_EMOJI_STYLE_NONE;
 }
 
@@ -1440,8 +662,8 @@ DrawVisualTextGroup(Vt100Rec *vt, unsigned int row, unsigned int column, unsigne
         int y = (int)vt->vt.internal_border + (int)row * (int)cell_height;
 
         memcpy(text, first->text, length);
-        font = SelectXftFont(vt, text, length, columns, first->bold, first->italic, &role, &base,
-                             &style, &run);
+        font = VtSelectXftFont(vt, text, length, columns, first->bold, first->italic, &role, &base,
+                               &style, &run);
         while (next < end_column) {
                 const VisualCell *candidate =
                     &vt->vt.frame_cells[(size_t)row * vt->vt.frame_columns + next];
@@ -1459,10 +681,10 @@ DrawVisualTextGroup(Vt100Rec *vt, unsigned int row, unsigned int column, unsigne
                 candidate_length = length + candidate->text_length;
                 memcpy(candidate_text, text, length);
                 memcpy(candidate_text + length, candidate->text, candidate->text_length);
-                candidate_font =
-                    SelectXftFont(vt, candidate_text, candidate_length, columns + candidate->width,
-                                  first->bold, first->italic, &candidate_role, &candidate_base,
-                                  &candidate_style, &candidate_run);
+                candidate_font = VtSelectXftFont(vt, candidate_text, candidate_length,
+                                                 columns + candidate->width, first->bold,
+                                                 first->italic, &candidate_role, &candidate_base,
+                                                 &candidate_style, &candidate_run);
                 if (candidate_font != font)
                         break;
                 memcpy(text, candidate_text, candidate_length);
@@ -1481,7 +703,7 @@ DrawVisualTextGroup(Vt100Rec *vt, unsigned int row, unsigned int column, unsigne
         area.height = (unsigned short)cell_height;
         PaintVisualRun(vt, first, &area, x, y + VtSlotAscent(vt, vt->vt.current_font), text, length,
                        text, columns, font, &run,
-                       vt->vt.effective_color_glyphs && style != XTP_EMOJI_STYLE_TEXT);
+                       vt->vt.font_universe->color_glyphs && style != XTP_EMOJI_STYLE_TEXT);
         DrawDecorations(vt, first, &area);
         if (XtpLogEnabled(XTP_LOG_DEBUG))
                 XtpLog(XTP_LOG_DEBUG, "font",
@@ -1521,13 +743,9 @@ DrawVisualRowRange(Vt100Rec *vt, unsigned int row, unsigned int first_column,
                 const VisualCell *first =
                     &vt->vt.frame_cells[(size_t)row * vt->vt.frame_columns + column];
                 XftFont *first_font =
-                    vt->vt.use_xft
-                        ? XtpFontRoleSelect(vt->vt.xft_fonts[vt->vt.current_font],
-                                            vt->vt.xft_bold_fonts[vt->vt.current_font],
-                                            vt->vt.xft_italic_fonts[vt->vt.current_font],
-                                            vt->vt.xft_bold_italic_fonts[vt->vt.current_font],
-                                            first->bold, first->italic)
-                        : NULL;
+                    vt->vt.use_xft ? VtFontRoleStyle(vt, XTP_FONT_ROLE_PRIMARY, vt->vt.current_font,
+                                                     first->bold, first->italic)
+                                   : NULL;
 
                 if (first->width == 0) {
                         ++column;
@@ -1565,7 +783,7 @@ DrawVisualRowRange(Vt100Rec *vt, unsigned int row, unsigned int first_column,
                                 PaintVisualRun(vt, first, &area, x,
                                                y + VtSlotAscent(vt, vt->vt.current_font), run,
                                                visible, run, length, first_font, NULL,
-                                               vt->vt.effective_color_glyphs);
+                                               vt->vt.font_universe->color_glyphs);
                                 DrawDecorations(vt, first, &area);
                         }
                 } else if (vt->vt.use_xft && ComplexTextCell(vt, first)) {
@@ -1650,20 +868,21 @@ VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int ro
                                 XtpGlyphRun run = {0};
                                 XftFont *font =
                                     vt->vt.use_xft
-                                        ? SelectXftFont(
+                                        ? VtSelectXftFont(
                                               vt, vt->vt.cursor_text, vt->vt.cursor_text_length,
                                               vt->vt.cursor_width, vt->vt.cursor_bold,
                                               vt->vt.cursor_italic, NULL, &base, &style, &run)
                                         : NULL;
 
                                 glyph_area.width = (unsigned short)(vt->vt.cursor_width * width);
-                                DrawTextClipped(
-                                    vt, vt->vt.cursor_text_color, x,
-                                    y + VtSlotAscent(vt, vt->vt.current_font), vt->vt.cursor_text,
-                                    vt->vt.cursor_text_length, vt->vt.cursor_bold,
-                                    vt->vt.cursor_italic, font, &run,
-                                    vt->vt.effective_color_glyphs && style != XTP_EMOJI_STYLE_TEXT,
-                                    &glyph_area, &area);
+                                DrawTextClipped(vt, vt->vt.cursor_text_color, x,
+                                                y + VtSlotAscent(vt, vt->vt.current_font),
+                                                vt->vt.cursor_text, vt->vt.cursor_text_length,
+                                                vt->vt.cursor_bold, vt->vt.cursor_italic, font,
+                                                &run,
+                                                vt->vt.font_universe->color_glyphs &&
+                                                    style != XTP_EMOJI_STYLE_TEXT,
+                                                &glyph_area, &area);
                         }
                 } else if (shape == XTP_CURSOR_SHAPE_UNDERLINE || shape == XTP_CURSOR_SHAPE_BAR) {
                         unsigned int dimension =

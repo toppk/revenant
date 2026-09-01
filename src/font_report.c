@@ -36,7 +36,7 @@ typedef struct
         char presentation[8];
         int widthclass;
         int font_slot;
-        uint8_t capturing_slot;
+        XtpFontCaptureSlot capturing_slot;
         XtpFontRouteRung rung;
         uint8_t named_index;
         bool has_role;
@@ -158,20 +158,19 @@ RungName(XtpFontRouteRung rung, uint8_t named_index, char buffer[32])
 }
 
 static const char *
-SlotName(uint8_t slot)
+SlotName(XtpFontCaptureSlot slot)
 {
         switch (slot) {
-        case 0:
+        case XTP_FONT_CAPTURE_PRIMARY:
                 return "primary";
-        case 1:
+        case XTP_FONT_CAPTURE_WIDE:
                 return "doublesize";
-        case 2:
+        case XTP_FONT_CAPTURE_EMOJI:
                 return "emoji";
-        case 3:
+        case XTP_FONT_CAPTURE_HAN:
                 return "han";
-        default:
-                return "unknown";
         }
+        return "unknown";
 }
 
 static const char *

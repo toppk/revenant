@@ -82,3 +82,33 @@ fi
 mkdir "$done_dir"
 wait "$terminal_pid" 2>/dev/null || true
 terminal_pid=
+
+blank_log=$test_dir/blank-budget.log
+blank_done=$test_dir/blank-budget.done
+"$fixture_root/run" routing "$terminal" -debug +sb -geometry 12x4 \
+    -fa 'DejaVu Sans Mono:rgba=none' -fs 16 \
+    -xrm 'xterm.vt100.faceNameDoublesize:' \
+    -xrm 'xterm.vt100.faceNameEmoji:' \
+    -xrm 'xterm.vt100.fallbackFace1: Noto Sans Mono CJK JP' \
+    -xrm 'xterm.vt100.fallbackFace2: Noto Emoji' \
+    -xrm 'xterm.vt100.limitFontsets: 1' \
+    -xrm 'xterm.vt100.systemFallback: false' \
+    -xrm 'xterm.vt100.renderFont: true' \
+    -e sh -c 'printf "\033[2J\033[H\033[?25l%s%s\033]2;font-blank-budget-ready\007" "$1" "$2"; while ! test -d "$3"; do sleep 0.05; done' \
+    sh '　' '😀' "$blank_done" >"$test_dir/blank-budget.out" 2>"$blank_log" &
+terminal_pid=$!
+
+xtp_wait_for_title "$blank_log" font-blank-budget-ready "blank fallback budget" 360
+
+if grep -E -q -- 'activated Xft fallback .*source=fallbackFace1' "$blank_log" || \
+   ! grep -E -q -- 'activated Xft fallback .*source=fallbackFace2 budget=1/1' "$blank_log" || \
+   ! grep -E -q -- 'route base=U\+1F600 .*role=fallback .*NotoEmoji-Regular\.ttf' "$blank_log"
+then
+    echo "blank cluster consumed fallback budget or blocked the following visible glyph" >&2
+    sed -n '1,420p' "$blank_log" >&2
+    exit 1
+fi
+
+mkdir "$blank_done"
+wait "$terminal_pid" 2>/dev/null || true
+terminal_pid=

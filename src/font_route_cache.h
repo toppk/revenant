@@ -30,6 +30,14 @@ typedef enum
         XTP_FONT_RUNG_TOFU,
 } XtpFontRouteRung;
 
+typedef enum
+{
+        XTP_FONT_CAPTURE_PRIMARY,
+        XTP_FONT_CAPTURE_WIDE,
+        XTP_FONT_CAPTURE_EMOJI,
+        XTP_FONT_CAPTURE_HAN,
+} XtpFontCaptureSlot;
+
 typedef struct
 {
         char text[XTP_FONT_ROUTE_TEXT_CAPACITY];
@@ -38,7 +46,7 @@ typedef struct
         uint8_t presentation;
         uint8_t presentation_policy;
         uint8_t slot;
-        uint8_t capturing_slot;
+        XtpFontCaptureSlot capturing_slot;
         bool color_glyphs;
         bool system_fallback;
         uint32_t generation;
@@ -49,7 +57,7 @@ typedef struct
         XtpFontRouteKind kind;
         XtpFontRouteRung rung;
         uint8_t named_index;
-        void *normal_font;
+        struct _XftFont *normal_font;
 } XtpFontRouteValue;
 
 typedef struct XtpFontRouteCache XtpFontRouteCache;

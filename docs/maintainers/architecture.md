@@ -34,7 +34,7 @@ The boundaries are deliberate:
 - `src/main.c` owns the Xt application shell, PTY event loop, menus, geometry,
   and terminal effects such as bell and title changes.
 - `src/vt_widget.c` owns the custom `VT100` widget class, resources, lifecycle,
-  font slots, translations, callbacks, and public widget API.
+  translations, callbacks, font-selection actions, and public widget API.
 - `src/vt_widgetP.h` contains the private widget record and interfaces shared
   only by the widget implementation.
 - `src/vt_input.c` owns XIM, keyboard mapping and repeat tracking, and focus
@@ -42,8 +42,14 @@ The boundaries are deliberate:
 - `src/vt_interaction.c` owns selection and paste, hyperlinks, mouse encoding,
   and local pointer and scroll actions. Encoded terminal input leaves the
   widget through `XtNinputCallback`.
-- `src/vt_draw.c` owns frame caching, bitmap/Xft cell drawing, font-role
-  routing, cursor painting, damage restoration, and redisplay.
+- `src/vt_draw.c` owns frame caching, bitmap/Xft cell drawing, cursor painting,
+  damage restoration, and redisplay.
+- `src/vt_font.c` owns the heap-allocated Xft font universe: slot and style
+  loading, metric normalization, named and system fallback candidates, lazy
+  non-default size slots, and transactional universe replacement.
+- `src/font_router.c` owns atom-to-role selection, fallback traversal, route
+  caching, style degradation, and deterministic missing-glyph decisions. It
+  returns a selected font and shaped run to `vt_draw.c`; it never paints.
 - `src/glyph_cairo.c` owns the persistent Cairo Xlib surface, scaled-font
   cache, cell fitting, and color/outline glyph delegate. It receives the
   effective damage/cursor clip from `vt_draw.c`; it does not decide terminal
@@ -51,9 +57,10 @@ The boundaries are deliberate:
 - `src/glyph_shape.c` owns HarfBuzz state and the per-Xft-font shaping cache.
   It shapes complete backend graphemes and compatible adjacent non-emoji cell
   runs, returning positioned glyph IDs without changing the backend's
-  committed cell width. `vt_draw.c` chooses primary, explicit wide/emoji, and
-  bounded fontconfig fallback faces atomically for each run, then clips ink to
-  the combined committed cells.
+  committed cell width. `font_router.c` chooses primary, explicit
+  wide/emoji/Han, and bounded fontconfig fallback faces atomically for each
+  atom; `vt_draw.c` itemizes compatible runs and clips ink to their combined
+  committed cells.
   Font ownership is intentionally isolated: Xft owns its live FreeType face,
   Cairo creates an independent cairo-ft face, and HarfBuzz maps a separate face
   from the font file. Sharing Xft's live face lets one consumer change another

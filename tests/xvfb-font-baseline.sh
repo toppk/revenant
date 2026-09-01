@@ -2,16 +2,17 @@
 
 set -eu
 
-if test "$#" -ne 4
+if test "$#" -ne 5
 then
-    echo "usage: $0 XVFB REVENANT WINDOW-INK FIXTURE-ROOT" >&2
+    echo "usage: $0 XVFB REVENANT WINDOW-INK FONT-KEYS FIXTURE-ROOT" >&2
     exit 2
 fi
 
 xvfb=$1
 terminal=$2
 window_ink=$3
-fixture_root=$4
+font_keys=$4
+fixture_root=$5
 . "$(dirname "$0")/xvfb-test-lib.sh"
 xtp_xvfb_test_init
 xtp_require_font_fixtures "$fixture_root"
@@ -161,6 +162,21 @@ if ! grep -F -q \
 then
     echo 'embedded-size expected faceName size=11 to override faceSize=16' >&2
     sed -n '1,300p' "$embedded_log" >&2
+    exit 1
+fi
+if grep -E -q 'loaded Xft slot=[1-7] ' "$embedded_log"
+then
+    echo 'embedded-size expected nonzero Xft slots to remain lazy before a font action' >&2
+    sed -n '1,300p' "$embedded_log" >&2
+    exit 1
+fi
+embedded_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$embedded_log" | tail -1)
+"$font_keys" "$embedded_window" + 1 >"$test_dir/embedded-size.keys"
+xtp_wait_for_log "$embedded_log" 'select slot=0 ->' embedded-size-select 100
+if ! grep -E -q 'loaded Xft slot=[1-7] ' "$embedded_log"
+then
+    echo 'embedded-size expected the font action to activate nonzero Xft slots' >&2
+    sed -n '1,400p' "$embedded_log" >&2
     exit 1
 fi
 mkdir "$embedded_done"

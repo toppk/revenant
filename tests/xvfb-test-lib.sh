@@ -79,3 +79,23 @@ xtp_wait_for_title()
         sleep 0.05
     done
 }
+
+xtp_wait_for_log()
+{
+    log=$1
+    pattern=$2
+    description=$3
+    lines=${4:-420}
+    attempt=0
+    while ! grep -F -q -- "$pattern" "$log" 2>/dev/null
+    do
+        attempt=$((attempt + 1))
+        if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
+        then
+            echo "revenant did not log $description" >&2
+            sed -n "1,${lines}p" "$log" >&2
+            exit 1
+        fi
+        sleep 0.05
+    done
+}

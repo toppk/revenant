@@ -1,9 +1,7 @@
 #include "vt_widgetP.h"
 
 #include "diagnostics.h"
-#include "font_chain.h"
-#include "font_metrics.h"
-#include "font_role.h"
+#include "vt_font.h"
 
 #include <X11/Shell.h>
 #include <X11/StringDefs.h>
@@ -14,7 +12,6 @@
 #include <ctype.h>
 #include <float.h>
 #include <limits.h>
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -312,85 +309,6 @@ VtAsRecord(Widget widget)
         return (Vt100Rec *)widget;
 }
 
-static unsigned int
-FontWidth(const XFontStruct *font)
-{
-        int width = font->max_bounds.width;
-
-        return width > 0 ? (unsigned int)width : 1U;
-}
-
-static unsigned int
-FontHeight(const XFontStruct *font)
-{
-        int height = font->ascent + font->descent;
-
-        return height > 0 ? (unsigned int)height : 1U;
-}
-
-static unsigned int
-XftFontWidth(const XftFont *font)
-{
-        return font != NULL && font->max_advance_width > 0 ? (unsigned int)font->max_advance_width
-                                                           : 1U;
-}
-
-static unsigned int
-XftFontHeight(const XftFont *font)
-{
-        int height = font != NULL ? font->ascent + font->descent : 0;
-
-        return height > 0 ? (unsigned int)height : 1U;
-}
-
-unsigned int
-VtSlotWidth(const Vt100Rec *vt, int slot)
-{
-        if (vt->vt.use_xft) {
-                unsigned int width = vt->vt.xft_cell_widths[slot];
-
-                return width != 0 ? width : XftFontWidth(vt->vt.xft_fonts[slot]);
-        }
-        return FontWidth(vt->vt.fonts[slot]);
-}
-
-unsigned int
-VtSlotHeight(const Vt100Rec *vt, int slot)
-{
-        if (vt->vt.use_xft)
-                return XftFontHeight(vt->vt.xft_fonts[slot]);
-        return FontHeight(vt->vt.fonts[slot]);
-}
-
-int
-VtSlotAscent(const Vt100Rec *vt, int slot)
-{
-        if (vt->vt.use_xft)
-                return vt->vt.xft_fonts[slot]->ascent;
-        return vt->vt.fonts[slot]->ascent;
-}
-
-static Boolean
-Nonempty(const char *value)
-{
-        return value != NULL && *value != '\0';
-}
-
-static Boolean
-ResourceBoolean(const char *value, Boolean default_value)
-{
-        if (!Nonempty(value) || strcasecmp(value, "default") == 0)
-                return default_value;
-        if (strcasecmp(value, "true") == 0 || strcasecmp(value, "on") == 0 ||
-            strcasecmp(value, "yes") == 0 || strcmp(value, "1") == 0)
-                return True;
-        if (strcasecmp(value, "false") == 0 || strcasecmp(value, "off") == 0 ||
-            strcasecmp(value, "no") == 0 || strcmp(value, "0") == 0 ||
-            strcasecmp(value, "defaultOff") == 0)
-                return False;
-        return default_value;
-}
-
 static CursorBlinkPolicy
 ParseCursorBlinkPolicy(const char *value)
 {
@@ -406,21 +324,6 @@ ParseCursorBlinkPolicy(const char *value)
                     "invalid cursorBlink=%s; using false (expected false, true, always, or never)",
                     value);
         return XTP_CURSOR_BLINK_DEFAULT_FALSE;
-}
-
-static XtpEmojiPolicy
-ParseEmojiPolicy(const char *value)
-{
-        if (value == NULL || strcasecmp(value, "unicode") == 0)
-                return XTP_EMOJI_POLICY_UNICODE;
-        if (strcasecmp(value, "text") == 0)
-                return XTP_EMOJI_POLICY_TEXT;
-        if (strcasecmp(value, "emoji") == 0)
-                return XTP_EMOJI_POLICY_EMOJI;
-        XtpLog(XTP_LOG_ERROR, "config",
-               "invalid emojiPresentation=%s; using unicode (expected unicode, text, or emoji)",
-               value);
-        return XTP_EMOJI_POLICY_UNICODE;
 }
 
 static Boolean
@@ -449,66 +352,6 @@ VtEffectiveCursorBlink(CursorBlinkPolicy policy, Boolean requested)
         if (policy == XTP_CURSOR_BLINK_NEVER)
                 return False;
         return requested;
-}
-
-static double
-PositiveNumber(const char *value, double fallback)
-{
-        char *end = NULL;
-        double number;
-
-        if (!Nonempty(value))
-                return fallback;
-        number = strtod(value, &end);
-        return end != value && number > 0.0 ? number : fallback;
-}
-
-/*
- * Xterm treats a size embedded in the first faceName item as the Default
- * menu's faceSize, with precedence over the separate faceSize resource.  It
- * removes the field before constructing the Xft pattern so derived menu slots
- * can supply their own sizes.  Preserve that slightly surprising resource
- * interaction for zero-option compatibility with existing XTerm resources.
- */
-static Boolean
-TrimFaceSize(char *face, double *size)
-{
-        char *field;
-        char *end;
-        char *tail;
-        Boolean valid;
-        double parsed;
-
-        if (!Nonempty(face))
-                return False;
-        field = strstr(face, ":size=");
-        if (field != NULL)
-                ++field;
-        else if (strncmp(face, "size=", 5) == 0)
-                field = face;
-        else
-                return False;
-
-        tail = strchr(field, ':');
-        if (tail != NULL)
-                *tail = '\0';
-        parsed = strtod(field + 5, &end);
-        valid = end != field + 5 && *end == '\0';
-        if (tail != NULL)
-                *tail = ':';
-
-        if (tail != NULL)
-                memmove(field, tail + 1, strlen(tail + 1) + 1);
-        else if (field == face)
-                *field = '\0';
-        else
-                field[-1] = '\0';
-
-        if (!valid)
-                return False;
-        if (size != NULL)
-                *size = parsed;
-        return True;
 }
 
 Dimension
@@ -785,902 +628,13 @@ LoadSlot(Vt100Rec *vt, int slot)
         if (vt->vt.fonts[slot] != NULL) {
                 vt->vt.owned[slot] = True;
                 XtpLog(XTP_LOG_DEBUG, "font", "loaded slot=%d request=%s cell=%ux%u", slot,
-                       vt->vt.font_names[slot], FontWidth(vt->vt.fonts[slot]),
-                       FontHeight(vt->vt.fonts[slot]));
+                       vt->vt.font_names[slot], VtBitmapFontWidth(vt->vt.fonts[slot]),
+                       VtBitmapFontHeight(vt->vt.fonts[slot]));
         } else {
                 XtpLog(XTP_LOG_WARNING, "font", "failed slot=%d request=%s", slot,
                        vt->vt.font_names[slot]);
         }
         return vt->vt.fonts[slot];
-}
-
-static void
-LogXftResolved(Vt100Rec *vt, const char *role, int slot, const char *style, int entry,
-               const char *request, XftFont *font)
-{
-        FcChar8 *file = NULL;
-        int index = 0;
-
-        if (font == NULL || font->pattern == NULL) {
-                XtpFontRoutingReportLoad(vt->vt.font_routing_report, role, slot, style, entry,
-                                         request, NULL, "active", vt->vt.font_generation);
-                return;
-        }
-        (void)FcPatternGetString(font->pattern, FC_FILE, 0, &file);
-        (void)FcPatternGetInteger(font->pattern, FC_INDEX, 0, &index);
-        XtpLog(XTP_LOG_INFO, "font",
-               "resolved Xft role=%s slot=%d style=%s entry=%d request=%s file=%s index=%d", role,
-               slot, style, entry, request != NULL ? request : "(unset)",
-               file != NULL ? (const char *)file : "(unknown)", index);
-        XtpFontRoutingReportLoad(vt->vt.font_routing_report, role, slot, style, entry, request,
-                                 font->pattern, "active", vt->vt.font_generation);
-}
-
-static void
-SetXftStyle(FcPattern *pattern, Boolean bold, Boolean italic)
-{
-        FcPatternDel(pattern, FC_WEIGHT);
-        FcPatternDel(pattern, FC_SLANT);
-        FcPatternAddInteger(pattern, FC_WEIGHT, bold ? FC_WEIGHT_BOLD : FC_WEIGHT_REGULAR);
-        FcPatternAddInteger(pattern, FC_SLANT, italic ? FC_SLANT_ITALIC : FC_SLANT_ROMAN);
-}
-
-static XftFont *
-OpenXftFont(Vt100Rec *vt, const char *face, double size, Boolean bold, Boolean italic)
-{
-        FcPattern *pattern;
-        FcPattern *match;
-        FcResult result;
-        XftFont *font;
-
-        pattern = FcNameParse((const FcChar8 *)face);
-        if (pattern == NULL)
-                return NULL;
-        FcPatternDel(pattern, FC_SIZE);
-        FcPatternDel(pattern, FC_PIXEL_SIZE);
-        FcPatternAddDouble(pattern, FC_SIZE, size);
-        SetXftStyle(pattern, bold, italic);
-        FcConfigSubstitute(NULL, pattern, FcMatchPattern);
-        XftDefaultSubstitute(XtDisplay((Widget)vt), XScreenNumberOfScreen(XtScreen((Widget)vt)),
-                             pattern);
-        match = FcFontMatch(NULL, pattern, &result);
-        FcPatternDestroy(pattern);
-        font = match != NULL ? XftFontOpenPattern(XtDisplay((Widget)vt), match) : NULL;
-        return font;
-}
-
-static FcPattern *
-ResolveXftPattern(Vt100Rec *vt, const char *face, double size, Boolean bold, Boolean italic)
-{
-        FcPattern *pattern;
-        FcPattern *match;
-        FcResult result;
-
-        if (!Nonempty(face))
-                return NULL;
-        pattern = FcNameParse((const FcChar8 *)face);
-        if (pattern == NULL)
-                return NULL;
-        FcPatternDel(pattern, FC_SIZE);
-        FcPatternDel(pattern, FC_PIXEL_SIZE);
-        FcPatternAddDouble(pattern, FC_SIZE, size);
-        SetXftStyle(pattern, bold, italic);
-        FcConfigSubstitute(NULL, pattern, FcMatchPattern);
-        XftDefaultSubstitute(XtDisplay((Widget)vt), XScreenNumberOfScreen(XtScreen((Widget)vt)),
-                             pattern);
-        match = FcFontMatch(NULL, pattern, &result);
-        FcPatternDestroy(pattern);
-        return match;
-}
-
-static Boolean
-ScaleXftPatternSize(FcPattern *pattern, double scale)
-{
-        double point_size;
-        double pixel_size;
-        Boolean changed = False;
-
-        if (pattern == NULL || !(scale > 0.0))
-                return False;
-        if (FcPatternGetDouble(pattern, FC_SIZE, 0, &point_size) == FcResultMatch) {
-                FcPatternDel(pattern, FC_SIZE);
-                changed = FcPatternAddDouble(pattern, FC_SIZE, point_size * scale) || changed;
-        }
-        if (FcPatternGetDouble(pattern, FC_PIXEL_SIZE, 0, &pixel_size) == FcResultMatch) {
-                FcPatternDel(pattern, FC_PIXEL_SIZE);
-                changed = FcPatternAddDouble(pattern, FC_PIXEL_SIZE, pixel_size * scale) || changed;
-        }
-        return changed;
-}
-
-XftFont *
-VtOpenNormalizedXftPattern(Vt100Rec *vt, FcPattern *pattern, int slot, double *scale_out)
-{
-        XftFont *primary;
-        XftFont *probe;
-        XftFont *normalized;
-        FcPattern *probe_pattern;
-        unsigned int target_height;
-        unsigned int source_height;
-        double scale = 1.0;
-
-        if (scale_out != NULL)
-                *scale_out = 1.0;
-        if (pattern == NULL)
-                return NULL;
-        probe_pattern = FcPatternDuplicate(pattern);
-        probe =
-            probe_pattern != NULL ? XftFontOpenPattern(XtDisplay((Widget)vt), probe_pattern) : NULL;
-        if (probe == NULL) {
-                /* Xft consumes a pattern only when opening succeeds. */
-                if (probe_pattern != NULL)
-                        FcPatternDestroy(probe_pattern);
-                FcPatternDestroy(pattern);
-                return NULL;
-        }
-        primary = slot >= 0 && slot < XTP_FONT_SLOTS ? vt->vt.xft_fonts[slot] : NULL;
-        target_height = XftFontHeight(primary);
-        source_height = XftFontHeight(probe);
-        if (primary == NULL || target_height == 0 || source_height == 0 ||
-            target_height == source_height) {
-                FcPatternDestroy(pattern);
-                return probe;
-        }
-        scale = XtpFontHeightScale(target_height, source_height);
-        if (!ScaleXftPatternSize(pattern, scale)) {
-                FcPatternDestroy(pattern);
-                return probe;
-        }
-        normalized = XftFontOpenPattern(XtDisplay((Widget)vt), pattern);
-        if (normalized == NULL) {
-                /* Xft consumes a pattern only when opening succeeds. */
-                FcPatternDestroy(pattern);
-                return probe;
-        }
-        XtpLog(XTP_LOG_DEBUG, "font",
-               "normalized Xft slot=%d target-height=%u source-height=%u scale=%.9f "
-               "result-height=%u",
-               slot, target_height, source_height, scale, XftFontHeight(normalized));
-        XftFontClose(XtDisplay((Widget)vt), probe);
-        if (scale_out != NULL)
-                *scale_out = scale;
-        return normalized;
-}
-
-static XftFont *
-OpenNormalizedXftFont(Vt100Rec *vt, const char *face, double size, Boolean bold, Boolean italic,
-                      int slot, double *scale_out)
-{
-        return VtOpenNormalizedXftPattern(vt, ResolveXftPattern(vt, face, size, bold, italic), slot,
-                                          scale_out);
-}
-
-static void
-LoadXftBoldOverride(Vt100Rec *vt, int slot, const char *role, const char *face, double size,
-                    XftFont *normal, XftFont **bold_font)
-{
-        XftFont *font;
-
-        if (!Nonempty(face) || normal == NULL || bold_font == NULL)
-                return;
-        font = OpenNormalizedXftFont(vt, face, size, True, False, slot, NULL);
-        if (font == NULL) {
-                XtpLog(XTP_LOG_WARNING, "font", "failed Xft boldFont role=%s slot=%d face=%s", role,
-                       slot, face);
-                return;
-        }
-        if (*bold_font != NULL)
-                XftFontClose(XtDisplay((Widget)vt), *bold_font);
-        *bold_font = font;
-        LogXftResolved(vt, role, slot, "bold", 1, face, font);
-        if (!XtpFontSameFamily(normal->pattern, font->pattern)) {
-                XtpLog(XTP_LOG_WARNING, "font",
-                       "FR-STYLEFAMILY slot=%s style=bold roleFamily=%s resolvedFamily=%s", role,
-                       XtpFontPatternFamily(normal->pattern), XtpFontPatternFamily(font->pattern));
-                XtpFontRoutingReportStyleFamily(vt->vt.font_routing_report, role, "bold",
-                                                XtpFontPatternFamily(normal->pattern),
-                                                XtpFontPatternFamily(font->pattern));
-        }
-}
-
-static unsigned int
-PackedXftCellWidth(Vt100Rec *vt, XftFont *font)
-{
-        unsigned int width = 0;
-        FcChar32 codepoint;
-
-        if (font == NULL)
-                return 1U;
-        for (codepoint = 32; codepoint < 256; ++codepoint) {
-                XGlyphInfo extents;
-
-                if (!XftCharExists(XtDisplay((Widget)vt), font, codepoint))
-                        continue;
-                XftTextExtents32(XtDisplay((Widget)vt), font, &codepoint, 1, &extents);
-                if (extents.xOff > 0 && (unsigned int)extents.xOff > width &&
-                    extents.xOff <= font->max_advance_width)
-                        width = (unsigned int)extents.xOff;
-        }
-        /* Preserve the packed fractional pixel without trusting specialist glyph maxima. */
-        if (width != 0 && font->max_advance_width > (int)width &&
-            (font->max_advance_width == (int)width + 1 ||
-             font->max_advance_width > (int)(2U * width)))
-                ++width;
-        return width != 0 ? width : XftFontWidth(font);
-}
-
-static XftFont *
-LoadXftSlot(Vt100Rec *vt, int slot, const char *face, double size)
-{
-        if (slot < 0 || slot >= XTP_FONT_SLOTS)
-                return NULL;
-        if (vt->vt.xft_fonts[slot] != NULL)
-                return vt->vt.xft_fonts[slot];
-        vt->vt.xft_fonts[slot] = OpenXftFont(vt, face, size, False, False);
-        if (vt->vt.xft_fonts[slot] != NULL) {
-                vt->vt.xft_bold_fonts[slot] =
-                    OpenNormalizedXftFont(vt, face, size, True, False, slot, NULL);
-                vt->vt.xft_italic_fonts[slot] =
-                    OpenNormalizedXftFont(vt, face, size, False, True, slot, NULL);
-                vt->vt.xft_bold_italic_fonts[slot] =
-                    OpenNormalizedXftFont(vt, face, size, True, True, slot, NULL);
-                vt->vt.xft_sizes[slot] = size;
-                vt->vt.xft_cell_widths[slot] = PackedXftCellWidth(vt, vt->vt.xft_fonts[slot]);
-                LogXftResolved(vt, "primary", slot, "normal", 1, face, vt->vt.xft_fonts[slot]);
-                LogXftResolved(vt, "primary", slot, "bold", 1, face, vt->vt.xft_bold_fonts[slot]);
-                LogXftResolved(vt, "primary", slot, "italic", 1, face,
-                               vt->vt.xft_italic_fonts[slot]);
-                LogXftResolved(vt, "primary", slot, "bold-italic", 1, face,
-                               vt->vt.xft_bold_italic_fonts[slot]);
-                XtpLog(XTP_LOG_INFO, "font",
-                       "loaded Xft slot=%d face=%s points=%.2f cell=%ux%u ascent=%d "
-                       "bold=%s italic=%s bold-italic=%s",
-                       slot, face, size, vt->vt.xft_cell_widths[slot],
-                       XftFontHeight(vt->vt.xft_fonts[slot]), vt->vt.xft_fonts[slot]->ascent,
-                       vt->vt.xft_bold_fonts[slot] != NULL ? "yes" : "fallback",
-                       vt->vt.xft_italic_fonts[slot] != NULL ? "yes" : "fallback",
-                       vt->vt.xft_bold_italic_fonts[slot] != NULL ? "yes" : "fallback");
-        } else {
-                XtpLog(XTP_LOG_WARNING, "font", "failed Xft slot=%d face=%s points=%.2f", slot,
-                       face, size);
-                LogXftResolved(vt, "primary", slot, "normal", 1, face, NULL);
-        }
-        return vt->vt.xft_fonts[slot];
-}
-
-static void
-LoadXftRoleSlot(Vt100Rec *vt, int slot, const char *role, const char *face, double size,
-                XftFont **fonts, XftFont **bold_fonts, XftFont **italic_fonts,
-                XftFont **bold_italic_fonts)
-{
-        double cell_scale = 1.0;
-
-        if (slot < 0 || slot >= XTP_FONT_SLOTS || !Nonempty(face) || vt->vt.xft_fonts[slot] == NULL)
-                return;
-        fonts[slot] = OpenNormalizedXftFont(vt, face, size, False, False, slot, &cell_scale);
-        if (fonts[slot] == NULL) {
-                XtpLog(XTP_LOG_WARNING, "font", "failed Xft role=%s slot=%d face=%s points=%.2f",
-                       role, slot, face, size);
-                return;
-        }
-        bold_fonts[slot] = OpenNormalizedXftFont(vt, face, size, True, False, slot, NULL);
-        italic_fonts[slot] = OpenNormalizedXftFont(vt, face, size, False, True, slot, NULL);
-        bold_italic_fonts[slot] = OpenNormalizedXftFont(vt, face, size, True, True, slot, NULL);
-        LogXftResolved(vt, role, slot, "normal", 1, face, fonts[slot]);
-        LogXftResolved(vt, role, slot, "bold", 1, face, bold_fonts[slot]);
-        LogXftResolved(vt, role, slot, "italic", 1, face, italic_fonts[slot]);
-        LogXftResolved(vt, role, slot, "bold-italic", 1, face, bold_italic_fonts[slot]);
-        XtpLog(XTP_LOG_INFO, "font",
-               "loaded Xft role=%s slot=%d face=%s points=%.2f glyph-box=%ux%u ascent=%d "
-               "cell-scale=%.3f bold=%s italic=%s bold-italic=%s",
-               role, slot, face, size, XftFontWidth(fonts[slot]), XftFontHeight(fonts[slot]),
-               fonts[slot]->ascent, cell_scale, bold_fonts[slot] != NULL ? "yes" : "fallback",
-               italic_fonts[slot] != NULL ? "yes" : "fallback",
-               bold_italic_fonts[slot] != NULL ? "yes" : "fallback");
-}
-
-static Boolean
-SameFontPattern(const FcPattern *left, const FcPattern *right)
-{
-        FcChar8 *left_file;
-        FcChar8 *right_file;
-        FcChar8 *left_variations = NULL;
-        FcChar8 *right_variations = NULL;
-        int left_index = 0;
-        int right_index = 0;
-        FcResult left_variation_result;
-        FcResult right_variation_result;
-
-        if (left == NULL || right == NULL ||
-            FcPatternGetString(left, FC_FILE, 0, &left_file) != FcResultMatch ||
-            FcPatternGetString(right, FC_FILE, 0, &right_file) != FcResultMatch)
-                return False;
-        (void)FcPatternGetInteger(left, FC_INDEX, 0, &left_index);
-        (void)FcPatternGetInteger(right, FC_INDEX, 0, &right_index);
-        left_variation_result = FcPatternGetString(left, FC_FONT_VARIATIONS, 0, &left_variations);
-        right_variation_result =
-            FcPatternGetString(right, FC_FONT_VARIATIONS, 0, &right_variations);
-        if (left_index != right_index ||
-            strcmp((const char *)left_file, (const char *)right_file) != 0 ||
-            (left_variation_result == FcResultMatch) != (right_variation_result == FcResultMatch))
-                return False;
-        return left_variation_result != FcResultMatch ||
-               strcmp((const char *)left_variations, (const char *)right_variations) == 0;
-}
-
-static void
-ResolveNamedFallbackRoles(Vt100Rec *vt, double size, Boolean enabled[XTP_FALLBACK_FACE_COUNT])
-{
-        FcPattern *roles[XTP_FALLBACK_FACE_COUNT][XTP_XFT_STYLE_COUNT] = {{NULL}};
-        int fallback;
-
-        memset(enabled, 0, sizeof(Boolean) * XTP_FALLBACK_FACE_COUNT);
-        for (fallback = 0; fallback < XTP_FALLBACK_FACE_COUNT; ++fallback) {
-                const char *face = vt->vt.fallback_face_names[fallback];
-                unsigned int style;
-                Boolean valid = True;
-                int earlier;
-
-                if (!Nonempty(face))
-                        continue;
-                for (style = 0; style < XTP_XFT_STYLE_COUNT; ++style) {
-                        roles[fallback][style] =
-                            ResolveXftPattern(vt, face, size, (style & 1U) != 0, (style & 2U) != 0);
-                        if (roles[fallback][style] == NULL)
-                                valid = False;
-                }
-                if (!valid) {
-                        XtpLog(XTP_LOG_WARNING, "font",
-                               "FR-BADPATTERN resource=fallbackFace%d value=%s", fallback + 1,
-                               face);
-                        {
-                                char resource[32];
-
-                                (void)snprintf(resource, sizeof(resource), "fallbackFace%d",
-                                               fallback + 1);
-                                XtpFontRoutingReportBadPattern(vt->vt.font_routing_report, resource,
-                                                               face);
-                        }
-                        continue;
-                }
-                for (earlier = 0; earlier < fallback; ++earlier) {
-                        Boolean duplicate = enabled[earlier];
-
-                        for (style = 0; duplicate && style < XTP_XFT_STYLE_COUNT; ++style)
-                                duplicate =
-                                    SameFontPattern(roles[fallback][style], roles[earlier][style]);
-                        if (duplicate) {
-                                FcChar8 *file = NULL;
-                                int index = 0;
-
-                                (void)FcPatternGetString(roles[fallback][0], FC_FILE, 0, &file);
-                                (void)FcPatternGetInteger(roles[fallback][0], FC_INDEX, 0, &index);
-                                XtpLog(XTP_LOG_WARNING, "font",
-                                       "FR-DUPROLE kept=fallbackFace%d dropped=fallbackFace%d "
-                                       "file=%s index=%d",
-                                       earlier + 1, fallback + 1,
-                                       file != NULL ? (const char *)file : "(unknown)", index);
-                                {
-                                        char kept[32];
-                                        char dropped[32];
-
-                                        (void)snprintf(kept, sizeof(kept), "fallbackFace%d",
-                                                       earlier + 1);
-                                        (void)snprintf(dropped, sizeof(dropped), "fallbackFace%d",
-                                                       fallback + 1);
-                                        XtpFontRoutingReportDuplicate(vt->vt.font_routing_report,
-                                                                      kept, dropped,
-                                                                      roles[fallback][0]);
-                                }
-                                valid = False;
-                                break;
-                        }
-                }
-                enabled[fallback] = valid;
-        }
-        for (fallback = 0; fallback < XTP_FALLBACK_FACE_COUNT; ++fallback) {
-                unsigned int style;
-
-                for (style = 0; style < XTP_XFT_STYLE_COUNT; ++style) {
-                        if (roles[fallback][style] != NULL)
-                                FcPatternDestroy(roles[fallback][style]);
-                }
-        }
-}
-
-static Boolean
-XftFallbackDuplicate(XtpXftFallbackSet *fallbacks, int slot, unsigned int style, XftFont *primary,
-                     FcPattern *pattern)
-{
-        uint8_t fallback;
-
-        if (SameFontPattern(primary->pattern, pattern))
-                return True;
-        for (fallback = 0; fallback < fallbacks->counts[slot][style]; ++fallback) {
-                if (SameFontPattern(fallbacks->candidates[slot][style][fallback].pattern, pattern))
-                        return True;
-        }
-        return False;
-}
-
-static Boolean
-AppendXftFallback(XtpXftFallbackSet *fallbacks, int slot, unsigned int style, XftFont *primary,
-                  FcPattern *pattern, uint8_t named_index)
-{
-        uint8_t fallback;
-
-        if (pattern == NULL)
-                return False;
-        if (fallbacks->counts[slot][style] == XTP_XFT_FALLBACK_CAPACITY ||
-            XftFallbackDuplicate(fallbacks, slot, style, primary, pattern)) {
-                FcPatternDestroy(pattern);
-                return False;
-        }
-        fallback = fallbacks->counts[slot][style]++;
-        fallbacks->candidates[slot][style][fallback].pattern = pattern;
-        fallbacks->candidates[slot][style][fallback].named_index = named_index;
-        return True;
-}
-
-static void
-LoadXftFallbacks(Vt100Rec *vt, int slot, const char *role, const char *face,
-                 const char *explicit_face, double size, Boolean bold, Boolean italic,
-                 XftFont *primary, XtpXftFallbackSet *fallbacks,
-                 const Boolean named_enabled[XTP_FALLBACK_FACE_COUNT])
-{
-        unsigned int style = XtpFontStyleIndex(bold, italic);
-        FcPattern *request;
-        FcFontSet *set;
-        FcResult result;
-        int index;
-
-        if (slot < 0 || slot >= XTP_FONT_SLOTS || !Nonempty(face) || primary == NULL ||
-            fallbacks == NULL)
-                return;
-        if (vt->vt.effective_limit_fontsets == 0)
-                return;
-        if (Nonempty(explicit_face)) {
-                FcPattern *pattern = ResolveXftPattern(vt, explicit_face, size, bold, italic);
-                uint8_t before = fallbacks->counts[slot][style];
-
-                (void)AppendXftFallback(fallbacks, slot, style, primary, pattern, 0);
-                if (fallbacks->counts[slot][style] != before) {
-                        XtpLog(XTP_LOG_INFO, "font",
-                               "queued Xft explicit fallback role=%s slot=%d style=%u face=%s",
-                               role, slot, style, explicit_face);
-                        XtpFontRoutingReportLoad(vt->vt.font_routing_report, role, slot,
-                                                 XtpFontStyleName(bold, italic), 2, explicit_face,
-                                                 fallbacks->candidates[slot][style][before].pattern,
-                                                 "active", vt->vt.font_generation);
-                }
-        }
-        fallbacks->explicit_counts[slot][style] = fallbacks->counts[slot][style];
-        for (index = 0; index < XTP_FALLBACK_FACE_COUNT; ++index) {
-                const char *named_face = vt->vt.fallback_face_names[index];
-                FcPattern *pattern;
-                uint8_t before;
-
-                if (!named_enabled[index])
-                        continue;
-                pattern = ResolveXftPattern(vt, named_face, size, bold, italic);
-                if (pattern == NULL)
-                        continue;
-                before = fallbacks->counts[slot][style];
-                if (!AppendXftFallback(fallbacks, slot, style, primary, pattern,
-                                       (uint8_t)(index + 1)))
-                        continue;
-                XtpLog(XTP_LOG_INFO, "font",
-                       "queued Xft named fallback role=%s slot=%d style=%u resource=fallbackFace%d "
-                       "entry=%u face=%s",
-                       role, slot, style, index + 1, (unsigned int)before + 1U, named_face);
-        }
-        fallbacks->named_counts[slot][style] = fallbacks->counts[slot][style];
-        if (!vt->vt.effective_system_fallback)
-                return;
-        request = FcNameParse((const FcChar8 *)face);
-        if (request == NULL)
-                return;
-        FcPatternDel(request, FC_SIZE);
-        FcPatternDel(request, FC_PIXEL_SIZE);
-        FcPatternAddDouble(request, FC_SIZE, size);
-        SetXftStyle(request, bold, italic);
-        FcConfigSubstitute(NULL, request, FcMatchPattern);
-        XftDefaultSubstitute(XtDisplay((Widget)vt), XScreenNumberOfScreen(XtScreen((Widget)vt)),
-                             request);
-        set = FcFontSort(NULL, request, FcTrue, NULL, &result);
-        if (set == NULL) {
-                FcPatternDestroy(request);
-                return;
-        }
-        for (index = 0;
-             index < set->nfont && fallbacks->counts[slot][style] < XTP_XFT_FALLBACK_CAPACITY;
-             ++index) {
-                FcPattern *render;
-
-                if (XftFallbackDuplicate(fallbacks, slot, style, primary, set->fonts[index]))
-                        continue;
-                render = FcFontRenderPrepare(NULL, request, set->fonts[index]);
-                if (render == NULL)
-                        continue;
-                (void)AppendXftFallback(fallbacks, slot, style, primary, render, 0);
-        }
-        XtpLog(XTP_LOG_INFO, "font", "queued Xft fallback role=%s slot=%d style=%u count=%u", role,
-               slot, style, fallbacks->counts[slot][style]);
-        FcFontSetDestroy(set);
-        FcPatternDestroy(request);
-}
-
-static void
-LoadXftRoleFallbacks(Vt100Rec *vt, int slot, const char *role, const char *face,
-                     const char *explicit_face, const char *bold_face,
-                     const char *bold_explicit_face, double size, XftFont *normal, XftFont *bold,
-                     XftFont *italic, XftFont *bold_italic, XtpXftFallbackSet *fallbacks,
-                     const Boolean named_enabled[XTP_FALLBACK_FACE_COUNT])
-{
-        LoadXftFallbacks(vt, slot, role, face, explicit_face, size, False, False, normal, fallbacks,
-                         named_enabled);
-        LoadXftFallbacks(vt, slot, role, Nonempty(bold_face) ? bold_face : face,
-                         Nonempty(bold_face) ? bold_explicit_face : explicit_face, size, True,
-                         False, bold, fallbacks, named_enabled);
-        LoadXftFallbacks(vt, slot, role, face, explicit_face, size, False, True, italic, fallbacks,
-                         named_enabled);
-        LoadXftFallbacks(vt, slot, role, face, explicit_face, size, True, True, bold_italic,
-                         fallbacks, named_enabled);
-}
-
-static void
-ResetXftUniverse(Vt100Rec *vt)
-{
-        vt->vt.use_xft = False;
-        vt->vt.xft_draw = NULL;
-        vt->vt.cairo_draw = NULL;
-        vt->vt.shaper = NULL;
-        vt->vt.font_route_cache = NULL;
-        memset(vt->vt.xft_fonts, 0, sizeof(vt->vt.xft_fonts));
-        memset(vt->vt.xft_bold_fonts, 0, sizeof(vt->vt.xft_bold_fonts));
-        memset(vt->vt.xft_italic_fonts, 0, sizeof(vt->vt.xft_italic_fonts));
-        memset(vt->vt.xft_bold_italic_fonts, 0, sizeof(vt->vt.xft_bold_italic_fonts));
-        memset(vt->vt.xft_wide_fonts, 0, sizeof(vt->vt.xft_wide_fonts));
-        memset(vt->vt.xft_wide_bold_fonts, 0, sizeof(vt->vt.xft_wide_bold_fonts));
-        memset(vt->vt.xft_wide_italic_fonts, 0, sizeof(vt->vt.xft_wide_italic_fonts));
-        memset(vt->vt.xft_wide_bold_italic_fonts, 0, sizeof(vt->vt.xft_wide_bold_italic_fonts));
-        memset(vt->vt.xft_emoji_fonts, 0, sizeof(vt->vt.xft_emoji_fonts));
-        memset(vt->vt.xft_emoji_bold_fonts, 0, sizeof(vt->vt.xft_emoji_bold_fonts));
-        memset(vt->vt.xft_emoji_italic_fonts, 0, sizeof(vt->vt.xft_emoji_italic_fonts));
-        memset(vt->vt.xft_emoji_bold_italic_fonts, 0, sizeof(vt->vt.xft_emoji_bold_italic_fonts));
-        memset(vt->vt.xft_han_fonts, 0, sizeof(vt->vt.xft_han_fonts));
-        memset(vt->vt.xft_han_bold_fonts, 0, sizeof(vt->vt.xft_han_bold_fonts));
-        memset(vt->vt.xft_han_italic_fonts, 0, sizeof(vt->vt.xft_han_italic_fonts));
-        memset(vt->vt.xft_han_bold_italic_fonts, 0, sizeof(vt->vt.xft_han_bold_italic_fonts));
-        memset(&vt->vt.xft_fallbacks, 0, sizeof(vt->vt.xft_fallbacks));
-        memset(&vt->vt.xft_wide_fallbacks, 0, sizeof(vt->vt.xft_wide_fallbacks));
-        memset(&vt->vt.xft_emoji_fallbacks, 0, sizeof(vt->vt.xft_emoji_fallbacks));
-        memset(&vt->vt.xft_han_fallbacks, 0, sizeof(vt->vt.xft_han_fallbacks));
-        memset(vt->vt.xft_sizes, 0, sizeof(vt->vt.xft_sizes));
-        memset(vt->vt.xft_cell_widths, 0, sizeof(vt->vt.xft_cell_widths));
-        memset(vt->vt.glyph_ink_cache, 0, sizeof(vt->vt.glyph_ink_cache));
-        vt->vt.next_glyph_ink_cache = 0;
-}
-
-static void
-CloseFallbackSet(Vt100Rec *vt, XtpXftFallbackSet *set)
-{
-        int slot;
-
-        for (slot = 0; slot < XTP_FONT_SLOTS; ++slot) {
-                unsigned int style;
-
-                for (style = 0; style < XTP_XFT_STYLE_COUNT; ++style) {
-                        uint8_t fallback;
-
-                        for (fallback = 0; fallback < set->counts[slot][style]; ++fallback) {
-                                XtpXftFallbackCandidate *candidate =
-                                    &set->candidates[slot][style][fallback];
-
-                                if (candidate->font != NULL)
-                                        XftFontClose(XtDisplay((Widget)vt), candidate->font);
-                                if (candidate->pattern != NULL)
-                                        FcPatternDestroy(candidate->pattern);
-                        }
-                }
-        }
-}
-
-static void
-CloseXftUniverse(Vt100Rec *vt)
-{
-        XtpXftFallbackSet *sets[] = {
-            &vt->vt.xft_fallbacks,
-            &vt->vt.xft_wide_fallbacks,
-            &vt->vt.xft_emoji_fallbacks,
-            &vt->vt.xft_han_fallbacks,
-        };
-        XftFont **font_arrays[] = {
-            vt->vt.xft_fonts,
-            vt->vt.xft_bold_fonts,
-            vt->vt.xft_italic_fonts,
-            vt->vt.xft_bold_italic_fonts,
-            vt->vt.xft_wide_fonts,
-            vt->vt.xft_wide_bold_fonts,
-            vt->vt.xft_wide_italic_fonts,
-            vt->vt.xft_wide_bold_italic_fonts,
-            vt->vt.xft_emoji_fonts,
-            vt->vt.xft_emoji_bold_fonts,
-            vt->vt.xft_emoji_italic_fonts,
-            vt->vt.xft_emoji_bold_italic_fonts,
-            vt->vt.xft_han_fonts,
-            vt->vt.xft_han_bold_fonts,
-            vt->vt.xft_han_italic_fonts,
-            vt->vt.xft_han_bold_italic_fonts,
-        };
-        size_t array;
-        int slot;
-
-        if (vt->vt.xft_draw != NULL)
-                XftDrawDestroy(vt->vt.xft_draw);
-        XtpCairoDestroy(vt->vt.cairo_draw);
-        XtpShaperDestroy(vt->vt.shaper);
-        XtpFontRouteCacheDestroy(vt->vt.font_route_cache);
-        for (array = 0; array < XtNumber(font_arrays); ++array) {
-                for (slot = 0; slot < XTP_FONT_SLOTS; ++slot) {
-                        if (font_arrays[array][slot] != NULL)
-                                XftFontClose(XtDisplay((Widget)vt), font_arrays[array][slot]);
-                }
-        }
-        for (array = 0; array < XtNumber(sets); ++array)
-                CloseFallbackSet(vt, sets[array]);
-        ResetXftUniverse(vt);
-}
-
-#define MOVE_XFT_ARRAY(member)                                                                     \
-        do {                                                                                       \
-                memcpy(destination->vt.member, source->vt.member, sizeof(destination->vt.member)); \
-                memset(source->vt.member, 0, sizeof(source->vt.member));                           \
-        } while (0)
-
-static void
-MoveXftUniverse(Vt100Rec *destination, Vt100Rec *source)
-{
-        destination->vt.use_xft = source->vt.use_xft;
-        destination->vt.emoji_presentation = source->vt.emoji_presentation;
-        destination->vt.effective_color_glyphs = source->vt.effective_color_glyphs;
-        destination->vt.effective_system_fallback = source->vt.effective_system_fallback;
-        destination->vt.effective_limit_fontsets = source->vt.effective_limit_fontsets;
-        destination->vt.effective_limit_fontheight = source->vt.effective_limit_fontheight;
-        destination->vt.effective_limit_fontwidth = source->vt.effective_limit_fontwidth;
-        MOVE_XFT_ARRAY(xft_fonts);
-        MOVE_XFT_ARRAY(xft_bold_fonts);
-        MOVE_XFT_ARRAY(xft_italic_fonts);
-        MOVE_XFT_ARRAY(xft_bold_italic_fonts);
-        MOVE_XFT_ARRAY(xft_wide_fonts);
-        MOVE_XFT_ARRAY(xft_wide_bold_fonts);
-        MOVE_XFT_ARRAY(xft_wide_italic_fonts);
-        MOVE_XFT_ARRAY(xft_wide_bold_italic_fonts);
-        MOVE_XFT_ARRAY(xft_emoji_fonts);
-        MOVE_XFT_ARRAY(xft_emoji_bold_fonts);
-        MOVE_XFT_ARRAY(xft_emoji_italic_fonts);
-        MOVE_XFT_ARRAY(xft_emoji_bold_italic_fonts);
-        MOVE_XFT_ARRAY(xft_han_fonts);
-        MOVE_XFT_ARRAY(xft_han_bold_fonts);
-        MOVE_XFT_ARRAY(xft_han_italic_fonts);
-        MOVE_XFT_ARRAY(xft_han_bold_italic_fonts);
-        destination->vt.xft_fallbacks = source->vt.xft_fallbacks;
-        destination->vt.xft_wide_fallbacks = source->vt.xft_wide_fallbacks;
-        destination->vt.xft_emoji_fallbacks = source->vt.xft_emoji_fallbacks;
-        destination->vt.xft_han_fallbacks = source->vt.xft_han_fallbacks;
-        memset(&source->vt.xft_fallbacks, 0, sizeof(source->vt.xft_fallbacks));
-        memset(&source->vt.xft_wide_fallbacks, 0, sizeof(source->vt.xft_wide_fallbacks));
-        memset(&source->vt.xft_emoji_fallbacks, 0, sizeof(source->vt.xft_emoji_fallbacks));
-        memset(&source->vt.xft_han_fallbacks, 0, sizeof(source->vt.xft_han_fallbacks));
-        MOVE_XFT_ARRAY(xft_sizes);
-        MOVE_XFT_ARRAY(xft_cell_widths);
-        destination->vt.xft_draw = source->vt.xft_draw;
-        destination->vt.cairo_draw = source->vt.cairo_draw;
-        destination->vt.shaper = source->vt.shaper;
-        destination->vt.font_route_cache = source->vt.font_route_cache;
-        destination->vt.font_generation = source->vt.font_generation;
-        source->vt.xft_draw = NULL;
-        source->vt.cairo_draw = NULL;
-        source->vt.shaper = NULL;
-        source->vt.font_route_cache = NULL;
-        memcpy(destination->vt.glyph_ink_cache, source->vt.glyph_ink_cache,
-               sizeof(destination->vt.glyph_ink_cache));
-        destination->vt.next_glyph_ink_cache = source->vt.next_glyph_ink_cache;
-        memset(source->vt.glyph_ink_cache, 0, sizeof(source->vt.glyph_ink_cache));
-        source->vt.next_glyph_ink_cache = 0;
-}
-
-#undef MOVE_XFT_ARRAY
-
-static void
-InitializeXft(Vt100Rec *vt)
-{
-        XtpFontChain face_chain = {0};
-        XtpFontChain wide_chain = {0};
-        XtpFontChain emoji_chain = {0};
-        XtpFontChain han_chain = {0};
-        XtpFontChain bold_chain = {0};
-        XtpFontChain wide_bold_chain = {0};
-        char *face;
-        char *wide_face;
-        char *emoji_face;
-        char *han_face;
-        char *bold_face;
-        char *wide_bold_face;
-        Boolean named_enabled[XTP_FALLBACK_FACE_COUNT] = {False};
-        Boolean requested = ResourceBoolean(vt->vt.render_font_name, Nonempty(vt->vt.face_name));
-        double base_size = PositiveNumber(vt->vt.face_size_names[0], 8.0);
-        double embedded_size;
-        unsigned long base_area;
-        int slot;
-
-        XtpFontRouteCacheDestroy(vt->vt.font_route_cache);
-        vt->vt.font_route_cache = XtpFontRouteCacheCreate(XTP_FONT_ROUTE_CACHE_CAPACITY);
-        ++vt->vt.font_generation;
-        if (vt->vt.font_generation == 0)
-                vt->vt.font_generation = 1;
-        if (vt->vt.font_route_cache == NULL)
-                XtpLog(XTP_LOG_WARNING, "font",
-                       "cannot allocate font routing cache; routing remains uncached");
-        vt->vt.use_xft = False;
-        vt->vt.effective_color_glyphs = vt->vt.color_glyphs;
-        vt->vt.effective_system_fallback = vt->vt.system_fallback;
-        vt->vt.effective_limit_fontsets = vt->vt.limit_fontsets;
-        /* Retained for the backend-owned DEC double-height gap (LM-04/05). */
-        vt->vt.effective_limit_fontheight = vt->vt.limit_fontheight;
-        vt->vt.effective_limit_fontwidth = vt->vt.limit_fontwidth;
-        if (vt->vt.effective_limit_fontsets < 0) {
-                XtpLog(XTP_LOG_WARNING, "font", "limiting number of fontsets to 255 (was %d)",
-                       vt->vt.effective_limit_fontsets);
-                vt->vt.effective_limit_fontsets = 255;
-        } else if (vt->vt.effective_limit_fontsets > 255) {
-                XtpLog(XTP_LOG_WARNING, "font", "limiting number of fontsets to 255 (was %d)",
-                       vt->vt.effective_limit_fontsets);
-                vt->vt.effective_limit_fontsets = 255;
-        }
-        if (vt->vt.effective_limit_fontheight > 50) {
-                XtpLog(XTP_LOG_WARNING, "font", "limiting extra fontheight percent to 50 (was %d)",
-                       vt->vt.effective_limit_fontheight);
-                vt->vt.effective_limit_fontheight = 50;
-        }
-        if (vt->vt.effective_limit_fontwidth > 50) {
-                XtpLog(XTP_LOG_WARNING, "font", "limiting extra fontwidth percent to 50 (was %d)",
-                       vt->vt.effective_limit_fontwidth);
-                vt->vt.effective_limit_fontwidth = 50;
-        }
-        if (XtpFontChainParse(vt->vt.face_name, &face_chain) != 0 ||
-            XtpFontChainParse(vt->vt.face_name_doublesize, &wide_chain) != 0 ||
-            XtpFontChainParse(vt->vt.face_name_emoji, &emoji_chain) != 0 ||
-            XtpFontChainParse(vt->vt.face_name_han, &han_chain) != 0 ||
-            XtpFontChainParseXftEntries(vt->vt.bold_font_name, &bold_chain) != 0 ||
-            XtpFontChainParseXftEntries(vt->vt.wide_bold_font_name, &wide_bold_chain) != 0) {
-                XtpLog(XTP_LOG_WARNING, "font", "cannot parse Xft slot chain");
-                goto done;
-        }
-        face = face_chain.count != 0 ? face_chain.entries[0] : NULL;
-        wide_face = wide_chain.count != 0 ? wide_chain.entries[0] : NULL;
-        emoji_face = emoji_chain.count != 0 ? emoji_chain.entries[0] : NULL;
-        han_face = han_chain.count != 0 ? han_chain.entries[0] : NULL;
-        bold_face = bold_chain.count != 0 ? bold_chain.entries[0] : NULL;
-        wide_bold_face = wide_bold_chain.count != 0 ? wide_bold_chain.entries[0] : NULL;
-        if (face_chain.discarded != 0)
-                XtpLog(XTP_LOG_WARNING, "font", "faceName discarded %zu Xft list entries after 2",
-                       face_chain.discarded);
-        if (wide_chain.discarded != 0)
-                XtpLog(XTP_LOG_WARNING, "font",
-                       "faceNameDoublesize discarded %zu Xft list entries after 2",
-                       wide_chain.discarded);
-        if (emoji_chain.discarded != 0)
-                XtpLog(XTP_LOG_WARNING, "font",
-                       "faceNameEmoji discarded %zu Xft list entries after 2",
-                       emoji_chain.discarded);
-        if (han_chain.discarded != 0)
-                XtpLog(XTP_LOG_WARNING, "font",
-                       "faceNameHan discarded %zu Xft list entries after 2", han_chain.discarded);
-        if (bold_chain.discarded != 0)
-                XtpLog(XTP_LOG_WARNING, "font", "boldFont discarded %zu Xft list entries after 2",
-                       bold_chain.discarded);
-        if (wide_bold_chain.discarded != 0)
-                XtpLog(XTP_LOG_WARNING, "font",
-                       "wideBoldFont discarded %zu Xft list entries after 2",
-                       wide_bold_chain.discarded);
-        if (TrimFaceSize(face, &embedded_size)) {
-                base_size = embedded_size > 0.0 ? embedded_size : 8.0;
-                XtpLog(XTP_LOG_DEBUG, "font", "faceName embedded size selects points=%.2f",
-                       base_size);
-        }
-        (void)TrimFaceSize(wide_face, NULL);
-        (void)TrimFaceSize(emoji_face, NULL);
-        (void)TrimFaceSize(han_face, NULL);
-        if (!Nonempty(face)) {
-                if (requested)
-                        XtpLog(XTP_LOG_WARNING, "font",
-                               "renderFont=%s ignored because faceName is empty",
-                               vt->vt.render_font_name != NULL ? vt->vt.render_font_name
-                                                               : "(null)");
-                goto done;
-        }
-
-        base_area = (unsigned long)FontWidth(vt->vt.initial_font) * FontHeight(vt->vt.initial_font);
-        if (base_area == 0)
-                base_area = 1;
-        ResolveNamedFallbackRoles(vt, base_size, named_enabled);
-        for (slot = 0; slot < XTP_FONT_SLOTS; ++slot) {
-                double size =
-                    slot == 0 ? base_size : PositiveNumber(vt->vt.face_size_names[slot], 0.0);
-
-                if (size <= 0.0) {
-                        XFontStruct *bitmap =
-                            vt->vt.fonts[slot] != NULL ? vt->vt.fonts[slot] : vt->vt.initial_font;
-                        unsigned long area = (unsigned long)FontWidth(bitmap) * FontHeight(bitmap);
-
-                        size = base_size * sqrt((double)area / (double)base_area);
-                }
-                (void)LoadXftSlot(vt, slot, face, size);
-                LoadXftBoldOverride(vt, slot, "primary", bold_face, size, vt->vt.xft_fonts[slot],
-                                    &vt->vt.xft_bold_fonts[slot]);
-                LoadXftRoleSlot(vt, slot, "doublesize", wide_face, size, vt->vt.xft_wide_fonts,
-                                vt->vt.xft_wide_bold_fonts, vt->vt.xft_wide_italic_fonts,
-                                vt->vt.xft_wide_bold_italic_fonts);
-                LoadXftBoldOverride(vt, slot, "doublesize", wide_bold_face, size,
-                                    vt->vt.xft_wide_fonts[slot], &vt->vt.xft_wide_bold_fonts[slot]);
-                LoadXftRoleSlot(vt, slot, "emoji", emoji_face, size, vt->vt.xft_emoji_fonts,
-                                vt->vt.xft_emoji_bold_fonts, vt->vt.xft_emoji_italic_fonts,
-                                vt->vt.xft_emoji_bold_italic_fonts);
-                LoadXftRoleSlot(vt, slot, "han", han_face, size, vt->vt.xft_han_fonts,
-                                vt->vt.xft_han_bold_fonts, vt->vt.xft_han_italic_fonts,
-                                vt->vt.xft_han_bold_italic_fonts);
-                LoadXftRoleFallbacks(
-                    vt, slot, "primary", face, face_chain.count > 1 ? face_chain.entries[1] : NULL,
-                    bold_face, bold_chain.count > 1 ? bold_chain.entries[1] : NULL, size,
-                    vt->vt.xft_fonts[slot], vt->vt.xft_bold_fonts[slot],
-                    vt->vt.xft_italic_fonts[slot], vt->vt.xft_bold_italic_fonts[slot],
-                    &vt->vt.xft_fallbacks, named_enabled);
-                LoadXftRoleFallbacks(
-                    vt, slot, "doublesize", wide_face,
-                    wide_chain.count > 1 ? wide_chain.entries[1] : NULL, wide_bold_face,
-                    wide_bold_chain.count > 1 ? wide_bold_chain.entries[1] : NULL, size,
-                    vt->vt.xft_wide_fonts[slot], vt->vt.xft_wide_bold_fonts[slot],
-                    vt->vt.xft_wide_italic_fonts[slot], vt->vt.xft_wide_bold_italic_fonts[slot],
-                    &vt->vt.xft_wide_fallbacks, named_enabled);
-                LoadXftRoleFallbacks(
-                    vt, slot, "emoji", emoji_face,
-                    emoji_chain.count > 1 ? emoji_chain.entries[1] : NULL, NULL, NULL, size,
-                    vt->vt.xft_emoji_fonts[slot], vt->vt.xft_emoji_bold_fonts[slot],
-                    vt->vt.xft_emoji_italic_fonts[slot], vt->vt.xft_emoji_bold_italic_fonts[slot],
-                    &vt->vt.xft_emoji_fallbacks, named_enabled);
-                LoadXftRoleFallbacks(
-                    vt, slot, "han", han_face, han_chain.count > 1 ? han_chain.entries[1] : NULL,
-                    NULL, NULL, size, vt->vt.xft_han_fonts[slot], vt->vt.xft_han_bold_fonts[slot],
-                    vt->vt.xft_han_italic_fonts[slot], vt->vt.xft_han_bold_italic_fonts[slot],
-                    &vt->vt.xft_han_fallbacks, named_enabled);
-        }
-        if (requested && vt->vt.xft_fonts[0] != NULL) {
-                vt->vt.use_xft = True;
-                vt->vt.shaper = XtpShaperCreate();
-                if (vt->vt.shaper == NULL)
-                        XtpLog(XTP_LOG_WARNING, "font", "cannot create HarfBuzz shaper");
-        }
-
-done:
-        XtpLog(XTP_LOG_INFO, "font",
-               "renderer=%s renderFont=%s faceName=%s faceNameDoublesize=%s faceNameEmoji=%s "
-               "faceNameHan=%s "
-               "faceSize=%.2f emojiPresentation=%s colorGlyphs=%s Unicode=%s",
-               vt->vt.use_xft ? "xft" : "xlib-bitmap",
-               vt->vt.render_font_name != NULL ? vt->vt.render_font_name : "(null)",
-               vt->vt.face_name != NULL ? vt->vt.face_name : "(null)",
-               vt->vt.face_name_doublesize != NULL ? vt->vt.face_name_doublesize : "(null)",
-               vt->vt.face_name_emoji != NULL ? vt->vt.face_name_emoji : "(null)",
-               vt->vt.face_name_han != NULL ? vt->vt.face_name_han : "(null)", base_size,
-               vt->vt.emoji_presentation_name != NULL ? vt->vt.emoji_presentation_name : "unicode",
-               vt->vt.color_glyphs ? "true" : "false", XtpEmojiUnicodeVersion());
-        XtpFontChainClear(&face_chain);
-        XtpFontChainClear(&wide_chain);
-        XtpFontChainClear(&emoji_chain);
-        XtpFontChainClear(&han_chain);
-        XtpFontChainClear(&bold_chain);
-        XtpFontChainClear(&wide_bold_chain);
 }
 
 static void
@@ -1702,7 +656,8 @@ LogInitialFont(Vt100Rec *vt)
                "VT100 resolved renderer=%s font=%s faceName=%s faceSize=%.2f cell=%ux%u "
                "foreground=#%02x%02x%02x background=#%02x%02x%02x cursorColor=%lu",
                vt->vt.use_xft ? "xft" : "xlib-bitmap", name != NULL ? name : "(unknown)",
-               vt->vt.face_name != NULL ? vt->vt.face_name : "(unset)", vt->vt.xft_sizes[0],
+               vt->vt.face_name != NULL ? vt->vt.face_name : "(unset)",
+               vt->vt.font_universe != NULL ? vt->vt.font_universe->sizes[0] : 0.0,
                VtSlotWidth(vt, 0), VtSlotHeight(vt, 0), foreground.red >> 8, foreground.green >> 8,
                foreground.blue >> 8, background.red >> 8, background.green >> 8,
                background.blue >> 8, vt->vt.cursor_color);
@@ -1803,12 +758,16 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
                 SwapDefaultColors(vt);
         NormalizeConfiguredColors(vt);
         vt->vt.cursor_blink_policy = ParseCursorBlinkPolicy(vt->vt.cursor_blink_name);
-        vt->vt.emoji_presentation = ParseEmojiPolicy(vt->vt.emoji_presentation_name);
+        vt->vt.font_universe = calloc(1, sizeof(*vt->vt.font_universe));
+        if (vt->vt.font_universe != NULL)
+                vt->vt.font_universe->emoji_presentation =
+                    VtFontParseEmojiPolicy(vt->vt.emoji_presentation_name);
+        else
+                XtpLog(XTP_LOG_WARNING, "font",
+                       "cannot allocate Xft font universe; using bitmap renderer");
         vt->vt.grapheme_width_unicode = ParseGraphemeWidth(vt->vt.grapheme_width_name);
-        vt->vt.font_route_cache = NULL;
         vt->vt.font_routing_report =
             vt->vt.report_font_routing != False ? XtpFontRoutingReportCreate(true) : NULL;
-        vt->vt.font_generation = 0;
         if (vt->vt.report_font_routing != False && vt->vt.font_routing_report == NULL)
                 XtpLog(XTP_LOG_WARNING, "font",
                        "cannot allocate font routing report; collection disabled");
@@ -1831,7 +790,7 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
                         (void)LoadSlot(vt, slot);
                 XtpLog(XTP_LOG_DEBUG, "font", "preloaded configured bitmap slots");
         }
-        InitializeXft(vt);
+        VtFontUniverseInitialize(vt);
         LogInitialFont(vt);
         if (vt->core.width == 0)
                 vt->core.width = XtpVtNaturalWidth(new_widget);
@@ -1860,7 +819,7 @@ Destroy(Widget widget)
                 XtRemoveTimeOut(vt->vt.cursor_blink_timer);
         VtDestroyInput(vt);
         ReleaseGc(widget);
-        CloseXftUniverse(vt);
+        VtFontUniverseClose(vt);
         XtpFontRoutingReportDestroy(vt->vt.font_routing_report);
         free(vt->vt.frame_cells);
         free(vt->vt.pending_cells);
@@ -1896,7 +855,9 @@ ResizeWidget(Widget widget)
         unsigned int rows =
             vt->core.height > vertical ? (vt->core.height - vertical) / cell_height : 1U;
 
-        XtpCairoResize(vt->vt.cairo_draw, (int)vt->core.width, (int)vt->core.height);
+        if (vt->vt.font_universe != NULL)
+                XtpCairoResize(vt->vt.font_universe->cairo, (int)vt->core.width,
+                               (int)vt->core.height);
         LayoutScrollbar(vt);
         XtpLog(XTP_LOG_DEBUG, "resize",
                "VT100 pixels=%ux%u usable=%ux%u candidate-grid=%ux%u current-grid=%dx%d "
@@ -1969,81 +930,19 @@ FontResourcesChanged(const Vt100Rec *old_vt, const Vt100Rec *new_vt)
         return False;
 }
 
-static void
-ReportRetainedPrimary(Vt100Rec *vt, const char *configured)
+void
+VtFontReloadApplied(Vt100Rec *vt)
 {
-        XftFont **styles[] = {
-            vt->vt.xft_fonts,
-            vt->vt.xft_bold_fonts,
-            vt->vt.xft_italic_fonts,
-            vt->vt.xft_bold_italic_fonts,
-        };
-        static const char *const names[] = {"normal", "bold", "italic", "bold-italic"};
-        size_t style;
-        int slot;
-
-        for (slot = 0; slot < XTP_FONT_SLOTS; ++slot) {
-                for (style = 0; style < XtNumber(styles); ++style) {
-                        XftFont *font = styles[style][slot];
-
-                        XtpFontRoutingReportLoad(vt->vt.font_routing_report, "primary", slot,
-                                                 names[style], 1, configured,
-                                                 font != NULL ? font->pattern : NULL, "retained",
-                                                 vt->vt.font_generation);
-                }
-        }
-}
-
-static Boolean
-ReloadXftUniverse(Vt100Rec *old_vt, Vt100Rec *new_vt)
-{
-        Vt100Rec candidate = *new_vt;
-        Vt100Rec previous = *new_vt;
-        XtpFontRoutingReport *build_report =
-            new_vt->vt.font_routing_report != NULL ? XtpFontRoutingReportCreate(true) : NULL;
-        Boolean requested =
-            ResourceBoolean(new_vt->vt.render_font_name, Nonempty(new_vt->vt.face_name));
         XtpFontChanged font_changed;
 
-        (void)old_vt;
-        ResetXftUniverse(&candidate);
-        candidate.vt.font_generation = new_vt->vt.font_generation;
-        candidate.vt.font_routing_report = build_report;
-        candidate.vt.emoji_presentation = ParseEmojiPolicy(candidate.vt.emoji_presentation_name);
-        InitializeXft(&candidate);
-        if (requested && candidate.vt.xft_fonts[0] == NULL) {
-                static const char cause[] = "configured faceName has no usable primary";
-
-                XtpLog(XTP_LOG_WARNING, "font", "FR-RELOADFAIL slot=primary cause=%s", cause);
-                XtpFontRoutingReportMergeBuild(new_vt->vt.font_routing_report, build_report);
-                XtpFontRoutingReportReloadFailure(new_vt->vt.font_routing_report, "primary", cause);
-                ReportRetainedPrimary(new_vt, new_vt->vt.face_name);
-                candidate.vt.font_routing_report = NULL;
-                CloseXftUniverse(&candidate);
-                XtpFontRoutingReportDestroy(build_report);
-                return False;
-        }
-
-        candidate.vt.font_routing_report = NULL;
-        MoveXftUniverse(new_vt, &candidate);
-        CloseXftUniverse(&previous);
-        XtpFontRoutingReportMergeBuild(new_vt->vt.font_routing_report, build_report);
-        XtpFontRoutingReportDestroy(build_report);
-        if (new_vt->vt.use_xft && new_vt->vt.xft_fonts[new_vt->vt.current_font] == NULL)
-                new_vt->vt.current_font = 0;
-        memset(new_vt->vt.glyph_ink_cache, 0, sizeof(new_vt->vt.glyph_ink_cache));
-        new_vt->vt.next_glyph_ink_cache = 0;
-        new_vt->vt.frame_valid = False;
-        new_vt->vt.last_cursor_visible = False;
-        ReleaseGc((Widget)new_vt);
-        CreateGc((Widget)new_vt);
-        font_changed.slot = new_vt->vt.current_font;
-        font_changed.cell_width = VtSlotWidth(new_vt, new_vt->vt.current_font);
-        font_changed.cell_height = VtSlotHeight(new_vt, new_vt->vt.current_font);
-        XtCallCallbacks((Widget)new_vt, XtNfontChangedCallback, &font_changed);
-        XtpLog(XTP_LOG_INFO, "font", "transactional reload generation=%u renderer=%s",
-               new_vt->vt.font_generation, new_vt->vt.use_xft ? "xft" : "xlib-bitmap");
-        return True;
+        vt->vt.frame_valid = False;
+        vt->vt.last_cursor_visible = False;
+        ReleaseGc((Widget)vt);
+        CreateGc((Widget)vt);
+        font_changed.slot = vt->vt.current_font;
+        font_changed.cell_width = VtSlotWidth(vt, vt->vt.current_font);
+        font_changed.cell_height = VtSlotHeight(vt, vt->vt.current_font);
+        XtCallCallbacks((Widget)vt, XtNfontChangedCallback, &font_changed);
 }
 
 static Boolean
@@ -2075,7 +974,7 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                 }
         }
         if (FontResourcesChanged(old_vt, new_vt)) {
-                if (ReloadXftUniverse(old_vt, new_vt))
+                if (VtFontUniverseReload(new_vt))
                         changed = True;
         }
         if ((old_vt->vt.background_opacity_name == NULL) !=
@@ -2119,18 +1018,6 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                 new_vt->vt.cursor_blinking = effective;
                 XtpLog(XTP_LOG_INFO, "config", "VT100 cursorBlink=%s effective=%s",
                        new_vt->vt.cursor_blink_name, effective ? "true" : "false");
-                changed = True;
-        }
-
-        if (old_vt->vt.emoji_presentation != new_vt->vt.emoji_presentation ||
-            old_vt->vt.effective_color_glyphs != new_vt->vt.effective_color_glyphs) {
-                memset(new_vt->vt.glyph_ink_cache, 0, sizeof(new_vt->vt.glyph_ink_cache));
-                new_vt->vt.next_glyph_ink_cache = 0;
-                XtpLog(XTP_LOG_INFO, "font", "emojiPresentation=%s colorGlyphs=%s",
-                       new_vt->vt.emoji_presentation_name != NULL
-                           ? new_vt->vt.emoji_presentation_name
-                           : "unicode",
-                       new_vt->vt.effective_color_glyphs ? "true" : "false");
                 changed = True;
         }
 
@@ -2207,7 +1094,7 @@ XtpVtSelectFont(Widget widget, int slot)
         if (slot < 0 || slot >= XTP_FONT_SLOTS)
                 return False;
         if (vt->vt.use_xft) {
-                if (vt->vt.xft_fonts[slot] == NULL)
+                if (!VtFontEnsureSlot(vt, slot))
                         return False;
         } else if (LoadSlot(vt, slot) == NULL) {
                 return False;
@@ -2237,7 +1124,7 @@ static void
 RelativeFont(Widget widget, int direction)
 {
         Vt100Rec *vt = VtAsRecord(widget);
-        double current_size = vt->vt.use_xft ? vt->vt.xft_sizes[vt->vt.current_font]
+        double current_size = vt->vt.use_xft ? vt->vt.font_universe->sizes[vt->vt.current_font]
                                              : (double)VtSlotWidth(vt, vt->vt.current_font) *
                                                    VtSlotHeight(vt, vt->vt.current_font);
         double best_delta = DBL_MAX;
@@ -2249,12 +1136,12 @@ RelativeFont(Widget widget, int direction)
                 double delta;
 
                 if (vt->vt.use_xft) {
-                        if (vt->vt.xft_fonts[slot] == NULL)
+                        if (!VtFontEnsureSlot(vt, slot))
                                 continue;
                 } else if (LoadSlot(vt, slot) == NULL) {
                         continue;
                 }
-                size = vt->vt.use_xft ? vt->vt.xft_sizes[slot]
+                size = vt->vt.use_xft ? vt->vt.font_universe->sizes[slot]
                                       : (double)VtSlotWidth(vt, slot) * VtSlotHeight(vt, slot);
                 if ((direction > 0 && size <= current_size) ||
                     (direction < 0 && size >= current_size))
@@ -2425,7 +1312,10 @@ static void
 ReportFontRoutingAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
 {
         Vt100Rec *vt = VtAsRecord(widget);
-        XftFont *primary = vt->vt.xft_fonts[vt->vt.current_font];
+        XtpFontUniverse *universe = vt->vt.font_universe;
+        XftFont *primary = universe != NULL ? universe->roles[XTP_FONT_ROLE_PRIMARY]
+                                                  .fonts[XTP_XFT_STYLE_NORMAL][vt->vt.current_font]
+                                            : NULL;
         double dpi = 0.0;
 
         (void)params;
@@ -2434,10 +1324,12 @@ ReportFontRoutingAction(Widget widget, XEvent *event, String *params, Cardinal *
                 return;
         if (primary != NULL && primary->pattern != NULL)
                 (void)FcPatternGetDouble(primary->pattern, FC_DPI, 0, &dpi);
-        XtpFontRoutingReportSnapshot(
-            vt->vt.font_routing_report, vt->vt.font_generation, dpi,
-            vt->vt.effective_limit_fontsets, vt->vt.effective_limit_fontheight,
-            vt->vt.effective_limit_fontwidth, vt->vt.effective_system_fallback != False);
+        XtpFontRoutingReportSnapshot(vt->vt.font_routing_report,
+                                     universe != NULL ? universe->generation : 0, dpi,
+                                     universe != NULL ? universe->limit_fontsets : 0,
+                                     universe != NULL ? universe->limit_fontheight : 0,
+                                     universe != NULL ? universe->limit_fontwidth : 0,
+                                     universe != NULL && universe->system_fallback != False);
 }
 
 static void
@@ -2499,13 +1391,16 @@ XtpVtFontSlotInfo(Widget widget, int slot, XtpFontSlotInfo *info)
         Vt100Rec *vt = VtAsRecord(widget);
         if (info == NULL || slot < 0 || slot >= XTP_FONT_SLOTS)
                 return False;
-        if (vt->vt.use_xft)
-                info->loaded = vt->vt.xft_fonts[slot] != NULL;
-        else
+        if (vt->vt.use_xft) {
+                (void)VtFontEnsureSlot(vt, slot);
+                info->loaded = vt->vt.font_universe->roles[XTP_FONT_ROLE_PRIMARY]
+                                   .fonts[XTP_XFT_STYLE_NORMAL][slot] != NULL;
+        } else {
                 info->loaded = vt->vt.fonts[slot] != NULL;
+        }
         info->cell_width = info->loaded ? VtSlotWidth(vt, slot) : 0;
         info->cell_height = info->loaded ? VtSlotHeight(vt, slot) : 0;
-        info->point_size = vt->vt.use_xft && info->loaded ? vt->vt.xft_sizes[slot] : 0.0;
+        info->point_size = vt->vt.use_xft && info->loaded ? vt->vt.font_universe->sizes[slot] : 0.0;
         return True;
 }
 
@@ -2524,13 +1419,19 @@ XtpVtUsingXft(Widget widget)
 Boolean
 XtpVtXftAvailable(Widget widget)
 {
-        return VtAsRecord(widget)->vt.xft_fonts[0] != NULL;
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        return vt->vt.font_universe != NULL &&
+               vt->vt.font_universe->roles[XTP_FONT_ROLE_PRIMARY].fonts[XTP_XFT_STYLE_NORMAL][0] !=
+                   NULL;
 }
 
 uint32_t
 XtpVtFontGeneration(Widget widget)
 {
-        return VtAsRecord(widget)->vt.font_generation;
+        XtpFontUniverse *universe = VtAsRecord(widget)->vt.font_universe;
+
+        return universe != NULL ? universe->generation : 0;
 }
 
 Boolean
@@ -2585,8 +1486,8 @@ XtpVtSetRenderFont(Widget widget, Boolean enabled)
         if (enabled == vt->vt.use_xft)
                 return True;
         if (enabled) {
-                if (vt->vt.xft_fonts[vt->vt.current_font] == NULL) {
-                        if (vt->vt.xft_fonts[0] == NULL)
+                if (!VtFontEnsureSlot(vt, vt->vt.current_font)) {
+                        if (!VtFontEnsureSlot(vt, 0))
                                 return False;
                         vt->vt.current_font = 0;
                 }

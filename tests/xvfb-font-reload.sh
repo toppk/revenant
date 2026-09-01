@@ -40,7 +40,18 @@ if not retained or any(record.get("configured") != "" for record in retained):
     raise SystemExit("font reload report lacks configured/effective retained records")
 if any(record.get("limits", {}).get("systemfallback") is not True for record in retained):
     raise SystemExit("failed reload changed the effective systemFallback policy")
+active_slot = [
+    record
+    for record in records
+    if record.get("type") == "load"
+    and record.get("status") == "active"
+    and record.get("slot") == "primary"
+    and record.get("fontslot") == 1
+    and record.get("generation") == 2
+]
+if len(active_slot) != 4:
+    raise SystemExit(f"reloaded nonzero slot records were lost: {active_slot!r}")
 snapshots = [record for record in records if record.get("type") == "snapshot"]
-if len(snapshots) != 1 or snapshots[0].get("generation") != 2:
+if len(snapshots) != 2 or any(record.get("generation") != 2 for record in snapshots):
     raise SystemExit(f"unexpected font reload snapshot: {snapshots!r}")
 PY
