@@ -3,6 +3,7 @@
 #include "diagnostics.h"
 #include "font_chain.h"
 #include "font_metrics.h"
+#include "font_role.h"
 
 #include <X11/Shell.h>
 #include <X11/StringDefs.h>
@@ -793,24 +794,6 @@ LoadSlot(Vt100Rec *vt, int slot)
         return vt->vt.fonts[slot];
 }
 
-static unsigned int
-XftStyleIndex(Boolean bold, Boolean italic)
-{
-        return (bold ? 1U : 0U) | (italic ? 2U : 0U);
-}
-
-static const char *
-XftStyleName(Boolean bold, Boolean italic)
-{
-        if (bold && italic)
-                return "bold-italic";
-        if (bold)
-                return "bold";
-        if (italic)
-                return "italic";
-        return "normal";
-}
-
 static void
 LogXftResolved(Vt100Rec *vt, const char *role, int slot, const char *style, int entry,
                const char *request, XftFont *font)
@@ -972,26 +955,6 @@ OpenNormalizedXftFont(Vt100Rec *vt, const char *face, double size, Boolean bold,
                                           scale_out);
 }
 
-static const char *
-XftPatternFamily(const FcPattern *pattern)
-{
-        FcChar8 *family = NULL;
-
-        if (pattern == NULL || FcPatternGetString(pattern, FC_FAMILY, 0, &family) != FcResultMatch)
-                return "(unknown)";
-        return (const char *)family;
-}
-
-static Boolean
-SameXftFamily(const FcPattern *left, const FcPattern *right)
-{
-        const char *left_family = XftPatternFamily(left);
-        const char *right_family = XftPatternFamily(right);
-
-        return strcmp(left_family, "(unknown)") != 0 && strcmp(right_family, "(unknown)") != 0 &&
-               FcStrCmpIgnoreCase((const FcChar8 *)left_family, (const FcChar8 *)right_family) == 0;
-}
-
 static void
 LoadXftBoldOverride(Vt100Rec *vt, int slot, const char *role, const char *face, double size,
                     XftFont *normal, XftFont **bold_font)
@@ -1010,13 +973,13 @@ LoadXftBoldOverride(Vt100Rec *vt, int slot, const char *role, const char *face, 
                 XftFontClose(XtDisplay((Widget)vt), *bold_font);
         *bold_font = font;
         LogXftResolved(vt, role, slot, "bold", 1, face, font);
-        if (!SameXftFamily(normal->pattern, font->pattern)) {
+        if (!XtpFontSameFamily(normal->pattern, font->pattern)) {
                 XtpLog(XTP_LOG_WARNING, "font",
                        "FR-STYLEFAMILY slot=%s style=bold roleFamily=%s resolvedFamily=%s", role,
-                       XftPatternFamily(normal->pattern), XftPatternFamily(font->pattern));
+                       XtpFontPatternFamily(normal->pattern), XtpFontPatternFamily(font->pattern));
                 XtpFontRoutingReportStyleFamily(vt->vt.font_routing_report, role, "bold",
-                                                XftPatternFamily(normal->pattern),
-                                                XftPatternFamily(font->pattern));
+                                                XtpFontPatternFamily(normal->pattern),
+                                                XtpFontPatternFamily(font->pattern));
         }
 }
 
@@ -1265,7 +1228,7 @@ LoadXftFallbacks(Vt100Rec *vt, int slot, const char *role, const char *face,
                  XftFont *primary, XtpXftFallbackSet *fallbacks,
                  const Boolean named_enabled[XTP_FALLBACK_FACE_COUNT])
 {
-        unsigned int style = XftStyleIndex(bold, italic);
+        unsigned int style = XtpFontStyleIndex(bold, italic);
         FcPattern *request;
         FcFontSet *set;
         FcResult result;
@@ -1284,7 +1247,7 @@ LoadXftFallbacks(Vt100Rec *vt, int slot, const char *role, const char *face,
                                "queued Xft explicit fallback role=%s slot=%d style=%u face=%s",
                                role, slot, style, explicit_face);
                         XtpFontRoutingReportLoad(vt->vt.font_routing_report, role, slot,
-                                                 XftStyleName(bold, italic), 2, explicit_face,
+                                                 XtpFontStyleName(bold, italic), 2, explicit_face,
                                                  fallbacks->candidates[slot][style][before].pattern,
                                                  "active", vt->vt.font_generation);
                 }

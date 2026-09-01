@@ -1,6 +1,7 @@
 #include "vt_widgetP.h"
 
 #include "font_metrics.h"
+#include "font_role.h"
 
 #include "diagnostics.h"
 #include "emoji_presentation.h"
@@ -262,115 +263,6 @@ EnsureCairoDraw(Vt100Rec *vt)
                 return False;
         }
         return True;
-}
-
-static XftFont *
-RoleFont(XftFont *normal, XftFont *bold_font, XftFont *italic_font, XftFont *bold_italic_font,
-         Boolean bold, Boolean italic)
-{
-        if (bold && italic && bold_italic_font != NULL)
-                return bold_italic_font;
-        if (italic && italic_font != NULL)
-                return italic_font;
-        if (bold && bold_font != NULL)
-                return bold_font;
-        return normal;
-}
-
-static Boolean
-SameFontFamily(const FcPattern *left, const FcPattern *right)
-{
-        FcChar8 *left_family = NULL;
-        FcChar8 *right_family = NULL;
-
-        if (left == NULL || right == NULL ||
-            FcPatternGetString(left, FC_FAMILY, 0, &left_family) != FcResultMatch ||
-            FcPatternGetString(right, FC_FAMILY, 0, &right_family) != FcResultMatch)
-                return False;
-        return FcStrCmpIgnoreCase(left_family, right_family) == 0;
-}
-
-static Boolean
-FontStyleIsReal(XftFont *normal, XftFont *font, Boolean bold, Boolean italic)
-{
-        FcBool embolden = FcFalse;
-        FcMatrix *matrix = NULL;
-        int weight = FC_WEIGHT_REGULAR;
-        int slant = FC_SLANT_ROMAN;
-
-        if (normal == NULL || font == NULL || normal->pattern == NULL || font->pattern == NULL ||
-            !SameFontFamily(normal->pattern, font->pattern))
-                return False;
-        if (FcPatternGetBool(font->pattern, FC_EMBOLDEN, 0, &embolden) == FcResultMatch && embolden)
-                return False;
-        if (FcPatternGetMatrix(font->pattern, FC_MATRIX, 0, &matrix) == FcResultMatch &&
-            matrix != NULL &&
-            (matrix->xx != 1.0 || matrix->xy != 0.0 || matrix->yx != 0.0 || matrix->yy != 1.0))
-                return False;
-        if (bold && (FcPatternGetInteger(font->pattern, FC_WEIGHT, 0, &weight) != FcResultMatch ||
-                     weight < FC_WEIGHT_DEMIBOLD))
-                return False;
-        if (italic && (FcPatternGetInteger(font->pattern, FC_SLANT, 0, &slant) != FcResultMatch ||
-                       slant == FC_SLANT_ROMAN))
-                return False;
-        return True;
-}
-
-static unsigned int
-FontStyleIndex(Boolean bold, Boolean italic)
-{
-        return (bold ? 1U : 0U) | (italic ? 2U : 0U);
-}
-
-static const char *
-FontSlantName(XftFont *font)
-{
-        int slant = FC_SLANT_ROMAN;
-
-        if (font == NULL || font->pattern == NULL ||
-            FcPatternGetInteger(font->pattern, FC_SLANT, 0, &slant) != FcResultMatch)
-                return "unknown";
-        if (slant >= FC_SLANT_OBLIQUE)
-                return "oblique";
-        if (slant >= FC_SLANT_ITALIC)
-                return "italic";
-        return "roman";
-}
-
-static const char *
-FontFileName(XftFont *font)
-{
-        FcChar8 *file = NULL;
-
-        if (font == NULL || font->pattern == NULL ||
-            FcPatternGetString(font->pattern, FC_FILE, 0, &file) != FcResultMatch)
-                return "(unknown)";
-        return (const char *)file;
-}
-
-static int
-FontCollectionIndex(XftFont *font)
-{
-        int index = 0;
-
-        if (font != NULL && font->pattern != NULL)
-                (void)FcPatternGetInteger(font->pattern, FC_INDEX, 0, &index);
-        return index;
-}
-
-static Boolean
-GlyphRunIsPositioned(const XtpGlyphRun *run)
-{
-        unsigned int index;
-
-        if (run == NULL)
-                return False;
-        for (index = 0; index < run->count; ++index) {
-                if (run->glyphs[index].x_offset != 0 || run->glyphs[index].y_offset != 0 ||
-                    run->glyphs[index].y_advance != 0 || run->glyphs[index].x_advance == 0)
-                        return True;
-        }
-        return False;
 }
 
 static Boolean
@@ -638,8 +530,8 @@ RoleFontWithCluster(Vt100Rec *vt, XftFont *normal, XftFont *bold_font, XftFont *
         if (!FontHasCluster(vt, normal, text, length, width, color_glyphs, requires_composition,
                             &normal_run, miss_out))
                 return NULL;
-        font = RoleFont(normal, bold_font, italic_font, bold_italic_font, bold, italic);
-        if ((bold || italic) && font != normal && FontStyleIsReal(normal, font, bold, italic) &&
+        font = XtpFontRoleSelect(normal, bold_font, italic_font, bold_italic_font, bold, italic);
+        if ((bold || italic) && font != normal && XtpFontStyleIsReal(normal, font, bold, italic) &&
             FontHasCluster(vt, font, text, length, width, color_glyphs, requires_composition, run,
                            NULL))
                 return font;
@@ -668,7 +560,7 @@ FallbackStyleWithCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot, X
                          unsigned int width, Boolean color_glyphs, Boolean requires_composition,
                          XtpGlyphRun *run)
 {
-        unsigned int style = FontStyleIndex(bold, italic);
+        unsigned int style = XtpFontStyleIndex(bold, italic);
         uint8_t index;
 
         if (style == 0 || normal == NULL)
@@ -677,10 +569,10 @@ FallbackStyleWithCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot, X
                 XtpXftFallbackCandidate *candidate = &fallbacks->candidates[slot][style][index];
                 XftFont *font;
 
-                if (!SameFontFamily(normal->pattern, candidate->pattern))
+                if (!XtpFontSameFamily(normal->pattern, candidate->pattern))
                         continue;
                 font = OpenFallbackCandidate(vt, candidate, slot);
-                if (FontStyleIsReal(normal, font, bold, italic) &&
+                if (XtpFontStyleIsReal(normal, font, bold, italic) &&
                     FontHasCluster(vt, font, text, length, width, color_glyphs,
                                    requires_composition, run, NULL))
                         return font;
@@ -892,23 +784,24 @@ FontRouteStyle(Vt100Rec *vt, XtpFontRouteKind kind, XftFont *normal, int slot, B
         }
         switch (kind) {
         case XTP_FONT_ROUTE_PRIMARY:
-                font = RoleFont(normal, vt->vt.xft_bold_fonts[slot], vt->vt.xft_italic_fonts[slot],
-                                vt->vt.xft_bold_italic_fonts[slot], bold, italic);
+                font = XtpFontRoleSelect(normal, vt->vt.xft_bold_fonts[slot],
+                                         vt->vt.xft_italic_fonts[slot],
+                                         vt->vt.xft_bold_italic_fonts[slot], bold, italic);
                 break;
         case XTP_FONT_ROUTE_WIDE:
-                font = RoleFont(normal, vt->vt.xft_wide_bold_fonts[slot],
-                                vt->vt.xft_wide_italic_fonts[slot],
-                                vt->vt.xft_wide_bold_italic_fonts[slot], bold, italic);
+                font = XtpFontRoleSelect(normal, vt->vt.xft_wide_bold_fonts[slot],
+                                         vt->vt.xft_wide_italic_fonts[slot],
+                                         vt->vt.xft_wide_bold_italic_fonts[slot], bold, italic);
                 break;
         case XTP_FONT_ROUTE_EMOJI:
-                font = RoleFont(normal, vt->vt.xft_emoji_bold_fonts[slot],
-                                vt->vt.xft_emoji_italic_fonts[slot],
-                                vt->vt.xft_emoji_bold_italic_fonts[slot], bold, italic);
+                font = XtpFontRoleSelect(normal, vt->vt.xft_emoji_bold_fonts[slot],
+                                         vt->vt.xft_emoji_italic_fonts[slot],
+                                         vt->vt.xft_emoji_bold_italic_fonts[slot], bold, italic);
                 break;
         case XTP_FONT_ROUTE_HAN:
-                font = RoleFont(normal, vt->vt.xft_han_bold_fonts[slot],
-                                vt->vt.xft_han_italic_fonts[slot],
-                                vt->vt.xft_han_bold_italic_fonts[slot], bold, italic);
+                font = XtpFontRoleSelect(normal, vt->vt.xft_han_bold_fonts[slot],
+                                         vt->vt.xft_han_italic_fonts[slot],
+                                         vt->vt.xft_han_bold_italic_fonts[slot], bold, italic);
                 break;
         case XTP_FONT_ROUTE_PRIMARY_FALLBACK:
         case XTP_FONT_ROUTE_WIDE_FALLBACK:
@@ -917,7 +810,7 @@ FontRouteStyle(Vt100Rec *vt, XtpFontRouteKind kind, XftFont *normal, int slot, B
         case XTP_FONT_ROUTE_TOFU:
                 return normal;
         }
-        if (font != normal && FontStyleIsReal(normal, font, bold, italic) &&
+        if (font != normal && XtpFontStyleIsReal(normal, font, bold, italic) &&
             FontHasCluster(vt, font, text, length, width, color_glyphs, requires_composition, run,
                            NULL))
                 return font;
@@ -926,18 +819,6 @@ FontRouteStyle(Vt100Rec *vt, XtpFontRouteKind kind, XftFont *normal, int slot, B
         if (style_fallback_out != NULL)
                 *style_fallback_out = True;
         return normal;
-}
-
-static const char *
-RequestedStyleName(Boolean bold, Boolean italic)
-{
-        if (bold && italic)
-                return "bold-italic";
-        if (bold)
-                return "bold";
-        if (italic)
-                return "italic";
-        return "normal";
 }
 
 static Boolean
@@ -980,11 +861,11 @@ FinishFontRoute(Vt100Rec *vt, const XtpFontRouteKey *key, Boolean cacheable, Xtp
         if (cacheable) {
                 (void)XtpFontRouteCacheStore(vt->vt.font_route_cache, key, value);
                 XtpFontRoutingReportRoute(vt->vt.font_routing_report, key, value, normal->pattern,
-                                          trace, RequestedStyleName(bold, italic),
+                                          trace, XtpFontStyleName(bold, italic),
                                           style_fallback != False);
         } else if (style_fallback)
                 XtpFontRoutingReportStyleFallback(vt->vt.font_routing_report, key,
-                                                  RequestedStyleName(bold, italic));
+                                                  XtpFontStyleName(bold, italic));
         return font;
 }
 
@@ -1434,11 +1315,11 @@ DrawTextClipped(Vt100Rec *vt, Pixel pixel, int x, int baseline, const char *text
                 XftFont *font = selected_font;
 
                 if (font == NULL)
-                        font = RoleFont(vt->vt.xft_fonts[vt->vt.current_font],
-                                        vt->vt.xft_bold_fonts[vt->vt.current_font],
-                                        vt->vt.xft_italic_fonts[vt->vt.current_font],
-                                        vt->vt.xft_bold_italic_fonts[vt->vt.current_font], bold,
-                                        italic);
+                        font = XtpFontRoleSelect(vt->vt.xft_fonts[vt->vt.current_font],
+                                                 vt->vt.xft_bold_fonts[vt->vt.current_font],
+                                                 vt->vt.xft_italic_fonts[vt->vt.current_font],
+                                                 vt->vt.xft_bold_italic_fonts[vt->vt.current_font],
+                                                 bold, italic);
                 PaintShapedText(vt, font, pixel, &color, run, text, length, color_glyphs, x,
                                 baseline, area, effective_clip);
         } else {
@@ -1499,11 +1380,11 @@ PaintVisualRun(Vt100Rec *vt, const VisualCell *style, const XRectangle *area, in
                 XftFont *font = selected_font;
 
                 if (font == NULL && (run == NULL || !run->missing))
-                        font = RoleFont(vt->vt.xft_fonts[vt->vt.current_font],
-                                        vt->vt.xft_bold_fonts[vt->vt.current_font],
-                                        vt->vt.xft_italic_fonts[vt->vt.current_font],
-                                        vt->vt.xft_bold_italic_fonts[vt->vt.current_font],
-                                        style->bold, style->italic);
+                        font = XtpFontRoleSelect(vt->vt.xft_fonts[vt->vt.current_font],
+                                                 vt->vt.xft_bold_fonts[vt->vt.current_font],
+                                                 vt->vt.xft_italic_fonts[vt->vt.current_font],
+                                                 vt->vt.xft_bold_italic_fonts[vt->vt.current_font],
+                                                 style->bold, style->italic);
                 XRenderFillRectangle(XtDisplay(widget), PictOpSrc, XftDrawPicture(vt->vt.xft_draw),
                                      &background.color, area->x, area->y, area->width,
                                      area->height);
@@ -1586,9 +1467,10 @@ DrawVisualCell(Vt100Rec *vt, const VisualCell *cell, unsigned int column, unsign
                                style == XTP_EMOJI_STYLE_EMOJI
                                    ? "emoji"
                                    : (style == XTP_EMOJI_STYLE_TEXT ? "text" : "none"),
-                               role, run.count, FontFileName(font), FontCollectionIndex(font),
+                               role, run.count, XtpFontFileName(font), XtpFontCollectionIndex(font),
                                cell->bold ? "true" : "false", cell->italic ? "true" : "false",
-                               FontSlantName(font), GlyphRunIsPositioned(&run) ? "true" : "false");
+                               XtpFontSlantName(font),
+                               XtpGlyphRunIsPositioned(&run) ? "true" : "false");
         }
         DrawDecorations(vt, cell, &area);
 }
@@ -1732,9 +1614,9 @@ DrawVisualTextGroup(Vt100Rec *vt, unsigned int row, unsigned int column, unsigne
         XtpLog(XTP_LOG_DEBUG, "font",
                "route base=U+%04X width=%u presentation=none role=%s glyphs=%u "
                "file=%s index=%d bold=%s italic=%s slant=%s positioned=%s clusters=%u",
-               base, columns, role, run.count, FontFileName(font), FontCollectionIndex(font),
+               base, columns, role, run.count, XtpFontFileName(font), XtpFontCollectionIndex(font),
                first->bold ? "true" : "false", first->italic ? "true" : "false",
-               FontSlantName(font), GlyphRunIsPositioned(&run) ? "true" : "false", clusters);
+               XtpFontSlantName(font), XtpGlyphRunIsPositioned(&run) ? "true" : "false", clusters);
         return next;
 }
 
@@ -1765,12 +1647,13 @@ DrawVisualRowRange(Vt100Rec *vt, unsigned int row, unsigned int first_column,
                 const VisualCell *first =
                     &vt->vt.frame_cells[(size_t)row * vt->vt.frame_columns + column];
                 XftFont *first_font =
-                    vt->vt.use_xft ? RoleFont(vt->vt.xft_fonts[vt->vt.current_font],
-                                              vt->vt.xft_bold_fonts[vt->vt.current_font],
-                                              vt->vt.xft_italic_fonts[vt->vt.current_font],
-                                              vt->vt.xft_bold_italic_fonts[vt->vt.current_font],
-                                              first->bold, first->italic)
-                                   : NULL;
+                    vt->vt.use_xft
+                        ? XtpFontRoleSelect(vt->vt.xft_fonts[vt->vt.current_font],
+                                            vt->vt.xft_bold_fonts[vt->vt.current_font],
+                                            vt->vt.xft_italic_fonts[vt->vt.current_font],
+                                            vt->vt.xft_bold_italic_fonts[vt->vt.current_font],
+                                            first->bold, first->italic)
+                        : NULL;
 
                 if (first->width == 0) {
                         ++column;
