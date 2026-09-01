@@ -370,6 +370,18 @@ xprop = find_program('xprop', required: xvfb_tests_option)
 xrdb = find_program('xrdb', required: xvfb_tests_option)
 if build_with_ghostty and xvfb.found()
     test(
+        'xvfb-report-config',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-report-config.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
         'xvfb-opacity',
         find_program('sh'),
         args: [

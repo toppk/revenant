@@ -470,19 +470,6 @@ XtpFontRoutingReportRoute(XtpFontRoutingReport *report, const XtpFontRouteKey *k
                 AddUvsWarning(report, record->atom);
 }
 
-static bool
-RouteKeysEqual(const XtpFontRouteKey *left, const XtpFontRouteKey *right)
-{
-        return left->text_length == right->text_length && left->width == right->width &&
-               left->presentation == right->presentation &&
-               left->presentation_policy == right->presentation_policy &&
-               left->slot == right->slot && left->capturing_slot == right->capturing_slot &&
-               left->color_glyphs == right->color_glyphs &&
-               left->system_fallback == right->system_fallback &&
-               left->generation == right->generation &&
-               memcmp(left->text, right->text, left->text_length) == 0;
-}
-
 void
 XtpFontRoutingReportStyleFallback(XtpFontRoutingReport *report, const XtpFontRouteKey *key,
                                   const char *requested_style)
@@ -494,7 +481,7 @@ XtpFontRoutingReportStyleFallback(XtpFontRoutingReport *report, const XtpFontRou
         for (index = 0; index < report->route_count; ++index) {
                 RouteRecord *record = &report->routes[index];
 
-                if (!RouteKeysEqual(&record->key, key))
+                if (!XtpFontRouteKeysEqual(&record->key, key))
                         continue;
                 record->style_fallback = true;
                 CopyText(record->requested_style, sizeof(record->requested_style), requested_style);

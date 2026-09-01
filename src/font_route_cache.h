@@ -56,6 +56,7 @@ typedef struct XtpFontRouteCache XtpFontRouteCache;
 
 XtpFontRouteCache *XtpFontRouteCacheCreate(size_t capacity);
 void XtpFontRouteCacheDestroy(XtpFontRouteCache *cache);
+bool XtpFontRouteKeysEqual(const XtpFontRouteKey *left, const XtpFontRouteKey *right);
 bool XtpFontRouteCacheLookup(XtpFontRouteCache *cache, const XtpFontRouteKey *key,
                              XtpFontRouteValue *value);
 bool XtpFontRouteCacheStore(XtpFontRouteCache *cache, const XtpFontRouteKey *key,

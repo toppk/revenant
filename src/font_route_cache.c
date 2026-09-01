@@ -55,9 +55,11 @@ HashKey(const XtpFontRouteKey *key)
         return HashBytes(hash, &key->generation, sizeof(key->generation));
 }
 
-static bool
-KeysEqual(const XtpFontRouteKey *left, const XtpFontRouteKey *right)
+bool
+XtpFontRouteKeysEqual(const XtpFontRouteKey *left, const XtpFontRouteKey *right)
 {
+        if (left == NULL || right == NULL)
+                return false;
         return left->text_length == right->text_length && left->width == right->width &&
                left->presentation == right->presentation &&
                left->presentation_policy == right->presentation_policy &&
@@ -178,7 +180,7 @@ XtpFontRouteCacheLookup(XtpFontRouteCache *cache, const XtpFontRouteKey *key,
         while (index >= 0) {
                 XtpFontRouteCacheEntry *entry = &cache->entries[index];
 
-                if (entry->hash == hash && KeysEqual(&entry->key, key)) {
+                if (entry->hash == hash && XtpFontRouteKeysEqual(&entry->key, key)) {
                         if (value != NULL)
                                 *value = entry->value;
                         Touch(cache, index);
@@ -205,7 +207,7 @@ XtpFontRouteCacheStore(XtpFontRouteCache *cache, const XtpFontRouteKey *key,
         while (index >= 0) {
                 XtpFontRouteCacheEntry *entry = &cache->entries[index];
 
-                if (entry->hash == hash && KeysEqual(&entry->key, key)) {
+                if (entry->hash == hash && XtpFontRouteKeysEqual(&entry->key, key)) {
                         entry->value = value;
                         Touch(cache, index);
                         return true;

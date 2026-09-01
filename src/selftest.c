@@ -311,7 +311,9 @@ SelfTestFontRouteCache(void)
                                    (void *)(uintptr_t)1U};
         XtpFontRouteValue found = {0};
 
-        if (cache == NULL || !XtpFontRouteCacheStore(cache, &first, value) ||
+        if (cache == NULL || !XtpFontRouteKeysEqual(&first, &first) ||
+            XtpFontRouteKeysEqual(&first, &second) || XtpFontRouteKeysEqual(NULL, &first) ||
+            XtpFontRouteKeysEqual(&first, NULL) || !XtpFontRouteCacheStore(cache, &first, value) ||
             !XtpFontRouteCacheStore(cache, &second, value) || XtpFontRouteCacheCount(cache) != 2U ||
             !XtpFontRouteCacheLookup(cache, &first, &found) ||
             found.kind != XTP_FONT_ROUTE_PRIMARY || found.normal_font != value.normal_font) {
@@ -323,7 +325,8 @@ SelfTestFontRouteCache(void)
         do {                                                                                       \
                 changed = first;                                                                   \
                 changed.field = (replacement);                                                     \
-                if (XtpFontRouteCacheLookup(cache, &changed, NULL)) {                              \
+                if (XtpFontRouteKeysEqual(&first, &changed) ||                                     \
+                    XtpFontRouteCacheLookup(cache, &changed, NULL)) {                              \
                         XtpFontRouteCacheDestroy(cache);                                           \
                         return -1;                                                                 \
                 }                                                                                  \
