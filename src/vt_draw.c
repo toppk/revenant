@@ -266,49 +266,6 @@ EnsureCairoDraw(Vt100Rec *vt)
 }
 
 static Boolean
-DecodeCodepoint(const char *text, size_t length, uint32_t *codepoint, size_t *consumed)
-{
-        const unsigned char *bytes = (const unsigned char *)text;
-        uint32_t value;
-        size_t need;
-        size_t index;
-
-        if (text == NULL || length == 0 || codepoint == NULL || consumed == NULL)
-                return False;
-        if (bytes[0] < 0x80U) {
-                *codepoint = bytes[0];
-                *consumed = 1;
-                return True;
-        }
-        if ((bytes[0] & 0xe0U) == 0xc0U) {
-                value = bytes[0] & 0x1fU;
-                need = 2;
-        } else if ((bytes[0] & 0xf0U) == 0xe0U) {
-                value = bytes[0] & 0x0fU;
-                need = 3;
-        } else if ((bytes[0] & 0xf8U) == 0xf0U) {
-                value = bytes[0] & 0x07U;
-                need = 4;
-        } else {
-                return False;
-        }
-        if (need > length)
-                return False;
-        for (index = 1; index < need; ++index) {
-                if ((bytes[index] & 0xc0U) != 0x80U)
-                        return False;
-                value = (value << 6) | (bytes[index] & 0x3fU);
-        }
-        if ((need == 2 && value < 0x80U) || (need == 3 && value < 0x800U) ||
-            (need == 4 && value < 0x10000U) || value > 0x10ffffU ||
-            (value >= 0xd800U && value <= 0xdfffU))
-                return False;
-        *codepoint = value;
-        *consumed = need;
-        return True;
-}
-
-static Boolean
 ExactHanVariationSupported(XftFont *font, const char *text, size_t length)
 {
         uint32_t base;
@@ -318,13 +275,13 @@ ExactHanVariationSupported(XftFont *font, const char *text, size_t length)
         FT_Face face;
         FT_UInt glyph;
 
-        if (!DecodeCodepoint(text, length, &base, &consumed) || !XtpUnicodeScriptHan(base))
+        if (!XtpUtf8Decode(text, length, &base, &consumed) || !XtpUnicodeScriptHan(base))
                 return True;
         offset = consumed;
         while (offset < length) {
                 uint32_t codepoint;
 
-                if (!DecodeCodepoint(text + offset, length - offset, &codepoint, &consumed))
+                if (!XtpUtf8Decode(text + offset, length - offset, &codepoint, &consumed))
                         return False;
                 if ((codepoint >= 0xfe00U && codepoint <= 0xfe0fU) ||
                     (codepoint >= 0xe0100U && codepoint <= 0xe01efU)) {
@@ -344,43 +301,6 @@ ExactHanVariationSupported(XftFont *font, const char *text, size_t length)
 }
 
 static Boolean
-CodepointIsBlank(uint32_t codepoint)
-{
-        return codepoint <= 0x20U || (codepoint >= 0x7fU && codepoint <= 0xa0U) ||
-               codepoint == 0x00adU || codepoint == 0x034fU || codepoint == 0x061cU ||
-               codepoint == 0x1680U || (codepoint >= 0x115fU && codepoint <= 0x1160U) ||
-               (codepoint >= 0x17b4U && codepoint <= 0x17b5U) ||
-               (codepoint >= 0x180bU && codepoint <= 0x180fU) ||
-               (codepoint >= 0x2000U && codepoint <= 0x200fU) ||
-               (codepoint >= 0x2028U && codepoint <= 0x202fU) ||
-               (codepoint >= 0x205fU && codepoint <= 0x206fU) || codepoint == 0x3000U ||
-               codepoint == 0x3164U || (codepoint >= 0xfe00U && codepoint <= 0xfe0fU) ||
-               codepoint == 0xfeffU || codepoint == 0xffa0U ||
-               (codepoint >= 0xfff0U && codepoint <= 0xfff8U) ||
-               (codepoint >= 0x1bca0U && codepoint <= 0x1bca3U) ||
-               (codepoint >= 0x1d173U && codepoint <= 0x1d17aU) ||
-               (codepoint >= 0xe0000U && codepoint <= 0xe0fffU);
-}
-
-static Boolean
-ClusterRequiresInk(const char *text, size_t length)
-{
-        size_t offset = 0;
-
-        while (offset < length) {
-                uint32_t codepoint;
-                size_t consumed;
-
-                if (!DecodeCodepoint(text + offset, length - offset, &codepoint, &consumed))
-                        return True;
-                if (!CodepointIsBlank(codepoint))
-                        return True;
-                offset += consumed;
-        }
-        return False;
-}
-
-static Boolean
 ResourceIsSet(const char *value)
 {
         return value != NULL && value[0] != '\0';
@@ -390,7 +310,7 @@ static XftFont *
 FinishMissingCluster(Vt100Rec *vt, XftFont *blank_font, const char *text, size_t length,
                      const char **role_name, XtpGlyphRun *run)
 {
-        if (ClusterRequiresInk(text, length)) {
+        if (XtpUnicodeClusterRequiresInk(text, length)) {
                 if (role_name != NULL)
                         *role_name = "tofu";
                 if (run != NULL) {
@@ -402,24 +322,6 @@ FinishMissingCluster(Vt100Rec *vt, XftFont *blank_font, const char *text, size_t
         if (run != NULL && blank_font != NULL)
                 (void)XtpShapeUtf8(vt->vt.shaper, blank_font, text, length, run);
         return blank_font;
-}
-
-static Boolean
-SequenceControl(uint32_t codepoint)
-{
-        return codepoint == 0x00adU || codepoint == 0x034fU || codepoint == 0x061cU ||
-               (codepoint >= 0x115fU && codepoint <= 0x1160U) ||
-               (codepoint >= 0x17b4U && codepoint <= 0x17b5U) ||
-               (codepoint >= 0x180bU && codepoint <= 0x180fU) ||
-               (codepoint >= 0x200bU && codepoint <= 0x200fU) ||
-               (codepoint >= 0x202aU && codepoint <= 0x202eU) ||
-               (codepoint >= 0x2060U && codepoint <= 0x206fU) || codepoint == 0x3164U ||
-               (codepoint >= 0xfe00U && codepoint <= 0xfe0fU) || codepoint == 0xfeffU ||
-               codepoint == 0xffa0U || (codepoint >= 0xfff0U && codepoint <= 0xfff8U) ||
-               (codepoint >= 0x1bca0U && codepoint <= 0x1bca3U) ||
-               (codepoint >= 0x1d173U && codepoint <= 0x1d17aU) ||
-               (codepoint >= 0xe0000U && codepoint <= 0xe007fU) ||
-               (codepoint >= 0xe0100U && codepoint <= 0xe01efU);
 }
 
 static Boolean
@@ -448,9 +350,9 @@ FontHasCluster(Vt100Rec *vt, XftFont *font, const char *text, size_t length, uns
                 uint32_t codepoint;
                 size_t consumed;
 
-                if (!DecodeCodepoint(text + offset, length - offset, &codepoint, &consumed))
+                if (!XtpUtf8Decode(text + offset, length - offset, &codepoint, &consumed))
                         return False;
-                if (!SequenceControl(codepoint) &&
+                if (!XtpUnicodeSequenceControl(codepoint) &&
                     !XftCharExists(XtDisplay((Widget)vt), font, codepoint)) {
                         if (miss_out != NULL)
                                 *miss_out = XTP_FONT_MISS_CMAP;
@@ -1047,7 +949,7 @@ SelectXftFont(Vt100Rec *vt, const char *text, size_t length, unsigned int width,
                         if (!vt->vt.effective_system_fallback)
                                 XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_SYSTEM, 0,
                                                      XTP_FONT_MISS_TRUNCATED);
-                        if (ClusterRequiresInk(text, length))
+                        if (XtpUnicodeClusterRequiresInk(text, length))
                                 return FinishTofuRoute(vt, &key, cacheable, text, length, &trace,
                                                        role_name, output_run);
                         font = emoji_slot_set ? vt->vt.xft_emoji_fonts[slot]
@@ -1082,7 +984,7 @@ SelectXftFont(Vt100Rec *vt, const char *text, size_t length, unsigned int width,
                         if (!vt->vt.effective_system_fallback)
                                 XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_SYSTEM, 0,
                                                      XTP_FONT_MISS_TRUNCATED);
-                        if (ClusterRequiresInk(text, length))
+                        if (XtpUnicodeClusterRequiresInk(text, length))
                                 return FinishTofuRoute(vt, &key, cacheable, text, length, &trace,
                                                        role_name, output_run);
                         return FinishMissingCluster(vt, vt->vt.xft_wide_fonts[slot], text, length,
@@ -1107,7 +1009,7 @@ SelectXftFont(Vt100Rec *vt, const char *text, size_t length, unsigned int width,
                                        route_rung, named_index, font, bold, italic, text, length,
                                        width, color_glyphs, cluster.requires_composition,
                                        &route_run, &trace, role_name, output_run);
-        if (ClusterRequiresInk(text, length)) {
+        if (XtpUnicodeClusterRequiresInk(text, length)) {
                 if (!vt->vt.effective_system_fallback)
                         XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_SYSTEM, 0,
                                              XTP_FONT_MISS_TRUNCATED);

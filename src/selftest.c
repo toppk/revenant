@@ -126,10 +126,25 @@ SelfTestEmojiPresentation(void)
 static int
 SelfTestUnicodeScript(void)
 {
+        static const char han[] = "\xe6\x97\xa5";
+        static const char blank_cluster[] = " \xef\xb8\x8f";
+        static const char malformed[] = "\xc0\x80";
+        uint32_t codepoint = 0;
+        size_t consumed = 0;
+
         if (strcmp(XtpHanUnicodeVersion(), "17.0") != 0 || !XtpUnicodeScriptHan(0x65e5U) ||
             !XtpUnicodeScriptHan(0x2f00U) || !XtpUnicodeScriptHan(0xf900U) ||
             XtpUnicodeScriptHan(0x3042U) || XtpUnicodeScriptHan(0xac00U) ||
             XtpUnicodeScriptHan(0x3001U) || XtpUnicodeScriptHan(0xff0cU))
+                return -1;
+        if (!XtpUtf8Decode(han, sizeof(han) - 1U, &codepoint, &consumed) || codepoint != 0x65e5U ||
+            consumed != 3U ||
+            XtpUtf8Decode(malformed, sizeof(malformed) - 1U, &codepoint, &consumed) ||
+            XtpUnicodeClusterRequiresInk(blank_cluster, sizeof(blank_cluster) - 1U) ||
+            !XtpUnicodeClusterRequiresInk(han, sizeof(han) - 1U) ||
+            !XtpUnicodeClusterRequiresInk(malformed, sizeof(malformed) - 1U) ||
+            !XtpUnicodeSequenceControl(0x200dU) || !XtpUnicodeSequenceControl(0xe0100U) ||
+            XtpUnicodeSequenceControl('A'))
                 return -1;
         return 0;
 }
