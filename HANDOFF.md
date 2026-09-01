@@ -410,124 +410,30 @@ item. Otherwise record it under v0.6 and keep moving.
    The review should also decide whether Ghostling has added or removed a
    capability since the original inventory.
 3. **General shaping/fallback and italic—not emoji-only rendering. Completed.**
-   The positioned-glyph painter now shapes primary and bounded fontconfig
-   fallback faces, joins compatible adjacent non-emoji cells for contextual
-   shaping, and selects real italic and bold-italic Xft faces. Pinned automated
-   acceptance covers a Devanagari conjunct, Vietnamese mark placement, Zalgo
-   stacks, mixed CJK/text fallback, SGR italic, and partial-Expose
-   reconstruction. The terminal core remains the sole width authority.
+   See the user guide at `docs/configuration/fonts.md` and the implementation
+   contract at `docs/maintainers/font-resolution.md`. The durable invariants
+   are: libghostty commits cell width before font lookup; entry 1 of the primary
+   Xft role alone defines fixed cell geometry; atom routing is normal-canonical;
+   compatible adjacent atoms shape together; and styles never change the
+   serving family. Primary, doublesize, emoji, and Han slots use xterm's
+   characterized two-entry chains, followed by numbered user fallbacks and
+   optionally unnamed system candidates under the inherited governors.
 
-   The patch-411 T0 font-resolution runner now replays the complete blessed
-   32-case deposition under a sterile Xvfb/fontconfig universe. Twenty-nine
-   cases remain stock-identical for file/index identity, role/style loads,
-   `-fa`/`-fd`/`-fe` precedence, routing, warnings, and WM geometry; ST-03 now
-   exercises the accepted normal-canonical runtime drift. `limitFontsets` uses
-   lazy candidates and patch-411's persistent glyph-bearing-open budget;
-   LM-01/02/03 conform. Two self-invalidating expected gaps remain: LM-04/05
-   (DEC double-height recognition; the height-cap diagnostic now conforms).
-   Unexpected passes fail until the exemption is removed. Partial updates are
-   painted in logical row/column order so cursor repaint order cannot consume
-   the fallback budget first. The replay also moved primary Xft geometry to
-   xterm's default packed printable-width behavior.
+   Non-primary faces normalize to primary metrics. Exact Han IVS misses and
+   exhausted ink-bearing clusters produce deterministic per-cell tofu. The
+   width-keyed LRU cache, schema-1 NDJSON routing report, and transactional
+   font-universe reload are implemented and covered by focused tests. The
+   patch-411 T0 runner replays the blessed 32-case deposition; changes to slot
+   grammar, governor behavior, or intentional style drift must update the
+   compat evidence rather than relying on memory.
 
-   `limitFontHeight` and `limitFontWidth` accept their inherited defaults and
-   cap values above 50 with patch-411 diagnostics. The source-characterized
-   one-sided fallback-advance check is implemented: width-deferred
-   glyph-bearing candidates consume `limitFontsets`, while missing candidates
-   remain free. LM-04/05 and DEC double-width recognition cannot close in the
-   Xft adapter alone: the pinned libghostty stream treats `ESC # 3/#4` as
-   unsupported, terminal rows retain no DEC line-size attribute, and the C
-   render API exposes no such row field. Implement and expose that backend
-   state before adding Revenant's double-size row handling; do not infer it by
-   rescanning PTY bytes in the UI layer.
-
-   Every non-primary Xft instance is now normalized at open time by the exact
-   `(primary ascent + descent) / (face ascent + descent)` ratio. This includes
-   semantic roles, real styles, and lazily opened explicit, numbered, and
-   system fallbacks. The shaping fixture verifies the applied ratio against
-   the isolated Devanagari face without permitting any fallback to resize the
-   grid.
-
-   Numbered `fallbackFace1` … `fallbackFace16` resources now provide ordered,
-   single-pattern user fallbacks after entry 2 and before unnamed system
-   candidates. They allow gaps, deduplicate complete four-style resolved roles
-   by file/index/variation coordinates with a single `FR-DUPROLE` warning, open
-   lazily, and participate in the inherited glyph-bearing-open
-   `limitFontsets` budget. The isolated Xvfb test covers duplicate keep-first,
-   gaps, user ordering, resolved files, and the 1/2 then 2/2 budget sequence.
-
-   `systemFallback` is now the separate "nothing I did not name" switch. Its
-   default `true` preserves the existing fontconfig candidate stage; `false`
-   truncates each chain before unnamed candidates while leaving entry 2 and
-   numbered fallbacks under the normal `limitFontsets` budget.
-
-   `faceNameHan` is now a two-entry role generated from the pinned Unicode 17.0
-   `Script=Han` ranges. Kana, Hangul, shared punctuation, and other
-   Script_Extensions-only characters remain outside it. The isolated Han test
-   covers direct capture, kana/punctuation exclusion, recapture at doublesize
-   after a full Han miss, a supported cmap-14 variation, and an unsupported IVS
-   rendered as one Revenant-owned tofu box per committed cell rather than the
-   unvaried base. Regenerate/check the table with
-   `uv run --script tools/generate-han-table [--check]`.
-
-   Deterministic tofu is now general rather than IVS-only. Once every reachable
-   role misses an ink-bearing atom, the Xft painter draws one Revenant-owned
-   outline box per backend-committed cell. Spaces, controls, and
-   default-ignorable-only atoms remain blank. The focused pixel test proves a
-   width-1 PUA miss, both independent boxes of a width-2 Han miss, and a blank
-   space cell against the isolated base-font universe.
-
-   Runtime coverage is now normal-canonical across primary and fallback roles.
-   The normal chain chooses and activates the family; bold/italic rendering is
-   accepted afterward only for a genuine same-family style covering that atom,
-   otherwise the saved normal shaping result serves. ST-03 is now an explicit
-   accepted-drift projection (CJK regular rather than stock's bold-but-roman
-   fallback), while the shaping fixture proves both real DejaVu italic and
-   CJK bold-italic degradation without rerouting.
-
-   Configured wide-text slots now own their misses through deterministic tofu;
-   they no longer fall across to a capable primary role after exhausting the
-   doublesize chain. The focused two-process fixture proves both the strict
-   configured boundary and the unset-resource path where primary capture is
-   still correct. Emoji rescue and Han-miss recapture remain green as the two
-   explicitly sanctioned cross-slot paths.
-
-   Inherited `boldFont` and `wideBoldFont` now contribute explicitly prefixed
-   `xft:` entries after normal-canonical routing. Same-family entries can
-   supply the real bold instance selected for primary or fallback roles; a
-   different-family entry cannot reroute and instead emits
-   `FR-STYLEFAMILY` before normal serves. ST-04/05 and the focused two-process
-   style-family fixture cover both outcomes.
-
-   Atom routing now uses a fixed 8192-entry global-LRU cache keyed by full atom
-   bytes, committed width, presentation/effective policy, color policy, active
-   and capturing slots, `systemFallback`, and font-universe generation. Values
-   store only the normal-canonical family decision (or tofu); requested styles
-   are resolved inside that cached family and never enter the key. The unit
-   test covers every discriminator and true LRU eviction, while the focused
-   Xvfb test covers normal/bold reuse, distinct atoms, and tofu reuse.
-
-   The bounded schema-1 NDJSON routing report and `report-font-routing()` Xt
-   action are implemented, including disabled snapshots, load/route/warn/bound
-   records, literal routing rungs, nullable tofu identities, style fallback,
-   and a focused Xvfb schema test. Direct coverage fills all 4096 first-use
-   route records and proves the next route marks `FR-REPORTBOUND` without
-   affecting service. Load records grow past the 256-record initial allocation,
-   replace prior successful generations, and expose allocation truncation as
-   `FR-LOADBOUND`. Font-related SetValues is now transactional:
-   it builds a complete candidate universe, swaps and advances generation only
-   on primary success, and retains the old effective fonts, metrics, cache, and
-   policy after failure while exposing the new configured values through
-   `FR-RELOADFAIL` and retained load records. `xvfb-font-reload` covers both
-   branches. Keep any shaped-run performance
-   cache separate from family routing. Preserve variable-font coordinates when
-   resolving role identity and opening every instance.
-   Preserve the Xlib bitmap/BDF path when `renderFont: false`, and do not regress
-   any emoji invariant while generalizing the path: Unicode 17 routing/width
-   interlock, legacy and mode-2027 widths, VS15/VS16 and presentation policy,
-   atomic modifier/keycap/RI/tag/ZWJ fallback, color-format and no-color paths,
-   font fitting, empty-ink rejection, damage/cursor clipping, or the isolated
-   format fixture universes.
+   Preserve the Xlib bitmap/BDF world when `renderFont: false`. The remaining
+   LM-04/05 gap is DEC double-height/double-width row recognition: the current
+   libghostty stream exposes no row-size state. Add that state to the backend
+   API before implementing the renderer behavior; never reconstruct it by
+   rescanning PTY bytes in the UI. Keep shaped-run caches separate from family
+   routing, preserve variable-font coordinates in every engine, and retain the
+   existing emoji routing/width, atomicity, color, clipping, and fixture gates.
 4. **Review the command line and fix its obvious dishonesty.** Use
    `docs/compatibility/command-line-feasibility.md` as the inventory and compare
    behavior with the patch-411 xterm oracle. Reject an unknown option such as
