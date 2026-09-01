@@ -759,10 +759,7 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
         NormalizeConfiguredColors(vt);
         vt->vt.cursor_blink_policy = ParseCursorBlinkPolicy(vt->vt.cursor_blink_name);
         vt->vt.font_universe = calloc(1, sizeof(*vt->vt.font_universe));
-        if (vt->vt.font_universe != NULL)
-                vt->vt.font_universe->emoji_presentation =
-                    VtFontParseEmojiPolicy(vt->vt.emoji_presentation_name);
-        else
+        if (vt->vt.font_universe == NULL)
                 XtpLog(XTP_LOG_WARNING, "font",
                        "cannot allocate Xft font universe; using bitmap renderer");
         vt->vt.grapheme_width_unicode = ParseGraphemeWidth(vt->vt.grapheme_width_name);

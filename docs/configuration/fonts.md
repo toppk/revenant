@@ -194,7 +194,7 @@ marks, selectors, ZWJ members, and tag characters stay together. Adjacent
 clusters that select compatible faces are then shaped together so contextual
 scripts are not reduced to per-cell shaping.
 
-The resolver first captures a role and then resolves only inside that role:
+The resolver first captures a role and normally resolves only inside that role:
 
 1. Han override, when configured and applicable.
 2. Emoji role for effective emoji presentation.
@@ -202,9 +202,13 @@ The resolver first captures a role and then resolves only inside that role:
 4. Primary role otherwise.
 
 Inside the captured role, the order is entry 1, entry 2, numbered
-user fallbacks, system fallback, then deterministic tofu. A wide atom captured
-by a configured doublesize role does not silently switch to the primary role
-when that role misses.
+user fallbacks, system fallback, then deterministic tofu. There are two
+intentional compatibility cascades: a configured Han role that exhausts its
+choices continues through the role that would have captured the atom without
+`faceNameHan`; an emoji role that misses its explicit entries tries the
+historical doublesize rescue before its remaining named and system fallbacks.
+A wide text atom captured by a configured doublesize role does not silently
+switch to the primary role when that role misses.
 
 `faceNameHan` uses the base character's Unicode `Script=Han` value—not
 Script_Extensions. Kana, Hangul, shared CJK punctuation, and fullwidth forms

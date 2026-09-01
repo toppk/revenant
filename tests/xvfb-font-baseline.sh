@@ -61,6 +61,32 @@ run_bitmap_case()
     terminal_pid=
 }
 
+run_invalid_size_case()
+{
+    case_name=invalid-embedded-size
+    log=$test_dir/$case_name.log
+    done_dir=$test_dir/$case_name.done
+
+    "$fixture_root/run" base "$terminal" -debug +sb -geometry 8x4 \
+        -fa 'DejaVu Sans Mono:size=bogus:weight=bold' -fs 13 \
+        -xrm 'xterm.vt100.internalBorder: 4' \
+        -xrm 'xterm.vt100.renderFont: true' \
+        -e sh -c 'printf "\033]2;font-baseline-ready\007"; while ! test -d "$1"; do sleep 0.05; done' \
+        sh "$done_dir" >"$test_dir/$case_name.out" 2>"$log" &
+    terminal_pid=$!
+    wait_for_terminal "$log" "$case_name"
+    if ! grep -F -q \
+        'failed Xft slot=0 face=DejaVu Sans Mono:size=bogus:weight=bold points=13.00' "$log"
+    then
+        echo "$case_name expected the invalid size field to remain in the font pattern" >&2
+        sed -n '1,300p' "$log" >&2
+        exit 1
+    fi
+    mkdir "$done_dir"
+    wait "$terminal_pid" 2>/dev/null || true
+    terminal_pid=
+}
+
 run_case()
 {
     universe=$1
@@ -119,6 +145,7 @@ run_case()
 
 # Preserve the core-font path independently of every Xft fixture below.
 run_bitmap_case
+run_invalid_size_case
 
 # This matrix isolates each rendering primitive by selecting the fixture as
 # the primary Xft face.
@@ -173,6 +200,25 @@ fi
 embedded_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$embedded_log" | tail -1)
 "$font_keys" "$embedded_window" + 1 >"$test_dir/embedded-size.keys"
 xtp_wait_for_log "$embedded_log" 'select slot=0 ->' embedded-size-select 100
+slot_metrics=$(sed -n \
+    's/.*select slot=0 -> [1-7] old-cell=\([0-9][0-9]*\)x\([0-9][0-9]*\) new-cell=\([0-9][0-9]*\)x\([0-9][0-9]*\).*/\1 \2 \3 \4/p' \
+    "$embedded_log" | tail -1)
+# shellcheck disable=SC2086
+set -- $slot_metrics
+if test "$#" -eq 4
+then
+    old_area=$(($1 * $2))
+    new_area=$(($3 * $4))
+else
+    old_area=0
+    new_area=0
+fi
+if test "$#" -ne 4 || test "$new_area" -le "$old_area"
+then
+    echo 'embedded-size expected the selected lazy slot to have larger cell metrics' >&2
+    sed -n '1,400p' "$embedded_log" >&2
+    exit 1
+fi
 if ! grep -E -q 'loaded Xft slot=[1-7] ' "$embedded_log"
 then
     echo 'embedded-size expected the font action to activate nonzero Xft slots' >&2

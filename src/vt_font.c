@@ -33,14 +33,14 @@ ResourceBoolean(const char *value, Boolean default_value)
         return default_value;
 }
 
-Boolean
+static Boolean
 VtFontRequested(const Vt100Rec *vt)
 {
         return ResourceBoolean(vt->vt.render_font_name, Nonempty(vt->vt.face_name));
 }
 
-XtpEmojiPolicy
-VtFontParseEmojiPolicy(const char *value)
+static XtpEmojiPolicy
+ParseEmojiPolicy(const char *value)
 {
         if (value == NULL || strcasecmp(value, "unicode") == 0)
                 return XTP_EMOJI_POLICY_UNICODE;
@@ -92,6 +92,8 @@ TrimFaceSize(char *face, double *size)
         valid = end != field + 5 && *end == '\0';
         if (tail != NULL)
                 *tail = ':';
+        if (!valid)
+                return False;
 
         if (tail != NULL)
                 memmove(field, tail + 1, strlen(tail + 1) + 1);
@@ -99,9 +101,9 @@ TrimFaceSize(char *face, double *size)
                 *field = '\0';
         else
                 field[-1] = '\0';
-        if (valid && size != NULL)
+        if (size != NULL)
                 *size = parsed;
-        return valid;
+        return True;
 }
 
 unsigned int
@@ -160,11 +162,12 @@ VtSlotHeight(const Vt100Rec *vt, int slot)
 int
 VtSlotAscent(const Vt100Rec *vt, int slot)
 {
-        if (vt->vt.use_xft)
-                return vt->vt.font_universe->roles[XTP_FONT_ROLE_PRIMARY]
-                    .fonts[XTP_XFT_STYLE_NORMAL][slot]
-                    ->ascent;
-        return vt->vt.fonts[slot]->ascent;
+        XftFont *font;
+
+        if (!vt->vt.use_xft)
+                return vt->vt.fonts[slot] != NULL ? vt->vt.fonts[slot]->ascent : 0;
+        font = vt->vt.font_universe->roles[XTP_FONT_ROLE_PRIMARY].fonts[XTP_XFT_STYLE_NORMAL][slot];
+        return font != NULL ? font->ascent : 0;
 }
 
 XftFont *
@@ -1061,6 +1064,7 @@ VtFontUniverseInitialize(Vt100Rec *vt)
                 XtpLog(XTP_LOG_WARNING, "font",
                        "cannot allocate font routing cache; routing remains uncached");
         vt->vt.use_xft = False;
+        universe->emoji_presentation = ParseEmojiPolicy(vt->vt.emoji_presentation_name);
         universe->color_glyphs = vt->vt.color_glyphs;
         universe->system_fallback = vt->vt.system_fallback;
         universe->limit_fontsets = vt->vt.limit_fontsets;
@@ -1176,6 +1180,8 @@ ReportRetainedPrimary(Vt100Rec *vt, const char *configured)
         unsigned int style;
         int slot;
 
+        if (universe == NULL)
+                return;
         for (slot = 0; slot < XTP_FONT_SLOTS; ++slot) {
                 for (style = 0; style < XTP_XFT_STYLE_COUNT; ++style) {
                         XftFont *font = universe->roles[XTP_FONT_ROLE_PRIMARY].fonts[style][slot];
@@ -1207,7 +1213,6 @@ VtFontUniverseReload(Vt100Rec *vt)
                 return False;
         }
         candidate->generation = previous != NULL ? previous->generation : 0;
-        candidate->emoji_presentation = VtFontParseEmojiPolicy(vt->vt.emoji_presentation_name);
         vt->vt.font_universe = candidate;
         vt->vt.font_routing_report = build_report;
         vt->vt.use_xft = False;

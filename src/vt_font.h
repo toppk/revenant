@@ -3,10 +3,11 @@
 
 #include "vt_widgetP.h"
 
-Boolean VtFontRequested(const Vt100Rec *vt);
-XtpEmojiPolicy VtFontParseEmojiPolicy(const char *value);
 unsigned int VtBitmapFontWidth(const XFontStruct *font);
 unsigned int VtBitmapFontHeight(const XFontStruct *font);
+unsigned int VtSlotWidth(const Vt100Rec *vt, int slot);
+unsigned int VtSlotHeight(const Vt100Rec *vt, int slot);
+int VtSlotAscent(const Vt100Rec *vt, int slot);
 void VtFontUniverseInitialize(Vt100Rec *vt);
 Boolean VtFontEnsureSlot(Vt100Rec *vt, int slot);
 Boolean VtFontUniverseReload(Vt100Rec *vt);
@@ -18,6 +19,7 @@ XftFont *VtFontRoleStyle(Vt100Rec *vt, XtpFontRoleIndex role, int slot, Boolean 
                          Boolean italic);
 void VtFontEnsureSystemFallbacks(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot,
                                  unsigned int style);
+/* Consumes pattern on every path, including open failure. */
 XftFont *VtOpenNormalizedXftPattern(Vt100Rec *vt, FcPattern *pattern, int slot, double *scale_out);
 
 #endif

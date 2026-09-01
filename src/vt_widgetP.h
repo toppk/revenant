@@ -349,9 +349,6 @@ typedef struct _Vt100ClassRec
 } Vt100ClassRec;
 
 Vt100Rec *VtAsRecord(Widget widget);
-unsigned int VtSlotWidth(const Vt100Rec *vt, int slot);
-unsigned int VtSlotHeight(const Vt100Rec *vt, int slot);
-int VtSlotAscent(const Vt100Rec *vt, int slot);
 void VtFontReloadApplied(Vt100Rec *vt);
 Boolean VtEffectiveCursorBlink(CursorBlinkPolicy policy, Boolean requested);
 Dimension VtScrollbarTotalWidth(Vt100Rec *vt);

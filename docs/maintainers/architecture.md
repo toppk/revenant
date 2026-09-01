@@ -34,7 +34,8 @@ The boundaries are deliberate:
 - `src/main.c` owns the Xt application shell, PTY event loop, menus, geometry,
   and terminal effects such as bell and title changes.
 - `src/vt_widget.c` owns the custom `VT100` widget class, resources, lifecycle,
-  translations, callbacks, font-selection actions, and public widget API.
+  bitmap font-slot loading, translations, callbacks, font-selection actions,
+  and public widget API.
 - `src/vt_widgetP.h` contains the private widget record and interfaces shared
   only by the widget implementation.
 - `src/vt_input.c` owns XIM, keyboard mapping and repeat tracking, and focus
@@ -49,7 +50,8 @@ The boundaries are deliberate:
   non-default size slots, and transactional universe replacement.
 - `src/font_router.c` owns atom-to-role selection, fallback traversal, route
   caching, style degradation, and deterministic missing-glyph decisions. It
-  returns a selected font and shaped run to `vt_draw.c`; it never paints.
+  returns a selected font and shaped run to `vt_draw.c`; it does not paint
+  terminal output, though it uses the universe's Cairo context for ink probes.
 - `src/glyph_cairo.c` owns the persistent Cairo Xlib surface, scaled-font
   cache, cell fitting, and color/outline glyph delegate. It receives the
   effective damage/cursor clip from `vt_draw.c`; it does not decide terminal

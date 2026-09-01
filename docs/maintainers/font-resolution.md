@@ -274,9 +274,12 @@ operation. The key is:
 
 The full signature distinguishes marks, VS15/VS16, ZWJ/tag sequences, and IVS.
 A width-class term is necessary because a mode-2027 change can alter wide-slot
-applicability without changing fonts. Generation increments on a successful
-font-menu change, relevant SetValues transaction, or detected fontconfig
-configuration change and invalidates prior entries.
+applicability without changing fonts. Generation advances when a complete font
+universe is installed initially or by a successful relevant SetValues
+transaction, invalidating entries from the previous universe. Font-menu
+selection does not advance generation because the active size slot is already
+part of the key. Revenant does not watch fontconfig configuration changes;
+those reliably take effect after a process restart.
 
 ## Metrics and rendering
 
