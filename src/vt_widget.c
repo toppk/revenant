@@ -1237,6 +1237,8 @@ LoadXftFallbacks(Vt100Rec *vt, int slot, const char *role, const char *face,
         if (slot < 0 || slot >= XTP_FONT_SLOTS || !Nonempty(face) || primary == NULL ||
             fallbacks == NULL)
                 return;
+        if (vt->vt.effective_limit_fontsets == 0)
+                return;
         if (Nonempty(explicit_face)) {
                 FcPattern *pattern = ResolveXftPattern(vt, explicit_face, size, bold, italic);
                 uint8_t before = fallbacks->counts[slot][style];
