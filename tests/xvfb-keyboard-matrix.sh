@@ -11,43 +11,9 @@ fi
 xvfb=$1
 terminal=$2
 sender=$3
-test_dir=$(mktemp -d)
-xvfb_pid=
-terminal_pid=
-
-cleanup()
-{
-    if test -n "$terminal_pid"
-    then
-        kill "$terminal_pid" 2>/dev/null || true
-        wait "$terminal_pid" 2>/dev/null || true
-    fi
-    if test -n "$xvfb_pid"
-    then
-        kill "$xvfb_pid" 2>/dev/null || true
-        wait "$xvfb_pid" 2>/dev/null || true
-    fi
-    rm -rf "$test_dir"
-}
-trap cleanup EXIT HUP INT TERM
-
-"$xvfb" -displayfd 3 -screen 0 1024x768x24 -nolisten unix -listen tcp -ac \
-    3>"$test_dir/display" >"$test_dir/xvfb.log" 2>&1 &
-xvfb_pid=$!
-
-attempt=0
-while ! test -s "$test_dir/display"
-do
-    attempt=$((attempt + 1))
-    if test "$attempt" -ge 100 || ! kill -0 "$xvfb_pid" 2>/dev/null
-    then
-        echo "Xvfb did not become ready" >&2
-        sed -n '1,80p' "$test_dir/xvfb.log" >&2
-        exit 1
-    fi
-    sleep 0.05
-done
-DISPLAY=127.0.0.1:$(sed -n '1p' "$test_dir/display")
+. "$(dirname "$0")/xvfb-test-lib.sh"
+xtp_xvfb_test_init
+xtp_start_xvfb "$xvfb"
 XMODIFIERS=@im=none
 XTP_KEY_CAPTURE=$test_dir/key.capture
 XTP_KEY_READY_NORMAL=$test_dir/key.ready.normal

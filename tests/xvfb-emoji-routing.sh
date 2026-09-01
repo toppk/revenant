@@ -12,67 +12,14 @@ xvfb=$1
 terminal=$2
 window_ink=$3
 fixture_root=$4
-test_dir=$(mktemp -d)
-xvfb_pid=
-terminal_pid=
-
-cleanup()
-{
-    if test -n "$terminal_pid"
-    then
-        kill "$terminal_pid" 2>/dev/null || true
-        wait "$terminal_pid" 2>/dev/null || true
-    fi
-    if test -n "$xvfb_pid"
-    then
-        kill "$xvfb_pid" 2>/dev/null || true
-        wait "$xvfb_pid" 2>/dev/null || true
-    fi
-    rm -rf "$test_dir"
-}
-trap cleanup EXIT HUP INT TERM
-
-if ! test -x "$fixture_root/run"
-then
-    echo "SKIP: stage fixtures with tools/stage-font-fixtures first"
-    exit 77
-fi
-
-"$xvfb" -displayfd 3 -screen 0 1024x768x24 -nolisten unix -listen tcp -ac \
-    3>"$test_dir/display" >"$test_dir/xvfb.log" 2>&1 &
-xvfb_pid=$!
-
-attempt=0
-while ! test -s "$test_dir/display"
-do
-    attempt=$((attempt + 1))
-    if test "$attempt" -ge 100 || ! kill -0 "$xvfb_pid" 2>/dev/null
-    then
-        echo "Xvfb did not become ready" >&2
-        sed -n '1,80p' "$test_dir/xvfb.log" >&2
-        exit 1
-    fi
-    sleep 0.05
-done
-DISPLAY=127.0.0.1:$(sed -n '1p' "$test_dir/display")
-export DISPLAY
+. "$(dirname "$0")/xvfb-test-lib.sh"
+xtp_xvfb_test_init
+xtp_require_font_fixtures "$fixture_root"
+xtp_start_xvfb "$xvfb"
 
 wait_for_terminal()
 {
-    log=$1
-    description=$2
-    attempt=0
-    while ! grep -F -q -- 'title changed bytes=19 preview="emoji-routing-ready"' "$log" 2>/dev/null
-    do
-        attempt=$((attempt + 1))
-        if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
-        then
-            echo "revenant did not become ready for $description" >&2
-            sed -n '1,300p' "$log" >&2
-            exit 1
-        fi
-        sleep 0.05
-    done
+    xtp_wait_for_title "$1" emoji-routing-ready "$2" 300
 }
 
 run_case()
