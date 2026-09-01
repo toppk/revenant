@@ -94,6 +94,7 @@ static const MenuSpec vt_specs[] = {
     INERT("tekmode"),
     INERT("vthide"),
     INERT("altscreen"),
+    INERT("copy_area"),
     INERT("sixelScrolling"),
     INERT("privateColorRegisters"),
 };

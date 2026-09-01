@@ -55,7 +55,7 @@ def main() -> int:
     lines = [
         '#include "resource_catalog.h"',
         "",
-        "const XtpResourceCatalogEntry xtp_xterm_410_resources[] = {",
+        "const XtpResourceCatalogEntry xtp_xterm_411_resources[] = {",
     ]
     for scope, name, class_name, default in entries:
         lines.append(
@@ -66,10 +66,10 @@ def main() -> int:
         [
             "};",
             "",
-            "const size_t xtp_xterm_410_resource_count =",
-            "    sizeof(xtp_xterm_410_resources) / sizeof(xtp_xterm_410_resources[0]);",
+            "const size_t xtp_xterm_411_resource_count =",
+            "    sizeof(xtp_xterm_411_resources) / sizeof(xtp_xterm_411_resources[0]);",
             "",
-            "const char *const xtp_xterm_410_actions[] = {",
+            "const char *const xtp_xterm_411_actions[] = {",
         ]
     )
     for raw in action_source.read_text().splitlines():
@@ -79,10 +79,10 @@ def main() -> int:
         [
             "};",
             "",
-            "const size_t xtp_xterm_410_action_count =",
-            "    sizeof(xtp_xterm_410_actions) / sizeof(xtp_xterm_410_actions[0]);",
+            "const size_t xtp_xterm_411_action_count =",
+            "    sizeof(xtp_xterm_411_actions) / sizeof(xtp_xterm_411_actions[0]);",
             "",
-            "const char *const xtp_xterm_410_app_defaults[] = {",
+            "const char *const xtp_xterm_411_app_defaults[] = {",
         ]
     )
     for raw in app_default_source.read_text().splitlines():
@@ -92,9 +92,9 @@ def main() -> int:
         [
             "};",
             "",
-            "const size_t xtp_xterm_410_app_default_count =",
-            "    sizeof(xtp_xterm_410_app_defaults) /",
-            "    sizeof(xtp_xterm_410_app_defaults[0]);",
+            "const size_t xtp_xterm_411_app_default_count =",
+            "    sizeof(xtp_xterm_411_app_defaults) /",
+            "    sizeof(xtp_xterm_411_app_defaults[0]);",
             "",
         ]
     )

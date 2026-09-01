@@ -1,6 +1,6 @@
 # Command-line feasibility study
 
-Every option in xterm patch-410's `-help` output (`xtermOptions[]` in
+Every option in xterm patch-411's `-help` output (`xtermOptions[]` in
 `main.c`, 120 lines including `#ifdef` duplicates): what xterm
 does behind it, whether libghostty-vt or plain X11 supplies the mechanism,
 and how approachable it is for Revenant. Companion to the

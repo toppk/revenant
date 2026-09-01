@@ -20,14 +20,13 @@ Revenant compatibility decision in the
 | --- | --- | --- |
 | `upstream/ghostty` | <https://github.com/ghostty-org/ghostty> | Source of the selected `libghostty-vt` build. It owns VT parsing, terminal state, reflow, key and mouse encoding, history, selection primitives, and other terminal-core facilities. `tools/fetch-libghostty` currently resolves `main` to an exact detached commit; switch the configured reference to the 1.4 release tag when available. |
 | `upstream/ghostling` | <https://github.com/ghostty-org/ghostling> | Minimal C consumer of `libghostty-vt` and the functional-baseline reference for Revenant. Its integrations show which terminal capabilities can already be exposed by a thin host application. It is a reference, not a linked dependency. |
-| `upstream/xterm-snapshots` | <https://github.com/ThomasDickey/xterm-snapshots> | Current upstream xterm source snapshots. Use it to research newer xterm behavior and prepare an intentional baseline update. A checkout newer than patch 410 does not silently change the compatibility oracle. |
+| `upstream/xterm-snapshots` | <https://github.com/ThomasDickey/xterm-snapshots> | The xterm source-code behavioral oracle, detached at the exact `xterm-411` tag. Advance it only as part of an intentional compatibility-baseline migration. |
 | `upstream/xterm.dev` | <https://github.com/xterm-x11/xterm.dev> | Source for the xterm project website and published documentation. It is useful for release notes and public documentation, but is not the source-code behavioral oracle. |
 
-The neighboring `/home/toppk/workspace/xterm` repository is also important. It
-contains the maintained patch-410 reference used to produce the checked-in
-resource, app-default, and action catalogs under `compat/`. Until the baseline
-is deliberately advanced, patch 410 remains the xterm compatibility oracle
-even when `upstream/xterm-snapshots` contains a newer patch.
+The neighboring `/home/toppk/workspace/xterm` repository remains useful as a
+historical patch-410 working reference. It no longer defines the compatibility
+baseline; `upstream/xterm-snapshots` at `xterm-411` is the current oracle used
+for the checked-in resource, app-default, and action catalogs under `compat/`.
 
 ## Revision and update policy
 
@@ -39,8 +38,8 @@ even when `upstream/xterm-snapshots` contains a newer patch.
   than leaking Ghostty handles into the Xt widget or application layer.
 - When Ghostling adds a user-visible terminal capability, review the parity
   matrix in the [roadmap](roadmap.md).
-- When advancing the xterm oracle, update all three `compat/xterm-410-*`
-  catalogs (and rename them for the new patch), the
+- When advancing the xterm oracle, update all four `compat/xterm-411-*`
+  artifacts (and rename them for the new patch), the
   [xterm differences ledger](../compatibility/drift.md), and documentation
   in one compatibility checkpoint.
 

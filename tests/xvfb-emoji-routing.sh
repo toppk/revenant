@@ -150,7 +150,7 @@ run_case()
        test "$overflow_class" != blank || ! grep -F -q -- "font: route $expected_route" "$log"
     then
         echo "$case_name expected class=$expected_class, width=$expected_width, route=$expected_route, and no following-cell ink" >&2
-        sed -n '1,320p' "$log" >&2
+        tail -160 "$log" >&2
         exit 1
     fi
     if test "$case_name" = heart-vs16-unicode
@@ -295,7 +295,7 @@ run_case routing heart-vs15 '❤︎' mono 1 \
     'base=U+2764 width=1 presentation=text role=primary' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
 run_case routing info-text ℹ mono 1 \
-    'base=U+2139 width=1 presentation=text role=primary' \
+    'base=U+2139 width=1 presentation=text role=tofu' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
 run_unicode_case routing info-vs16-unicode ℹ️ color 2 \
     'base=U+2139 width=2 presentation=emoji role=emoji' \
@@ -363,21 +363,22 @@ run_case routing policy-emoji-heart ❤ color 1 \
     'base=U+2764 width=1 presentation=emoji role=emoji' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' emoji true
 run_case routing policy-text-grin 😀 mono 2 \
-    'base=U+1F600 width=2 presentation=text role=primary' \
+    'base=U+1F600 width=2 presentation=text role=tofu' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' text true
 run_case routing policy-text-color-wide 😀 mono 2 \
-    'base=U+1F600 width=2 presentation=text role=primary' \
+    'base=U+1F600 width=2 presentation=text role=tofu' \
     'Noto Color Emoji' 'Noto Color Emoji' text true
 
-# Declining color uses genuine outlines and rejects empty outline bases.
+# Declining color uses genuine outlines; rejected empty/bitmap-only bases
+# exhaust the role chain and render deterministic tofu.
 run_case colrv0 no-color-colrv0 😀 mono 2 \
-    'base=U+1F600 width=2 presentation=emoji role=primary' OpenMoji - unicode false
+    'base=U+1F600 width=2 presentation=emoji role=tofu' OpenMoji - unicode false
 run_case svginot no-color-svg 😀 mono 2 \
     'base=U+1F600 width=2 presentation=emoji role=emoji' 'Twitter Color Emoji' - unicode false
 run_case colrv1 no-color-colrv1 😀 mono 2 \
-    'base=U+1F600 width=2 presentation=emoji role=primary' 'Noto Color Emoji' - unicode false
+    'base=U+1F600 width=2 presentation=emoji role=tofu' 'Noto Color Emoji' - unicode false
 run_case sbix no-color-sbix 😀 mono 2 \
-    'base=U+1F600 width=2 presentation=emoji role=primary' 'Revenant Synthetic sbix' - unicode false
-run_case cbdt no-color-primary 😀 blank 2 \
-    'base=U+1F600 width=2 presentation=emoji role=primary' - - unicode false 'Noto Color Emoji'
+    'base=U+1F600 width=2 presentation=emoji role=tofu' 'Revenant Synthetic sbix' - unicode false
+run_case cbdt no-color-primary 😀 mono 2 \
+    'base=U+1F600 width=2 presentation=emoji role=tofu' - - unicode false 'Noto Color Emoji'
 run_cursor_clip_case

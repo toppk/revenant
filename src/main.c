@@ -750,8 +750,24 @@ ResolveChildCommand(int *argc, char **argv, char *default_command[2], char ***co
         return 0;
 }
 
+static void
+PutCommandFontOverride(Display *display, const char *resource, const char *value)
+{
+        XrmDatabase database;
+        char name[128];
+
+        if (display == NULL || value == NULL)
+                return;
+        database = XrmGetDatabase(display);
+        (void)snprintf(name, sizeof(name), "xterm.vt100.%s", resource);
+        XrmPutStringResource(&database, name, value);
+        XrmSetDatabase(display, database);
+}
+
 static int
-OpenApplication(App *app, int *argc, char **argv, AppResources *resources)
+OpenApplication(App *app, int *argc, char **argv, AppResources *resources,
+                const char *face_name_override, const char *wide_face_override,
+                const char *emoji_face_override)
 {
         Arg args[7];
         Cardinal num_args = 0;
@@ -771,6 +787,9 @@ OpenApplication(App *app, int *argc, char **argv, AppResources *resources)
                 XtpLog(XTP_LOG_ERROR, "startup", "cannot open display");
                 return -1;
         }
+        PutCommandFontOverride(app->display, "faceName", face_name_override);
+        PutCommandFontOverride(app->display, "faceNameDoublesize", wide_face_override);
+        PutCommandFontOverride(app->display, "faceNameEmoji", emoji_face_override);
         XtpLog(XTP_LOG_INFO, "startup", "display opened name=%s remaining-argc=%d",
                DisplayString(app->display), *argc);
 
@@ -815,6 +834,21 @@ OpenApplication(App *app, int *argc, char **argv, AppResources *resources)
         XtpLog(XTP_LOG_INFO, "shell", "created child instance=vt100 class=VT100");
         XtpLog(XTP_LOG_INFO, "config", "active renderer=%s", XtpVtRendererName(app->vt));
         return 0;
+}
+
+static char *
+CommandFontOverride(int argc, char **argv, const char *option)
+{
+        const char *value = NULL;
+        int argument;
+
+        for (argument = 1; argument < argc; ++argument) {
+                if (strcmp(argv[argument], "-e") == 0)
+                        break;
+                if (strcmp(argv[argument], option) == 0 && argument + 1 < argc)
+                        value = argv[++argument];
+        }
+        return value != NULL ? strdup(value) : NULL;
 }
 
 static void
@@ -942,6 +976,9 @@ main(int argc, char **argv)
         int status = EXIT_FAILURE;
         XrmDatabase command_database = NULL;
         Boolean report_requested = False;
+        char *face_name_override;
+        char *wide_face_override;
+        char *emoji_face_override;
 
         for (argument = 1; argument < argc; ++argument) {
                 if (strcmp(argv[argument], "-e") == 0)
@@ -967,8 +1004,16 @@ main(int argc, char **argv)
                 return EXIT_SUCCESS;
         }
 
-        if (ResolveChildCommand(&argc, argv, default_command, &command) != 0)
+        face_name_override = CommandFontOverride(argc, argv, "-fa");
+        wide_face_override = CommandFontOverride(argc, argv, "-fd");
+        emoji_face_override = CommandFontOverride(argc, argv, "-fe");
+
+        if (ResolveChildCommand(&argc, argv, default_command, &command) != 0) {
+                free(face_name_override);
+                free(wide_face_override);
+                free(emoji_face_override);
                 return EXIT_FAILURE;
+        }
         command_database = XtpConfigCommandDatabase(original_argc, argv);
         XtpLog(XTP_LOG_INFO, "startup", "child command=%s", command[0]);
 
@@ -982,7 +1027,8 @@ main(int argc, char **argv)
                        getenv("DISPLAY") != NULL ? getenv("DISPLAY") : "(unset)",
                        getenv("SHELL") != NULL ? getenv("SHELL") : "(unset)");
         }
-        if (OpenApplication(&app, &argc, argv, &resources) != 0)
+        if (OpenApplication(&app, &argc, argv, &resources, face_name_override, wide_face_override,
+                            emoji_face_override) != 0)
                 goto done;
 
         if (resources.report_config) {
@@ -1011,6 +1057,9 @@ done:
         DestroyApplication(&app);
         if (command_database != NULL)
                 XrmDestroyDatabase(command_database);
+        free(face_name_override);
+        free(wide_face_override);
+        free(emoji_face_override);
         XtpLog(XTP_LOG_INFO, "startup", "shutdown complete status=%d", status);
         return status;
 }

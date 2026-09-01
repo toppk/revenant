@@ -71,6 +71,7 @@ Boolean XtpVtFontSlotInfo(Widget widget, int slot, XtpFontSlotInfo *info);
 const char *XtpVtRendererName(Widget widget);
 Boolean XtpVtUsingXft(Widget widget);
 Boolean XtpVtXftAvailable(Widget widget);
+uint32_t XtpVtFontGeneration(Widget widget);
 Boolean XtpVtSetRenderFont(Widget widget, Boolean enabled);
 Boolean XtpVtBackgroundOpacityAvailable(Widget widget);
 unsigned int XtpVtBackgroundOpacityPercent(Widget widget);

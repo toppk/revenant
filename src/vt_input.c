@@ -16,7 +16,7 @@ KeyFromKeysym(KeySym keysym)
                 return (XtpKey)(XTP_KEY_A + (keysym - XK_A));
         if (keysym >= XK_0 && keysym <= XK_9)
                 return (XtpKey)(XTP_KEY_0 + (keysym - XK_0));
-        if (keysym >= XK_F1 && keysym <= XK_F12)
+        if (keysym >= XK_F1 && keysym <= XK_F25)
                 return (XtpKey)(XTP_KEY_F1 + (keysym - XK_F1));
 
         switch (keysym) {
@@ -50,6 +50,8 @@ KeyFromKeysym(KeySym keysym)
                 return XTP_KEY_BACKSPACE;
         case XK_Caps_Lock:
                 return XTP_KEY_CAPS_LOCK;
+        case XK_Menu:
+                return XTP_KEY_CONTEXT_MENU;
         case XK_Control_L:
                 return XTP_KEY_CONTROL_LEFT;
         case XK_Control_R:
@@ -75,6 +77,8 @@ KeyFromKeysym(KeySym keysym)
                 return XTP_KEY_DELETE;
         case XK_End:
                 return XTP_KEY_END;
+        case XK_Help:
+                return XTP_KEY_HELP;
         case XK_Home:
                 return XTP_KEY_HOME;
         case XK_Insert:
@@ -132,12 +136,30 @@ KeyFromKeysym(KeySym keysym)
                 return XTP_KEY_NUMPAD_DIVIDE;
         case XK_KP_Enter:
                 return XTP_KEY_NUMPAD_ENTER;
+        case XK_KP_Equal:
+                return XTP_KEY_NUMPAD_EQUAL;
         case XK_KP_Multiply:
                 return XTP_KEY_NUMPAD_MULTIPLY;
         case XK_KP_Subtract:
                 return XTP_KEY_NUMPAD_SUBTRACT;
+        case XK_KP_Separator:
+                return XTP_KEY_NUMPAD_SEPARATOR;
+        case XK_KP_F1:
+                return XTP_KEY_F1;
+        case XK_KP_F2:
+                return XTP_KEY_F2;
+        case XK_KP_F3:
+                return XTP_KEY_F3;
+        case XK_KP_F4:
+                return XTP_KEY_F4;
         case XK_Escape:
                 return XTP_KEY_ESCAPE;
+        case XK_Print:
+                return XTP_KEY_PRINT_SCREEN;
+        case XK_Scroll_Lock:
+                return XTP_KEY_SCROLL_LOCK;
+        case XK_Pause:
+                return XTP_KEY_PAUSE;
         default:
                 return XTP_KEY_UNIDENTIFIED;
         }
@@ -170,6 +192,47 @@ PrintableAsciiKeysym(KeySym keysym, char *text)
                 return false;
         *text = (char)keysym;
         return true;
+}
+
+static uint32_t
+KeysymCodepoint(KeySym keysym)
+{
+        uint32_t codepoint;
+
+        if (keysym >= 0x20 && keysym <= 0xff)
+                codepoint = (uint32_t)keysym;
+        else if ((keysym & 0xff000000UL) == 0x01000000UL)
+                codepoint = (uint32_t)(keysym & 0x00ffffffUL);
+        else
+                return 0;
+        if (codepoint > 0x10ffffU || (codepoint >= 0xd800U && codepoint <= 0xdfffU))
+                return 0;
+        return codepoint;
+}
+
+static int
+EncodeCodepoint(uint32_t codepoint, char text[4])
+{
+        if (codepoint <= 0x7fU) {
+                text[0] = (char)codepoint;
+                return 1;
+        }
+        if (codepoint <= 0x7ffU) {
+                text[0] = (char)(0xc0U | (codepoint >> 6));
+                text[1] = (char)(0x80U | (codepoint & 0x3fU));
+                return 2;
+        }
+        if (codepoint <= 0xffffU) {
+                text[0] = (char)(0xe0U | (codepoint >> 12));
+                text[1] = (char)(0x80U | ((codepoint >> 6) & 0x3fU));
+                text[2] = (char)(0x80U | (codepoint & 0x3fU));
+                return 3;
+        }
+        text[0] = (char)(0xf0U | (codepoint >> 18));
+        text[1] = (char)(0x80U | ((codepoint >> 12) & 0x3fU));
+        text[2] = (char)(0x80U | ((codepoint >> 6) & 0x3fU));
+        text[3] = (char)(0x80U | (codepoint & 0x3fU));
+        return 4;
 }
 
 static const char *
@@ -207,6 +270,14 @@ KeyEvent(Vt100Rec *vt, XKeyEvent *xkey, XtpKeyAction action)
         }
         if (status == XBufferOverflow)
                 return;
+        if (action != XTP_KEY_ACTION_RELEASE && vt->vt.input_context == NULL) {
+                uint32_t codepoint = KeysymCodepoint(keysym);
+
+                if (codepoint >= 0x80U) {
+                        length = EncodeCodepoint(codepoint, text);
+                        status = XLookupBoth;
+                }
+        }
 
         event.action = action;
         event.key = KeyFromKeysym(physical != NoSymbol ? physical : keysym);
@@ -234,8 +305,7 @@ KeyEvent(Vt100Rec *vt, XKeyEvent *xkey, XtpKeyAction action)
                 event.utf8 = text;
                 event.utf8_length = 1;
         }
-        if (physical >= XK_space && physical <= XK_asciitilde)
-                event.unshifted_codepoint = (uint32_t)physical;
+        event.unshifted_codepoint = KeysymCodepoint(physical);
 
         XtpLog(XTP_LOG_DEBUG, "input",
                "key action=%s keycode=%u keysym=0x%lx physical=0x%lx mapped=%d state=0x%x "
@@ -409,7 +479,10 @@ InputEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_di
                         action = XTP_KEY_ACTION_PRESS;
                         SetKeycode(vt->vt.pressed_keycodes, event->xkey.keycode, true);
                 }
-                if (TranslationOwnsKey(&event->xkey)) {
+                if (VtLocalKeyActionOwnsEvent(vt, &event->xkey, event->type == KeyRelease)) {
+                        XtpLog(XTP_LOG_DEBUG, "input", "key %s owned by local Xt action",
+                               KeyActionName(action));
+                } else if (TranslationOwnsKey(&event->xkey)) {
                         XtpLog(XTP_LOG_DEBUG, "input", "key %s reserved for Xt translation",
                                KeyActionName(action));
                 } else {

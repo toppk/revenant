@@ -33,7 +33,7 @@ name bypasses `selectToClipboard`.
 
 Shift+Insert is paste, not copy, in the default bindings.
 
-This page describes upstream xterm patch 410, which is Revenant's compatibility
+This page describes upstream xterm patch 411, which is Revenant's compatibility
 baseline, and then identifies the parts Revenant implements today.
 
 ## The X11 mental model

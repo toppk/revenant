@@ -5,6 +5,8 @@
 
 #include "terminal.h"
 #include "emoji_presentation.h"
+#include "font_report.h"
+#include "font_route_cache.h"
 #include "glyph_cairo.h"
 #include "glyph_shape.h"
 #include "x11_opacity.h"
@@ -15,6 +17,9 @@
 #include <X11/Xft/Xft.h>
 
 #define XTP_FONT_SLOTS 8
+#define XTP_XFT_STYLE_COUNT 4
+#define XTP_FALLBACK_FACE_COUNT 16
+#define XTP_XFT_FALLBACK_CAPACITY 32
 #define XTP_COLOR_CACHE_SIZE 512
 #define XTP_GLYPH_INK_CACHE_SIZE 256
 #define XTP_VISUAL_TEXT_CAPACITY 64
@@ -57,6 +62,25 @@ typedef struct
         Boolean has_ink;
 } GlyphInkCacheEntry;
 
+typedef struct
+{
+        FcPattern *pattern;
+        XftFont *font;
+        Boolean attempted;
+        Boolean activated;
+        uint8_t named_index;
+} XtpXftFallbackCandidate;
+
+typedef struct
+{
+        XtpXftFallbackCandidate candidates[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT]
+                                          [XTP_XFT_FALLBACK_CAPACITY];
+        uint8_t counts[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
+        uint8_t explicit_counts[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
+        uint8_t named_counts[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
+        uint8_t activated_counts[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
+} XtpXftFallbackSet;
+
 #define XTP_RECENT_KEY_ACTIONS 16
 #define XTP_SCROLL_RENDER_DELAY_MS 8
 #define XTP_SELECTION_AUTOSCROLL_MS 15
@@ -89,6 +113,7 @@ typedef enum
         XTP_LOCAL_ACTION_PASTE,
         XTP_LOCAL_ACTION_SCROLL_BACK,
         XTP_LOCAL_ACTION_SCROLL_FORWARD,
+        XTP_LOCAL_ACTION_REPORT_FONT_ROUTING,
 } LocalKeyAction;
 
 typedef struct
@@ -111,6 +136,7 @@ typedef struct
         size_t text_length;
         uint8_t width;
         Boolean bold;
+        Boolean italic;
         Boolean underline;
         Boolean strikethrough;
         Boolean overline;
@@ -126,11 +152,25 @@ typedef struct
         String face_name;
         String face_name_doublesize;
         String face_name_emoji;
+        String face_name_han;
+        String bold_font_name;
+        String wide_bold_font_name;
         String emoji_presentation_name;
         XtpEmojiPolicy emoji_presentation;
         String grapheme_width_name;
         Boolean grapheme_width_unicode;
         Boolean color_glyphs;
+        Boolean system_fallback;
+        Boolean effective_color_glyphs;
+        Boolean effective_system_fallback;
+        Boolean report_font_routing;
+        int limit_fontsets;
+        int limit_fontheight;
+        int limit_fontwidth;
+        int effective_limit_fontsets;
+        int effective_limit_fontheight;
+        int effective_limit_fontwidth;
+        String fallback_face_names[XTP_FALLBACK_FACE_COUNT];
         String char_class;
         String background_opacity_name;
         String face_size_names[XTP_FONT_SLOTS];
@@ -168,11 +208,29 @@ typedef struct
         Pixel opaque_background_pixel;
         XftFont *xft_fonts[XTP_FONT_SLOTS];
         XftFont *xft_bold_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_italic_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_bold_italic_fonts[XTP_FONT_SLOTS];
         XftFont *xft_wide_fonts[XTP_FONT_SLOTS];
         XftFont *xft_wide_bold_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_wide_italic_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_wide_bold_italic_fonts[XTP_FONT_SLOTS];
         XftFont *xft_emoji_fonts[XTP_FONT_SLOTS];
         XftFont *xft_emoji_bold_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_emoji_italic_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_emoji_bold_italic_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_han_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_han_bold_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_han_italic_fonts[XTP_FONT_SLOTS];
+        XftFont *xft_han_bold_italic_fonts[XTP_FONT_SLOTS];
+        XtpXftFallbackSet xft_fallbacks;
+        XtpXftFallbackSet xft_wide_fallbacks;
+        XtpXftFallbackSet xft_emoji_fallbacks;
+        XtpXftFallbackSet xft_han_fallbacks;
+        XtpFontRouteCache *font_route_cache;
+        XtpFontRoutingReport *font_routing_report;
+        uint32_t font_generation;
         double xft_sizes[XTP_FONT_SLOTS];
+        unsigned int xft_cell_widths[XTP_FONT_SLOTS];
         XftDraw *xft_draw;
         XtpCairo *cairo_draw;
         XtpShaper *shaper;
@@ -211,8 +269,11 @@ typedef struct
         Pixel cursor_fill;
         Pixel cursor_text_color;
         Boolean cursor_bold;
+        Boolean cursor_italic;
         VisualCell *frame_cells;
         VisualCell *pending_cells;
+        unsigned int *dirty_first_columns;
+        unsigned int *dirty_end_columns;
         size_t frame_capacity;
         unsigned int frame_columns;
         unsigned int frame_rows;
@@ -253,6 +314,9 @@ typedef struct _Vt100Rec
         Vt100Part vt;
 } Vt100Rec;
 
+/* Consumes pattern, as XftFontOpenPattern does. */
+XftFont *VtOpenNormalizedXftPattern(Vt100Rec *vt, FcPattern *pattern, int slot, double *scale_out);
+
 typedef struct
 {
         int unused;
@@ -274,6 +338,7 @@ Dimension VtScrollbarTotalWidth(Vt100Rec *vt);
 void VtUpdateScrollbar(Vt100Rec *vt);
 Boolean VtScrollViewportBy(Vt100Rec *vt, intptr_t rows);
 Boolean VtAcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action);
+Boolean VtLocalKeyActionOwnsEvent(Vt100Rec *vt, const XKeyEvent *event, Boolean release);
 
 int VtTerminalX(Vt100Rec *vt);
 void VtEraseLastCursor(Vt100Rec *vt);

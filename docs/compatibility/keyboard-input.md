@@ -47,7 +47,7 @@ departure. Libghostty's default encoder also combines historical terminal
 rules, xterm `modifyOtherKeys`, fixterms, and selected Kitty conventions.
 Additional Ctrl+Shift, digit, punctuation, Alt+Ctrl, Caps Lock, and
 non-US-layout combinations may therefore differ from xterm's default byte
-stream. Treat keyboard compatibility as a matrix to test, not as an inference
+stream. Treat xterm byte-for-byte compatibility as a matrix to test, not as an inference
 from the Ctrl-I result.
 
 Applications that parse modern CSI-u input benefit from the extra distinction.
@@ -73,6 +73,14 @@ XKB detectable autorepeat is enabled when the X server supports it. On an
 older server, Revenant recognizes the traditional adjacent release/press pair
 with the same keycode and timestamp. Losing focus clears the pressed-key set
 so a missing release cannot turn a later press into a false repeat.
+
+The maintained Xvfb matrix covers normal and application cursor/keypad modes,
+Shift/Ctrl/Alt/Super arrow modifiers, function and editing keys, NumLock-keypad
+policy, a remapped non-US character, and a built-in XIM Compose sequence with
+exact PTY bytes. The no-XIM fallback independently converts legacy Latin-1 and
+Unicode keysyms to UTF-8 instead of forwarding locale-ambiguous bytes. Kitty
+coverage includes keys absent from Xvfb's default map by installing an isolated
+mapping and checking F13 press, repeat, and release events.
 
 Xt-owned gestures remain local. In particular, Shift+Insert paste,
 Shift+PageUp/PageDown history navigation, popup menus, mouse reporting, and

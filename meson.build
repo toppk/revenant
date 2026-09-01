@@ -14,6 +14,7 @@ project(
 cc = meson.get_compiler('c')
 fs = import('fs')
 python3 = find_program('python3')
+uv = find_program('uv', required: false)
 
 build_version = get_option('release-version')
 if build_version == ''
@@ -66,6 +67,10 @@ sources = files(
     'src/config_report.c',
     'src/diagnostics.c',
     'src/emoji_presentation.c',
+    'src/font_chain.c',
+    'src/font_metrics.c',
+    'src/font_report.c',
+    'src/font_route_cache.c',
     'src/glyph_cairo.c',
     'src/glyph_shape.c',
     'src/main.c',
@@ -74,6 +79,7 @@ sources = files(
     'src/selftest.c',
     'src/sme_slider.c',
     'src/terminal.c',
+    'src/unicode_script.c',
     'src/vt_draw.c',
     'src/vt_input.c',
     'src/vt_interaction.c',
@@ -82,13 +88,13 @@ sources = files(
 )
 
 xterm_resource_catalog = custom_target(
-    'xterm-410-resource-catalog',
+    'xterm-411-resource-catalog',
     input: [
-        'compat/xterm-410-resources.tsv',
-        'compat/xterm-410-actions.txt',
-        'compat/xterm-410-app-defaults.txt',
+        'compat/xterm-411-resources.tsv',
+        'compat/xterm-411-actions.txt',
+        'compat/xterm-411-app-defaults.txt',
     ],
-    output: 'xterm_410_resource_catalog.c',
+    output: 'xterm_411_resource_catalog.c',
     command: [
         python3,
         files('tools/compile-resource-catalog'),
@@ -196,6 +202,56 @@ font_key_test_tool = executable(
     install: false,
 )
 
+font_chain_test_tool = executable(
+    'xtp-font-chain',
+    'tests/xtp-font-chain.c',
+    'src/font_chain.c',
+    include_directories: include_directories('src'),
+    install: false,
+)
+
+font_reload_test_tool = executable(
+    'xtp-font-reload',
+    [
+        'tests/xtp-font-reload.c',
+        'src/char_class.c',
+        'src/diagnostics.c',
+        'src/emoji_presentation.c',
+        'src/font_chain.c',
+        'src/font_metrics.c',
+        'src/font_report.c',
+        'src/font_route_cache.c',
+        'src/glyph_cairo.c',
+        'src/glyph_shape.c',
+        'src/menus.c',
+        'src/sme_slider.c',
+        'src/terminal.c',
+        'src/terminal_stub.c',
+        'src/unicode_script.c',
+        'src/vt_draw.c',
+        'src/vt_input.c',
+        'src/vt_interaction.c',
+        'src/vt_widget.c',
+        'src/x11_opacity.c',
+    ],
+    include_directories: include_directories('src'),
+    dependencies: [
+        x11_dep,
+        xt_dep,
+        xaw_dep,
+        xmu_dep,
+        fontconfig_dep,
+        xft_dep,
+        xrender_dep,
+        cairo_dep,
+        cairo_ft_dep,
+        cairo_xlib_dep,
+        harfbuzz_dep,
+        m_dep,
+    ],
+    install: false,
+)
+
 key_test_tool = executable(
     'xtp-send-key',
     'tests/xtp-send-key.c',
@@ -272,6 +328,30 @@ test(
     args: ['--self-test'],
 )
 
+if uv.found()
+    test(
+        'han-table-current',
+        uv,
+        args: ['run', '--script', files('tools/generate-han-table'), '--check'],
+    )
+else
+    test(
+        'han-table-current',
+        python3,
+        args: [files('tools/generate-han-table'), '--check'],
+    )
+endif
+
+test(
+    't0-font-chain-parser',
+    python3,
+    args: [
+        files('tests/t0-font-chain-parser.py'),
+        font_chain_test_tool.full_path(),
+        files('compat/xterm-411-face-name.json'),
+    ],
+)
+
 test(
     'probe-keymodes-parser',
     python3,
@@ -284,6 +364,8 @@ if xvfb_tests_option.enabled() and not build_with_ghostty
 endif
 
 xvfb = find_program('Xvfb', required: xvfb_tests_option)
+xprop = find_program('xprop', required: xvfb_tests_option)
+xrdb = find_program('xrdb', required: xvfb_tests_option)
 if build_with_ghostty and xvfb.found()
     test(
         'xvfb-opacity',
@@ -326,6 +408,147 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-text-shaping',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-text-shaping.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            window_ink_test_tool.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-font-user-fallback',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-font-user-fallback.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-font-system-fallback',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-font-system-fallback.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-font-han',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-font-han.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-font-tofu',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-font-tofu.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            window_ink_test_tool.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-font-wide-boundary',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-font-wide-boundary.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-font-style-family',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-font-style-family.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-font-route-cache',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-font-route-cache.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-font-routing-report',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-font-routing-report.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            key_test_tool.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+            files('tests/check-font-routing-report.py'),
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-font-reload',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-font-reload.sh'),
+            xvfb.full_path(),
+            font_reload_test_tool.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    if xprop.found() and xrdb.found()
+        test(
+            't0-font-resolution',
+            python3,
+            args: [
+                files('tests/t0-font-resolution.py'),
+                '--xvfb', xvfb.full_path(),
+                '--xprop', xprop.full_path(),
+                '--xrdb', xrdb.full_path(),
+                '--revenant', xterm_plus.full_path(),
+                '--fixture', files('compat/xterm-411-face-name.json'),
+                '--fixture-root', meson.current_source_dir() / 'font-fixtures-stage',
+            ],
+            timeout: 90,
+            is_parallel: false,
+        )
+    endif
+    test(
         'xvfb-selection',
         find_program('sh'),
         args: [
@@ -356,6 +579,18 @@ if build_with_ghostty and xvfb.found()
         find_program('sh'),
         args: [
             files('tests/xvfb-kitty-keyboard.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            key_test_tool.full_path(),
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-keyboard-matrix',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-keyboard-matrix.sh'),
             xvfb.full_path(),
             xterm_plus.full_path(),
             key_test_tool.full_path(),

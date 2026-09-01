@@ -22,11 +22,11 @@ typedef struct
         const char *default_value;
 } XtpResourceCatalogEntry;
 
-extern const XtpResourceCatalogEntry xtp_xterm_410_resources[];
-extern const size_t xtp_xterm_410_resource_count;
-extern const char *const xtp_xterm_410_actions[];
-extern const size_t xtp_xterm_410_action_count;
-extern const char *const xtp_xterm_410_app_defaults[];
-extern const size_t xtp_xterm_410_app_default_count;
+extern const XtpResourceCatalogEntry xtp_xterm_411_resources[];
+extern const size_t xtp_xterm_411_resource_count;
+extern const char *const xtp_xterm_411_actions[];
+extern const size_t xtp_xterm_411_action_count;
+extern const char *const xtp_xterm_411_app_defaults[];
+extern const size_t xtp_xterm_411_app_default_count;
 
 #endif

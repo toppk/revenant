@@ -1,5 +1,5 @@
-# xterm patch-410 X resource compatibility baseline
-# Generated from the active resource tables in the neighboring patch-410 build.
+# xterm patch-411 X resource compatibility baseline
+# Generated from the active resource tables in the xterm-411 source oracle.
 # scope<TAB>resource name<TAB>resource class<TAB>compiled default
 application	iconGeometry	IconGeometry	<unset>
 application	title	Title	<unset>
@@ -70,6 +70,7 @@ vt100	backarrowKey	BackarrowKey	false
 vt100	bellIsUrgent	BellIsUrgent	false
 vt100	bellOnReset	BellOnReset	true
 vt100	boldMode	BoldMode	true
+vt100	brokenCopyArea	BrokenCopyArea	false
 vt100	brokenSelections	BrokenSelections	false
 vt100	c132	C132	false
 vt100	cdXtraScroll	CdXtraScroll	False

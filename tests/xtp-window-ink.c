@@ -3,6 +3,8 @@
 #include <X11/extensions/Xrender.h>
 
 #include <errno.h>
+#include <inttypes.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -190,12 +192,16 @@ main(int argc, char **argv)
         unsigned long max_y = 0;
         unsigned long image_x;
         unsigned long image_y;
+        uint64_t hash = UINT64_C(1469598103934665603);
         const char *classification;
+        int expose;
 
         if (argc >= 3 && strcmp(argv[2], "--damage-guard") == 0)
                 return DamageGuard(argc, argv);
-        if (argc != 8 || strcmp(argv[2], "--expose") != 0) {
-                fprintf(stderr, "usage: %s WINDOW --expose X Y WIDTH HEIGHT 0xRRGGBB\n", argv[0]);
+        expose = argc == 8 && strcmp(argv[2], "--expose") == 0;
+        if (argc != 8 || (!expose && strcmp(argv[2], "--sample") != 0)) {
+                fprintf(stderr, "usage: %s WINDOW --expose|--sample X Y WIDTH HEIGHT 0xRRGGBB\n",
+                        argv[0]);
                 return EXIT_FAILURE;
         }
         parsed_window = ParseUnsigned(argv[1], "window id");
@@ -236,12 +242,14 @@ main(int argc, char **argv)
                 return EXIT_FAILURE;
         }
 
-        XClearArea(display, window, 0, 0, 0, 0, True);
-        XSync(display, False);
-        {
-                const struct timespec delay = {0, 200000000L};
+        if (expose) {
+                XClearArea(display, window, 0, 0, 0, 0, True);
+                XSync(display, False);
+                {
+                        const struct timespec delay = {0, 200000000L};
 
-                (void)nanosleep(&delay, NULL);
+                        (void)nanosleep(&delay, NULL);
+                }
         }
         XSync(display, False);
         image = XGetImage(display, window, (int)x, (int)y, (unsigned int)width,
@@ -263,6 +271,10 @@ main(int argc, char **argv)
                             pixel, (unsigned long)format->direct.blueMask, format->direct.blue);
                         unsigned long maximum = red > green ? red : green;
                         unsigned long minimum = red < green ? red : green;
+
+                        hash = (hash ^ red) * UINT64_C(1099511628211);
+                        hash = (hash ^ green) * UINT64_C(1099511628211);
+                        hash = (hash ^ blue) * UINT64_C(1099511628211);
 
                         maximum = maximum > blue ? maximum : blue;
                         minimum = minimum < blue ? minimum : blue;
@@ -289,10 +301,13 @@ main(int argc, char **argv)
         }
         classification = ink == 0 ? "blank" : (chromatic == 0 ? "mono" : "color");
         if (ink == 0) {
-                printf("class=%s ink=0 chromatic=0 bounds=none\n", classification);
+                printf("class=%s ink=0 chromatic=0 hash=%016" PRIx64 " bounds=none\n",
+                       classification, hash);
         } else {
-                printf("class=%s ink=%lu chromatic=%lu bounds=%lu,%lu,%lu,%lu\n", classification,
-                       ink, chromatic, min_x, min_y, max_x - min_x + 1, max_y - min_y + 1);
+                printf("class=%s ink=%lu chromatic=%lu hash=%016" PRIx64
+                       " bounds=%lu,%lu,%lu,%lu\n",
+                       classification, ink, chromatic, hash, min_x, min_y, max_x - min_x + 1,
+                       max_y - min_y + 1);
         }
         XDestroyImage(image);
         XCloseDisplay(display);

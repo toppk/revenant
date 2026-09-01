@@ -1,4 +1,4 @@
-# xterm patch-410 registered VT100 and Tek4014 translation actions
+# xterm patch-411 registered VT100 and Tek4014 translation actions
 allow-bold-fonts
 allow-color-ops
 allow-font-ops

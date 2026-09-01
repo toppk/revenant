@@ -1,4 +1,4 @@
-# Active resource records from xterm patch-410 XTerm.ad
+# Active resource records from xterm patch-411 XTerm.ad
 *saveLines: 1024
 *SimpleMenu*BackingStore: NotUseful
 *SimpleMenu*menuLabel.font: -adobe-helvetica-bold-r-normal--*-120-*-*-*-*-iso8859-*
@@ -67,6 +67,7 @@
 *vtMenu*tekmode*Label:  Switch to Tek Mode
 *vtMenu*vthide*Label:  Hide VT Window
 *vtMenu*altscreen*Label:  Show Alternate Screen
+*vtMenu*copy_area*Label:  Enable XCopyArea
 *vtMenu*sixelScrolling*Label:  Sixel Scrolling
 *vtMenu*privateColorRegisters*Label:  Private Color Registers
 *fontMenu.Label:  VT Fonts

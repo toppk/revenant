@@ -1,12 +1,12 @@
 # Default VT bindings
 
 This audit tracks the default VT translation groups assembled by
-`VTInitTranslations()` in upstream xterm patch 410. Revenant should not grow a
+`VTInitTranslations()` in upstream xterm patch 411. Revenant should not grow a
 separate, accidental keyboard-and-mouse vocabulary: an xterm default is either
 implemented, provided by an equivalent input path, or recorded here as a gap.
 
 The source of truth is `src/charproc.c` in the tracked xterm repository. The
-table covers the active patch-410 defaults and the bindings guarded by build
+table covers the active patch-411 defaults and the bindings guarded by build
 options in that function; it does not include user overrides from X resources.
 
 <!-- markdownlint-disable MD013 -->
@@ -44,7 +44,7 @@ paging, and font changes run once per X event without suppressing genuine
 auto-repeat.
 
 Shift+Button 1 on an OSC 8 hyperlink is an intentional Revenant extension, not
-one of patch 410's default bindings. Shift-hover underlines the target;
+one of patch 411's default bindings. Shift-hover underlines the target;
 pressing and releasing on the same target launches only HTTP or HTTPS links.
 On a cell without an OSC 8 target, the same gesture falls through to ordinary
 selection. The extension and its scheme policy are documented in

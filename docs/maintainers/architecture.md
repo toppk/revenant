@@ -49,8 +49,11 @@ The boundaries are deliberate:
   effective damage/cursor clip from `vt_draw.c`; it does not decide terminal
   geometry.
 - `src/glyph_shape.c` owns HarfBuzz state and the per-Xft-font shaping cache.
-  It shapes one complete grapheme supplied by the backend and returns
-  positioned glyph IDs; it never changes the backend's committed cell width.
+  It shapes complete backend graphemes and compatible adjacent non-emoji cell
+  runs, returning positioned glyph IDs without changing the backend's
+  committed cell width. `vt_draw.c` chooses primary, explicit wide/emoji, and
+  bounded fontconfig fallback faces atomically for each run, then clips ink to
+  the combined committed cells.
   Font ownership is intentionally isolated: Xft owns its live FreeType face,
   Cairo creates an independent cairo-ft face, and HarfBuzz maps a separate face
   from the font file. Sharing Xft's live face lets one consumer change another
@@ -61,6 +64,11 @@ The boundaries are deliberate:
   redraw before adding one. Atomic emoji-sequence probes preserve HarfBuzz
   default-ignorables while checking for one composed glyph; ordinary drawing
   removes unresolved controls only after that support decision is made.
+- `src/font_chain.c` owns the characterized two-entry, prefix-aware Xft list
+  grammar shared by primary, doublesize, and emoji roles. The complete
+  capture, fallback, style, cache, reload, and reporting rules live in the
+  [font-resolution contract](font-resolution.md); keep implementation status
+  there distinct from normative end-state behavior.
 - `src/terminal.h` is the backend-neutral terminal boundary.
   `src/terminal.c` holds policy shared by both backends, currently output feed
   plus viewport anchoring. The `terminal_ghostty.c` and `terminal_stub.c`
@@ -91,7 +99,7 @@ remain true as new features are promoted.
 
 ## Relationship to xterm
 
-xterm patch 410 is the current visible compatibility oracle and a source
+xterm patch 411 is the current visible compatibility oracle and a source
 reference. Revenant does not compile, link, or embed xterm's terminal engine.
 Its application, PTY layer, widget, renderer, diagnostics, and backend adapter
 are separate implementations; `libghostty-vt` replaces xterm's parser and

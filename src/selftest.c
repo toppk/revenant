@@ -3,9 +3,14 @@
 #include "char_class.h"
 #include "diagnostics.h"
 #include "emoji_presentation.h"
+#include "font_chain.h"
+#include "font_metrics.h"
+#include "font_report.h"
+#include "font_route_cache.h"
 #include "menus.h"
 #include "pty_process.h"
 #include "terminal.h"
+#include "unicode_script.h"
 #include "x11_opacity.h"
 
 #include <errno.h>
@@ -115,6 +120,221 @@ SelfTestEmojiPresentation(void)
         if (cluster.base != 0x1f469U || cluster.style != XTP_EMOJI_STYLE_EMOJI ||
             !cluster.requires_composition)
                 return -1;
+        return 0;
+}
+
+static int
+SelfTestUnicodeScript(void)
+{
+        if (strcmp(XtpHanUnicodeVersion(), "17.0") != 0 || !XtpUnicodeScriptHan(0x65e5U) ||
+            !XtpUnicodeScriptHan(0x2f00U) || !XtpUnicodeScriptHan(0xf900U) ||
+            XtpUnicodeScriptHan(0x3042U) || XtpUnicodeScriptHan(0xac00U) ||
+            XtpUnicodeScriptHan(0x3001U) || XtpUnicodeScriptHan(0xff0cU))
+                return -1;
+        return 0;
+}
+
+static int
+SelfTestFontChain(void)
+{
+        static const struct
+        {
+                const char *configured;
+                size_t count;
+                const char *first;
+                const char *second;
+                size_t discarded;
+        } cases[] = {
+            {NULL, 0, NULL, NULL, 0},
+            {"", 0, NULL, NULL, 0},
+            {", DejaVu Sans Mono:size=11,", 1, "DejaVu Sans Mono:size=11", NULL, 0},
+            {" xft:DejaVu Sans Mono , x:fixed ", 1, "DejaVu Sans Mono", NULL, 0},
+            {"x:fixed,xft:DejaVu Sans Mono", 1, "DejaVu Sans Mono", NULL, 0},
+            {"x11:fixed,xft:Noto Sans Mono CJK JP", 2, "x11:fixed", "Noto Sans Mono CJK JP", 0},
+            {"NoSuchFontZZZQQ:size=11,DejaVu Sans Mono:size=11", 2, "NoSuchFontZZZQQ:size=11",
+             "DejaVu Sans Mono:size=11", 0},
+            {"A,B,C,D", 2, "A", "B", 2},
+            {"xft: , x:fixed, A", 1, "A", NULL, 0},
+        };
+        XtpFontChain chain = {0};
+        size_t index;
+
+        for (index = 0; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+                if (XtpFontChainParse(cases[index].configured, &chain) != 0 ||
+                    chain.count != cases[index].count ||
+                    chain.discarded != cases[index].discarded ||
+                    ((cases[index].first == NULL) != (chain.entries[0] == NULL)) ||
+                    (cases[index].first != NULL &&
+                     strcmp(cases[index].first, chain.entries[0]) != 0) ||
+                    ((cases[index].second == NULL) != (chain.entries[1] == NULL)) ||
+                    (cases[index].second != NULL &&
+                     strcmp(cases[index].second, chain.entries[1]) != 0)) {
+                        XtpFontChainClear(&chain);
+                        return -1;
+                }
+                XtpFontChainClear(&chain);
+        }
+        if (XtpFontChainParseXftEntries("fixed,xft:A,x:B,xlfd:C,xft:D,xft:E", &chain) != 0 ||
+            chain.count != 2 || chain.discarded != 1 || strcmp(chain.entries[0], "A") != 0 ||
+            strcmp(chain.entries[1], "D") != 0) {
+                XtpFontChainClear(&chain);
+                return -1;
+        }
+        XtpFontChainClear(&chain);
+        return 0;
+}
+
+static int
+SelfTestFontMetrics(void)
+{
+        double scale = XtpFontHeightScale(27U, 30U);
+
+        if (scale < 0.899999999 || scale > 0.900000001 || XtpFontHeightScale(0U, 30U) != 1.0 ||
+            XtpFontHeightScale(27U, 0U) != 1.0 ||
+            !XtpFontFallbackAdvanceFits(10.999, 10U, 1U, 10) ||
+            XtpFontFallbackAdvanceFits(11.0, 10U, 1U, 10) ||
+            !XtpFontFallbackAdvanceFits(-10.999, 10U, 1U, 10) ||
+            !XtpFontFallbackAdvanceFits(40.0, 10U, 2U, 10) ||
+            !XtpFontFallbackAdvanceFits(40.0, 0U, 1U, 10) ||
+            XtpFontCenteredOrigin(0.0, 12.0, 0, 13U) != 1 ||
+            XtpFontCenteredOrigin(0.0, 11.0, 0, 10U) != -1 ||
+            XtpFontCenteredOrigin(-2.0, 8.0, 10, 10U) != 12)
+                return -1;
+        return 0;
+}
+
+static int
+SelfTestFontReportBound(void)
+{
+        XtpFontRoutingReport *report = XtpFontRoutingReportCreate(true);
+        XtpFontRoutingReport *build = XtpFontRoutingReportCreate(true);
+        XtpFontRouteTrace trace = {0};
+        XtpFontRouteValue value = {XTP_FONT_ROUTE_TOFU, XTP_FONT_RUNG_TOFU, 0, NULL};
+        XtpFontRouteKey key = {0};
+        size_t index;
+
+        if (report == NULL || build == NULL) {
+                XtpFontRoutingReportDestroy(report);
+                XtpFontRoutingReportDestroy(build);
+                return -1;
+        }
+        key.width = 1;
+        for (index = 0; index <= XTP_FONT_REPORT_ROUTE_CAPACITY; ++index) {
+                int length = snprintf(key.text, sizeof(key.text), "route-%zu", index);
+
+                if (length <= 0 || (size_t)length >= sizeof(key.text)) {
+                        XtpFontRoutingReportDestroy(report);
+                        XtpFontRoutingReportDestroy(build);
+                        return -1;
+                }
+                key.text_length = (uint8_t)length;
+                XtpFontRoutingReportRoute(report, &key, value, NULL, NULL, "normal", false);
+        }
+        if (XtpFontRoutingReportRouteCount(report) != XTP_FONT_REPORT_ROUTE_CAPACITY ||
+            !XtpFontRoutingReportRouteBounded(report)) {
+                XtpFontRoutingReportDestroy(report);
+                XtpFontRoutingReportDestroy(build);
+                return -1;
+        }
+        for (index = 0; index <= XTP_FONT_ROUTE_MISS_CAPACITY; ++index)
+                XtpFontRouteTraceAdd(&trace, XTP_FONT_RUNG_NAMED, (uint8_t)(index % 16U + 1U),
+                                     XTP_FONT_MISS_CMAP);
+        if (trace.count != XTP_FONT_ROUTE_MISS_CAPACITY || !trace.bounded) {
+                XtpFontRoutingReportDestroy(report);
+                XtpFontRoutingReportDestroy(build);
+                return -1;
+        }
+        for (index = 0; index <= XTP_FONT_REPORT_LOAD_INITIAL_CAPACITY; ++index)
+                XtpFontRoutingReportLoad(build, "primary", 0, "normal", 1, "configured", NULL,
+                                         "active", 1);
+        if (XtpFontRoutingReportLoadCount(build) != XTP_FONT_REPORT_LOAD_INITIAL_CAPACITY + 1U ||
+            XtpFontRoutingReportLoadBounded(build)) {
+                XtpFontRoutingReportDestroy(report);
+                XtpFontRoutingReportDestroy(build);
+                return -1;
+        }
+        XtpFontRoutingReportMergeBuild(report, build);
+        if (XtpFontRoutingReportLoadCount(report) != XTP_FONT_REPORT_LOAD_INITIAL_CAPACITY + 1U ||
+            XtpFontRoutingReportLoadBounded(report)) {
+                XtpFontRoutingReportDestroy(report);
+                XtpFontRoutingReportDestroy(build);
+                return -1;
+        }
+        XtpFontRoutingReportDestroy(report);
+        XtpFontRoutingReportDestroy(build);
+        return 0;
+}
+
+static XtpFontRouteKey
+RouteCacheKey(const char *text)
+{
+        XtpFontRouteKey key = {0};
+        size_t length = strlen(text);
+
+        memcpy(key.text, text, length);
+        key.text_length = (uint8_t)length;
+        key.width = 1;
+        key.presentation = 1;
+        key.presentation_policy = 2;
+        key.slot = 3;
+        key.capturing_slot = 4;
+        key.color_glyphs = true;
+        key.system_fallback = true;
+        key.generation = 5;
+        return key;
+}
+
+static int
+SelfTestFontRouteCache(void)
+{
+        XtpFontRouteCache *cache = XtpFontRouteCacheCreate(2);
+        XtpFontRouteKey first = RouteCacheKey("a");
+        XtpFontRouteKey second = RouteCacheKey("b");
+        XtpFontRouteKey third = RouteCacheKey("c");
+        XtpFontRouteKey changed;
+        XtpFontRouteValue value = {XTP_FONT_ROUTE_PRIMARY, XTP_FONT_RUNG_ENTRY1, 0,
+                                   (void *)(uintptr_t)1U};
+        XtpFontRouteValue found = {0};
+
+        if (cache == NULL || !XtpFontRouteCacheStore(cache, &first, value) ||
+            !XtpFontRouteCacheStore(cache, &second, value) || XtpFontRouteCacheCount(cache) != 2U ||
+            !XtpFontRouteCacheLookup(cache, &first, &found) ||
+            found.kind != XTP_FONT_ROUTE_PRIMARY || found.normal_font != value.normal_font) {
+                XtpFontRouteCacheDestroy(cache);
+                return -1;
+        }
+
+#define XTP_CHECK_KEY_FIELD(field, replacement)                                                    \
+        do {                                                                                       \
+                changed = first;                                                                   \
+                changed.field = (replacement);                                                     \
+                if (XtpFontRouteCacheLookup(cache, &changed, NULL)) {                              \
+                        XtpFontRouteCacheDestroy(cache);                                           \
+                        return -1;                                                                 \
+                }                                                                                  \
+        } while (0)
+        XTP_CHECK_KEY_FIELD(width, 2);
+        XTP_CHECK_KEY_FIELD(text_length, 0);
+        XTP_CHECK_KEY_FIELD(presentation, 2);
+        XTP_CHECK_KEY_FIELD(presentation_policy, 1);
+        XTP_CHECK_KEY_FIELD(slot, 2);
+        XTP_CHECK_KEY_FIELD(capturing_slot, 3);
+        XTP_CHECK_KEY_FIELD(color_glyphs, false);
+        XTP_CHECK_KEY_FIELD(system_fallback, false);
+        XTP_CHECK_KEY_FIELD(generation, 6);
+#undef XTP_CHECK_KEY_FIELD
+
+        changed = first;
+        changed.text[0] = 'z';
+        if (XtpFontRouteCacheLookup(cache, &changed, NULL) ||
+            !XtpFontRouteCacheStore(cache, &third, value) ||
+            !XtpFontRouteCacheLookup(cache, &first, NULL) ||
+            XtpFontRouteCacheLookup(cache, &second, NULL) ||
+            !XtpFontRouteCacheLookup(cache, &third, NULL)) {
+                XtpFontRouteCacheDestroy(cache);
+                return -1;
+        }
+        XtpFontRouteCacheDestroy(cache);
         return 0;
 }
 
@@ -1290,6 +1510,31 @@ XtpSelfTest(void)
         }
         if (SelfTestEmojiPresentation() != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "emoji-presentation check failed");
+                XtpTerminalFree(terminal);
+                return EXIT_FAILURE;
+        }
+        if (SelfTestUnicodeScript() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "Unicode Script=Han check failed");
+                XtpTerminalFree(terminal);
+                return EXIT_FAILURE;
+        }
+        if (SelfTestFontChain() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "font-chain check failed");
+                XtpTerminalFree(terminal);
+                return EXIT_FAILURE;
+        }
+        if (SelfTestFontMetrics() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "font-metrics check failed");
+                XtpTerminalFree(terminal);
+                return EXIT_FAILURE;
+        }
+        if (SelfTestFontReportBound() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "font-report bound check failed");
+                XtpTerminalFree(terminal);
+                return EXIT_FAILURE;
+        }
+        if (SelfTestFontRouteCache() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "font-route-cache check failed");
                 XtpTerminalFree(terminal);
                 return EXIT_FAILURE;
         }

@@ -1,0 +1,2330 @@
+{
+  "cases": {
+    "FB-01-second-entry-glyph-fallback": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FB-01-second-entry-glyph-fallback",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderFontNorm#2]",
+          "style": "Regular"
+        }
+      ]
+    },
+    "FB-02-bad-primary-valid-secondary-glyph-probe": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FB-02-bad-primary-valid-secondary-glyph-probe",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: NoSuchFontZZZQQ:size=11,Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "faceName": "NoSuchFontZZZQQ:size=11,Noto Sans Mono CJK JP"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "NoSuchFontZZZQQ[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "NoSuchFontZZZQQ[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "NoSuchFontZZZQQ[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "NoSuchFontZZZQQ[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderFontNorm#2]",
+          "style": "Regular"
+        }
+      ]
+    },
+    "FB-03-third-entry-two-entry-limit": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [
+        "xterm: too many fonts for fNorm, ignoring Noto Color Emoji"
+      ],
+      "exit_status": 15,
+      "id": "FB-03-third-entry-two-entry-limit",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP,Noto Color Emoji"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP,Noto Color Emoji"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderFontNorm#2]",
+          "style": "Regular"
+        }
+      ]
+    },
+    "FB-04-fa-supplied-list": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FB-04-fa-supplied-list",
+      "input": {
+        "argv_font_args": [
+          "-fa",
+          "DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP"
+        ],
+        "resources": {}
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderFontNorm#2]",
+          "style": "Regular"
+        }
+      ]
+    },
+    "FD-01-doublesize-single": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FD-01-doublesize-single",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11",
+          "-xrm",
+          "T0Oracle*vt100.faceNameDoublesize: Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11",
+          "faceNameDoublesize": "Noto Sans Mono CJK JP"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "Noto Sans Mono CJK JP[wide]",
+          "style": "Regular"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Bold.otf",
+          "fullname": "Noto Sans Mono CJK JP Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "Noto Sans Mono CJK JP[wide-bold]",
+          "style": "Bold"
+        }
+      ]
+    },
+    "FD-02-doublesize-list-prefixed": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FD-02-doublesize-list-prefixed",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11",
+          "-xrm",
+          "T0Oracle*vt100.faceNameDoublesize: xft:Noto Sans Mono CJK JP,x:fixed"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11",
+          "faceNameDoublesize": "xft:Noto Sans Mono CJK JP,x:fixed"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "Noto Sans Mono CJK JP[wide]",
+          "style": "Regular"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Bold.otf",
+          "fullname": "Noto Sans Mono CJK JP Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "Noto Sans Mono CJK JP[wide-bold]",
+          "style": "Bold"
+        }
+      ]
+    },
+    "FD-03-doublesize-bad-first": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FD-03-doublesize-bad-first",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11",
+          "-xrm",
+          "T0Oracle*vt100.faceNameDoublesize: NoSuchFontZZZQQ,Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11",
+          "faceNameDoublesize": "NoSuchFontZZZQQ,Noto Sans Mono CJK JP"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "NoSuchFontZZZQQ[wide]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "NoSuchFontZZZQQ[wide-bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "NoSuchFontZZZQQ[wide-italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderWideNorm#2]",
+          "style": "Regular"
+        }
+      ]
+    },
+    "FD-04-doublesize-x-first-xft-second": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FD-04-doublesize-x-first-xft-second",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11",
+          "-xrm",
+          "T0Oracle*vt100.faceNameDoublesize: x:fixed,xft:Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11",
+          "faceNameDoublesize": "x:fixed,xft:Noto Sans Mono CJK JP"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "Noto Sans Mono CJK JP[wide]",
+          "style": "Regular"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Bold.otf",
+          "fullname": "Noto Sans Mono CJK JP Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "Noto Sans Mono CJK JP[wide-bold]",
+          "style": "Bold"
+        }
+      ]
+    },
+    "FD-05-doublesize-x11-prefix": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FD-05-doublesize-x11-prefix",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11",
+          "-xrm",
+          "T0Oracle*vt100.faceNameDoublesize: x11:fixed,xft:Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11",
+          "faceNameDoublesize": "x11:fixed,xft:Noto Sans Mono CJK JP"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "x11:fixed[wide]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "x11:fixed[wide-bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "x11:fixed[wide-italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderWideNorm#2]",
+          "style": "Regular"
+        }
+      ]
+    },
+    "FN-01-unprefixed-single": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FN-01-unprefixed-single",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "FN-02-xft-then-x": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FN-02-xft-then-x",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: xft:DejaVu Sans Mono:size=11,x:fixed"
+        ],
+        "resources": {
+          "faceName": "xft:DejaVu Sans Mono:size=11,x:fixed"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "FN-03-x-then-xft": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FN-03-x-then-xft",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: x:fixed,xft:DejaVu Sans Mono:size=11"
+        ],
+        "resources": {
+          "faceName": "x:fixed,xft:DejaVu Sans Mono:size=11"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "FN-04-x11-prefix": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FN-04-x11-prefix",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: x11:fixed,xft:DejaVu Sans Mono:size=11"
+        ],
+        "resources": {
+          "faceName": "x11:fixed,xft:DejaVu Sans Mono:size=11"
+        }
+      },
+      "resize_inc": [
+        7,
+        14
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "x11:fixed[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "x11:fixed[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "x11:fixed[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "x11:fixed[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "FN-05-multi-unprefixed": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FN-05-multi-unprefixed",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono,Noto Sans Mono CJK JP:size=11"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono,Noto Sans Mono CJK JP:size=11"
+        }
+      },
+      "resize_inc": [
+        7,
+        14
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "FN-06-bad-first-then-valid": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FN-06-bad-first-then-valid",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: NoSuchFontZZZQQ:size=11,DejaVu Sans Mono:size=11"
+        ],
+        "resources": {
+          "faceName": "NoSuchFontZZZQQ:size=11,DejaVu Sans Mono:size=11"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "NoSuchFontZZZQQ[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "NoSuchFontZZZQQ[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "NoSuchFontZZZQQ[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "NoSuchFontZZZQQ[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "FN-07-empty-entries-and-edge-commas": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FN-07-empty-entries-and-edge-commas",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: ,DejaVu Sans Mono:size=11,"
+        ],
+        "resources": {
+          "faceName": ",DejaVu Sans Mono:size=11,"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "FN-08-whitespace": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FN-08-whitespace",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName:  DejaVu Sans Mono:size=11 , Noto Sans Mono CJK JP "
+        ],
+        "resources": {
+          "faceName": " DejaVu Sans Mono:size=11 , Noto Sans Mono CJK JP "
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "FN-09-size-in-first-entry": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FN-09-size-in-first-entry",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=14,Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=14,Noto Sans Mono CJK JP"
+        }
+      },
+      "resize_inc": [
+        12,
+        24
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "19.4444",
+          "resolved": "DejaVu Sans Mono-14",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "19.4444",
+          "resolved": "DejaVu Sans Mono-14",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "19.4444",
+          "resolved": "DejaVu Sans Mono-14",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "19.4444",
+          "resolved": "DejaVu Sans Mono-14",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "FN-10-size-in-later-entry": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "FN-10-size-in-later-entry",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono,Noto Sans Mono CJK JP:size=14"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono,Noto Sans Mono CJK JP:size=14"
+        }
+      },
+      "resize_inc": [
+        7,
+        14
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "11.1111",
+          "resolved": "DejaVu Sans Mono-8",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "LM-01-limitFontsets-zero": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "LM-01-limitFontsets-zero",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP",
+          "-xrm",
+          "T0Oracle*vt100.limitFontsets: 0"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP",
+          "limitFontsets": "0"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "LM-02-limitFontsets-one": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "LM-02-limitFontsets-one",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP",
+          "-xrm",
+          "T0Oracle*vt100.limitFontsets: 1"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP",
+          "limitFontsets": "1"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderFontNorm#2]",
+          "style": "Regular"
+        }
+      ]
+    },
+    "LM-03-limitFontsets-two": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "LM-03-limitFontsets-two",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP",
+          "-xrm",
+          "T0Oracle*vt100.limitFontsets: 2"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP",
+          "limitFontsets": "2"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderFontNorm#2]",
+          "style": "Regular"
+        },
+        {
+          "file": "$FONTS/Noto-COLRv1.ttf",
+          "fullname": "Noto Color Emoji",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Color Emoji-11",
+          "slot": "fallback[renderFontNorm#6]",
+          "style": "Regular"
+        }
+      ]
+    },
+    "LM-04-limitFontHeight-default-decdhl": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "LM-04-limitFontHeight-default-decdhl",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "30.5556",
+          "resolved": "DejaVu Sans Mono-22",
+          "slot": "DejaVu Sans Mono[DHL_TOP]",
+          "style": "Book"
+        }
+      ]
+    },
+    "LM-05-limitFontHeight-cap-decdhl": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [
+        "xterm: limiting extra fontheight percent to 50 (was 51)"
+      ],
+      "exit_status": 15,
+      "id": "LM-05-limitFontHeight-cap-decdhl",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11",
+          "-xrm",
+          "T0Oracle*vt100.limitFontHeight: 51"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11",
+          "limitFontHeight": "51"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "30.5556",
+          "resolved": "DejaVu Sans Mono-22",
+          "slot": "DejaVu Sans Mono[DHL_TOP]",
+          "style": "Book"
+        }
+      ]
+    },
+    "PREC-01-fa-before-xrm": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "PREC-01-fa-before-xrm",
+      "input": {
+        "argv_font_args": [
+          "-fa",
+          "DejaVu Sans Mono:size=11",
+          "-xrm",
+          "T0Oracle*vt100.faceName: Noto Sans Mono CJK JP:size=11"
+        ],
+        "resources": {
+          "faceName": "Noto Sans Mono CJK JP:size=11"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "PREC-02-xrm-before-fa": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "PREC-02-xrm-before-fa",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: Noto Sans Mono CJK JP:size=11",
+          "-fa",
+          "DejaVu Sans Mono:size=11"
+        ],
+        "resources": {
+          "faceName": "Noto Sans Mono CJK JP:size=11"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        }
+      ]
+    },
+    "ST-01-bold-glyph-fallback": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "ST-01-bold-glyph-fallback",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Bold.otf",
+          "fullname": "Noto Sans Mono CJK JP Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderFontBold#5]",
+          "style": "Bold"
+        }
+      ]
+    },
+    "ST-02-italic-glyph-fallback": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "ST-02-italic-glyph-fallback",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderFontItal#7]",
+          "style": "Regular"
+        }
+      ]
+    },
+    "ST-03-bolditalic-glyph-fallback": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "ST-03-bolditalic-glyph-fallback",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11,Noto Sans Mono CJK JP"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Bold.otf",
+          "fullname": "Noto Sans Mono CJK JP Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderFontBtal#6]",
+          "style": "Bold"
+        }
+      ]
+    },
+    "ST-04-boldFont-xft-entry": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "ST-04-boldFont-xft-entry",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11",
+          "-xrm",
+          "T0Oracle*vt100.boldFont: xft:DejaVu Sans Mono,xft:Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "boldFont": "xft:DejaVu Sans Mono,xft:Noto Sans Mono CJK JP",
+          "faceName": "DejaVu Sans Mono:size=11"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Bold.otf",
+          "fullname": "Noto Sans Mono CJK JP Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderFontBold#2]",
+          "style": "Bold"
+        }
+      ]
+    },
+    "ST-05-wideBoldFont-xft-entry": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "ST-05-wideBoldFont-xft-entry",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: DejaVu Sans Mono:size=11",
+          "-xrm",
+          "T0Oracle*vt100.faceNameDoublesize: DejaVu Sans Mono",
+          "-xrm",
+          "T0Oracle*vt100.wideBoldFont: xft:DejaVu Sans Mono,xft:Noto Sans Mono CJK JP"
+        ],
+        "resources": {
+          "faceName": "DejaVu Sans Mono:size=11",
+          "faceNameDoublesize": "DejaVu Sans Mono",
+          "wideBoldFont": "xft:DejaVu Sans Mono,xft:Noto Sans Mono CJK JP"
+        }
+      },
+      "resize_inc": [
+        9,
+        19
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[normal]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-BoldOblique.ttf",
+          "fullname": "DejaVu Sans Mono Bold Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[bold-italic]",
+          "style": "Bold Oblique"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[wide]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[wide-bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[wide-italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Bold.otf",
+          "fullname": "Noto Sans Mono CJK JP Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderWideBold#2]",
+          "style": "Bold"
+        }
+      ]
+    },
+    "WD-01-wide-miss-vs-normal-chain": {
+      "base_size": [
+        4,
+        4
+      ],
+      "diagnostics": [],
+      "exit_status": 15,
+      "id": "WD-01-wide-miss-vs-normal-chain",
+      "input": {
+        "argv_font_args": [
+          "-xrm",
+          "T0Oracle*vt100.faceName: Noto Sans Mono CJK JP:size=11",
+          "-xrm",
+          "T0Oracle*vt100.faceNameDoublesize: DejaVu Sans Mono"
+        ],
+        "resources": {
+          "faceName": "Noto Sans Mono CJK JP:size=11",
+          "faceNameDoublesize": "DejaVu Sans Mono"
+        }
+      },
+      "resize_inc": [
+        16,
+        23
+      ],
+      "window_found": true,
+      "xft_fonts": [
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "Noto Sans Mono CJK JP[normal]",
+          "style": "Regular"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Bold.otf",
+          "fullname": "Noto Sans Mono CJK JP Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "Noto Sans Mono CJK JP[bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "Noto Sans Mono CJK JP[italic]",
+          "style": "Regular"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono.ttf",
+          "fullname": "DejaVu Sans Mono",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[wide]",
+          "style": "Book"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Bold.ttf",
+          "fullname": "DejaVu Sans Mono Bold",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[wide-bold]",
+          "style": "Bold"
+        },
+        {
+          "file": "$FONTS/DejaVuSansMono-Oblique.ttf",
+          "fullname": "DejaVu Sans Mono Oblique",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "DejaVu Sans Mono-11",
+          "slot": "DejaVu Sans Mono[wide-italic]",
+          "style": "Oblique"
+        },
+        {
+          "file": "$FONTS/NotoSansMonoCJKjp-Regular.otf",
+          "fullname": "Noto Sans Mono CJK JP",
+          "index": "0",
+          "pixelsize": "15.2778",
+          "resolved": "Noto Sans Mono CJK JP-11",
+          "slot": "fallback[renderWideNorm#6]",
+          "style": "Regular"
+        }
+      ]
+    }
+  },
+  "environment": {
+    "probe_contract": {
+      "emoji": "U+1F600",
+      "emoji_width": 2,
+      "japanese": [
+        "U+65E5",
+        "U+672C",
+        "U+8A9E"
+      ],
+      "japanese_width": 2,
+      "validated": true
+    },
+    "probe_contract_version": 1,
+    "xft_dpi": 100
+  },
+  "harness_version": 4,
+  "oracle": {
+    "canonical": true,
+    "canonical_patch": 411,
+    "patch": 411,
+    "version_line": "XTerm(411)"
+  },
+  "schema": 1
+}

@@ -14,7 +14,7 @@ mechanism that xterm inherits and that most modern terminals never had.
 Revenant has two requirements that pull in different directions, and the
 project keeps both honest:
 
-1. **xterm fidelity.** xterm patch 410 defines the visible X11 contract:
+1. **xterm fidelity.** xterm patch 411 defines the visible X11 contract:
    resources, menus, translations, geometry, fonts. Anything xterm shows the
    user, Revenant tries to show the same way.
 2. **Modern terminal capability.** `libghostty-vt` supplies parsing,
@@ -53,6 +53,11 @@ is classified in the
   [major default keyboard-input difference](compatibility/keyboard-input.md):
   Revenant deliberately distinguishes Ctrl-I from Tab, Ctrl-M from Enter, and
   Ctrl-[ from Escape without application opt-in.
+
+- **Choosing text, CJK, emoji, and fallback fonts**
+  Use the dedicated [font configuration guide](configuration/fonts.md) for
+  working Xft examples, xterm's two-entry chain grammar, role ordering, and
+  the current expanded-resolver rollout status.
 
 - **Building it**
   [Install](getting-started/install.md) covers the stub build for UI work

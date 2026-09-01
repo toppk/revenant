@@ -27,7 +27,7 @@ and focus protocols, robust grapheme state, and the Kitty keyboard protocol.
 
 Revenant is deliberately judged against two product bars:
 
-- **xterm compatibility:** xterm patch 410 defines the visible X11 contract —
+- **xterm compatibility:** xterm patch 411 defines the visible X11 contract —
   resources, menus, translations, geometry, and font behavior.
 - **Modern terminal capability:** Ghostling is the minimum integration floor
   for features already supplied by `libghostty-vt`.
@@ -144,7 +144,7 @@ The repository's main areas are intentionally unsurprising:
 | `tests/` | Backend self-tests and Xvfb integration coverage |
 | `tools/` | Fetch, profiling, maintenance, and interactive probe utilities |
 | `docs/` | Revenant user and maintainer manual |
-| `compat/` | Machine-readable xterm patch-410 compatibility catalogs |
+| `compat/` | Machine-readable xterm patch-411 compatibility catalogs |
 | `data/` | Reference app-default material, desktop launcher, and application icons |
 | `tdn/` | Independently licensed terminal-protocol documentation |
 | `packaging/` | Release archives, Debian packages, and RPM support |

@@ -33,6 +33,7 @@ XrmOptionDescRec XtpCommandOptions[] = {
     {"-debug", "*logLevel", XrmoptionNoArg, (XPointer) "debug"},
     {"+debug", "*logLevel", XrmoptionNoArg, (XPointer) "warning"},
     {"-report-config", "*reportConfig", XrmoptionNoArg, (XPointer) "true"},
+    {"-report-font-routing", "*vt100.reportFontRouting", XrmoptionNoArg, (XPointer) "true"},
 };
 
 const int XtpCommandOptionCount = XtNumber(XtpCommandOptions);

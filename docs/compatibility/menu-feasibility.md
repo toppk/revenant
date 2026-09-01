@@ -1,6 +1,6 @@
 # Popup-menu feasibility study
 
-Every entry from xterm patch-410's `mainMenu` (Ctrl-Button1), `vtMenu`
+Every entry from xterm patch-411's `mainMenu` (Ctrl-Button1), `vtMenu`
 (Ctrl-Button2) and `fontMenu` (Ctrl-Button3): what xterm does behind it,
 how much of that lives in libghostty-vt, and how approachable it is for
 Revenant. Reviewed against the then-selected libghostty headers on 2026-08-25.
@@ -11,7 +11,7 @@ subsystem; **ROADMAP** waits on a planned
 change; **SKIP** recommend not planning (record in the
 [xterm differences ledger](drift.md)).
 
-Totals over 85 entries: 23 done, 21 ready, 17 roadmap, 13 blocked, 11 skip.
+Totals over 86 entries: 23 done, 21 ready, 17 roadmap, 13 blocked, 12 skip.
 
 ## The big pattern
 
@@ -84,6 +84,7 @@ toggle still needs defined transitions between configured and forced policy.
 | cursorblink | Blink cursor | `OPT_DEFAULT_CURSOR_BLINK`, `DATA_CURSOR_STYLE` | Timer and resource policy exist; define menu transitions among default and forced states | READY |
 | titeInhibit | Ignore alt-screen switches | No way to disable a mode handler | Needs "permanently reset mode" option | BLOCKED |
 | activeicon | Terminal in icon window | None | Modern WMs ignore | SKIP |
+| copy_area | Toggle xterm's `XCopyArea` scroll optimization | None | Revenant does not use xterm's scroll-copy path; see the drift ledger | SKIP |
 | softreset | DECSTR | Pinned Ghostty does not handle `CSI ! p` | Needs DECSTR support or a soft-reset API | BLOCKED |
 | hardreset | RIS, keep saved lines | `ghostty_terminal_reset()` clears scrollback | Needs a reset-preserving-history API or a complete local RIS implementation | BLOCKED |
 | clearsavedlines | Reset + drop scrollback | No clear API; `CSI 3 J` supported | Reset + `ESC [ 3 J`; test with `DATA_SCROLLBACK_ROWS` | ROADMAP |
@@ -150,5 +151,5 @@ record "Tek 4014 not planned" in the [xterm differences ledger](drift.md).
 4. Upstream asks, by value: unknown OSC/CSI passthrough (fontescape,
    print-redir, full XTWINOPS); permanently-reset mode (titeInhibit);
    XTGETTCAP toggle. Not worth asking: DECDHL, sixel, DECDLD, S8C1T.
-5. Drift-ledger entries: Tek 4014, toolbar, activeicon, legacy keyboard
-   tables/sunKeyboard, UTF-8-only, 8-bit controls, soft fonts.
+5. Drift-ledger entries: Tek 4014, toolbar, activeicon, copy_area, legacy
+   keyboard tables/sunKeyboard, UTF-8-only, 8-bit controls, soft fonts.

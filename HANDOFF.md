@@ -96,13 +96,16 @@ libghostty adapter are Revenant code. `libghostty-vt` owns parsing, terminal
 state, key and mouse encoding, query responses, resize reflow, history,
 selection primitives, and graphics protocol state.
 
-The patch-410 xterm tree in `/home/toppk/workspace/xterm` remains the visible
-behavioral oracle. The checked-in compatibility material is:
+The exact `xterm-411` tag in `upstream/xterm-snapshots` is the visible
+behavioral oracle. The neighboring `/home/toppk/workspace/xterm` checkout is a
+historical patch-410 working reference. The checked-in compatibility material
+is:
 
 - `data/app-defaults/XTerm`;
-- `compat/xterm-410-resources.tsv`;
-- `compat/xterm-410-app-defaults.txt`;
-- `compat/xterm-410-actions.txt`;
+- `compat/xterm-411-resources.tsv`;
+- `compat/xterm-411-app-defaults.txt`;
+- `compat/xterm-411-actions.txt`;
+- `compat/xterm-411-face-name.json`;
 - widget/menu names, defaults, translations, and reconstructed behavior.
 
 Those portions are covered by `LICENSES/xterm.txt`. Consult xterm to reproduce
@@ -136,10 +139,13 @@ needs a different shape. At that point, prefer one geometry-setting operation
 over continuing to add width, padding, and screen dimensions to individual
 selection and mouse calls.
 
-The ignored Ghostty checkout is not a Meson input tree. The libghostty custom
-target is therefore always considered stale and delegates incremental rebuild
-decisions to Zig's cache. Removing that behavior can silently pair headers
-from a newly fetched Ghostty revision with an archive from the old revision.
+The ignored Ghostty checkout is not an ordinary Meson source tree.
+`tools/fetch-libghostty` resolves and detaches it at the exact pinned commit;
+Meson tracks the checkout's `.git/HEAD` plus the fetch and build scripts as
+custom-target dependencies, while Zig's cache decides whether rebuilding the
+archive has real work to do. Keep those dependencies synchronized. Dropping
+one can silently pair headers from a newly fetched Ghostty revision with an
+archive from the old revision.
 
 The render-state dirty flag describes cell damage, not every visual-state
 change. In particular, cursor movement can arrive with zero dirty rows. The
@@ -194,8 +200,22 @@ diagnosis, upstream links, version boundary, and fixed-build checks are in
 - True color, palette terminal values, inverse, bold, underline, overline, and
   strikeout rendering, subject to the gaps recorded in the
   [roadmap](docs/maintainers/roadmap.md).
-- Full UTF-8 grapheme bytes at the renderer boundary; the Xft primary face can
-  draw supported glyphs without fallback or shaping.
+- Full UTF-8 grapheme bytes at the renderer boundary; HarfBuzz shapes primary
+  and fallback faces, including compatible adjacent non-emoji cells whose
+  context spans a backend grapheme boundary. Fontconfig supplies a bounded
+  fallback set for each normal, bold, italic, and bold-italic slot.
+- Unicode 17 emoji presentation and role routing through `faceNameEmoji` and
+  `faceNameDoublesize`, including VS15/VS16, keycaps, modifiers, flags, tags,
+  and ZWJ sequences. HarfBuzz shapes complete backend graphemes and rejects
+  incomplete sequence composition atomically. The persistent Cairo delegate
+  renders CBDT, COLRv0, COLRv1, SVGinOT, and sbix color glyphs or real outline
+  fallbacks with cell fitting and effective damage/cursor clipping. The
+  backend grid remains authoritative for width: xterm-compatible legacy width
+  is the default, while applications may negotiate grapheme-cluster width with
+  mode 2027. Reproducible font fixtures and Xvfb tests cover routing, shaping,
+  ink paths, and format behavior. General text now shares the positioned-run
+  and clipping path without changing backend-owned cell widths, and SGR italic
+  selects a real italic or oblique face when one is available.
 - Application-selected DECSCUSR block, underline, and bar cursor presentation,
   including cursor-shape-only repaint coverage. Blinking variants and DEC mode
   12 use an Xt timer with xterm's `cursorOnTime` and `cursorOffTime` defaults;
@@ -238,7 +258,7 @@ diagnosis, upstream links, version boundary, and fixed-build checks are in
   only HTTP or HTTPS targets with `xdg-open`; other schemes are deliberately
   inert. Ordinary selection and the Ctrl+button menus keep their established
   gestures.
-- Patch-410 default VT bindings are audited in
+- Patch-411 default VT bindings are audited in
   `docs/compatibility/default-bindings.md`. Shift+Insert now owns the key event
   and pastes `SELECT` instead of also emitting modified Insert; paging and
   font-selection keys likewise remain local-only. Four action-level gaps are
@@ -271,7 +291,7 @@ using xterm+ only when referring to the compatibility executable or historical
 work recorded under that name.
 
 A useful product lens is that xterm is unusually broad in historical terminal
-protocols but deliberately narrow as a modern terminal application. Patch 410
+protocols but deliberately narrow as a modern terminal application. Patch 411
 implements a deep DEC and xterm-specific tail, including selectable VT levels,
 DECDHL double-size lines, DECUDK, printer controls, rectangle and locator
 operations, Tektronix 4014, and xterm query and keyboard extensions; configured
@@ -389,20 +409,119 @@ item. Otherwise record it under v0.6 and keep moving.
    release must not claim complete Ghostling parity or the existing MVP gate.
    The review should also decide whether Ghostling has added or removed a
    capability since the original inventory.
-3. **General shaping/fallback and italic—not emoji-only rendering.**
-   Promote the shaping, positioned-glyph-run painting, and atomic font-role
-   fallback proven by the emoji work into general-purpose text fallback, and
-   add a real italic Xft role. With an appropriate fallback face available, the
-   `probe-fonts.py` Devanagari conjunct, Vietnamese mark-to-mark placement,
-   above/below/overlay and Zalgo stacks, wide-base marks, and mixed CJK/text
-   runs must shape as runs rather than degrade into component boxes or naive
-   overstrikes. Add pinned automated acceptance for the stable parts instead of
-   leaving the result visual-only. The terminal core remains the sole width
-   authority; shaping and fallback must not change its committed cells.
+3. **General shaping/fallback and italic—not emoji-only rendering. Completed.**
+   The positioned-glyph painter now shapes primary and bounded fontconfig
+   fallback faces, joins compatible adjacent non-emoji cells for contextual
+   shaping, and selects real italic and bold-italic Xft faces. Pinned automated
+   acceptance covers a Devanagari conjunct, Vietnamese mark placement, Zalgo
+   stacks, mixed CJK/text fallback, SGR italic, and partial-Expose
+   reconstruction. The terminal core remains the sole width authority.
 
-   This successor slice is a v0.5 deliverable, not merely a review item. Keep
-   broader fallback-list configuration, variable-font-axis fidelity, and a
-   shaped-run performance cache as bounded follow-up if they prove substantial.
+   The patch-411 T0 font-resolution runner now replays the complete blessed
+   32-case deposition under a sterile Xvfb/fontconfig universe. Twenty-nine
+   cases remain stock-identical for file/index identity, role/style loads,
+   `-fa`/`-fd`/`-fe` precedence, routing, warnings, and WM geometry; ST-03 now
+   exercises the accepted normal-canonical runtime drift. `limitFontsets` uses
+   lazy candidates and patch-411's persistent glyph-bearing-open budget;
+   LM-01/02/03 conform. Two self-invalidating expected gaps remain: LM-04/05
+   (DEC double-height recognition; the height-cap diagnostic now conforms).
+   Unexpected passes fail until the exemption is removed. Partial updates are
+   painted in logical row/column order so cursor repaint order cannot consume
+   the fallback budget first. The replay also moved primary Xft geometry to
+   xterm's default packed printable-width behavior.
+
+   `limitFontHeight` and `limitFontWidth` accept their inherited defaults and
+   cap values above 50 with patch-411 diagnostics. The source-characterized
+   one-sided fallback-advance check is implemented: width-deferred
+   glyph-bearing candidates consume `limitFontsets`, while missing candidates
+   remain free. LM-04/05 and DEC double-width recognition cannot close in the
+   Xft adapter alone: the pinned libghostty stream treats `ESC # 3/#4` as
+   unsupported, terminal rows retain no DEC line-size attribute, and the C
+   render API exposes no such row field. Implement and expose that backend
+   state before adding Revenant's double-size row handling; do not infer it by
+   rescanning PTY bytes in the UI layer.
+
+   Every non-primary Xft instance is now normalized at open time by the exact
+   `(primary ascent + descent) / (face ascent + descent)` ratio. This includes
+   semantic roles, real styles, and lazily opened explicit, numbered, and
+   system fallbacks. The shaping fixture verifies the applied ratio against
+   the isolated Devanagari face without permitting any fallback to resize the
+   grid.
+
+   Numbered `fallbackFace1` … `fallbackFace16` resources now provide ordered,
+   single-pattern user fallbacks after entry 2 and before unnamed system
+   candidates. They allow gaps, deduplicate complete four-style resolved roles
+   by file/index/variation coordinates with a single `FR-DUPROLE` warning, open
+   lazily, and participate in the inherited glyph-bearing-open
+   `limitFontsets` budget. The isolated Xvfb test covers duplicate keep-first,
+   gaps, user ordering, resolved files, and the 1/2 then 2/2 budget sequence.
+
+   `systemFallback` is now the separate "nothing I did not name" switch. Its
+   default `true` preserves the existing fontconfig candidate stage; `false`
+   truncates each chain before unnamed candidates while leaving entry 2 and
+   numbered fallbacks under the normal `limitFontsets` budget.
+
+   `faceNameHan` is now a two-entry role generated from the pinned Unicode 17.0
+   `Script=Han` ranges. Kana, Hangul, shared punctuation, and other
+   Script_Extensions-only characters remain outside it. The isolated Han test
+   covers direct capture, kana/punctuation exclusion, recapture at doublesize
+   after a full Han miss, a supported cmap-14 variation, and an unsupported IVS
+   rendered as one Revenant-owned tofu box per committed cell rather than the
+   unvaried base. Regenerate/check the table with
+   `uv run --script tools/generate-han-table [--check]`.
+
+   Deterministic tofu is now general rather than IVS-only. Once every reachable
+   role misses an ink-bearing atom, the Xft painter draws one Revenant-owned
+   outline box per backend-committed cell. Spaces, controls, and
+   default-ignorable-only atoms remain blank. The focused pixel test proves a
+   width-1 PUA miss, both independent boxes of a width-2 Han miss, and a blank
+   space cell against the isolated base-font universe.
+
+   Runtime coverage is now normal-canonical across primary and fallback roles.
+   The normal chain chooses and activates the family; bold/italic rendering is
+   accepted afterward only for a genuine same-family style covering that atom,
+   otherwise the saved normal shaping result serves. ST-03 is now an explicit
+   accepted-drift projection (CJK regular rather than stock's bold-but-roman
+   fallback), while the shaping fixture proves both real DejaVu italic and
+   CJK bold-italic degradation without rerouting.
+
+   Configured wide-text slots now own their misses through deterministic tofu;
+   they no longer fall across to a capable primary role after exhausting the
+   doublesize chain. The focused two-process fixture proves both the strict
+   configured boundary and the unset-resource path where primary capture is
+   still correct. Emoji rescue and Han-miss recapture remain green as the two
+   explicitly sanctioned cross-slot paths.
+
+   Inherited `boldFont` and `wideBoldFont` now contribute explicitly prefixed
+   `xft:` entries after normal-canonical routing. Same-family entries can
+   supply the real bold instance selected for primary or fallback roles; a
+   different-family entry cannot reroute and instead emits
+   `FR-STYLEFAMILY` before normal serves. ST-04/05 and the focused two-process
+   style-family fixture cover both outcomes.
+
+   Atom routing now uses a fixed 8192-entry global-LRU cache keyed by full atom
+   bytes, committed width, presentation/effective policy, color policy, active
+   and capturing slots, `systemFallback`, and font-universe generation. Values
+   store only the normal-canonical family decision (or tofu); requested styles
+   are resolved inside that cached family and never enter the key. The unit
+   test covers every discriminator and true LRU eviction, while the focused
+   Xvfb test covers normal/bold reuse, distinct atoms, and tofu reuse.
+
+   The bounded schema-1 NDJSON routing report and `report-font-routing()` Xt
+   action are implemented, including disabled snapshots, load/route/warn/bound
+   records, literal routing rungs, nullable tofu identities, style fallback,
+   and a focused Xvfb schema test. Direct coverage fills all 4096 first-use
+   route records and proves the next route marks `FR-REPORTBOUND` without
+   affecting service. Load records grow past the 256-record initial allocation,
+   replace prior successful generations, and expose allocation truncation as
+   `FR-LOADBOUND`. Font-related SetValues is now transactional:
+   it builds a complete candidate universe, swaps and advances generation only
+   on primary success, and retains the old effective fonts, metrics, cache, and
+   policy after failure while exposing the new configured values through
+   `FR-RELOADFAIL` and retained load records. `xvfb-font-reload` covers both
+   branches. Keep any shaped-run performance
+   cache separate from family routing. Preserve variable-font coordinates when
+   resolving role identity and opening every instance.
    Preserve the Xlib bitmap/BDF path when `renderFont: false`, and do not regress
    any emoji invariant while generalizing the path: Unicode 17 routing/width
    interlock, legacy and mode-2027 widths, VS15/VS16 and presentation policy,
@@ -411,7 +530,7 @@ item. Otherwise record it under v0.6 and keep moving.
    format fixture universes.
 4. **Review the command line and fix its obvious dishonesty.** Use
    `docs/compatibility/command-line-feasibility.md` as the inventory and compare
-   behavior with the patch-410 xterm oracle. Reject an unknown option such as
+   behavior with the patch-411 xterm oracle. Reject an unknown option such as
    `-asdfzxcv` with the invoked program name, xterm-style `bad command line
    option` text, usage, and a failing status instead of silently opening a
    window. Add single-dash `-help` and `-version`, preserve `-e` as the boundary
@@ -449,12 +568,13 @@ item. Otherwise record it under v0.6 and keep moving.
    until existing `xterm*` resources have a documented compatibility path and
    oracle tests. Implement `-name` and `-class` only as part of this coherent
    decision, not as isolated option-table entries.
-8. **Remaining keyboard/XIM compatibility matrix.** Complete the ordinary and
-   application cursor/keypad modes, Shift/Ctrl/Alt/Super combinations, function
-   and editing keys, XIM composition, and at least one non-US layout. Keep
-   libghostty's intentional fixterms default visible in the drift ledger. Each
-   application failure should become an exact PTY-byte fixture rather than a
-   broad claim of keyboard compatibility.
+8. **Remaining keyboard/XIM compatibility matrix. Completed.** The exact-byte
+   Xvfb matrix covers ordinary and application cursor/keypad modes,
+   Shift/Ctrl/Alt/Super combinations, function and editing keys, XIM Compose,
+   a remapped non-US character, and no-XIM Unicode fallback. F13
+   press/repeat/release is covered under Kitty reporting with a synthetic XKB
+   mapping. Keep libghostty's intentional fixterms default visible in the
+   drift ledger, and turn future application failures into named fixtures.
 9. **Triage a small, visible xterm-compatibility set.** Examine `color0`
    through `color15`, startup cursor-shape resources, `clear-saved-lines`, and
    the remaining high-use key/action gaps. Implement the small pieces and move
@@ -472,8 +592,9 @@ item. Otherwise record it under v0.6 and keep moving.
    `--version`, `-report-config`, severity-selected logs, probes, and known
    limitations sufficient for a useful bug report. Verify installation,
    upgrade, shell exit, desktop entry, resources, fonts, menus, and uninstall
-   from the tarball, Debian package, and RPM. The release notes must call the
-   release early access and distinguish missing capability from known defects.
+   from the tarball, Debian package, RPM, and Arch Linux package. The release
+   notes must call the release early access and distinguish missing capability
+   from known defects.
 
 ### Checkpoint gates
 
@@ -482,9 +603,10 @@ Before publishing the v0.5 early-access feature release:
 - `just check-all` passes with strict GCC, strict Clang, the stub backend, Xvfb,
   and the reproducible font fixtures; every package job runs the same relevant
   integration suites.
-- The selected Ghostty source is one reviewed commit. If it follows an
-  unreleased branch while the project is targeting early 1.4 work, freeze the
-  exact commit for the release and identify that fact in the release notes.
+- The selected Ghostty source is one reviewed, exact commit;
+  `tools/fetch-libghostty` rejects moving references. While the project targets
+  early 1.4 work before an upstream tag exists, keep the reviewed commit pin
+  and identify in the release notes that it came from an unreleased branch.
 - The live xterm geometry/font-menu comparison passes under VNC with curated
   resources. Keep this an explicit side test because it depends on a separately
   installed xterm oracle; do not pretend it is a hermetic normal test.
@@ -561,7 +683,7 @@ gates rather than aspirations:
    parser state alone is insufficient, and announcement language must say
    "Ghostling parity except Kitty graphics" rather than claim full parity.
 2. **Menus and command line are honest and compatibility-reviewed.** Every
-   patch-410 menu entry and command-line option is implemented and tested,
+   patch-411 menu entry and command-line option is implemented and tested,
    deliberately insensitive/rejected, or explicitly documented as an
    intentional difference. Supported entries match the xterm oracle, unknown
    options fail, and no accepted-but-inert surface is advertised as working.
@@ -600,7 +722,7 @@ evidence for the next decision.
 - Keep `-report-config`, the catalogs, menu sensitivity, translations,
   the [xterm differences ledger](docs/compatibility/drift.md), and the
   [roadmap](docs/maintainers/roadmap.md) synchronized.
-- When moving beyond patch 410, update all three compatibility catalogs and
+- When moving beyond patch 411, update all four compatibility artifacts and
   record the new oracle together.
 - Do not install this repository's `XTerm` app-default over a distributor's
   xterm package without a conflict-free packaging strategy.
@@ -641,6 +763,10 @@ Useful runtime checks:
 ./build-agent-gcc/xtp-send-font-keys WINDOW_ID + 4
 ./build-agent-gcc/xtp-send-font-keys WINDOW_ID - 4
 just probe-reverse-video
+just probe-emoji --no-pause
+just probe-fonts --no-pause
+just probe-keymodes --kitty-only
+just xterm-font-compat build-agent-gcc
 just resize-loop WINDOW_ID 8 20
 just reflow-prompt
 just reflow-resize WINDOW_ID
@@ -650,12 +776,16 @@ The current self-test has focused backend checks for rendering, cursor state,
 modes, selection and deep scrollback, tty-output viewport anchoring, mouse and
 focus encoding, resize, PTY setup, log-level parsing, and write backpressure
 without byte loss, but it remains one in-process harness. When Xvfb is
-available, Meson also runs integration suites for opacity/reverse-video pixel
-policy and logging thresholds; named selections, cut buffers, and OSC 8 launch
-policy; legacy/fixterms keyboard delivery; and Kitty keyboard press, repeat,
-and release. Split the remaining harness into focused tests and grow Xvfb
-coverage; do not treat any one suite alone as evidence of full UI
-compatibility.
+available, Meson also runs integration suites for the reproducible font
+baseline; emoji routing, shaping, width regimes, and color-font formats;
+opacity/reverse-video pixel policy and logging thresholds; named selections,
+cut buffers, and OSC 8 launch policy; legacy/fixterms keyboard delivery; and
+Kitty keyboard press, repeat, and release. Release package configurations use
+`-Dxvfb-tests=enabled`, which makes missing Xvfb or libghostty an immediate
+configuration error, and `tools/check-release-tests` rejects skipped suites.
+The live xterm font/geometry oracle remains an explicit side test. Split the
+remaining harness into focused tests and grow Xvfb coverage; do not treat any
+one suite alone as evidence of full UI compatibility.
 
 ## Performance and longer-term direction
 

@@ -36,6 +36,11 @@ Load it with `xrdb -merge ~/.Xresources` and start a new Revenant.
 
 ## Fonts
 
+This section is the short overview. The dedicated
+[Fonts and font fallback](fonts.md) guide explains the two-entry xterm grammar,
+role selection, additional fonts, shaping/width invariants, diagnostics, and
+which Revision-5 resolver resources are implemented in the current build.
+
 xterm has a font *menu* with ten slots, and the resources fill the first
 eight. Understanding the slots explains most of the font resources.
 
@@ -64,6 +69,11 @@ XTerm*renderFont: true      ! Xft/fontconfig: faceName + faceSize apply
 XTerm*renderFont: false     ! Xlib bitmap fonts: font, font1 … font7 apply
 ```
 
+Bitmap mode is a supported compatibility path, not a deprecated fallback. The
+Revision 5 role, shaping, emoji, and general-fallback expansion applies only to
+`renderFont: true`; an existing xterm bitmap-font configuration may continue
+to use `renderFont: false` and the traditional bitmap resources unchanged.
+
 With Xft, name the face the fontconfig way and give sizes in points:
 
 ```xrdb
@@ -88,7 +98,9 @@ VS15 always requests text presentation and VS16 always requests emoji
 presentation. Without a selector, `emojiPresentation` chooses Unicode's
 default, forces text, or forces emoji. Emoji presentation tries
 `faceNameEmoji`, then `faceNameDoublesize`, then the primary face; wide
-non-emoji text tries `faceNameDoublesize` and then the primary face. A face is
+non-emoji text tries `faceNameDoublesize` and then the primary face. If those
+explicit roles miss, Revenant walks a bounded fontconfig fallback chain for
+the active font slot and SGR weight/slant. A face is
 skipped when the complete grapheme cannot be shaped by that face or its
 selected ink path is empty. Fallback is atomic: a partially covered ZWJ or
 modifier sequence, keycap, regional-indicator flag, or terminated subdivision
@@ -117,6 +129,17 @@ cluster-aware environments. Applications can still negotiate either state
 explicitly with DECSET/DECRST 2027. Libghostty remains responsible for cluster
 boundaries and terminal width; rendering never changes the chosen width.
 
+Compatible adjacent non-emoji cells are shaped together when they resolve to
+the same face. This lets an Indic conjunct split across backend graphemes and
+mark-heavy runs use contextual substitution and positioning. The painter clips
+the result to the combined cells committed by libghostty; shaping never changes
+cursor arithmetic, history, selection, or the grid.
+
+SGR italic and bold-italic select separate fontconfig faces. If a requested
+style is unavailable, rendering falls back through the configured role and
+normal face without synthesizing a slant. The Xlib bitmap path remains
+unchanged and continues to use its historical synthetic-bold behavior.
+
 Revenant resolves those point sizes using the active X screen's Xft defaults,
 including its DPI. This keeps the initial font and every font-menu slot at the
 same physical scale as xterm on displays whose DPI is not 96.
@@ -143,11 +166,10 @@ The `TrueType Fonts` entry in the VT Fonts menu toggles `renderFont` at
 runtime, and the Xt action `set-render-font(toggle)` does the same from a
 translation.
 
-!!! note "Not yet"
-    General-purpose fallback faces, comma-separated override faces, and italic
-    faces are not implemented. Emoji presentation policy is still selected
-    from the first base codepoint, VS15/VS16, and keycap syntax; HarfBuzz then
-    shapes the complete backend grapheme in the selected role.
+!!! note "Font resolution"
+    The [font guide](fonts.md) is the maintained source for Xft role chains,
+    shaping, fallback, diagnostics, and current limitations. Traditional
+    `renderFont: false` bitmap configurations remain supported independently.
 
 ## Colours
 
@@ -373,7 +395,7 @@ Actions currently implemented include `insert-selection`, `select-end`,
 `smaller-vt-font`, `set-render-font`, and the popup actions. The report labels
 each action *supported* or *unsupported*.
 The [default VT bindings audit](../compatibility/default-bindings.md) accounts
-for every patch-410 group and records the remaining action-level gaps.
+for every patch-411 group and records the remaining action-level gaps.
 
 ## Menus
 

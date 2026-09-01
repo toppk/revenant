@@ -50,14 +50,15 @@ done
 DISPLAY=127.0.0.1:$(sed -n '1p' "$test_dir/display")
 XTP_KEY_CAPTURE=$test_dir/key.capture
 XTP_KEY_READY=$test_dir/key.ready
-export DISPLAY XTP_KEY_CAPTURE XTP_KEY_READY
+XMODIFIERS=@im=revenant-missing
+export DISPLAY XMODIFIERS XTP_KEY_CAPTURE XTP_KEY_READY
 
 log=$test_dir/xterm-keyboard.log
 "$terminal" -debug +sb -e sh -c '
     stty raw -echo
     : >"$XTP_KEY_CAPTURE"
     : >"$XTP_KEY_READY"
-    dd if=/dev/tty of="$XTP_KEY_CAPTURE" bs=1 count=9 2>/dev/null
+    dd if=/dev/tty of="$XTP_KEY_CAPTURE" bs=1 count=11 2>/dev/null
     sleep 20
 ' >"$test_dir/xterm-keyboard.out" 2>"$log" &
 terminal_pid=$!
@@ -77,9 +78,10 @@ done
 window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$log" | tail -1)
 "$sender" "$window" ctrl-i >/dev/null
 "$sender" "$window" tab >/dev/null
+"$sender" "$window" adiaeresis >/dev/null
 
 attempt=0
-while test "$(wc -c <"$XTP_KEY_CAPTURE" 2>/dev/null || true)" -lt 9
+while test "$(wc -c <"$XTP_KEY_CAPTURE" 2>/dev/null || true)" -lt 11
 do
     attempt=$((attempt + 1))
     if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
@@ -90,11 +92,17 @@ do
     fi
     sleep 0.05
 done
-printf '\033[105;5u\t' >"$test_dir/key.expected"
+printf '\033[105;5u\t\303\244' >"$test_dir/key.expected"
 if ! cmp -s "$test_dir/key.expected" "$XTP_KEY_CAPTURE"
 then
-    echo "xterm+ did not distinguish raw-mode Ctrl-I from Tab" >&2
+    echo "xterm+ Ctrl-I, Tab, or no-XIM UTF-8 bytes did not match" >&2
     od -An -tx1 "$XTP_KEY_CAPTURE" >&2
+    sed -n '1,260p' "$log" >&2
+    exit 1
+fi
+if ! grep -F -q -- 'input-method=unavailable input-context=unavailable' "$log"
+then
+    echo "xterm+ did not exercise the no-XIM UTF-8 fallback" >&2
     sed -n '1,260p' "$log" >&2
     exit 1
 fi

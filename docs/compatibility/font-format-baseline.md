@@ -82,6 +82,17 @@ Its policy adversaries put a color emoji font in the doublesize role under
 `emojiPresentation: text`, and put an outline-less CBDT font in the primary
 role under `colorGlyphs: false`; neither case may leak color.
 
+## General shaping and fallback
+
+`tests/xvfb-text-shaping.sh` extends the isolated fixture contract beyond
+emoji. DejaVu Sans Mono supplies regular, bold, oblique, and bold-oblique
+faces; Noto Sans Devanagari and Noto Sans Mono CJK JP are available only
+through fontconfig fallback. The test requires positioned Vietnamese and
+Zalgo runs, a real oblique SGR-italic face, a two-backend-grapheme Devanagari
+conjunct shaped into one glyph across its unchanged two-cell span, and a mixed
+CJK/combining-text fallback run. A partial Expose beginning in the conjunct's
+second cell must reconstruct the same complete shaped run.
+
 ## Unicode version interlock
 
 The fixture routing input and selected libghostty `uucode` width input both

@@ -18,10 +18,10 @@ not finished the user-visible integration or acceptance coverage.
 | --- | --- | --- |
 | Resize with text reflow | Present | Retain live Readline, large-history, and stale-frame regression coverage. |
 | Full 24-bit color and 256-color palette | Present | The terminal output works; applying xterm `color0` through `color15` resources is a separate xterm-fidelity task. |
-| Bold, italic, and inverse styles | Partial | Add an italic Xft face/path and complete style-combination coverage. |
-| Unicode and multi-codepoint graphemes | Partial | Unicode 17 emoji/CJK roles, selectors, color formats, HarfBuzz sequence shaping, and atomic role fallback are covered; add general-purpose fallback. |
-| Keyboard input with Shift, Ctrl, Alt, and Super | Partial | Complete the X11 key map and exact modifier/application-mode regression matrix. |
-| Kitty keyboard protocol | Present | Retain exact state-stack and X11 press/repeat/release fixtures; expand non-US XIM coverage as layouts become available in CI. |
+| Bold, italic, and inverse styles | Present | Retain real bold/italic/bold-italic Xft roles and style-combination coverage; bitmap synthetic bold remains an xterm-fidelity task. |
+| Unicode and multi-codepoint graphemes | Present | Retain Unicode 17 emoji roles, general fontconfig fallback, contextual adjacent-cell shaping, color formats, and atomic role selection. |
+| Keyboard input with Shift, Ctrl, Alt, and Super | Present | Retain exact normal/application mode, modifier, editing/function-key, non-US, XIM, and no-XIM UTF-8 fixtures. |
+| Kitty keyboard protocol | Present | Retain exact state-stack and X11 press/repeat/release fixtures, including the synthetic F13 map and composed/non-US UTF-8 coverage. |
 | Kitty graphics protocol | Missing | Expose image placement/lifecycle through `terminal.h` and safely composite it in X11. Parser state alone is not promotion. |
 | X10, normal, button-event, and any-event mouse tracking | Present | Retain backend and Xvfb routing coverage. |
 | SGR, URxvt, UTF-8, and X10 mouse reports | Present | Retain exact encoding coverage; Revenant also supports SGR-pixel reports. |
@@ -31,7 +31,7 @@ not finished the user-visible integration or acceptance coverage.
 
 <!-- markdownlint-enable MD013 -->
 
-Current total: **8 Present, 3 Partial, 1 Missing**.
+Current total: **11 Present, 0 Partial, 1 Missing**.
 
 ## Kitty keyboard acceptance backlog
 
@@ -65,12 +65,16 @@ following maintained checks:
 - [x] Turn real application failures reported by the maintainer into named,
   reproducible fixtures with exact expected PTY bytes.
 
-`tests/xvfb-keyboard.sh` protects the zero-flags Ctrl-I/Tab split.
+`tests/xvfb-keyboard.sh` protects the zero-flags Ctrl-I/Tab split and the
+no-XIM keysym-to-UTF-8 fallback.
 `tests/xvfb-kitty-keyboard.sh` drives real X key events and compares exact PTY
 bytes for press, repeat, release, shifted alternatives, associated text, and a
-bare modifier. The backend self-test protects query ordering, every set mode,
-and nested stack restoration. Non-US layouts and composed XIM input remain
-useful matrix expansion, but are no longer missing protocol plumbing.
+bare modifier, including an F13 key installed into Xvfb's otherwise limited
+map. `tests/xvfb-keyboard-matrix.sh` adds normal/application cursor and keypad
+modes, Shift/Ctrl/Alt/Super modifiers, editing/function keys, a remapped
+non-US character, and built-in XIM Compose. The backend self-test protects
+query ordering, every set mode, and nested stack restoration. More layouts
+remain useful matrix expansion, but are no longer missing protocol plumbing.
 
 The wire format and manual probes are documented in the
 [TDN Kitty keyboard reference](https://toppk.github.io/revenant/tdn/input/kitty-keyboard/).

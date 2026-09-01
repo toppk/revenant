@@ -271,6 +271,6 @@ renames a menu entry; and `XTerm*title` sets the window title because
   full precedence algorithm
 - xterm's own manual page, section RESOURCES, for the complete list of
   xterm resources — Revenant inventories all of them in
-  `compat/xterm-410-resources.tsv` and reports its support for each
+  `compat/xterm-411-resources.tsv` and reports its support for each
 
 <!-- markdownlint-enable MD013 -->

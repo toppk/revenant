@@ -87,9 +87,13 @@ static const ResourceProbe resource_probes[] = {
     {"xterm.vt100.faceName", "XTerm.VT100.FaceName"},
     {"xterm.vt100.faceNameDoublesize", "XTerm.VT100.FaceNameDoublesize"},
     {"xterm.vt100.faceNameEmoji", "XTerm.VT100.FaceNameEmoji"},
+    {"xterm.vt100.faceNameHan", "XTerm.VT100.FaceNameHan"},
+    {"xterm.vt100.boldFont", "XTerm.VT100.BoldFont"},
+    {"xterm.vt100.wideBoldFont", "XTerm.VT100.WideBoldFont"},
     {"xterm.vt100.emojiPresentation", "XTerm.VT100.EmojiPresentation"},
     {"xterm.vt100.graphemeWidth", "XTerm.VT100.GraphemeWidth"},
     {"xterm.vt100.colorGlyphs", "XTerm.VT100.ColorGlyphs"},
+    {"xterm.vt100.reportFontRouting", "XTerm.VT100.ReportFontRouting"},
     {"xterm.vt100.faceSize", "XTerm.VT100.FaceSize"},
     {"xterm.vt100.renderFont", "XTerm.VT100.RenderFont"},
     {"xterm.vt100.internalBorder", "XTerm.VT100.BorderWidth"},
@@ -451,6 +455,21 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
             "XTerm.VT100.FaceNameEmoji",
             NULL,
         };
+        ResourceSpec han_spec = {
+            "xterm.vt100.faceNameHan",
+            "XTerm.VT100.FaceNameHan",
+            NULL,
+        };
+        ResourceSpec bold_spec = {
+            "xterm.vt100.boldFont",
+            "XTerm.VT100.BoldFont",
+            NULL,
+        };
+        ResourceSpec wide_bold_spec = {
+            "xterm.vt100.wideBoldFont",
+            "XTerm.VT100.WideBoldFont",
+            NULL,
+        };
         ResourceSpec presentation_spec = {
             "xterm.vt100.emojiPresentation",
             "XTerm.VT100.EmojiPresentation",
@@ -466,14 +485,29 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
             "XTerm.VT100.ColorGlyphs",
             "true",
         };
+        ResourceSpec system_fallback_spec = {
+            "xterm.vt100.systemFallback",
+            "XTerm.VT100.SystemFallback",
+            "true",
+        };
+        ResourceSpec report_routing_spec = {
+            "xterm.vt100.reportFontRouting",
+            "XTerm.VT100.ReportFontRouting",
+            "false",
+        };
         Resolved render = ResolveResource(merged, server, command, &render_spec);
         Resolved face = ResolveResource(merged, server, command, &face_spec);
         Resolved double_face = ResolveResource(merged, server, command, &double_spec);
         Resolved base_size = ResolveResource(merged, server, command, &size_spec);
         Resolved emoji_face = ResolveResource(merged, server, command, &emoji_spec);
+        Resolved han_face = ResolveResource(merged, server, command, &han_spec);
+        Resolved bold_face = ResolveResource(merged, server, command, &bold_spec);
+        Resolved wide_bold_face = ResolveResource(merged, server, command, &wide_bold_spec);
         Resolved presentation = ResolveResource(merged, server, command, &presentation_spec);
         Resolved grapheme_width = ResolveResource(merged, server, command, &grapheme_width_spec);
         Resolved color_glyphs = ResolveResource(merged, server, command, &color_glyphs_spec);
+        Resolved system_fallback = ResolveResource(merged, server, command, &system_fallback_spec);
+        Resolved report_routing = ResolveResource(merged, server, command, &report_routing_spec);
         FontChoice choices[8];
         FontChoice ordered[8];
         double base_points = NumberValue(&base_size, 8.0);
@@ -487,10 +521,8 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
         puts("! scalable family and faceSize chooses its Default-menu point size.");
         PrintResolved("XTerm*renderFont", "supported", "TrueType/Xft renderer requested state.",
                       &render);
-        PrintResolved(
-            "XTerm*faceName", "supported (primary face)",
-            "Primary fontconfig family; comma-separated override faces are not applied yet.",
-            &face);
+        PrintResolved("XTerm*faceName", "supported (primary face)",
+                      "Primary two-entry chain; entry 1 is the metrics authority.", &face);
         PrintResolved("XTerm*faceSize", "supported", "Point size for the Default font-menu entry.",
                       &base_size);
         PrintResolved("XTerm*faceNameDoublesize", "supported",
@@ -498,6 +530,14 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
                       &double_face);
         PrintResolved("XTerm*faceNameEmoji", "supported",
                       "Preferred face for Unicode emoji presentation.", &emoji_face);
+        PrintResolved("XTerm*faceNameHan", "supported",
+                      "Script=Han text-presentation role; excludes Script_Extensions.", &han_face);
+        PrintResolved("XTerm*boldFont", "supported",
+                      "Explicit xft: entries supply same-family primary bold instances.",
+                      &bold_face);
+        PrintResolved("XTerm*wideBoldFont", "supported",
+                      "Explicit xft: entries supply same-family doublesize bold instances.",
+                      &wide_bold_face);
         PrintResolved("XTerm*emojiPresentation", "supported",
                       "Selector-less policy: unicode, text, or emoji.", &presentation);
         PrintResolved("XTerm*graphemeWidth", "supported",
@@ -506,6 +546,33 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
         PrintResolved("XTerm*colorGlyphs", "supported",
                       "Color-glyph policy; false uses real outline bases and rejects empty ones.",
                       &color_glyphs);
+        PrintResolved("XTerm*systemFallback", "supported",
+                      "Whether unnamed fontconfig candidates follow explicitly named fonts.",
+                      &system_fallback);
+        PrintResolved("XTerm*reportFontRouting", "supported",
+                      "Collect bounded route records for report-font-routing() snapshots.",
+                      &report_routing);
+        for (slot = 0; slot < 16; ++slot) {
+                char resource_name[64];
+                char class_name[64];
+                char label[32];
+                ResourceSpec fallback_spec;
+                Resolved fallback;
+
+                snprintf(resource_name, sizeof(resource_name), "xterm.vt100.fallbackFace%d",
+                         slot + 1);
+                snprintf(class_name, sizeof(class_name), "XTerm.VT100.FallbackFace%d", slot + 1);
+                snprintf(label, sizeof(label), "XTerm*fallbackFace%d", slot + 1);
+                fallback_spec.resource = resource_name;
+                fallback_spec.class_name = class_name;
+                fallback_spec.default_value = NULL;
+                fallback = ResolveResource(merged, server, command, &fallback_spec);
+                if (fallback.origin != ORIGIN_UNSET)
+                        PrintResolved(label, "supported",
+                                      "Ordered user fallback before unnamed system candidates.",
+                                      &fallback);
+                free(fallback.value);
+        }
         primary = PrimaryFontconfigFace(face.value);
         PrintFontconfigMatch(XtDisplay(vt), XScreenNumberOfScreen(XtScreen(vt)), primary,
                              base_points);
@@ -607,9 +674,14 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
         free(double_face.value);
         free(base_size.value);
         free(emoji_face.value);
+        free(han_face.value);
+        free(bold_face.value);
+        free(wide_bold_face.value);
         free(presentation.value);
         free(grapheme_width.value);
         free(color_glyphs.value);
+        free(system_fallback.value);
+        free(report_routing.value);
 }
 
 static void
@@ -683,11 +755,12 @@ KnownTranslationAction(const char *action)
 {
         return strcmp(action, "larger-vt-font") == 0 || strcmp(action, "smaller-vt-font") == 0 ||
                strcmp(action, "set-render-font") == 0 || strcmp(action, "set-select") == 0 ||
-               strcmp(action, "popup-menu") == 0 || strcmp(action, "scroll-back") == 0 ||
-               strcmp(action, "scroll-forw") == 0 || strcmp(action, "select-start") == 0 ||
-               strcmp(action, "select-extend") == 0 || strcmp(action, "select-end") == 0 ||
-               strcmp(action, "start-extend") == 0 || strcmp(action, "insert-selection") == 0 ||
-               strcmp(action, "mouse-press") == 0 || strcmp(action, "mouse-motion") == 0;
+               strcmp(action, "report-font-routing") == 0 || strcmp(action, "popup-menu") == 0 ||
+               strcmp(action, "scroll-back") == 0 || strcmp(action, "scroll-forw") == 0 ||
+               strcmp(action, "select-start") == 0 || strcmp(action, "select-extend") == 0 ||
+               strcmp(action, "select-end") == 0 || strcmp(action, "start-extend") == 0 ||
+               strcmp(action, "insert-selection") == 0 || strcmp(action, "mouse-press") == 0 ||
+               strcmp(action, "mouse-motion") == 0;
 }
 
 static bool
@@ -809,10 +882,10 @@ ReportTranslations(XrmDatabase merged, XrmDatabase server, XrmDatabase command)
         }
         if (action_count == 0)
                 puts("! action audit: no action calls found in the resolved value");
-        printf("! patch-410 registered action ledger: %zu unique actions\n",
-               xtp_xterm_410_action_count);
-        for (action = 0; action < xtp_xterm_410_action_count; ++action) {
-                const char *name = xtp_xterm_410_actions[action];
+        printf("! patch-411 registered action ledger: %zu unique actions\n",
+               xtp_xterm_411_action_count);
+        for (action = 0; action < xtp_xterm_411_action_count; ++action) {
+                const char *name = xtp_xterm_411_actions[action];
 
                 printf("! [%s] action %s()\n",
                        KnownTranslationAction(name) ? "supported" : "unsupported", name);
@@ -852,8 +925,11 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "multiClickTime") == 0 || strcmp(name, "charClass") == 0 ||
             strcmp(name, "renderFont") == 0 || strcmp(name, "faceName") == 0 ||
             strcmp(name, "faceNameDoublesize") == 0 || strcmp(name, "faceNameEmoji") == 0 ||
-            strcmp(name, "emojiPresentation") == 0 || strcmp(name, "graphemeWidth") == 0 ||
-            strcmp(name, "colorGlyphs") == 0 || strncmp(name, "faceSize", 8) == 0)
+            strcmp(name, "faceNameHan") == 0 || strcmp(name, "boldFont") == 0 ||
+            strcmp(name, "wideBoldFont") == 0 || strcmp(name, "emojiPresentation") == 0 ||
+            strcmp(name, "graphemeWidth") == 0 || strcmp(name, "colorGlyphs") == 0 ||
+            strcmp(name, "limitFontsets") == 0 || strcmp(name, "limitFontHeight") == 0 ||
+            strcmp(name, "limitFontWidth") == 0 || strncmp(name, "faceSize", 8) == 0)
                 return "supported";
         if (strcmp(name, "cursorBlinkXOR") == 0 || strncmp(name, "color", 5) == 0 ||
             strcmp(name, "pointerColor") == 0 || strcmp(name, "pointerColorBackground") == 0 ||
@@ -922,8 +998,8 @@ ReportUpstreamCatalog(XrmDatabase merged, XrmDatabase server, XrmDatabase comman
         size_t item;
         size_t conditional = 0;
 
-        for (item = 0; item < xtp_xterm_410_resource_count; ++item) {
-                XtpResourceScope scope = xtp_xterm_410_resources[item].scope;
+        for (item = 0; item < xtp_xterm_411_resource_count; ++item) {
+                XtpResourceScope scope = xtp_xterm_411_resources[item].scope;
 
                 if (scope == XTP_RESOURCE_APPLICATION_CONDITIONAL ||
                     scope == XTP_RESOURCE_VT100_CONDITIONAL ||
@@ -933,14 +1009,14 @@ ReportUpstreamCatalog(XrmDatabase merged, XrmDatabase server, XrmDatabase comman
 
         puts("\n! ======================================================================");
         puts("! Exhaustive upstream X resource compatibility ledger");
-        printf("! Authority: xterm patch 410 (%zu active, %zu conditional entries).\n",
-               xtp_xterm_410_resource_count - conditional, conditional);
+        printf("! Authority: xterm patch 411 (%zu active, %zu conditional entries).\n",
+               xtp_xterm_411_resource_count - conditional, conditional);
         puts("! This includes application, VT100, Tek4014, and named VT font tables,");
-        puts("! plus resources hidden by disabled patch-410 compile-time options.");
+        puts("! plus resources hidden by disabled patch-411 compile-time options.");
         puts("! Unsupported entries are intentional open decisions,");
         puts("! not omissions from this report. Xt/Xaw inherited classes follow below.");
-        for (item = 0; item < xtp_xterm_410_resource_count; ++item) {
-                const XtpResourceCatalogEntry *entry = &xtp_xterm_410_resources[item];
+        for (item = 0; item < xtp_xterm_411_resource_count; ++item) {
+                const XtpResourceCatalogEntry *entry = &xtp_xterm_411_resources[item];
                 char resource[160];
                 char class_name[160];
                 char display_name[192];
@@ -955,7 +1031,7 @@ ReportUpstreamCatalog(XrmDatabase merged, XrmDatabase server, XrmDatabase comman
                 spec.default_value = entry->default_value;
                 resolved = ResolveResource(merged, server, command, &spec);
                 (void)snprintf(explanation, sizeof(explanation),
-                               "patch-410 %s resource (class %s).", CatalogScopeName(entry->scope),
+                               "patch-411 %s resource (class %s).", CatalogScopeName(entry->scope),
                                entry->class_name);
                 PrintResolved(display_name, CatalogSupport(entry), explanation, &resolved);
                 free(resolved.value);
@@ -985,17 +1061,17 @@ ReportUpstreamAppDefaults(void)
         size_t item;
 
         puts("\n! ======================================================================");
-        puts("! Upstream patch-410 XTerm app-default records");
+        puts("! Upstream patch-411 XTerm app-default records");
         printf("! %zu active resource patterns from XTerm.ad. These preserve widget\n",
-               xtp_xterm_410_app_default_count);
+               xtp_xterm_411_app_default_count);
         puts("! instance names as well as resource names; the live app-defaults path");
         puts("! reported above may contain distribution or local overrides.");
         puts("! 'supported' here means the pattern reaches a matching widget/resource;");
         puts("! it does not imply that an insensitive menu item's command works yet.");
-        for (item = 0; item < xtp_xterm_410_app_default_count; ++item) {
-                const char *record = xtp_xterm_410_app_defaults[item];
+        for (item = 0; item < xtp_xterm_411_app_default_count; ++item) {
+                const char *record = xtp_xterm_411_app_defaults[item];
 
-                printf("! [%s] patch-410 XTerm.ad record\n", AppDefaultSupport(record));
+                printf("! [%s] patch-411 XTerm.ad record\n", AppDefaultSupport(record));
                 puts(record);
         }
 }

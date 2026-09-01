@@ -57,6 +57,7 @@ printf '\033[97;;97u\033[97;1:2;97u\033[97;1:3u' >"$XTP_KEY_EXPECTED"
 printf '\033[97:65;2;65u\033[97:65;2:2;65u\033[97:65;2:3u' >>"$XTP_KEY_EXPECTED"
 printf '\033[57442;5u\033[57442;5:2u\033[57442;5:3u' >>"$XTP_KEY_EXPECTED"
 printf '\033[1;1:1A\033[1;1:2A\033[1;1:3A' >>"$XTP_KEY_EXPECTED"
+printf '\033[57376u\033[57376;1:2u\033[57376;1:3u' >>"$XTP_KEY_EXPECTED"
 XTP_KEY_COUNT=$(wc -c <"$XTP_KEY_EXPECTED")
 export XTP_KEY_COUNT
 
@@ -90,6 +91,7 @@ window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$log" | 
 "$sender" "$window" shift-a-cycle >/dev/null
 "$sender" "$window" ctrl-cycle >/dev/null
 "$sender" "$window" up-cycle >/dev/null
+"$sender" "$window" f13-cycle >/dev/null
 
 attempt=0
 while test "$(wc -c <"$XTP_KEY_CAPTURE" 2>/dev/null || true)" -lt "$XTP_KEY_COUNT"

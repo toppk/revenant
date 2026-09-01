@@ -10,3 +10,4 @@
 /obj-*/
 /font-fixtures-stage/
 /libghostty-zig/
+__pycache__/

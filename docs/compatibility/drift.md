@@ -5,11 +5,57 @@ X11 boundary. It is not intended to preserve xterm's internal architecture.
 This document records intentional differences so that compatibility work does
 not quietly turn into unreviewed divergence.
 
-The current behavioral reference is upstream xterm patch 410, as represented
-by the neighboring `xterm` repository. A newer reference must be recorded here
-when that baseline changes.
+The current behavioral reference is upstream xterm patch 411, represented by
+the exact `xterm-411` tag in `upstream/xterm-snapshots`. The baseline advanced
+from patch 410 on 2026-08-30. The compatibility-surface delta was one VT
+resource (`brokenCopyArea`) and its `copy_area` menu entry; the registered
+translation-action set did not change.
+
+The initial 15-case patch-411 T0 font-name fixture was superseded before its
+interpretation became an implementation contract. Harness version 3 added six
+glyph-time fallback cases and re-recorded the complete 21-case deposition with
+`Xft.dpi` pinned to 100. This corrected the baseline evidence: later applicable
+Xft list entries are explicit glyph fallbacks ahead of fontconfig's system
+candidates. It is a characterization correction, not an intentional Revenant
+difference from xterm.
+
+Harness version 4 superseded that fixture with a complete 32-case deposition.
+It adds style-specific fallback, `boldFont`/`wideBoldFont` Xft lists,
+wide-versus-normal slot ordering, `limitFontsets` budgets, and DEC
+double-height/`limitFontHeight` cases. The harness now carries pinned PEP 723
+`fonttools` and `wcwidth` dependencies and rejects a font universe whose probe
+coverage or terminal widths do not make those questions discriminating. A
+second independent patch-411 run matched all 32 records before the fixture was
+blessed. `limitFontWidth` remains characterized from upstream source: the T0
+font-load report does not expose its per-glyph draw-time decision, and an
+experimental pixel probe did not distinguish its tested settings.
 
 ## Intentional differences
+
+### Expanded font-resolution policy (accepted; rollout in progress)
+
+The [font-resolution contract](../maintainers/font-resolution.md) adopts four
+intentional differences from the now-characterized patch-411 renderer. They
+become active only with the implementation stages and tests named there; this
+entry records the accepted direction without pretending unfinished behavior is
+already shipped.
+
+1. Revenant keeps cell geometry fixed from the normal primary metrics rather
+   than allowing bold or italic metrics to enlarge the grid.
+2. Routing coverage is normal-canonical and style resources are same-family
+   only. Stock maintains independent style fallback chains and can change the
+   serving family under SGR (ST-01…05); Revenant instead degrades to the
+   selected role's normal instance and reports `FR-STYLEFAMILY` for a
+   different-family style request.
+3. An all-role miss uses deterministic renderer-owned tofu, one box per
+   committed cell, rather than a font-dependent `.notdef` result.
+4. Fallback roles are normalized against the primary metrics instead of using
+   stock's unnormalized fallback rendering.
+
+The reasons are stable cell arithmetic, an atom-to-family decision independent
+of SGR state, visible and reproducible failure, and consistent rendering inside
+backend-committed cells. The inherited two-entry grammar, prefix behavior, and
+normal-style fallback sources remain compatibility requirements, not drift.
 
 ### libghostty-vt terminal core
 
@@ -58,7 +104,7 @@ Activation is intentionally narrower than many terminal emulators. Revenant
 directly executes `xdg-open` with one URI argument only for `http://` and
 `https://` targets. Other schemes remain visible on Shift-hover but are inert;
 ordinary text is never promoted to a link heuristically. This is an
-intentional extension to the patch-410 interaction contract, including when
+intentional extension to the patch-411 interaction contract, including when
 Shift overrides application mouse reporting.
 
 ### Major default keyboard-input drift
@@ -130,6 +176,15 @@ above it. The xterm-style `-debug` and `+debug` options remain aliases for
 `logLevel` is unset. This logging surface and its exact output are Revenant
 facilities, not an xterm compatibility promise.
 
+### `brokenCopyArea` rendering workaround
+
+Patch 411 added the `brokenCopyArea` resource and an **Enable XCopyArea** VT
+menu item. They control xterm's scroll-copy optimization and its workaround
+for servers where that operation is broken. Revenant does not use xterm's
+`XCopyArea` scroll path, so applying this implementation-specific switch would
+not change its rendering. The resource remains classified unsupported and the
+new menu entry is present but insensitive.
+
 ### Cursor-blink policy
 
 Revenant treats `cursorBlink` as a four-value policy. `false` and `true` select
@@ -160,15 +215,18 @@ design decisions:
   `faceSize7` select the Xft/fontconfig renderer. The Xlib bitmap path remains
   available when `renderFont` is false. `faceNameDoublesize`, `faceNameEmoji`,
   Unicode/VS emoji presentation, color emoji, HarfBuzz grapheme shaping, and
-  atomic empty-ink fallback are implemented. General font fallback and
-  comma-separated override faces remain open.
+  atomic empty-ink fallback are implemented. General fontconfig fallback,
+  contextual adjacent-cell shaping, and real italic/bold-italic Xft faces are
+  also implemented. The characterized two-entry slot chain is implemented;
+  numbered user fallback resources and the remaining expanded-resolution
+  policy are still transitional.
 - The xterm color palette and pointer resources are merged by Xt but are not
   all applied by the drawer.
 - `-report-config` is a Revenant diagnostic which presents resolved resources,
-  provenance, font-menu ordering, fontconfig matches, all 330 resources in the
-  active patch-410 xterm tables plus 17 compile-conditional resources,
-  inherited Xt/Athena component resources and constraints, all 130 active
-  patch-410 `XTerm.ad` patterns, and all 114 registered patch-410 translation
+  provenance, font-menu ordering, fontconfig matches, all 331 resources in the
+  active patch-411 xterm tables plus 17 compile-conditional resources,
+  inherited Xt/Athena component resources and constraints, all 131 active
+  patch-411 `XTerm.ad` patterns, and all 114 registered patch-411 translation
   actions in an annotated
   `.Xresources` form. Upstream xterm instead has lower-level `-report-xres` and
   `-report-fonts` reports.
@@ -182,7 +240,7 @@ design decisions:
   implemented. The `cursorUnderLine` and `cursorBar` startup shape resources
   are not wired yet.
 - Unimplemented xterm menu commands remain visible but insensitive.
-- The xterm command-line implementation remains incomplete. The patch-410
+- The xterm command-line implementation remains incomplete. The patch-411
   resource and translation-action names are now exhaustively inventoried, but
   most are explicitly classified unsupported and still need implementations
   and compatibility tests.

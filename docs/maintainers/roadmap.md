@@ -37,10 +37,10 @@ present, but the complete user-visible integration is not yet available.
 | PTY-backed shell and terminal effects | Present | Retain ordered backpressure coverage for the shared write queue and expand the effect surface. |
 | Resize with primary-screen reflow | Partial | Retain geometry regression coverage; the [Readline 8.3 wrapped-prompt regression](../reference/bash-readline-resize.md) is fixed upstream and requires no terminal workaround. |
 | 24-bit and 256-color terminal output | Partial | Terminal colors render, but xterm `color0` through `color15` resource overrides are not all applied. |
-| Bold, italic, inverse, and decorations | Partial | Xft uses a real clipped bold face; bitmap bold remains synthetic, italic is incomplete, and style/color combinations need compatibility tests. |
-| Unicode and multi-codepoint graphemes | Partial | Unicode 17 emoji presentation, color formats, atomic role fallback, and HarfBuzz sequence shaping work; general-purpose fallback remains. |
-| Mode-aware keyboard input and modifiers | Partial | Kitty keyboard flags and press/repeat/release delivery are promoted. Complete the remaining X11 key map and application-mode matrix. |
-| Default VT bindings | Partial | The patch-410 binding groups are audited; add Shift+Select, Alt+Return fullscreen, Scroll Lock, and clear-saved-lines as their actions become available. |
+| Bold, italic, inverse, and decorations | Present | Xft uses real clipped bold, italic, and bold-italic faces; bitmap bold remains synthetic as a separate xterm-fidelity task. |
+| Unicode and multi-codepoint graphemes | Present | Unicode 17 emoji presentation, color formats, general fontconfig fallback, contextual shaping, and atomic role selection are covered. |
+| Mode-aware keyboard input and modifiers | Present | Normal/application cursor and keypad modes, modifiers, editing/function keys, non-US UTF-8, XIM Compose, and Kitty event delivery have exact fixtures. |
+| Default VT bindings | Partial | The patch-411 binding groups are audited; add Shift+Select, Alt+Return fullscreen, Scroll Lock, and clear-saved-lines as their actions become available. |
 | Scrollback viewport | Present | Add saved-line clearing and retain deep-selection regression coverage. |
 | Wheel behavior and draggable scrollbar | Present | Retain local-history versus application-reporting coverage and extend Xaw styling tests. |
 | Mouse tracking and reporting formats | Present | Add Xvfb event-routing coverage and the remaining xterm mouse-policy resources. |
@@ -131,7 +131,7 @@ the PTY. Parser support or press-only encoding does not satisfy this item.
 
 ### 4. Selection, copy, and paste
 
-The [X11 copy/paste survey](../usage/copy-paste.md) records patch-410
+The [X11 copy/paste survey](../usage/copy-paste.md) records patch-411
 semantics and describes the implemented named-selection path.
 
 - Retain the libghostty gesture/grid-reference implementation across live and
@@ -150,10 +150,9 @@ semantics and describes the implemented named-selection path.
 ### 5. Renderer parity and Kitty graphics
 
 - Apply xterm palette and pointer resources.
-- Retain real clipped bold Xft faces, Unicode emoji/CJK role routing, color
-  formats, HarfBuzz grapheme shaping, and fixed cell placement; add italic
-  faces and general font fallback while preserving display-aware Xft point
-  sizing.
+- Retain real clipped bold/italic Xft faces, Unicode emoji/CJK role routing,
+  bounded fontconfig fallback, color formats, contextual HarfBuzz shaping, and
+  fixed cell placement while preserving display-aware Xft point sizing.
 - Retain application-selected block, underline, and bar cursor and blink
   coverage and the four-value `cursorBlink` startup policy; wire the remaining
   startup shape resources and menu toggle.
@@ -169,7 +168,7 @@ semantics and describes the implemented named-selection path.
 - Complete command-line parsing, including `-name`.
 - Add a man page, CI, installable icons, and an app-default packaging strategy
   that does not overwrite a distributor's upstream `XTerm` file.
-- Advance beyond patch 410 only as an explicit compatibility migration.
+- Advance beyond patch 411 only as an explicit compatibility migration.
 
 ## Architecture guardrails
 

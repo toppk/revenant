@@ -24,10 +24,10 @@ It is deliberately exhaustive. After the focused summary it prints:
   file, the server `RESOURCE_MANAGER` property, `XENVIRONMENT`,
   `XFILESEARCHPATH`, `XUSERFILESEARCHPATH`, `XAPPLRESDIR`, command-line
   resources, and the compiled fallbacks;
-- all 330 resources in xterm patch 410's application, VT100, Tek4014, and
+- all 331 resources in xterm patch 411's application, VT100, Tek4014, and
   VT-font tables, plus 17 behind disabled compile options, each marked
   *supported*, *accepted but ignored*, or *unsupported*;
-- all 130 patterns from patch 410's `XTerm.ad`, so widget paths such as
+- all 131 patterns from patch 411's `XTerm.ad`, so widget paths such as
   `mainMenu*redraw*Label` are checked too;
 - inherited resources of the Xt shell, the VT100 widget, and the Athena
   menu, scrollbar, and toolbar components;
@@ -66,6 +66,11 @@ input bytes. Control and non-ASCII bytes use backslash escapes (`\\e` for
 Escape and `\\xNN` otherwise), and a truncated preview reports the number of
 omitted bytes explicitly.
 
+`FR-STYLEFAMILY` means an explicit Xft `boldFont` or `wideBoldFont` entry
+resolved outside the already-selected role family. Revenant keeps the family
+decision stable and renders that atom with the role's normal instance; the
+warning names the slot and both families.
+
 PTY previews can contain application data. Review or redact a debug log before
 sharing it if the terminal displayed sensitive output.
 
@@ -77,6 +82,51 @@ out of the rendering path, so enable debug only while reproducing something:
 ```sh
 revenant -log debug 2> revenant.log
 ```
+
+## Font-routing snapshots
+
+The font-routing report answers which configured or automatic font actually
+served each distinct terminal atom. Collection is disabled by default. Enable
+it, bind the snapshot action, and keep standard error separate from the PTY:
+
+```sh
+revenant -report-font-routing \
+  -xrm 'XTerm*vt100.translations: #override <Key>F12: report-font-routing()' \
+  2>font-routing.ndjson
+```
+
+After the relevant text has appeared, press F12. Each output line is an
+independent JSON object with `"schema": 1`. The snapshot contains:
+
+- `load` records for the configured slot chain entries and their effective
+  file, collection index, and variation coordinates; `fontslot` distinguishes
+  the eight Xft font-menu sizes. These describe the latest universe-build
+  attempt, including retained old roles after a failed reload;
+- `warn` records with stable codes such as `FR-BADPATTERN`, `FR-DUPROLE`,
+  `FR-STYLEFAMILY`, and `FR-UVSMISS`;
+- bounded, first-use `route` records showing the atom, committed width class,
+  capturing semantic slot, active font-menu slot, winning rung, role identity,
+  routing misses, and any style-to-normal degradation;
+- `FR-REPORTBOUND` if more than 4096 distinct keys were observed;
+- `FR-LOADBOUND` only if allocation prevented retaining every load record from
+  the latest build;
+- one final `snapshot` record with the generation, effective DPI, collection
+  state, and route-record count.
+
+`rung` is `entry1`, `entry2`, a literal numbered name such as
+`fallbackFace7`, `system`, or `tofu`. Tofu records keep `file`, `index`, and
+`coords` present with null values. Routing miss codes are `cmap`, `uvs`,
+`shape`, `ink`, `budget`, and `truncated`; style fallback is a separate
+informational object because it never changes the routed family.
+If a route exceeds its 64 recorded misses, it carries
+`"missesTruncated": true`; routing itself continues normally.
+
+The report is emitted only by the explicit action. There is no guaranteed
+exit-time dump. Invoking the action while collection is off writes exactly one
+disabled `snapshot` record, making a missing `-report-font-routing` visible.
+Collection is intended for diagnosis rather than permanent use: it retains up
+to 4096 routing records and makes the normally batched one-byte path observable
+one atom at a time.
 
 ## Inspecting one font with HarfBuzz
 
@@ -101,12 +151,36 @@ fixture is useful here because it has the earlier colorful family artwork,
 while the current pinned Noto release has the achromatic family design
 introduced by [Google's Emoji 15.1 update](https://blog.emojipedia.org/googles-emoji-15-1-support-in-noto-color-emoji/).
 
+At debug level, `font: route-cache miss` identifies the first family decision
+for a key and `font: route-cache hit` identifies reuse. These records include
+the base codepoint, active font-menu slot, committed width, and resolved role.
+They are performance diagnostics, not the specified NDJSON routing report, and
+their prose is not a stable machine-readable interface.
+
 Use `tools/font-fixture-info.py FONT...` alongside these commands to inspect
 format tables, strikes, coverage, and per-probe ink paths. `hb-view` is a
 diagnostic, not an acceptance oracle: terminal tests must still assert committed
 cell width, clipping, fallback, and cursor behavior under Xvfb.
 
 ## Regression helpers
+
+### Patch-411 font-name deposition
+
+<!-- markdownlint-disable MD013 -->
+
+[`tools/t0-facename-oracle.py`](https://github.com/toppk/revenant/blob/master/tools/t0-facename-oracle.py) is a
+deposition harness, not a Revenant test. It starts stock patch-411 xterm in a
+sterile resource session and isolated fontconfig universe, asks the maintained
+face-list, style, slot-order, and governor questions, and records xterm's
+answers. A separate Revenant conformance test consumes the reviewed fixture.
+
+The script has a PEP 723 header, so use `uv run` rather than manually managing
+`fonttools` and `wcwidth`. The complete record/check procedure and command are
+in [`compat/README.md`](https://github.com/toppk/revenant/blob/master/compat/README.md).
+`--record` writes only under
+`/tmp`; it never overwrites the blessed fixture.
+
+<!-- markdownlint-enable MD013 -->
 
 ### Live xterm font compatibility
 

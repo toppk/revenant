@@ -8,7 +8,8 @@ for each entry below.
 
 | Fixture | Source | License | Note |
 | --- | --- | --- | --- |
-| DejaVu Sans Mono Regular/Bold | DejaVu Fonts 2.37 | Bitstream Vera-derived permissive license | Neutral text face. |
+| DejaVu Sans Mono Regular/Bold/Oblique/Bold Oblique | DejaVu Fonts 2.37 | Bitstream Vera-derived permissive license | Neutral text face and real italic-role fixture. |
+| Noto Sans Devanagari Regular/Bold | Noto Sans Devanagari 2.006 | SIL OFL 1.1 | General fontconfig fallback and Indic shaping fixture. |
 | Noto Sans Mono CJK JP Regular/Bold | Noto Sans CJK 2.004 | SIL OFL 1.1 | Standalone CFF OTFs; not TTC or variable fonts. |
 | Noto Color Emoji CBDT/COLRv1 | Noto Emoji 2.051 | SIL OFL 1.1 | Same family, two color technologies. |
 | Noto Color Emoji historical CBDT | Noto Emoji 2.034 | SIL OFL 1.1 | Exact bytes embedded by Ghostty 1.2.1, 1.3.0, and 1.3.1. Retains the earlier colorful family artwork and lacks U+1FAE8. |
