@@ -203,6 +203,29 @@ Resize updates the kernel PTY first and libghostty terminal state second within
 one Xt callback, matching Ghostty's ordering, so child `SIGWINCH` redraw bytes
 cannot be fed between those operations.
 
+A kernel PTY read boundary is not an application presentation boundary. Rich
+Live-style refreshes erase the old display before writing the replacement, and
+Linux was observed splitting one such write after 4095 bytes. `PtyReady`
+therefore drains a bounded 256 KiB burst of currently available data into
+libghostty and calls `XtpVtUpdate` once. Keep the budget for Xt fairness and
+keep query/reply observation ordered per fragment. `xvfb-pty-burst` pins the
+no-intermediate-render behavior.
+
+The terminal adapter already exposes SGR 2 as `XtpRenderCell.faint`. The widget
+must carry that into pixels: the default xterm-compatible policy scales each
+foreground RGB component to two-thirds before inverse or selection swapping.
+`xvfb-colors` samples an inverse faint cell to pin the exact result. The
+`faintIsRelative` resource remains unsupported; add background-relative mixing
+only when that resource is implemented.
+
+Bold style and bold color are independent. The default `boldColors: true`
+promotes foreground palette indices 0–7 to the live 8–15 entries while keeping
+the bold font face; `+pc` disables only the promotion. Keep this policy in the
+terminal boundary because its render snapshot owns the live OSC 4 palette.
+Libghostty does not retain whether a stored palette index came from SGR 30–37
+or SGR 38;5, so both are currently promoted; the narrower patch-411 distinction
+is recorded as transitional drift. `xvfb-colors` pins both policy settings.
+
 Do not conflate that fixed cache lifetime bug with the Readline 8.3
 wrapped-prompt regression. A 45-column OSC 133-marked prompt resized
 80→38→80 ends at column 37 because Readline drops the final eight-byte
@@ -843,7 +866,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 28 tests for each libghostty build
+The normal full matrix currently contains 29 tests for each libghostty build
 and 7 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

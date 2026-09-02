@@ -14,7 +14,8 @@ sufficient; frame batching is explicitly not wanted.
 
 Revision 2 corrected overclaims about xterm found in review (xterm does
 clear in some paths; Xft painting is ordered, not atomic; xterm renders
-per read, not per line) and adds the cursor-only and Expose invariants.
+available input before returning to `select`, not per line) and adds the
+cursor-only and Expose invariants.
 
 Revision 3 records the correctness-first rewrite. All seven recommended
 changes are implemented; the visual and performance acceptance items called
@@ -31,6 +32,12 @@ development commit `1e9f5e10b2` fixes it by refreshing expanded prompt
 metadata after every `SIGWINCH`; the frame-cache fix and libghostty reflow are
 not involved. See the
 [source diagnosis](../reference/bash-readline-resize.md).
+
+Revision 5 records a rapid-update TUI failure. One observed application refresh
+larger than 4095 bytes was split by the Linux PTY, then painted once after the
+erase-heavy prefix and again after the replacement content. The input callback
+now drains a bounded burst of currently available data into terminal state and
+paints once before returning to Xt.
 
 ## Summary
 
@@ -74,7 +81,8 @@ not atomicity.
    server round trips while drawing.
 6. Timing: `in_put` (`charproc.c:6778`) reads whatever is available,
    parses all of it, paints, `XFlush`, then `select`. Rendering
-   boundaries are read boundaries, not newlines. No frame timer. DBE
+   boundaries are available-input bursts, not newlines or individual
+   kernel read fragments. No frame timer. DBE
    (`buffered`, 40 fps) exists but is off unless built with
    `--enable-double-buffer` (`main.h:184`).
 
@@ -91,6 +99,9 @@ not atomicity.
 | Double flash on font change/redraw | Clear-generated Expose followed by another clear | Redraw calls the cache/full repaint directly |
 | Full repaint on every Expose | `Redisplay` ignored the damage region | Cached rows/columns intersecting damage are repainted |
 | No-newline output delayed | Incomplete lines held on an 8 ms timer | Every PTY read is fed and rendered immediately |
+| Rapid-update TUI flashes between erased and replaced content | One logical refresh crossed a PTY read boundary and each fragment was painted | Drain currently available input, up to a fairness budget, and paint once |
+| Dim text has normal intensity | The adapter preserved SGR 2 `faint`, but the widget discarded it | Scale foreground RGB to two-thirds, matching xterm's default `faintIsRelative: false` policy |
+| Bold ANSI headings retain muted base colors | Bold font selection did not apply xterm's default `boldColors` palette rule | Promote foreground palette colors 0–7 to 8–15; expose `-/+pc` and `boldColors` to control it |
 | Stale rows painted with old geometry after resize | Grid changed while the old `frame_cells` snapshot remained valid | Resize invalidates the frame before callbacks and Expose |
 | Wrapped Bash prompt leaves cursor inside the prompt after shrink/grow | Readline 8.3 retains stale `local_prompt_invis_chars[]` metadata when widening | Fixed in Bash development commit `1e9f5e10b2`; keep the fixture as external-component coverage and do not work around it in Revenant |
 
@@ -123,6 +134,9 @@ branch of `RenderBegin` were deleted together.
   redraw is parsed against the new grid.
 - **Emulator is the only source of truth for content.** Nothing is
   painted from raw PTY bytes.
+- **Kernel read fragments are not presentation frames.** Drain currently
+  available PTY data into the emulator and paint once before returning to Xt.
+  Keep the drain bounded so a continuous producer cannot starve other events.
 
 ## Applied changes
 
@@ -138,11 +152,12 @@ branch of `RenderBegin` were deleted together.
    `graphics_exposures = True`.
 3. **Done:** delete `XtpVtPredictSimpleScroll`, `XtpVtDrawSimpleScrolledLine`,
    `DetectVerticalScroll`, and the dead scroll path.
-4. **Done:** feed each complete PTY read to libghostty immediately and render
-   after each read; remove the newline splitting and the 8 ms
-   incomplete-line hold. Dirty state decides what to paint, not the
-   byte stream. Per-read rendering is what xterm does and gives the
-   same progressive feel.
+4. **Done:** feed each PTY fragment to libghostty immediately, drain up to
+   256 KiB of currently available input, and render once at the end of that
+   burst. This removes both newline splitting and the 8 ms incomplete-line
+   hold without exposing an erase-heavy prefix as an intermediate frame.
+   Dirty state decides what to paint, not the byte stream. The budget preserves
+   fairness for other Xt events under a continuous producer.
 5. **Done:** cache `XftColor` alongside `Pixel` in the colour cache.
 6. **Done for Xft:** load a real bold face (`FC_WEIGHT`) instead of
    double-striking; clip
@@ -156,6 +171,14 @@ branch of `RenderBegin` were deleted together.
    The wrapped-prompt fixture also distinguishes released Readline 8.3 from
    the upstream-fixed build while confirming cached-frame geometry remains
    correct.
+9. **Done:** preserve SGR 2 through visual-cell conversion by reducing each
+   foreground RGB component to two-thirds. This matches xterm's default
+   absolute faint calculation; relative-to-background faint remains tied to
+   the unsupported `faintIsRelative` resource.
+10. **Done:** implement `boldColors` with xterm's default value of true.
+    Bold foreground palette colors 0–7 use configured colors 8–15; `+pc` or
+    `boldColors: false` retains the base color while still selecting the bold
+    font face.
 
 The bitmap path retains its existing clipped synthetic-bold fallback until a
 separate xterm `boldFont` resource is wired.
@@ -175,6 +198,13 @@ separate xterm `boldFont` resource is wired.
   including wide cells at its edge.
 - Prompt and cursor-control output without a trailing newline appears
   without the 8 ms hold.
+- An erase-then-replace refresh split across multiple PTY reads produces one
+  replacement render, never a visible intermediate erased frame.
+- SGR 2 text is visibly dimmer than normal text, while SGR 1 continues to use
+  the selected bold face independently.
+- With default `boldColors`, bold ANSI colors 0–7 paint through their bright
+  counterparts 8–15. With `+pc`, the same cells retain their base colors and
+  only their font weight changes.
 - Repeated narrow/wide resize of large scrollback never paints prompt
   fragments or stale rows from a previous grid. After returning to the live
   bottom, editable input and its cursor remain intact. Exercise this with
