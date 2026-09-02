@@ -6,6 +6,7 @@
 #include "font_role.h"
 #include "unicode_script.h"
 #include "vt_font.h"
+#include "vt_widgetP.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -62,12 +63,6 @@ ExactHanVariationSupported(XftFont *font, const char *text, size_t length)
         glyph = FT_Face_GetCharVariantIndex(face, base, selector);
         XftUnlockFace(font);
         return glyph != 0;
-}
-
-static Boolean
-ResourceIsSet(const char *value)
-{
-        return value != NULL && value[0] != '\0';
 }
 
 static XftFont *
@@ -575,9 +570,9 @@ VtSelectXftFont(Vt100Rec *vt, const char *text, size_t length, unsigned int widt
             XtpEmojiResolveClusterStyle(text, length, vt->vt.font_universe->emoji_presentation);
         uint32_t base = cluster.base;
         XtpEmojiStyle style = cluster.style;
-        Boolean emoji_slot_set = ResourceIsSet(vt->vt.face_name_emoji);
-        Boolean wide_slot_set = ResourceIsSet(vt->vt.face_name_doublesize);
-        Boolean han_slot_set = ResourceIsSet(vt->vt.face_name_han);
+        Boolean emoji_slot_set = vt->vt.font_universe->chains[XTP_FONT_ROLE_EMOJI].count != 0;
+        Boolean wide_slot_set = vt->vt.font_universe->chains[XTP_FONT_ROLE_WIDE].count != 0;
+        Boolean han_slot_set = vt->vt.font_universe->chains[XTP_FONT_ROLE_HAN].count != 0;
         Boolean color_glyphs;
         Boolean cacheable;
         XtpFontCaptureSlot capturing_slot;

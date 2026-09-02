@@ -4,6 +4,7 @@
 #include "font_chain.h"
 #include "font_metrics.h"
 #include "font_role.h"
+#include "vt_widgetP.h"
 
 #include <X11/StringDefs.h>
 

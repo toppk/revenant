@@ -1,7 +1,9 @@
 #ifndef XTERM_PLUS_VT_FONT_H
 #define XTERM_PLUS_VT_FONT_H
 
-#include "vt_widgetP.h"
+#include "font_universe.h"
+
+typedef struct _Vt100Rec Vt100Rec;
 
 unsigned int VtBitmapFontWidth(const XFontStruct *font);
 unsigned int VtBitmapFontHeight(const XFontStruct *font);

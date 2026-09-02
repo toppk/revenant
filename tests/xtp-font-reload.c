@@ -1,4 +1,5 @@
 #include "font_router.h"
+#include "vt_widgetP.h"
 
 #include <X11/Intrinsic.h>
 #include <X11/Shell.h>
