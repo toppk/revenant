@@ -40,6 +40,7 @@ grep -q '^    -version ' "$test_dir/out"
 grep -q '^    -help ' "$test_dir/out"
 grep -q '^    -name string ' "$test_dir/out"
 grep -q '^    -class string ' "$test_dir/out"
+grep -q '^    -/+pc ' "$test_dir/out"
 grep -q '^    -e command args \.\.\. ' "$test_dir/out"
 test ! -s "$test_dir/err"
 
@@ -53,6 +54,9 @@ run 0 -geo 80x24 -version
 cmp "$test_dir/version" "$test_dir/out"
 
 run 0 -clas CustomTerm -nam custom -sele 1000 -version
+cmp "$test_dir/version" "$test_dir/out"
+
+run 0 -pc +pc -version
 cmp "$test_dir/version" "$test_dir/out"
 
 run 1 -fo value

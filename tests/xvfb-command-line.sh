@@ -22,7 +22,7 @@ printf '%s\n' \
 
 HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null \
     XFILESEARCHPATH="$test_dir/app-defaults/%N" \
-    "$terminal" -name custom -class CustomTerm -bg '#010203' -fa monospace \
+    "$terminal" -name custom -class CustomTerm -bg '#010203' -fa monospace +pc \
     -report-config >"$test_dir/report" 2>"$test_dir/report-log"
 
 grep -E -B 1 '^XTerm\*background:[[:space:]]+#010203$' "$test_dir/report" | \
@@ -33,6 +33,8 @@ grep -E -B 1 '^XTerm\*foreground:[[:space:]]+#040506$' "$test_dir/report" | \
     grep -q '\[X resources\] \[supported\]'
 grep -E -B 1 '^XTerm\*cursorColor:[[:space:]]+#070809$' "$test_dir/report" | \
     grep -q '\[X resources\] \[supported\]'
+grep -E -B 1 '^XTerm\*boldColors:[[:space:]]+false$' "$test_dir/report" | \
+    grep -q '\[command line\] \[supported\]'
 grep -F -q "! resolved CustomTerm app-defaults: $resource_file" "$test_dir/report"
 
 HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null \

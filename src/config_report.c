@@ -982,10 +982,11 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "faceName") == 0 || strcmp(name, "faceNameDoublesize") == 0 ||
             strcmp(name, "faceNameEmoji") == 0 || strcmp(name, "faceNameHan") == 0 ||
             strcmp(name, "boldFont") == 0 || strcmp(name, "wideBoldFont") == 0 ||
-            strcmp(name, "emojiPresentation") == 0 || strcmp(name, "graphemeWidth") == 0 ||
-            strcmp(name, "colorGlyphs") == 0 || strcmp(name, "limitFontsets") == 0 ||
-            strcmp(name, "limitFontHeight") == 0 || strcmp(name, "limitFontWidth") == 0 ||
-            strncmp(name, "faceSize", 8) == 0 || ansi_palette)
+            strcmp(name, "boldColors") == 0 || strcmp(name, "emojiPresentation") == 0 ||
+            strcmp(name, "graphemeWidth") == 0 || strcmp(name, "colorGlyphs") == 0 ||
+            strcmp(name, "limitFontsets") == 0 || strcmp(name, "limitFontHeight") == 0 ||
+            strcmp(name, "limitFontWidth") == 0 || strncmp(name, "faceSize", 8) == 0 ||
+            ansi_palette)
                 return "supported";
         if (strncmp(name, "color", 5) == 0 || strcmp(name, "pointerColor") == 0 ||
             strcmp(name, "pointerColorBackground") == 0 || strcmp(name, "pointerShape") == 0)

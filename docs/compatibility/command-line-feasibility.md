@@ -117,7 +117,7 @@ The two original structural gaps are complete:
 | `-/+ulc` / `-/+itc` / `-/+rvc` | Underline/italic/reverse rendered as colour | Renderer palette | Same | ROADMAP #5 |
 | `-/+ulit` | Underline drawn as italic | Renderer | Needs italic face | ROADMAP #5 |
 | `-/+nul` | `underLine`: suppress underlining | Renderer | Flag check in the decoration path | READY |
-| `-/+pc` | `boldColors`: PC-style bright bold | Renderer palette | Roadmap #5 | ROADMAP #5 |
+| `-/+pc` | `boldColors`: PC-style bright bold | Renderer palette | — | DONE |
 | `-/+cm` | `colorMode`: disable ANSI colour | libghostty always parses SGR; renderer would render monochrome | Renderer flag; libghostty state unaffected | READY |
 | `-/+dc` | `dynamicColors`: allow OSC 10–19 | libghostty applies OSC colours internally; `DATA_COLOR_*_DEFAULT` exposes defaults | Render from defaults when denied; queries still drift (see `allow-color-ops`) | ROADMAP #5 |
 
