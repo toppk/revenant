@@ -111,7 +111,8 @@ The normal maintainer loop is:
 
 ```sh
 tools/fetch-libghostty     # first checkout, or deliberate upstream refresh
-just check-all             # formatting, GCC, Clang, stub, Xvfb, and docs
+tools/stage-font-fixtures  # once, or whenever the pinned fixture inputs change
+just check-all             # formatting, GCC, Clang, ASan, stub, Xvfb, and docs
 ```
 
 Focused commands are available when iterating:
@@ -119,7 +120,8 @@ Focused commands are available when iterating:
 ```sh
 just format               # rewrite C sources and test helpers
 just format-check         # verify formatting only
-just test                 # GCC + Clang libghostty builds and the stub build
+just test                 # GCC + Clang + ASan libghostty builds and the stub build
+just test-asan            # complete Clang AddressSanitizer suite
 just check                # strict-build both documentation sites
 just serve                # preview landing page, manual, and TDN together
 ```

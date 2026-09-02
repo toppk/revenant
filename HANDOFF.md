@@ -219,10 +219,12 @@ diagnosis, upstream links, version boundary, and fixed-build checks are in
 - Application-selected DECSCUSR block, underline, and bar cursor presentation,
   including cursor-shape-only repaint coverage. Blinking variants and DEC mode
   12 use an Xt timer with xterm's `cursorOnTime` and `cursorOffTime` defaults;
-  `cursorBlink` supports configurable `false`/`true` defaults and forced
-  `always`/`never` policies. The compiled `false` default is steady but honors
-  explicit application blink requests. Focused blocks are filled and unfocused
-  blocks are outlined.
+  `cursorBlink` supports configurable `false`/`true` operands and forced
+  `always`/`never` policies. `cursorBlinkXOR` matches xterm's default XOR
+  composition with the separate application state; OR remains available by
+  setting it false. The compiled `false`/XOR defaults are initially steady but
+  honor DECSCUSR and mode 12 blink requests. Focused blocks are filled and
+  unfocused blocks are outlined.
 - History-safe mouse selection with visible ranges, `multiClickTime`,
   whitespace double-click, unit-preserving Button-3 extension, named X11
   selection ownership, and Button-2 paste through Ghostty's bracketed-paste
@@ -506,9 +508,9 @@ item. Otherwise record it under v0.6 and keep moving.
 
 Before publishing the v0.5 early-access feature release:
 
-- `just check-all` passes with strict GCC, strict Clang, the stub backend, Xvfb,
-  and the reproducible font fixtures; every package job runs the same relevant
-  integration suites.
+- `just check-all` passes with strict GCC, strict Clang, AddressSanitizer, the
+  stub backend, Xvfb, and the reproducible font fixtures; every package job
+  runs the same relevant integration suites.
 - The selected Ghostty source is one reviewed, exact commit;
   `tools/fetch-libghostty` rejects moving references. While the project targets
   early 1.4 work before an upstream tag exists, keep the reviewed commit pin
@@ -649,6 +651,7 @@ touches `build/`. Run the complete pre-push suite with:
 
 ```sh
 tools/fetch-libghostty              # once, or whenever the tracked reference advances
+tools/stage-font-fixtures           # once, or whenever fixture inputs advance
 just check-all
 ```
 
@@ -657,9 +660,24 @@ The compiler/backend checks can also be run independently:
 ```sh
 just test-gcc
 just test-clang
+just test-asan
 just test-stub
 just check                         # strict Revenant and TDN documentation
 ```
+
+AddressSanitizer is a maintained gate rather than an ad-hoc build directory.
+`just test-asan` configures the ignored `build-agent-asan/` directory with
+Clang, `-Db_sanitize=address`, `-Db_lundef=false`, the libghostty backend, and
+required Xvfb tests. It runs the complete Meson suite and then
+`tools/check-release-tests`, so missing font fixtures or skipped integration
+tests fail the target. Run it outside ptrace- or tracing-based sandboxes;
+LeakSanitizer cannot operate correctly under those environments.
+
+`.github/workflows/test.yml` runs the same AddressSanitizer gate plus warning-free
+GCC, Clang, and stub-backend jobs for pushes to `master`, pull requests, and
+manual dispatch. It selects the pinned libghostty commit, restores the shared
+Zig and font-fixture caches, requires all registered tests to pass without
+skips, and is intentionally separate from the manual package-release workflow.
 
 Useful runtime checks:
 

@@ -65,6 +65,7 @@ sources = files(
     'src/char_class.c',
     'src/command_options.c',
     'src/config_report.c',
+    'src/cursor_blink.c',
     'src/diagnostics.c',
     'src/emoji_presentation.c',
     'src/font_chain.c',
@@ -218,6 +219,7 @@ font_reload_test_tool = executable(
     [
         'tests/xtp-font-reload.c',
         'src/char_class.c',
+        'src/cursor_blink.c',
         'src/diagnostics.c',
         'src/emoji_presentation.c',
         'src/font_chain.c',

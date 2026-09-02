@@ -28,6 +28,18 @@ historical patch-410 working reference. It no longer defines the compatibility
 baseline; `upstream/xterm-snapshots` at `xterm-411` is the current oracle used
 for the checked-in resource, app-default, and action catalogs under `compat/`.
 
+## Review evidence policy
+
+Before accepting a review finding, compatibility decision, or documentation
+statement of the form “xterm does X,” check the claim against
+`upstream/xterm-snapshots` at the pinned oracle revision. Record the relevant
+source file and symbol (and line when useful) in the review or change rationale.
+Memory, manual-page interpretation, and observations from a live xterm are
+useful supporting evidence, but they do not replace checking the available
+source. If source and observed behavior appear to disagree, record both as an
+open discrepancy and investigate rather than promoting either recollection to
+a finding.
+
 ## Revision and update policy
 
 - Do not edit a checkout under `upstream/` as part of a Revenant change.

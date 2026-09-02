@@ -154,8 +154,8 @@ semantics and describes the implemented named-selection path.
   bounded fontconfig fallback, color formats, contextual HarfBuzz shaping, and
   fixed cell placement while preserving display-aware Xft point sizing.
 - Retain application-selected block, underline, and bar cursor and blink
-  coverage and the four-value `cursorBlink` startup policy; wire the remaining
-  startup shape resources and menu toggle.
+  coverage, the four-value `cursorBlink` policy, and xterm's `cursorBlinkXOR`
+  composition; wire the remaining startup shape resources and menu toggle.
 - Expose Kitty graphics placement and image lifecycle through a
   backend-neutral renderer interface, then implement safe X11 composition.
 - Keep image-protocol work isolated from the traditional xterm appearance;

@@ -92,7 +92,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
         frame.cursor_column = 0;
         frame.cursor_row = 0;
         frame.cursor_shape = XTP_CURSOR_SHAPE_BLOCK;
-        frame.cursor_blinking = false;
+        frame.cursor_blink_requested = false;
         if (renderer->begin != NULL)
                 renderer->begin(&frame, closure);
         if (renderer->end != NULL)
@@ -157,6 +157,23 @@ int
 XtpTerminalSetCursorBlinkDefault(XtpTerminal *terminal, bool blinking)
 {
         (void)blinking;
+        return terminal != NULL ? 0 : -1;
+}
+
+int
+XtpTerminalSetCursorBlinkRequestsEnabled(XtpTerminal *terminal, bool enabled)
+{
+        (void)enabled;
+        return terminal != NULL ? 0 : -1;
+}
+
+int
+XtpTerminalSetDefaultColors(XtpTerminal *terminal, XtpRgbColor foreground, XtpRgbColor background,
+                            XtpRgbColor cursor)
+{
+        (void)foreground;
+        (void)background;
+        (void)cursor;
         return terminal != NULL ? 0 : -1;
 }
 

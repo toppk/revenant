@@ -187,14 +187,20 @@ new menu entry is present but insensitive.
 
 ### Cursor-blink policy
 
-Revenant treats `cursorBlink` as a four-value policy. `false` and `true` select
-the steady or blinking default to which `CSI 0 SP q` returns, while still
-honoring application blink requests. `always` and `never` force blinking or a
-steady cursor and ignore application blink requests; cursor shape and
+Revenant follows xterm's cursor-blink policy. `false` and `true` provide the
+configured blink operand; `cursorBlinkXOR` selects XOR (the default) or OR when
+combining it with the separate application blink state. `always` and `never`
+force blinking or a steady cursor and bypass that expression. Cursor shape and
 visibility remain under application control in every case.
 
-This behavior intentionally differs from xterm's cursor-blink policy.
-`cursorBlinkXOR` is accepted for resource-file compatibility but has no effect.
+Like xterm, Revenant treats DECSCUSR 0 as a blinking application request rather
+than as the configured operand itself. Mode-12 save/restore preserves the
+application state; RIS and DECSTR clear it and restore the startup
+`cursorBlink` policy. Under `always` or `never`, incoming blink controls leave
+that stored state unchanged, matching xterm's
+`SettableCursorBlink` gate. This distinction is retained outside libghostty's
+resolved cursor state so split control sequences and the xterm resource policy
+compose correctly.
 The [TDN cursor-controls
 reference](https://toppk.github.io/revenant/tdn/csi/cursor/) documents the
 wire controls, the Revenant policy, the xterm policy reference, and versioned

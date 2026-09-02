@@ -109,6 +109,29 @@ then
     exit 1
 fi
 
+color_reply=$test_dir/default-colors.reply
+color_expected=$test_dir/default-colors.expected
+if ! "$terminal" \
+    -xrm 'xterm.vt100.foreground: #123456' \
+    -xrm 'xterm.vt100.background: #789ABC' \
+    -xrm 'xterm.vt100.cursorColor: #DEF012' \
+    -e bash -c 'stty raw -echo; printf "\033]10;?\033\\"; printf "\033]11;?\033\\"; printf "\033]12;?\033\\"; IFS= read -r -d "\\" foreground; IFS= read -r -d "\\" background; IFS= read -r -d "\\" cursor; printf "%s\\%s\\%s\\" "$foreground" "$background" "$cursor" >"$1"' bash "$color_reply" \
+    >"$test_dir/default-colors.out" 2>"$test_dir/default-colors.log"
+then
+    echo "xterm+ failed during default-color query check" >&2
+    sed -n '1,180p' "$test_dir/default-colors.log" >&2
+    exit 1
+fi
+printf '\033]10;rgb:1212/3434/5656\033\\\033]11;rgb:7878/9a9a/bcbc\033\\\033]12;rgb:dede/f0f0/1212\033\\' \
+    >"$color_expected"
+if ! cmp -s "$color_expected" "$color_reply"
+then
+    echo "configured default-color query returned an unexpected reply" >&2
+    od -An -tx1 "$color_expected" >&2
+    od -An -tx1 "$color_reply" >&2
+    exit 1
+fi
+
 warning_log=$test_dir/warning-default.log
 if ! "$terminal" -xrm 'XTerm*backgroundOpacity: 0.5' -e true \
     >"$test_dir/warning-default.out" 2>"$warning_log"

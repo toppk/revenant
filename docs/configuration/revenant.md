@@ -331,38 +331,47 @@ source diagnosis, exact cursor-offset proof, and fixed-build validation.
 XTerm*cursorColor:     #ffaf00
 XTerm*alwaysHighlight: true   ! -ah / +ah: filled block even when unfocused
 XTerm*cursorBlink:     false  ! false, true, always, or never
+XTerm*cursorBlinkXOR:  true
 XTerm*cursorOnTime:    600
 XTerm*cursorOffTime:   300
 ```
 
 Applications can select block, underline, and bar cursors with DECSCUSR. The
 blinking variants and DEC private mode 12 blink using the configured on/off
-times. With `cursorBlink: false`, the initial cursor is steady, explicit blink
-requests are honored, and DECSCUSR 0 returns to steady. `true` instead makes
-the configured default blink. `always` and `never` ignore application blink
-requests without suppressing application shape or visibility changes. The
-command-line forms are `-bc`, `+bc`, `-bcn milliseconds`, and
-`-bcf milliseconds`. A focused block is filled and an unfocused block is an
-outline. See the [TDN cursor-controls
+times. Revenant retains xterm's separate configured and application blink
+states. The application state starts false; DECSCUSR 0/1/3/5 and DECSET 12
+set it, while steady DECSCUSR styles and DECRST 12 clear it. DEC private mode
+save/restore (`CSI ? 12 s` / `CSI ? 12 r`) preserves and restores it. Both RIS
+and the DECSTR soft reset clear it and restore the startup `cursorBlink` policy
+if a runtime resource or menu action changed that policy.
+`cursorBlinkXOR: true` combines the configured and application states with
+XOR; `false` uses OR. `always` and `never` remain absolute and ignore both
+combining rules without suppressing application shape or visibility changes.
+While either forced policy is active, blink controls do not update the stored
+application state; returning to `false` or `true` resumes the prior state. This
+matches xterm's `SettableCursorBlink` behavior.
+The command-line forms are `-bc`, `+bc`, `-bcn milliseconds`, and `-bcf
+milliseconds`. A focused block is filled and an unfocused block is an outline.
+See the [TDN cursor-controls
 reference](https://toppk.github.io/revenant/tdn/csi/cursor/) for the wire
 protocol and compatibility notes. Wiring `cursorUnderLine` and `cursorBar` as
 startup shape resources remains roadmap work.
 
-In table form, `cursorBlink` is a default or a forced rule, never one operand
-of a Boolean expression:
+In table form, ordinary `cursorBlink` values are the configured operand;
+`always` and `never` bypass the expression:
 
 <!-- markdownlint-disable MD013 -->
 
-| `cursorBlink` | Configured default | Application blink controls |
+| `cursorBlink` | Configured state | Effective policy |
 | --- | --- | --- |
-| `false` | Steady | Honored; DECSCUSR 0 returns to steady |
-| `true` | Blinking | Honored; DECSCUSR 0 returns to blinking |
-| `always` | Blinking | Blink changes ignored; shape and visibility remain effective |
-| `never` | Steady | Blink changes ignored; shape and visibility remain effective |
+| `false` | Steady | Combine with application state using XOR or OR |
+| `true` | Blinking | Combine with application state using XOR or OR |
+| `always` | Blinking | Always blink; application blink changes are ignored |
+| `never` | Steady | Never blink; application blink changes are ignored |
 
 <!-- markdownlint-enable MD013 -->
 
-`cursorBlinkXOR` is not part of this policy.
+The defaults, `cursorBlink: false` and `cursorBlinkXOR: true`, match xterm.
 
 ## Keyboard and modes
 

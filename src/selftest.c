@@ -1,6 +1,7 @@
 #include "selftest.h"
 
 #include "char_class.h"
+#include "cursor_blink.h"
 #include "diagnostics.h"
 #include "emoji_presentation.h"
 #include "font_chain.h"
@@ -742,25 +743,98 @@ done:
 }
 
 static int
+SelfTestCursorBlinkPolicy(void)
+{
+        static const struct
+        {
+                XtpCursorBlinkPolicy policy;
+                bool xor_policy;
+                bool requested;
+                bool effective;
+        } cases[] = {
+            {XTP_CURSOR_BLINK_DEFAULT_FALSE, false, false, false},
+            {XTP_CURSOR_BLINK_DEFAULT_FALSE, false, true, true},
+            {XTP_CURSOR_BLINK_DEFAULT_FALSE, true, false, false},
+            {XTP_CURSOR_BLINK_DEFAULT_FALSE, true, true, true},
+            {XTP_CURSOR_BLINK_DEFAULT_TRUE, false, false, true},
+            {XTP_CURSOR_BLINK_DEFAULT_TRUE, false, true, true},
+            {XTP_CURSOR_BLINK_DEFAULT_TRUE, true, false, true},
+            {XTP_CURSOR_BLINK_DEFAULT_TRUE, true, true, false},
+            {XTP_CURSOR_BLINK_ALWAYS, false, false, true},
+            {XTP_CURSOR_BLINK_ALWAYS, true, true, true},
+            {XTP_CURSOR_BLINK_NEVER, false, true, false},
+            {XTP_CURSOR_BLINK_NEVER, true, false, false},
+        };
+        size_t item;
+
+        for (item = 0; item < XtNumber(cases); ++item) {
+                if (XtpCursorBlinkEffective(cases[item].policy, cases[item].xor_policy,
+                                            cases[item].requested) != cases[item].effective)
+                        return -1;
+        }
+        return 0;
+}
+
+typedef struct
+{
+        XtpTerminal *terminal;
+        size_t calls;
+        bool failed;
+} SelfTestCursorBlinkReset;
+
+static void
+SelfTestRestoreCursorBlinkRequests(void *closure)
+{
+        SelfTestCursorBlinkReset *reset = closure;
+
+        ++reset->calls;
+        if (XtpTerminalSetCursorBlinkRequestsEnabled(reset->terminal, true) != 0)
+                reset->failed = true;
+}
+
+static int
 SelfTestCursorStyles(const XtpRenderer *renderer)
 {
+        static const uint8_t cancelled_strings[][32] = {
+            "\033[?12l\033Pignored\030\033[?12h",
+            "\033[?12l\033Pignored\032\033[?12h",
+            "\033[?12l\033Pignored\033[?12h",
+        };
+        static const uint8_t excessive_modes[] = "\033[?12"
+                                                 ";0;0;0;0;0;0;0;0"
+                                                 ";0;0;0;0;0;0;0;0"
+                                                 ";0;0;0;0;0;0;0;0h";
+        static const uint8_t raw_dcs_c1[] = "\033[?12l\033Pq\234\233?12h\033\\";
+        static const uint8_t raw_ignored_dcs_c1[] = "\033[?12l\033P1<\233?12h\033\\";
+        static const uint8_t raw_osc_c1[] = "\033[?12l\033]0;\234\233?12h\007";
         static const struct
         {
                 const char *sequence;
                 XtpCursorShape shape;
                 bool blinking;
         } cases[] = {
-            {"\033[0 q", XTP_CURSOR_SHAPE_BLOCK, false},
+            {"\033[0 q", XTP_CURSOR_SHAPE_BLOCK, true},
+            {"\033[0000000000000000000000000000000000000000000000000000000000000000000000000000 q",
+             XTP_CURSOR_SHAPE_BLOCK, true},
             {"\033[1 q", XTP_CURSOR_SHAPE_BLOCK, true},
             {"\033[2 q", XTP_CURSOR_SHAPE_BLOCK, false},
+            {"\033[4294967296 q", XTP_CURSOR_SHAPE_BLOCK, false},
+            {"\033[9999999999999999999999999999999999999999 q", XTP_CURSOR_SHAPE_BLOCK, false},
             {"\033[3 q", XTP_CURSOR_SHAPE_UNDERLINE, true},
             {"\033[4 q", XTP_CURSOR_SHAPE_UNDERLINE, false},
             {"\033[5 q", XTP_CURSOR_SHAPE_BAR, true},
             {"\033[6 q", XTP_CURSOR_SHAPE_BAR, false},
         };
         XtpTerminal *terminal;
+        SelfTestCursorBlinkReset reset = {0};
+        XtpTerminalEffects effects = {
+            .cursor_blink_reset = SelfTestRestoreCursorBlinkRequests,
+            .closure = &reset,
+        };
         SelfTestRender render = {0};
         size_t item;
+        size_t reset_calls;
+        const char *stage = "initial";
         int result = -1;
 
         if (XtpTerminalBackendIsStub())
@@ -768,15 +842,16 @@ SelfTestCursorStyles(const XtpRenderer *renderer)
         terminal = XtpTerminalNew(8, 3, 8, 16);
         if (terminal == NULL)
                 return -1;
+        reset.terminal = terminal;
+        XtpTerminalSetEffects(terminal, &effects);
         if (XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
-            render.frame.cursor_shape != XTP_CURSOR_SHAPE_BLOCK || render.frame.cursor_blinking)
+            render.frame.cursor_shape != XTP_CURSOR_SHAPE_BLOCK ||
+            render.frame.cursor_blink_requested)
                 goto done;
         if (XtpTerminalSetCursorBlinkDefault(terminal, true) != 0 ||
             XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
-            !render.frame.cursor_blinking ||
-            XtpTerminalSetCursorBlinkDefault(terminal, false) != 0 ||
-            XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
-            render.frame.cursor_blinking)
+            render.frame.cursor_blink_requested ||
+            XtpTerminalSetCursorBlinkDefault(terminal, false) != 0)
                 goto done;
         for (item = 0; item < XtNumber(cases); ++item) {
                 size_t begin_calls = render.begin_calls;
@@ -787,36 +862,141 @@ SelfTestCursorStyles(const XtpRenderer *renderer)
                 if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
                     render.begin_calls != begin_calls + 1U || render.end_calls != end_calls + 1U ||
                     render.frame.cursor_shape != cases[item].shape ||
-                    render.frame.cursor_blinking != cases[item].blinking) {
+                    render.frame.cursor_blink_requested != cases[item].blinking) {
                         XtpLog(XTP_LOG_ERROR, "self-test",
                                "cursor style case=%zu shape=%d blink=%s", item,
                                render.frame.cursor_shape,
-                               render.frame.cursor_blinking ? "true" : "false");
+                               render.frame.cursor_blink_requested ? "true" : "false");
                         goto done;
                 }
         }
         XtpTerminalFeed(terminal, (const uint8_t *)"\033[?12h", 6);
         if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
-            !render.frame.cursor_blinking)
+            !render.frame.cursor_blink_requested)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[?12s\033[?12l\033[?12r", 18);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            !render.frame.cursor_blink_requested)
                 goto done;
         XtpTerminalFeed(terminal, (const uint8_t *)"\033[?12l", 6);
         if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
-            render.frame.cursor_blinking)
+            render.frame.cursor_blink_requested)
                 goto done;
+        stage = "empty cursor-style parameters";
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[;1 q", 6);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        stage = "excessive private-mode parameters";
+        XtpTerminalFeed(terminal, excessive_modes, sizeof(excessive_modes) - 1U);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[?4294967296h", 14);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[?4294967296;12h", 17);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            !render.frame.cursor_blink_requested)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[?12l", 6);
         if (XtpTerminalSetCursorBlinkDefault(terminal, true) != 0)
                 goto done;
         XtpTerminalFeed(terminal, (const uint8_t *)"\033[0 q", 5);
         if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
-            !render.frame.cursor_blinking)
+            !render.frame.cursor_blink_requested)
                 goto done;
         if (XtpTerminalSetCursorBlinkDefault(terminal, false) != 0)
                 goto done;
         XtpTerminalFeed(terminal, (const uint8_t *)"\033[0 q", 5);
         if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
-            render.frame.cursor_blinking)
+            !render.frame.cursor_blink_requested)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[!p", 4);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        stage = "control-like OSC payload";
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033]0;ignored [1 q\007",
+                        strlen("\033]0;ignored [1 q\007"));
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033]0;\xe2\x9c\x93 [1 q\033\\",
+                        strlen("\033]0;\xe2\x9c\x93 [1 q\033\\"));
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        stage = "cancelled control strings";
+        for (item = 0; item < XtNumber(cancelled_strings); ++item) {
+                XtpTerminalFeed(terminal, cancelled_strings[item],
+                                strlen((const char *)cancelled_strings[item]));
+                if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+                    !render.frame.cursor_blink_requested)
+                        goto done;
+        }
+        stage = "raw DCS C1 payload";
+        XtpTerminalFeed(terminal, raw_dcs_c1, sizeof(raw_dcs_c1) - 1U);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        stage = "raw ignored-DCS C1 payload";
+        XtpTerminalFeed(terminal, raw_ignored_dcs_c1, sizeof(raw_ignored_dcs_c1) - 1U);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        stage = "raw OSC C1 payload";
+        XtpTerminalFeed(terminal, raw_osc_c1, sizeof(raw_osc_c1) - 1U);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[", 2);
+        XtpTerminalFeed(terminal, (const uint8_t *)"5 q", 3);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            !render.frame.cursor_blink_requested)
+                goto done;
+        reset_calls = reset.calls;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033c", 2);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested || reset.calls != reset_calls + 1U || reset.failed)
+                goto done;
+        if (XtpTerminalSetCursorBlinkRequestsEnabled(terminal, false) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[1 q\033[?12h", 11);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        if (XtpTerminalSetCursorBlinkRequestsEnabled(terminal, true) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[1 q", 5);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            !render.frame.cursor_blink_requested ||
+            XtpTerminalSetCursorBlinkRequestsEnabled(terminal, false) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[2 q", 5);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            !render.frame.cursor_blink_requested)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033c", 2);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        if (XtpTerminalSetCursorBlinkRequestsEnabled(terminal, false) != 0)
+                goto done;
+        stage = "reset followed by style";
+        reset_calls = reset.calls;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[!p\033[1 q", 9);
+        if (XtpTerminalRender(terminal, renderer, &render, false) != 0 ||
+            !render.frame.cursor_blink_requested || reset.calls != reset_calls + 1U || reset.failed)
                 goto done;
         result = 0;
 done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "cursor-style stage=%s reset-calls=%zu reset-failed=%s requested=%s", stage,
+                       reset.calls, reset.failed ? "true" : "false",
+                       render.frame.cursor_blink_requested ? "true" : "false");
         XtpTerminalFree(terminal);
         return result;
 }
@@ -1346,6 +1526,124 @@ SelfTestCapturePty(const uint8_t *bytes, size_t length, void *closure)
         capture->used += length;
 }
 
+static bool
+SelfTestPtyEquals(const SelfTestPtyCapture *capture, const uint8_t *expected, size_t length)
+{
+        return !capture->overflow && capture->used == length &&
+               memcmp(capture->bytes, expected, length) == 0;
+}
+
+static int
+SelfTestCursorBlinkReports(void)
+{
+        static const uint8_t coalesced_query_reset[] = "\033[?12$p\033[?12l";
+        static const uint8_t coalesced_query_set[] = "\033[?12$p\033[?12h";
+        static const uint8_t decrqss_before_style[] = "\033P$q q\033\\\033[4 q";
+        static const uint8_t decrqss_blinking_block[] = "\033P1$r1 q\033\\";
+        static const uint8_t query[] = "\033[?12$p";
+        static const uint8_t report_set[] = "\033[?12;1$y";
+        static const uint8_t report_reset[] = "\033[?12;2$y";
+        static const uint8_t forced_style_query[] = "\033[4 q\033P$q q\033\\";
+        static const uint8_t forced_style_report[] = "\033P1$r3 q\033\\";
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestCapturePty,
+            .closure = &capture,
+        };
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(80, 24, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        if (XtpTerminalSetCursorBlinkDefault(terminal, true) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, query, sizeof(query) - 1U);
+        if (!SelfTestPtyEquals(&capture, report_reset, sizeof(report_reset) - 1U))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        XtpTerminalFeed(terminal, coalesced_query_set, sizeof(coalesced_query_set) - 1U);
+        if (!SelfTestPtyEquals(&capture, report_reset, sizeof(report_reset) - 1U))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        XtpTerminalFeed(terminal, coalesced_query_reset, sizeof(coalesced_query_reset) - 1U);
+        if (!SelfTestPtyEquals(&capture, report_set, sizeof(report_set) - 1U))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[0 q\033[?12$p", 12);
+        if (!SelfTestPtyEquals(&capture, report_set, sizeof(report_set) - 1U))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        XtpTerminalFeed(terminal, decrqss_before_style, sizeof(decrqss_before_style) - 1U);
+        if (!SelfTestPtyEquals(&capture, decrqss_blinking_block,
+                               sizeof(decrqss_blinking_block) - 1U))
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[0 q", 5);
+        capture = (SelfTestPtyCapture){0};
+        if (XtpTerminalSetCursorBlinkRequestsEnabled(terminal, false) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, forced_style_query, sizeof(forced_style_query) - 1U);
+        if (!SelfTestPtyEquals(&capture, forced_style_report, sizeof(forced_style_report) - 1U))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        XtpTerminalFeed(terminal, query, sizeof(query) - 1U);
+        if (!SelfTestPtyEquals(&capture, report_set, sizeof(report_set) - 1U))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[!p", 4);
+        XtpTerminalFeed(terminal, query, sizeof(query) - 1U);
+        if (!SelfTestPtyEquals(&capture, report_reset, sizeof(report_reset) - 1U))
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test", "cursor-blink mode report mismatch length=%zu",
+                       capture.used);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestDefaultColors(void)
+{
+        static const uint8_t query[] = "\033]10;?\033\\\033]11;?\033\\\033]12;?\033\\";
+        static const uint8_t expected[] = "\033]10;rgb:1212/3434/5656\033\\"
+                                          "\033]11;rgb:7878/9a9a/bcbc\033\\"
+                                          "\033]12;rgb:dede/f0f0/1212\033\\";
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestCapturePty,
+            .closure = &capture,
+        };
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(80, 24, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        if (XtpTerminalSetDefaultColors(terminal, (XtpRgbColor){0x12, 0x34, 0x56},
+                                        (XtpRgbColor){0x78, 0x9a, 0xbc},
+                                        (XtpRgbColor){0xde, 0xf0, 0x12}) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, query, sizeof(query) - 1U);
+        if (capture.overflow || capture.used != sizeof(expected) - 1U ||
+            memcmp(capture.bytes, expected, sizeof(expected) - 1U) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "default-color query mismatch length=%zu",
+                       capture.used);
+                goto done;
+        }
+        result = 0;
+done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
 static int
 SelfTestKittyKeyboardState(void)
 {
@@ -1617,6 +1915,18 @@ XtpSelfTest(void)
         }
         if (SelfTestCursorStyles(&renderer) != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "cursor-style check failed");
+                goto failure;
+        }
+        if (SelfTestCursorBlinkPolicy() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "cursor-blink policy check failed");
+                goto failure;
+        }
+        if (SelfTestCursorBlinkReports() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "cursor-blink report check failed");
+                goto failure;
+        }
+        if (SelfTestDefaultColors() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "default-color check failed");
                 goto failure;
         }
         if (SelfTestSelection(&renderer) != 0) {

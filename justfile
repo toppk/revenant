@@ -3,6 +3,7 @@
 mkdocs := "uvx --with mkdocs-material mkdocs"
 gcc_build := "build-agent-gcc"
 clang_build := "build-agent-clang"
+asan_build := "build-agent-asan"
 stub_build := "build-agent-stub"
 
 default:
@@ -27,6 +28,15 @@ build-clang:
 
 test-clang: build-clang
     meson test -C {{clang_build}} --print-errorlogs
+
+# Build the libghostty backend with Clang AddressSanitizer instrumentation
+build-asan:
+    @if test -f "{{asan_build}}/meson-private/coredata.dat"; then CC=clang meson setup --reconfigure "{{asan_build}}" -Dlibghostty=enabled -Dxvfb-tests=enabled -Db_sanitize=address -Db_lundef=false; else CC=clang meson setup "{{asan_build}}" -Dlibghostty=enabled -Dxvfb-tests=enabled -Db_sanitize=address -Db_lundef=false; fi
+    meson compile -C {{asan_build}}
+
+test-asan: build-asan
+    meson test -C {{asan_build}} --print-errorlogs
+    tools/check-release-tests {{asan_build}}
 
 # Build the UI-only stub backend
 build-stub:
@@ -76,8 +86,8 @@ probe-emoji *args:
 probe-fonts *args:
     python3 tools/probe-fonts.py {{args}}
 
-# Build and test all supported compiler/backend combinations
-test: test-gcc test-clang test-stub
+# Build and test all supported compiler/backend and sanitizer combinations
+test: test-gcc test-clang test-asan test-stub
 
 # Format C sources and test helpers
 format:

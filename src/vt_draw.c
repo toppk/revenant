@@ -1089,8 +1089,8 @@ static void
 RenderEnd(const XtpRenderFrame *frame, void *closure)
 {
         Vt100Rec *vt = closure;
-        Boolean effective_blinking =
-            VtEffectiveCursorBlink(vt->vt.cursor_blink_policy, frame->cursor_blinking);
+        Boolean effective_blinking = XtpCursorBlinkEffective(
+            vt->vt.cursor_blink_policy, vt->vt.cursor_blink_xor, frame->cursor_blink_requested);
         Boolean cursor_changed =
             vt->vt.cursor_protocol_visible != frame->cursor_visible ||
             (frame->cursor_visible && (vt->vt.last_cursor_column != frame->cursor_column ||
@@ -1109,7 +1109,7 @@ RenderEnd(const XtpRenderFrame *frame, void *closure)
                        vt->vt.cursor_blinking ? "true" : "false",
                        frame->cursor_visible ? "visible" : "hidden", frame->cursor_column,
                        frame->cursor_row, frame->cursor_shape,
-                       frame->cursor_blinking ? "true" : "false",
+                       frame->cursor_blink_requested ? "true" : "false",
                        effective_blinking ? "true" : "false",
                        cursor_changed || blinking_changed ? "true" : "false",
                        vt->vt.cursor_cell_seen ? "dirty" : "clean");
@@ -1153,7 +1153,7 @@ RenderEnd(const XtpRenderFrame *frame, void *closure)
                 VtEraseLastCursor(vt);
 
         vt->vt.cursor_protocol_visible = frame->cursor_visible;
-        vt->vt.cursor_blink_requested = frame->cursor_blinking;
+        vt->vt.cursor_blink_requested = frame->cursor_blink_requested;
         vt->vt.cursor_blinking = effective_blinking;
         if (refresh_cursor) {
                 Boolean draw_cursor =

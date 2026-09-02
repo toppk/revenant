@@ -75,7 +75,7 @@ CSI Ps SP q
 
 | `Ps` | Description |
 | --- | --- |
-| `0` | Default cursor style; the meaning of "default" differs between emulators |
+| `0` | Blinking block in DEC VT520 and xterm; some emulators use their configured default |
 | `1` | Blinking block |
 | `2` | Steady block |
 | `3` | Blinking underline |
@@ -85,12 +85,11 @@ CSI Ps SP q
 
 <!-- markdownlint-enable MD013 -->
 
-The VT520 manual defines 0 as "blinking block" and 1 the same. xterm and most
-emulators treat 0 as "return to the configured default", which may be any
-shape and either blink state. Parameter 0 is therefore suitable only when an
-application wants the emulator's reset behavior; it cannot restore an unknown
-previous application state. Programs that need to restore should query with
-DECRQSS (`DCS $ q SP q ST`) first; see [DECRQSS](../dcs/decrqss.md).
+The VT520 manual defines 0 as "blinking block" and 1 the same, and xterm keeps
+that interpretation. Some other emulators treat 0 as "return to the configured
+default" instead. Parameter 0 is therefore not a portable restore operation.
+Programs that need to restore should query with DECRQSS (`DCS $ q SP q ST`)
+first; see [DECRQSS](../dcs/decrqss.md).
 
 ## Visibility: DECTCEM
 
@@ -108,10 +107,14 @@ after; a crash leaves it hidden, and `reset(1)` or `tput cnorm` recovers.
 ```text
 CSI ? 12 h    start blinking
 CSI ? 12 l    stop blinking
+CSI ? 12 s    save the blink mode (xterm)
+CSI ? 12 r    restore the saved blink mode (xterm)
 ```
 
 Mode 12 (`att610` in xterm's naming) changes blinking without selecting a
-shape. Several emulators let configuration override or ignore it.
+shape. Several emulators let configuration override or ignore it. In xterm,
+RIS and DECSTR clear the application blink request and restore the startup
+`cursorBlink` policy.
 
 ## Observed compatibility
 
@@ -138,7 +141,7 @@ an implementation's documentation remains authoritative for its intent.
 | Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | DECSCUSR 1–6 | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | Yes (`Ss`/`Se`) |
-| DECSCUSR 0 = configured default | Yes | Yes | ? | Yes | Yes | Yes | Yes | ? | ? | ? | ? | ? | ? | pass-through |
+| DECSCUSR 0 = blinking block | Yes | ? | ? | ? | No | ? | ? | ? | ? | ? | ? | ? | ? | pass-through |
 | DECTCEM `?25` | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Mode `?12` | Yes | Yes | ? | ? | Yes | Yes | ? | ? | ? | Yes | ? | ? | ? | ? |
 

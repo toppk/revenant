@@ -17,7 +17,7 @@ report=$test_dir/report
 log=$test_dir/log
 XENVIRONMENT=/dev/null "$fixture_root/run" base "$terminal" -report-config >"$report" 2>"$log"
 
-for resource in limitFontsets limitFontHeight limitFontWidth
+for resource in limitFontsets limitFontHeight limitFontWidth cursorBlink cursorBlinkXOR
 do
     block=$(grep -F -B 1 -- "XTerm*$resource:" "$report")
     if ! printf '%s\n' "$block" | grep -F -q '[supported]'
@@ -28,4 +28,13 @@ do
     fi
 done
 
-echo "report-config font-governor classifications passed"
+override_report=$test_dir/override-report
+XENVIRONMENT=/dev/null "$fixture_root/run" base "$terminal" \
+    -xrm 'XTerm*cursorBlink: always' \
+    -xrm 'XTerm*cursorBlinkXOR: false' \
+    -report-config >"$override_report" 2>>"$log"
+
+grep -E -q '^XTerm\*cursorBlink:[[:space:]]+always$' "$override_report"
+grep -E -q '^XTerm\*cursorBlinkXOR:[[:space:]]+false$' "$override_report"
+
+echo "report-config resource classifications and cursor-blink overrides passed"

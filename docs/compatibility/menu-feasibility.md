@@ -23,9 +23,10 @@ re-reads them via `ghostty_key_encoder_setopt_from_terminal`. The generic
 autowrap, reversewrap, autolinefeed, appcursor, appkeypad, backarrow key,
 num-lock and alt-esc, with checkmark state read back from `DATA_MODE`.
 Meta-esc still needs a distinct X Meta/Alt policy and allow132 needs grid-size
-polling after terminal input. Application cursor blinking and its presentation
-timer and four-value `cursorBlink` resource policy are implemented; the menu
-toggle still needs defined transitions between configured and forced policy.
+polling after terminal input. Application cursor blinking, its presentation
+timer, the four-value `cursorBlink` resource policy, and `cursorBlinkXOR` are
+implemented; the menu toggle still needs defined transitions between
+configured and forced policy.
 
 ## mainMenu
 
@@ -81,7 +82,7 @@ toggle still needs defined transitions between configured and forced policy.
 | visualbell | Flash | Bell callback exists | Invert + timer | READY |
 | bellIsUrgent | WM urgency hint | Bell callback | `XUrgencyHint` | READY |
 | poponbell | Raise window | Bell callback | `XRaiseWindow` | READY |
-| cursorblink | Blink cursor | `OPT_DEFAULT_CURSOR_BLINK`, `DATA_CURSOR_STYLE` | Timer and resource policy exist; define menu transitions among default and forced states | READY |
+| cursorblink | Blink cursor | `OPT_DEFAULT_CURSOR_BLINK`, `DATA_CURSOR_STYLE` | Toggle `false`/`true` as xterm does; RIS and DECSTR restore the startup four-value policy | READY |
 | titeInhibit | Ignore alt-screen switches | No way to disable a mode handler | Needs "permanently reset mode" option | BLOCKED |
 | activeicon | Terminal in icon window | None | Modern WMs ignore | SKIP |
 | copy_area | Toggle xterm's `XCopyArea` scroll optimization | None | Revenant does not use xterm's scroll-copy path; see the drift ledger | SKIP |

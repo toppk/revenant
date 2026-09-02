@@ -23,6 +23,13 @@ typedef struct
         uint8_t blue;
 } XtpColor;
 
+typedef struct
+{
+        uint8_t red;
+        uint8_t green;
+        uint8_t blue;
+} XtpRgbColor;
+
 typedef enum
 {
         XTP_CURSOR_SHAPE_BLOCK,
@@ -41,7 +48,7 @@ typedef struct
         uint16_t cursor_column;
         uint16_t cursor_row;
         XtpCursorShape cursor_shape;
-        bool cursor_blinking;
+        bool cursor_blink_requested;
 } XtpRenderFrame;
 
 typedef struct
@@ -270,6 +277,7 @@ typedef struct
         void (*write_pty)(const uint8_t *bytes, size_t length, void *closure);
         void (*bell)(void *closure);
         void (*title_changed)(const char *title, size_t length, void *closure);
+        void (*cursor_blink_reset)(void *closure);
         void *closure;
 } XtpTerminalEffects;
 
@@ -329,6 +337,9 @@ int XtpTerminalEncodeMouse(XtpTerminal *terminal, const XtpMouseEvent *event, ch
                            size_t capacity, size_t *written);
 int XtpTerminalSetScrollbackLines(XtpTerminal *terminal, size_t lines);
 int XtpTerminalSetCursorBlinkDefault(XtpTerminal *terminal, bool blinking);
+int XtpTerminalSetCursorBlinkRequestsEnabled(XtpTerminal *terminal, bool enabled);
+int XtpTerminalSetDefaultColors(XtpTerminal *terminal, XtpRgbColor foreground,
+                                XtpRgbColor background, XtpRgbColor cursor);
 int XtpTerminalSetCharClass(XtpTerminal *terminal, const char *specification);
 int XtpTerminalGetScrollbar(XtpTerminal *terminal, XtpTerminalScrollbar *scrollbar);
 int XtpTerminalScrollBy(XtpTerminal *terminal, intptr_t rows);

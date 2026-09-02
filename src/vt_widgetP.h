@@ -3,6 +3,7 @@
 
 #include "vt_widget.h"
 
+#include "cursor_blink.h"
 #include "terminal.h"
 #include "emoji_presentation.h"
 #include "font_chain.h"
@@ -156,14 +157,6 @@ typedef struct
 
 typedef enum
 {
-        XTP_CURSOR_BLINK_DEFAULT_FALSE,
-        XTP_CURSOR_BLINK_DEFAULT_TRUE,
-        XTP_CURSOR_BLINK_ALWAYS,
-        XTP_CURSOR_BLINK_NEVER,
-} CursorBlinkPolicy;
-
-typedef enum
-{
         XTP_LOCAL_ACTION_FONT_LARGER,
         XTP_LOCAL_ACTION_FONT_SMALLER,
         XTP_LOCAL_ACTION_PASTE,
@@ -230,7 +223,9 @@ typedef struct
         int save_lines;
         int multi_click_time;
         String cursor_blink_name;
-        CursorBlinkPolicy cursor_blink_policy;
+        XtpCursorBlinkPolicy cursor_blink_policy;
+        XtpCursorBlinkPolicy initial_cursor_blink_policy;
+        Boolean cursor_blink_xor;
         int cursor_on_time;
         int cursor_off_time;
         Boolean scroll_bar;
@@ -350,7 +345,6 @@ typedef struct _Vt100ClassRec
 
 Vt100Rec *VtAsRecord(Widget widget);
 void VtFontReloadApplied(Vt100Rec *vt);
-Boolean VtEffectiveCursorBlink(CursorBlinkPolicy policy, Boolean requested);
 Dimension VtScrollbarTotalWidth(Vt100Rec *vt);
 void VtUpdateScrollbar(Vt100Rec *vt);
 Boolean VtScrollViewportBy(Vt100Rec *vt, intptr_t rows);

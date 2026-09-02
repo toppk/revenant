@@ -91,6 +91,7 @@ Boolean XtpVtReverseVideo(Widget widget);
 void XtpVtSetReverseVideo(Widget widget, Boolean enabled);
 void XtpVtScrollOnKeypress(Widget widget);
 void XtpVtSetTerminal(Widget widget, XtpTerminal *terminal);
+void XtpVtResetCursorBlinkPolicy(Widget widget);
 void XtpVtUpdate(Widget widget);
 void XtpVtRedraw(Widget widget);
 

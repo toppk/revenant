@@ -1,0 +1,133 @@
+name: Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ZIG_VERSION: 0.16.0
+  FONTTOOLS_VERSION: 4.62.0
+  DEBIAN_FRONTEND: noninteractive
+  LIBGHOSTTY_ZIG_CACHE_DIR: ${{ github.workspace }}/libghostty-zig
+
+jobs:
+  compilers:
+    name: GCC, Clang, and stub backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install build and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang meson ninja-build pkgconf python3 jq \
+            libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
+            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
+            xvfb xfonts-base rpm2cpio cpio unzip curl fontconfig
+      - name: Restore staged font fixtures
+        id: fixtures
+        uses: actions/cache@v6
+        with:
+          path: font-fixtures-stage
+          key: font-fixtures-${{ hashFiles('tools/stage-font-fixtures', 'tools/font-fixtures/**') }}-fonttools${{ env.FONTTOOLS_VERSION }}
+      - name: Stage pinned font fixtures
+        if: steps.fixtures.outputs.cache-hit != 'true'
+        run: |
+          python3 -m pip install --user --break-system-packages "fonttools==$FONTTOOLS_VERSION"
+          tools/stage-font-fixtures
+      - name: Describe the libghostty build for the Zig cache key
+        id: zigkey
+        run: |
+          model=$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | tr -cs '[:alnum:]' '-' | sed 's/^-*//;s/-*$//')
+          base="libghostty-${{ runner.os }}-$(tools/build-libghostty --print-target)-zig$ZIG_VERSION-ghostty$(tools/fetch-libghostty --print-reference)-${{ hashFiles('tools/build-libghostty') }}"
+          echo "runner cpu: $model"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "key=$base-$model" >> "$GITHUB_OUTPUT"
+      - name: Restore the Zig cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.LIBGHOSTTY_ZIG_CACHE_DIR }}
+          key: ${{ steps.zigkey.outputs.key }}
+          restore-keys: ${{ steps.zigkey.outputs.base }}-
+      - name: Install Zig and select libghostty
+        run: |
+          packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+          tools/fetch-libghostty
+      - name: Check C formatting
+        run: clang-format --dry-run --Werror src/*.[ch] tests/*.c
+      - name: Run the complete suite with GCC
+        run: |
+          CC=gcc meson setup build-gcc -Dlibghostty=enabled -Dxvfb-tests=enabled
+          meson compile -C build-gcc
+          meson test -C build-gcc --print-errorlogs
+      - name: Run the complete suite with Clang
+        run: |
+          CC=clang meson setup build-clang -Dlibghostty=enabled -Dxvfb-tests=enabled
+          meson compile -C build-clang
+          meson test -C build-clang --print-errorlogs
+      - name: Run the stub-backend suite
+        run: |
+          CC=gcc meson setup build-stub -Dlibghostty=disabled
+          meson compile -C build-stub
+          meson test -C build-stub --print-errorlogs
+
+  asan:
+    name: AddressSanitizer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install build and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang meson ninja-build pkgconf python3 jq \
+            libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
+            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
+            xvfb xfonts-base rpm2cpio cpio unzip curl fontconfig
+      - name: Restore staged font fixtures
+        id: fixtures
+        uses: actions/cache@v6
+        with:
+          path: font-fixtures-stage
+          key: font-fixtures-${{ hashFiles('tools/stage-font-fixtures', 'tools/font-fixtures/**') }}-fonttools${{ env.FONTTOOLS_VERSION }}
+      - name: Stage pinned font fixtures
+        if: steps.fixtures.outputs.cache-hit != 'true'
+        run: |
+          python3 -m pip install --user --break-system-packages "fonttools==$FONTTOOLS_VERSION"
+          tools/stage-font-fixtures
+      - name: Describe the libghostty build for the Zig cache key
+        id: zigkey
+        run: |
+          model=$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | tr -cs '[:alnum:]' '-' | sed 's/^-*//;s/-*$//')
+          base="libghostty-${{ runner.os }}-$(tools/build-libghostty --print-target)-zig$ZIG_VERSION-ghostty$(tools/fetch-libghostty --print-reference)-${{ hashFiles('tools/build-libghostty') }}"
+          echo "runner cpu: $model"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "key=$base-$model" >> "$GITHUB_OUTPUT"
+      - name: Restore the Zig cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.LIBGHOSTTY_ZIG_CACHE_DIR }}
+          key: ${{ steps.zigkey.outputs.key }}
+          restore-keys: ${{ steps.zigkey.outputs.base }}-
+      - name: Install Zig and select libghostty
+        run: |
+          packaging/install-zig "$ZIG_VERSION" "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
+          tools/fetch-libghostty
+      - name: Configure the AddressSanitizer build
+        run: |
+          CC=clang meson setup build-asan \
+            -Dlibghostty=enabled -Dxvfb-tests=enabled \
+            -Db_sanitize=address -Db_lundef=false
+      - run: meson compile -C build-asan
+      - name: Run the complete suite under AddressSanitizer
+        run: meson test -C build-asan --print-errorlogs
+      - run: tools/check-release-tests build-asan

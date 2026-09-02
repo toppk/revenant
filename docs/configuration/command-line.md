@@ -62,7 +62,7 @@ parsed by the X Toolkit itself and work in every Xt program.
 | Option | Resource | Meaning |
 | --- | --- | --- |
 | `-ah` / `+ah` | `vt100.alwaysHighlight` true / false | Filled cursor even when unfocused |
-| `-bc` / `+bc` | `vt100.cursorBlink` true / false | Blinking or steady configured default; application requests remain effective |
+| `-bc` / `+bc` | `vt100.cursorBlink` true / false | Configured blink operand; combined with application state by `cursorBlinkXOR` |
 | `-bcn milliseconds` | `vt100.cursorOnTime` | Time the blinking cursor remains visible |
 | `-bcf milliseconds` | `vt100.cursorOffTime` | Time the blinking cursor remains hidden |
 

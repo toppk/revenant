@@ -377,6 +377,14 @@ TerminalTitle(const char *title, size_t length, void *closure)
 }
 
 static void
+TerminalCursorBlinkReset(void *closure)
+{
+        App *app = closure;
+
+        XtpVtResetCursorBlinkPolicy(app->vt);
+}
+
+static void
 ResizeChild(App *app, unsigned int columns, unsigned int rows, unsigned int cell_width,
             unsigned int cell_height)
 {
@@ -873,10 +881,11 @@ static int
 CreateTerminal(App *app)
 {
         XtpTerminalEffects effects = {
-            TerminalWritePty,
-            TerminalBell,
-            TerminalTitle,
-            app,
+            .write_pty = TerminalWritePty,
+            .bell = TerminalBell,
+            .title_changed = TerminalTitle,
+            .cursor_blink_reset = TerminalCursorBlinkReset,
+            .closure = app,
         };
 
         app->terminal = XtpTerminalNewWithGraphemeWidth(

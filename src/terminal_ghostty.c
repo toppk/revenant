@@ -1,6 +1,7 @@
 #include "terminal.h"
 
 #include "char_class.h"
+#include "cursor_blink.h"
 #include "diagnostics.h"
 
 #include <ghostty/vt.h>
@@ -30,9 +31,17 @@ struct XtpTerminal
         bool selection_extend_rectangle;
         bool reverse_colors_initialized;
         bool reverse_colors;
+        XtpCursorBlinkObserver cursor_blink;
         XtpCharClassTable *char_classes;
         XtpTerminalEffects effects;
 };
+
+typedef struct
+{
+        XtpTerminal *terminal;
+        const uint8_t *bytes;
+        size_t written;
+} CursorBlinkFeed;
 
 static const GhosttyKey key_map[XTP_KEY_COUNT] = {
     [XTP_KEY_UNIDENTIFIED] = GHOSTTY_KEY_UNIDENTIFIED,
@@ -227,12 +236,31 @@ static void
 WritePtyEffect(GhosttyTerminal handle, void *userdata, const uint8_t *bytes, size_t length)
 {
         XtpTerminal *terminal = userdata;
+        uint8_t rewritten[10];
+        const uint8_t *output = bytes;
 
         (void)handle;
-        if (terminal->effects.write_pty != NULL)
+        if (length == 9U && memcmp(bytes, "\033[?12;", 6) == 0 && bytes[7] == '$' &&
+            bytes[8] == 'y') {
+                memcpy(rewritten, bytes, length);
+                rewritten[6] = terminal->cursor_blink.blink_requested ? '1' : '2';
+                output = rewritten;
+        } else if (length == 10U && memcmp(bytes, "\033P1$r", 5) == 0 && bytes[6] == ' ' &&
+                   bytes[7] == 'q' && bytes[8] == 0x1bU && bytes[9] == '\\' && bytes[5] >= '1' &&
+                   bytes[5] <= '6') {
+                memcpy(rewritten, bytes, length);
+                if (terminal->cursor_blink.blink_requested) {
+                        if ((rewritten[5] & 1U) == 0U)
+                                --rewritten[5];
+                } else if ((rewritten[5] & 1U) != 0U) {
+                        ++rewritten[5];
+                }
+                output = rewritten;
+        }
+        if (terminal->effects.write_pty != NULL) {
                 XtpLog(XTP_LOG_DEBUG, "terminal", "generated PTY response bytes=%zu", length);
-        if (terminal->effects.write_pty != NULL)
-                terminal->effects.write_pty(bytes, length, terminal->effects.closure);
+                terminal->effects.write_pty(output, length, terminal->effects.closure);
+        }
 }
 
 static void
@@ -318,6 +346,42 @@ FreeHandles(XtpTerminal *terminal)
         ghostty_terminal_free(terminal->handle);
 }
 
+static int
+SyncCursorBlinkMode(XtpTerminal *terminal)
+{
+        GhosttyTerminalModeConfig mode = {
+            GHOSTTY_MODE_CURSOR_BLINKING,
+            terminal->cursor_blink.blink_requested,
+        };
+
+        return ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_MODE, &mode) ==
+                       GHOSTTY_SUCCESS
+                   ? 0
+                   : -1;
+}
+
+static void
+CursorBlinkBeforeChange(size_t offset, void *closure)
+{
+        CursorBlinkFeed *feed = closure;
+
+        if (offset > feed->written) {
+                ghostty_terminal_vt_write(feed->terminal->handle, feed->bytes + feed->written,
+                                          offset - feed->written);
+                feed->written = offset;
+        }
+}
+
+static void
+CursorBlinkResetEffect(void *closure)
+{
+        CursorBlinkFeed *feed = closure;
+        XtpTerminal *terminal = feed->terminal;
+
+        if (terminal->effects.cursor_blink_reset != NULL)
+                terminal->effects.cursor_blink_reset(terminal->effects.closure);
+}
+
 XtpTerminal *
 XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_width,
                                 uint32_t cell_height, bool unicode_width)
@@ -394,8 +458,25 @@ XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
 {
         if (terminal != NULL)
                 XtpLog(XTP_LOG_DEBUG, "terminal", "feed bytes=%zu", length);
-        if (terminal != NULL)
-                ghostty_terminal_vt_write(terminal->handle, bytes, length);
+        if (terminal != NULL) {
+                CursorBlinkFeed feed = {
+                    .terminal = terminal,
+                    .bytes = bytes,
+                };
+                XtpCursorBlinkObserverEffects effects = {
+                    .before_change = CursorBlinkBeforeChange,
+                    .reset = CursorBlinkResetEffect,
+                    .closure = &feed,
+                };
+
+                XtpCursorBlinkObserverFeed(&terminal->cursor_blink, bytes, length, &effects);
+                if (feed.written < length)
+                        ghostty_terminal_vt_write(terminal->handle, bytes + feed.written,
+                                                  length - feed.written);
+                if (SyncCursorBlinkMode(terminal) != 0)
+                        XtpLog(XTP_LOG_ERROR, "terminal",
+                               "cannot synchronize application cursor blink mode");
+        }
 }
 
 int
@@ -443,13 +524,56 @@ XtpTerminalSetScrollbackLines(XtpTerminal *terminal, size_t lines)
 int
 XtpTerminalSetCursorBlinkDefault(XtpTerminal *terminal, bool blinking)
 {
+        GhosttyResult result;
+
         if (terminal == NULL)
                 return -1;
         XtpLog(XTP_LOG_INFO, "terminal", "cursor blink default=%s", blinking ? "true" : "false");
-        return ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_DEFAULT_CURSOR_BLINK,
-                                    &blinking) == GHOSTTY_SUCCESS
-                   ? 0
-                   : -1;
+        /*
+         * Retain the configured operand in libghostty for its reset and
+         * default-style baseline. Presentation and mode reports use
+         * Revenant's separate raw application state, so restore mode 12 after
+         * changing the default.
+         */
+        result = ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_DEFAULT_CURSOR_BLINK,
+                                      &blinking);
+        return result == GHOSTTY_SUCCESS && SyncCursorBlinkMode(terminal) == 0 ? 0 : -1;
+}
+
+int
+XtpTerminalSetCursorBlinkRequestsEnabled(XtpTerminal *terminal, bool enabled)
+{
+        if (terminal == NULL)
+                return -1;
+        XtpCursorBlinkObserverSetRequestsEnabled(&terminal->cursor_blink, enabled);
+        XtpLog(XTP_LOG_INFO, "terminal", "cursor blink application requests=%s",
+               enabled ? "enabled" : "ignored");
+        return 0;
+}
+
+int
+XtpTerminalSetDefaultColors(XtpTerminal *terminal, XtpRgbColor foreground, XtpRgbColor background,
+                            XtpRgbColor cursor)
+{
+        GhosttyColorRgb ghostty_foreground = {foreground.red, foreground.green, foreground.blue};
+        GhosttyColorRgb ghostty_background = {background.red, background.green, background.blue};
+        GhosttyColorRgb ghostty_cursor = {cursor.red, cursor.green, cursor.blue};
+
+        if (terminal == NULL)
+                return -1;
+        if (ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_COLOR_FOREGROUND,
+                                 &ghostty_foreground) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_COLOR_BACKGROUND,
+                                 &ghostty_background) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_COLOR_CURSOR,
+                                 &ghostty_cursor) != GHOSTTY_SUCCESS)
+                return -1;
+        XtpLog(XTP_LOG_INFO, "terminal",
+               "default colors foreground=#%02x%02x%02x background=#%02x%02x%02x "
+               "cursor=#%02x%02x%02x",
+               foreground.red, foreground.green, foreground.blue, background.red, background.green,
+               background.blue, cursor.red, cursor.green, cursor.blue);
+        return 0;
 }
 
 int
@@ -1516,14 +1640,12 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                                      GHOSTTY_RENDER_STATE_DATA_CURSOR_VISUAL_STYLE,
                                      &cursor_style) != GHOSTTY_SUCCESS ||
             ghostty_render_state_get(terminal->render_state,
-                                     GHOSTTY_RENDER_STATE_DATA_CURSOR_BLINKING,
-                                     &frame.cursor_blinking) != GHOSTTY_SUCCESS ||
-            ghostty_render_state_get(terminal->render_state,
                                      GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_HAS_VALUE,
                                      &cursor_in_viewport) != GHOSTTY_SUCCESS) {
                 XtpLog(XTP_LOG_ERROR, "render", "cannot read render-state metadata");
                 return -1;
         }
+        frame.cursor_blink_requested = terminal->cursor_blink.blink_requested;
 
         frame.reverse_colors = reverse_colors.value;
         reverse_colors_changed = terminal->reverse_colors_initialized &&
@@ -1675,7 +1797,8 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                "blink-requested=%s screen-reverse=%s",
                frame.full_repaint ? "full" : "partial", frame.columns, frame.rows, rendered_cells,
                rendered_graphemes, frame.cursor_visible ? "visible" : "hidden", frame.cursor_column,
-               frame.cursor_row, frame.cursor_shape, frame.cursor_blinking ? "true" : "false",
+               frame.cursor_row, frame.cursor_shape,
+               frame.cursor_blink_requested ? "true" : "false",
                frame.reverse_colors ? "true" : "false");
         {
                 GhosttyRenderStateDirty clean = GHOSTTY_RENDER_STATE_DIRTY_FALSE;

@@ -206,6 +206,8 @@ static XtResource resources[] = {
      XtRImmediate, (XtPointer)250},
     {"cursorBlink", "CursorBlink", XtRString, sizeof(String), OFFSET(cursor_blink_name), XtRString,
      (XtPointer) "false"},
+    {"cursorBlinkXOR", "CursorBlinkXOR", XtRBoolean, sizeof(Boolean), OFFSET(cursor_blink_xor),
+     XtRImmediate, (XtPointer)True},
     {"cursorOnTime", "CursorOnTime", XtRInt, sizeof(int), OFFSET(cursor_on_time), XtRImmediate,
      (XtPointer)600},
     {"cursorOffTime", "CursorOffTime", XtRInt, sizeof(int), OFFSET(cursor_off_time), XtRImmediate,
@@ -309,7 +311,7 @@ VtAsRecord(Widget widget)
         return (Vt100Rec *)widget;
 }
 
-static CursorBlinkPolicy
+static XtpCursorBlinkPolicy
 ParseCursorBlinkPolicy(const char *value)
 {
         if (value != NULL && strcasecmp(value, "true") == 0)
@@ -339,19 +341,9 @@ ParseGraphemeWidth(const char *value)
 }
 
 static Boolean
-CursorBlinkDefault(CursorBlinkPolicy policy)
+CursorBlinkDefault(XtpCursorBlinkPolicy policy)
 {
         return policy == XTP_CURSOR_BLINK_DEFAULT_TRUE || policy == XTP_CURSOR_BLINK_ALWAYS;
-}
-
-Boolean
-VtEffectiveCursorBlink(CursorBlinkPolicy policy, Boolean requested)
-{
-        if (policy == XTP_CURSOR_BLINK_ALWAYS)
-                return True;
-        if (policy == XTP_CURSOR_BLINK_NEVER)
-                return False;
-        return requested;
 }
 
 Dimension
@@ -667,10 +659,13 @@ LogInitialFont(Vt100Rec *vt)
                vt->vt.background_alpha, vt->vt.alpha_visual ? "true" : "false", vt->core.depth);
         XtpLog(XTP_LOG_INFO, "config",
                "VT100 resolved grid=%dx%d internalBorder=%u saveLines=%d scrollBar=%s "
-               "rightScrollBar=%s alwaysHighlight=%s selectToClipboard=%s",
+               "rightScrollBar=%s alwaysHighlight=%s cursorBlink=%s cursorBlinkXOR=%s "
+               "selectToClipboard=%s",
                vt->vt.columns, vt->vt.rows, vt->vt.internal_border, vt->vt.save_lines,
                vt->vt.scroll_bar ? "true" : "false", vt->vt.right_scroll_bar ? "true" : "false",
                vt->vt.always_highlight ? "true" : "false",
+               vt->vt.cursor_blink_name != NULL ? vt->vt.cursor_blink_name : "false",
+               vt->vt.cursor_blink_xor ? "true" : "false",
                vt->vt.select_to_clipboard ? "true" : "false");
         for (slot = 1; slot < XTP_FONT_SLOTS; ++slot) {
                 XtpLog(XTP_LOG_INFO, "config", "VT100 resolved font%d=%s", slot,
@@ -732,6 +727,27 @@ SwapDefaultColors(Vt100Rec *vt)
 }
 
 static void
+ApplyTerminalDefaultColors(Vt100Rec *vt)
+{
+        XColor colors[3] = {{0}, {0}, {0}};
+        XtpRgbColor foreground;
+        XtpRgbColor background;
+        XtpRgbColor cursor;
+
+        if (vt->vt.terminal == NULL)
+                return;
+        colors[0].pixel = vt->vt.foreground;
+        colors[1].pixel = vt->vt.opaque_background_pixel;
+        colors[2].pixel = vt->vt.cursor_color;
+        XQueryColors(XtDisplay((Widget)vt), vt->core.colormap, colors, XtNumber(colors));
+        foreground = (XtpRgbColor){colors[0].red >> 8, colors[0].green >> 8, colors[0].blue >> 8};
+        background = (XtpRgbColor){colors[1].red >> 8, colors[1].green >> 8, colors[1].blue >> 8};
+        cursor = (XtpRgbColor){colors[2].red >> 8, colors[2].green >> 8, colors[2].blue >> 8};
+        if (XtpTerminalSetDefaultColors(vt->vt.terminal, foreground, background, cursor) != 0)
+                XtpLog(XTP_LOG_ERROR, "terminal", "cannot apply configured terminal colors");
+}
+
+static void
 Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
 {
         Vt100Rec *vt = VtAsRecord(new_widget);
@@ -758,6 +774,7 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
                 SwapDefaultColors(vt);
         NormalizeConfiguredColors(vt);
         vt->vt.cursor_blink_policy = ParseCursorBlinkPolicy(vt->vt.cursor_blink_name);
+        vt->vt.initial_cursor_blink_policy = vt->vt.cursor_blink_policy;
         vt->vt.font_universe = calloc(1, sizeof(*vt->vt.font_universe));
         if (vt->vt.font_universe == NULL)
                 XtpLog(XTP_LOG_WARNING, "font",
@@ -999,10 +1016,15 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                                new_vt->vt.char_class != NULL ? new_vt->vt.char_class : "(default)");
         }
 
-        new_vt->vt.cursor_blink_policy = ParseCursorBlinkPolicy(new_vt->vt.cursor_blink_name);
+        if ((old_vt->vt.cursor_blink_name == NULL) != (new_vt->vt.cursor_blink_name == NULL) ||
+            (old_vt->vt.cursor_blink_name != NULL && new_vt->vt.cursor_blink_name != NULL &&
+             strcmp(old_vt->vt.cursor_blink_name, new_vt->vt.cursor_blink_name) != 0))
+                new_vt->vt.cursor_blink_policy =
+                    ParseCursorBlinkPolicy(new_vt->vt.cursor_blink_name);
         if (old_vt->vt.cursor_blink_policy != new_vt->vt.cursor_blink_policy) {
-                Boolean effective = VtEffectiveCursorBlink(new_vt->vt.cursor_blink_policy,
-                                                           new_vt->vt.cursor_blink_requested);
+                Boolean effective = XtpCursorBlinkEffective(new_vt->vt.cursor_blink_policy,
+                                                            new_vt->vt.cursor_blink_xor,
+                                                            new_vt->vt.cursor_blink_requested);
 
                 if (new_vt->vt.terminal != NULL &&
                     XtpTerminalSetCursorBlinkDefault(
@@ -1010,11 +1032,31 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                         0)
                         XtpLog(XTP_LOG_ERROR, "render", "cannot apply cursorBlink=%s",
                                new_vt->vt.cursor_blink_name);
+                if (new_vt->vt.terminal != NULL &&
+                    XtpTerminalSetCursorBlinkRequestsEnabled(
+                        new_vt->vt.terminal,
+                        new_vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_ALWAYS &&
+                            new_vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_NEVER) != 0)
+                        XtpLog(XTP_LOG_ERROR, "render",
+                               "cannot apply cursorBlink application-request policy");
                 VtStopCursorBlink(new_vt);
                 new_vt->vt.cursor_blink_on = True;
                 new_vt->vt.cursor_blinking = effective;
                 XtpLog(XTP_LOG_INFO, "config", "VT100 cursorBlink=%s effective=%s",
                        new_vt->vt.cursor_blink_name, effective ? "true" : "false");
+                changed = True;
+        }
+        if (old_vt->vt.cursor_blink_xor != new_vt->vt.cursor_blink_xor) {
+                Boolean effective = XtpCursorBlinkEffective(new_vt->vt.cursor_blink_policy,
+                                                            new_vt->vt.cursor_blink_xor,
+                                                            new_vt->vt.cursor_blink_requested);
+
+                VtStopCursorBlink(new_vt);
+                new_vt->vt.cursor_blink_on = True;
+                new_vt->vt.cursor_blinking = effective;
+                XtpLog(XTP_LOG_INFO, "config", "VT100 cursorBlinkXOR=%s effective=%s",
+                       new_vt->vt.cursor_blink_xor ? "true" : "false",
+                       effective ? "true" : "false");
                 changed = True;
         }
 
@@ -1040,6 +1082,11 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                        new_vt->vt.always_highlight ? "true" : "false");
                 changed = True;
         }
+        if (old_vt->vt.foreground != new_vt->vt.foreground ||
+            old_vt->core.background_pixel != new_vt->core.background_pixel ||
+            old_vt->vt.cursor_color != new_vt->vt.cursor_color ||
+            old_vt->vt.reverse_video != new_vt->vt.reverse_video)
+                ApplyTerminalDefaultColors(new_vt);
         if (old_vt->vt.cursor_on_time != new_vt->vt.cursor_on_time ||
             old_vt->vt.cursor_off_time != new_vt->vt.cursor_off_time) {
                 XtpLog(XTP_LOG_INFO, "config", "VT100 cursor timing on=%dms off=%dms",
@@ -1642,6 +1689,12 @@ XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
                                              CursorBlinkDefault(vt->vt.cursor_blink_policy)) != 0)
                 XtpLog(XTP_LOG_ERROR, "render", "cannot apply cursorBlink=%s",
                        vt->vt.cursor_blink_name);
+        if (XtpTerminalSetCursorBlinkRequestsEnabled(
+                terminal, vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_ALWAYS &&
+                              vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_NEVER) != 0)
+                XtpLog(XTP_LOG_ERROR, "render",
+                       "cannot apply cursorBlink application-request policy");
+        ApplyTerminalDefaultColors(vt);
         if (XtpTerminalSetScrollbackLines(terminal, (size_t)vt->vt.save_lines) != 0)
                 XtpLog(XTP_LOG_ERROR, "scrollback", "cannot set history limit=%d",
                        vt->vt.save_lines);
@@ -1655,6 +1708,29 @@ XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
         VtUpdateScrollbar(vt);
         XtpLog(XTP_LOG_INFO, "terminal", "bound terminal=yes");
         XtpVtRedraw(widget);
+}
+
+void
+XtpVtResetCursorBlinkPolicy(Widget widget)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+        Boolean requests_enabled;
+
+        vt->vt.cursor_blink_policy = vt->vt.initial_cursor_blink_policy;
+        vt->vt.cursor_blink_requested = False;
+        requests_enabled = vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_ALWAYS &&
+                           vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_NEVER;
+        if (vt->vt.terminal != NULL &&
+            (XtpTerminalSetCursorBlinkDefault(
+                 vt->vt.terminal, CursorBlinkDefault(vt->vt.cursor_blink_policy)) != 0 ||
+             XtpTerminalSetCursorBlinkRequestsEnabled(vt->vt.terminal, requests_enabled) != 0))
+                XtpLog(XTP_LOG_ERROR, "render", "cannot restore initial cursorBlink policy");
+        VtStopCursorBlink(vt);
+        vt->vt.cursor_blink_on = True;
+        vt->vt.cursor_blinking =
+            XtpCursorBlinkEffective(vt->vt.cursor_blink_policy, vt->vt.cursor_blink_xor, false);
+        XtpLog(XTP_LOG_INFO, "terminal", "reset restored initial cursorBlink=%d effective=%s",
+               vt->vt.cursor_blink_policy, vt->vt.cursor_blinking ? "true" : "false");
 }
 
 void
