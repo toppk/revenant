@@ -717,7 +717,7 @@ def self_test() -> int:
     if parse_color_reply(7, wrong_index) is not None:
         return 1
     args = argparse.Namespace(
-        program="revenant", resource_class="XTerm", palette="solarized",
+        program="xterm+", resource_class="XTerm", palette="solarized",
         direct_color=True, term_name=None, font=None, font_size=None,
         geometry=None, xrm=[], hold=False, exec_flag="-e", query=True,
         all_palettes=False, no_clear=False, compact=False, width=None,

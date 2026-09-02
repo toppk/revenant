@@ -20,9 +20,11 @@ build_version = get_option('release-version')
 if build_version == ''
     build_version = meson.project_version()
 endif
+program_name = 'revenant'
 
 version_configuration = configuration_data()
 version_configuration.set_quoted('XTP_VERSION', build_version)
+version_configuration.set_quoted('XTP_PROGRAM_NAME', program_name)
 configure_file(
     output: 'version.h',
     configuration: version_configuration,
@@ -166,7 +168,7 @@ else
 endif
 
 xterm_plus = executable(
-    'revenant',
+    program_name,
     sources,
     terminal_sources,
     terminal_link_sources,
@@ -192,7 +194,7 @@ xterm_plus = executable(
     install: true,
 )
 
-install_symlink('xterm+', install_dir: get_option('bindir'), pointing_to: 'revenant')
+install_symlink('xterm+', install_dir: get_option('bindir'), pointing_to: program_name)
 install_data('data/revenant.desktop', install_dir: get_option('datadir') / 'applications')
 install_data('data/icons/revenant.svg',
     install_dir: get_option('datadir') / 'icons/hicolor/scalable/apps')
@@ -341,6 +343,12 @@ test(
     'self-test',
     xterm_plus,
     args: ['--self-test'],
+)
+
+test(
+    'internal-branding',
+    python3,
+    args: [files('tools/check-internal-branding'), meson.current_source_dir()],
 )
 
 if uv.found()
@@ -590,7 +598,7 @@ if build_with_ghostty and xvfb.found()
                 '--xvfb', xvfb.full_path(),
                 '--xprop', xprop.full_path(),
                 '--xrdb', xrdb.full_path(),
-                '--revenant', xterm_plus.full_path(),
+                '--xterm-plus', xterm_plus.full_path(),
                 '--fixture', files('compat/xterm-411-face-name.json'),
                 '--fixture-root', meson.current_source_dir() / 'font-fixtures-stage',
             ],
@@ -652,7 +660,7 @@ endif
 
 summary(
     {
-        'executable': 'revenant',
+        'executable': program_name,
         'X resource class': 'XTerm',
         'X resource instance': 'xterm',
         'libghostty-vt': build_with_ghostty,

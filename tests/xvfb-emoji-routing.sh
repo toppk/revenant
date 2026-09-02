@@ -4,7 +4,7 @@ set -eu
 
 if test "$#" -ne 4
 then
-    echo "usage: $0 XVFB REVENANT WINDOW-INK FIXTURE-ROOT" >&2
+    echo "usage: $0 XVFB XTERM_PLUS WINDOW-INK FIXTURE-ROOT" >&2
     exit 2
 fi
 
@@ -325,7 +325,7 @@ run_case svginot no-color-svg 😀 mono 2 \
 run_case colrv1 no-color-colrv1 😀 mono 2 \
     'base=U+1F600 width=2 presentation=emoji role=tofu' 'Noto Color Emoji' - unicode false
 run_case sbix no-color-sbix 😀 mono 2 \
-    'base=U+1F600 width=2 presentation=emoji role=tofu' 'Revenant Synthetic sbix' - unicode false
+    'base=U+1F600 width=2 presentation=emoji role=tofu' 'XTP Synthetic sbix' - unicode false
 run_case cbdt no-color-primary 😀 mono 2 \
     'base=U+1F600 width=2 presentation=emoji role=tofu' - - unicode false 'Noto Color Emoji'
 run_cursor_clip_case

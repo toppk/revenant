@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Revenant's tiny, deterministic sbix fixture font."""
+"""Generate xterm+'s tiny, deterministic sbix fixture font."""
 
 import binascii
 import struct
@@ -67,11 +67,11 @@ def build(path: Path) -> None:
     builder.setupHorizontalHeader(ascent=800, descent=-200)
     builder.setupNameTable(
         {
-            "familyName": "Revenant Synthetic sbix",
+            "familyName": "XTP Synthetic sbix",
             "styleName": "Regular",
-            "uniqueFontIdentifier": "RevenantSyntheticSbix-Regular-1",
-            "fullName": "Revenant Synthetic sbix Regular",
-            "psName": "RevenantSyntheticSbix-Regular",
+            "uniqueFontIdentifier": "XtpSyntheticSbix-Regular-1",
+            "fullName": "XTP Synthetic sbix Regular",
+            "psName": "XtpSyntheticSbix-Regular",
             "version": "Version 1.000",
         }
     )

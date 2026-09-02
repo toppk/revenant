@@ -11,7 +11,7 @@ then dispatches the workflow against that tag.
    `## 0.5.0 — Unreleased`, while `meson.build` reports `0.5.0-dev`. Add
    development bullets under `### Features`, `### Bug fixes`, or `### Other`.
    Bullets added during development may omit commit links; the release commit
-   adds them. Soft-wrap long bullets normally: `tools/release-notes` joins
+   adds them. Soft-wrap long bullets normally: `packaging/release-notes` joins
    continuation lines when it renders the GitHub release body.
 
 2. Freeze the libghostty input before preparing the release. During development
@@ -53,7 +53,7 @@ then dispatches the workflow against that tag.
     version=0.4.0
     previous_tag=v0.3.0
     git log --oneline "$previous_tag"..HEAD
-    tools/release-notes "$version"
+    packaging/release-notes "$version"
     git add CHANGELOG.md meson.build
     git commit -m "release: $version"
     git diff-tree --no-commit-id --name-only -r HEAD
@@ -107,7 +107,7 @@ then dispatches the workflow against that tag.
 
 - **Check tag** fails immediately if the tag does not exist on `origin`,
   derives the package version by stripping the leading `v` (`v0.3.0` →
-  `0.3.0`), and renders the changelog entry with `tools/release-notes` so a
+  `0.3.0`), and renders the changelog entry with `packaging/release-notes` so a
   missing entry or an unlinked bullet fails in seconds rather than after the
   builds. Every packaging path passes that value through Meson's
   `release-version` option, overriding the next-development version in the
@@ -178,7 +178,7 @@ then dispatches the workflow against that tag.
 - **GitHub release** downloads every artifact, signs a build-provenance
   attestation for each with `actions/attest-build-provenance` (verify with
   `gh attestation verify FILE --repo toppk/revenant`), renders the release body
-  with `tools/release-notes` (highlights, changes with linked commits, an
+  with `packaging/release-notes` (highlights, changes with linked commits, an
   artifact table with SHA-256 sums, and the CPU floor), and publishes the
   release.
 - The package artifacts that carry builds to the release job expire after

@@ -8,9 +8,9 @@
 # ///
 """
 t0-facename-oracle.py - characterize stock xterm's faceName /
-faceNameDoublesize list grammar. THE ORACLE IS XTERM, NOT REVENANT:
-this harness never runs revenant; a separate conformance test compares
-revenant against the reviewed fixture this tool records.
+faceNameDoublesize list grammar. THE ORACLE IS XTERM, NOT XTERM+:
+this harness never runs xterm+; a separate conformance test compares
+xterm+ against the reviewed fixture this tool records.
 
 Canonical oracle: xterm patch 411. (The original T0 plan named 410;
 the project moved to 411 on its upstream release, before any fixture

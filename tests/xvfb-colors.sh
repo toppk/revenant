@@ -7,7 +7,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 if test "$#" -ne 6
 then
-    echo "usage: $0 XVFB REVENANT XRDB WINDOW-ALPHA TIMEOUT HOLD-COLORS" >&2
+    echo "usage: $0 XVFB XTERM_PLUS XRDB WINDOW-ALPHA TIMEOUT HOLD-COLORS" >&2
     exit 2
 fi
 
@@ -35,7 +35,7 @@ if ! HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null "$timeout_program" 5 "$t
         done
     ' bash "$default_reply" >"$test_dir/default-palette.out" 2>"$test_dir/default-palette.log"
 then
-    echo "revenant failed or timed out during default ANSI-palette query" >&2
+    echo "xterm+ failed or timed out during default ANSI-palette query" >&2
     sed -n '1,220p' "$test_dir/default-palette.log" >&2
     exit 1
 fi
@@ -63,7 +63,7 @@ if ! HOME="$test_dir/precedence-home" XENVIRONMENT=/dev/null \
     ' bash "$precedence_reply" >"$test_dir/palette-precedence.out" \
     2>"$test_dir/palette-precedence.log"
 then
-    echo "revenant failed or timed out during ANSI-palette precedence query" >&2
+    echo "xterm+ failed or timed out during ANSI-palette precedence query" >&2
     sed -n '1,220p' "$test_dir/palette-precedence.log" >&2
     exit 1
 fi
@@ -106,7 +106,7 @@ if ! HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null "$timeout_program" 5 "$t
         done
     ' bash "$palette_reply" >"$test_dir/ansi-palette.out" 2>"$test_dir/ansi-palette.log"
 then
-    echo "revenant failed or timed out during ANSI-palette class-resource query" >&2
+    echo "xterm+ failed or timed out during ANSI-palette class-resource query" >&2
     sed -n '1,220p' "$test_dir/ansi-palette.log" >&2
     exit 1
 fi
@@ -144,7 +144,7 @@ if ! XENVIRONMENT=/dev/null "$timeout_program" 5 "$terminal" -debug \
         printf "%s\\" "$reply" >"$1"
     ' bash "$server_reply" >"$test_dir/server-palette.out" 2>"$test_dir/server-palette.log"
 then
-    echo "revenant failed or timed out during ANSI-palette server-resource query" >&2
+    echo "xterm+ failed or timed out during ANSI-palette server-resource query" >&2
     sed -n '1,220p' "$test_dir/server-palette.log" >&2
     exit 1
 fi
@@ -221,7 +221,7 @@ if ! HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null "$timeout_program" 5 "$t
     ' bash "$constrained_reply" \
     >"$test_dir/constrained-palette.out" 2>"$test_dir/constrained-palette.log"
 then
-    echo "revenant failed during exhausted-PseudoColor palette query" >&2
+    echo "xterm+ failed during exhausted-PseudoColor palette query" >&2
     sed -n '1,240p' "$test_dir/constrained-palette.log" >&2
     exit 1
 fi

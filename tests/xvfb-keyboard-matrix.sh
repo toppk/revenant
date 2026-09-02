@@ -4,7 +4,7 @@ set -eu
 
 if test "$#" -ne 3
 then
-    echo "usage: $0 XVFB REVENANT SEND-KEY" >&2
+    echo "usage: $0 XVFB XTERM_PLUS SEND-KEY" >&2
     exit 2
 fi
 
@@ -60,7 +60,7 @@ wait_for_ready()
         attempt=$((attempt + 1))
         if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
         then
-            echo "revenant did not become ready for $description" >&2
+            echo "xterm+ did not become ready for $description" >&2
             sed -n '1,360p' "$log" >&2
             exit 1
         fi
@@ -92,7 +92,7 @@ do
     attempt=$((attempt + 1))
     if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
     then
-        echo "revenant did not encode the complete keyboard matrix" >&2
+        echo "xterm+ did not encode the complete keyboard matrix" >&2
         od -An -tx1 "$XTP_KEY_CAPTURE" >&2
         sed -n '1,420p' "$log" >&2
         exit 1

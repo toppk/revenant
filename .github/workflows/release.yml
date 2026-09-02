@@ -34,7 +34,7 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
       - name: Check the changelog entry before building anything
-        run: tools/release-notes "${{ steps.version.outputs.version }}" /nonexistent >/dev/null
+        run: packaging/release-notes "${{ steps.version.outputs.version }}" /nonexistent >/dev/null
 
   fixtures:
     name: Font fixtures
@@ -293,7 +293,7 @@ jobs:
         with:
           subject-path: dist/*
       - name: Render release notes from CHANGELOG.md
-        run: tools/release-notes "${{ needs.prepare.outputs.version }}" dist | tee release-notes.md
+        run: packaging/release-notes "${{ needs.prepare.outputs.version }}" dist | tee release-notes.md
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag }}

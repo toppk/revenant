@@ -4,17 +4,25 @@ set -euo pipefail
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo_root=$(cd -- "$script_dir/.." && pwd)
 build_dir=${1:-build}
+terminal=${2:-}
 case $build_dir in
 /*) ;;
 *) build_dir=$repo_root/$build_dir ;;
 esac
+case $terminal in
+/*) ;;
+'')
+	printf 'usage: tools/check-xterm-font-compat BUILD_DIR XTERM_PLUS\n' >&2
+	exit 2
+	;;
+*) terminal=$repo_root/$terminal ;;
+esac
 
-terminal=$build_dir/revenant
 sender=$build_dir/xtp-send-font-keys
 resources=$script_dir/xterm-font-compat.Xresources
-run_dir=$(mktemp -d "${TMPDIR:-/tmp}/revenant-xterm-font-compat.XXXXXX")
+run_dir=$(mktemp -d "${TMPDIR:-/tmp}/xtp-xterm-font-compat.XXXXXX")
 xterm_pid=
-revenant_pid=
+xterm_plus_pid=
 passed=false
 
 cleanup()
@@ -24,9 +32,9 @@ cleanup()
 		kill "$xterm_pid" 2>/dev/null || true
 		wait "$xterm_pid" 2>/dev/null || true
 	fi
-	if test -n "$revenant_pid"; then
-		kill "$revenant_pid" 2>/dev/null || true
-		wait "$revenant_pid" 2>/dev/null || true
+	if test -n "$xterm_plus_pid"; then
+		kill "$xterm_plus_pid" 2>/dev/null || true
+		wait "$xterm_plus_pid" 2>/dev/null || true
 	fi
 	if test "$passed" = true && test "$status" -eq 0; then
 		rm -rf -- "$run_dir"
@@ -50,8 +58,8 @@ for command_name in xterm xprop xwininfo wmctrl fc-match; do
 done
 test -n "${DISPLAY:-}" || die 'DISPLAY is unset; run this from the graphical/VNC session'
 xwininfo -root >/dev/null 2>&1 || die "cannot query X display $DISPLAY"
-test -x "$terminal" || die "missing $terminal; build Revenant first"
-test -x "$sender" || die "missing $sender; build Revenant first"
+test -x "$terminal" || die "missing $terminal; build xterm+ first"
+test -x "$sender" || die "missing $sender; build xterm+ first"
 test -r "$resources" || die "missing $resources"
 
 matched_family=$(fc-match --format '%{family}\n' 'DejaVu Sans Mono' | head -1)
@@ -69,38 +77,38 @@ while IFS= read -r resource_line || test -n "$resource_line"; do
 	resource_args+=(-xrm "$resource_line")
 done <"$resources"
 
-tag=revenant-font-compat-$$
+tag=xtp-font-compat-$$
 xterm_title=$tag-xterm
-revenant_title=$tag-revenant
+xterm_plus_title=$tag-xterm-plus
 xterm_log=$run_dir/xterm.log
-revenant_log=$run_dir/revenant.log
+xterm_plus_log=$run_dir/xterm-plus.log
 
 xterm "${resource_args[@]}" -title "$xterm_title" -geometry 80x24 \
 	-e sh -c 'exec sleep 300' >"$run_dir/xterm.out" 2>"$xterm_log" &
 xterm_pid=$!
-"$terminal" -debug "${resource_args[@]}" -title "$revenant_title" -geometry 80x24 \
-	-e sh -c 'exec sleep 300' >"$run_dir/revenant.out" 2>"$revenant_log" &
-revenant_pid=$!
+"$terminal" -debug "${resource_args[@]}" -title "$xterm_plus_title" -geometry 80x24 \
+	-e sh -c 'exec sleep 300' >"$run_dir/xterm-plus.out" 2>"$xterm_plus_log" &
+xterm_plus_pid=$!
 
 xterm_window=
-revenant_window=
+xterm_plus_window=
 for ((attempt = 0; attempt < 100; ++attempt)); do
 	xterm_window=$(wmctrl -lp | awk -v pid="$xterm_pid" '$3 == pid { print $1; exit }')
-	revenant_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' \
-		"$revenant_log" | tail -1)
-	if test -n "$xterm_window" && test -n "$revenant_window"; then
+	xterm_plus_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' \
+		"$xterm_plus_log" | tail -1)
+	if test -n "$xterm_window" && test -n "$xterm_plus_window"; then
 		break
 	fi
 	if ! kill -0 "$xterm_pid" 2>/dev/null; then
 		die "xterm exited during startup; see $xterm_log"
 	fi
-	if ! kill -0 "$revenant_pid" 2>/dev/null; then
-		die "Revenant exited during startup; see $revenant_log"
+	if ! kill -0 "$xterm_plus_pid" 2>/dev/null; then
+		die "xterm+ exited during startup; see $xterm_plus_log"
 	fi
 	sleep 0.05
 done
 test -n "$xterm_window" || die "could not find xterm window titled $xterm_title"
-test -n "$revenant_window" || die "could not find Revenant's realized window"
+test -n "$xterm_plus_window" || die "could not find xterm+'s realized window"
 
 geometry_metrics()
 {
@@ -125,10 +133,10 @@ compare_stage()
 {
 	stage=$1
 	xterm_metrics=$(geometry_metrics "$xterm_window")
-	revenant_metrics=$(geometry_metrics "$revenant_window")
+	xterm_plus_metrics=$(geometry_metrics "$xterm_plus_window")
 	printf '%-8s xterm     %s\n' "$stage" "$xterm_metrics"
-	printf '%-8s Revenant  %s\n' "$stage" "$revenant_metrics"
-	if test "$xterm_metrics" != "$revenant_metrics"; then
+	printf '%-8s xterm+    %s\n' "$stage" "$xterm_plus_metrics"
+	if test "$xterm_metrics" != "$xterm_plus_metrics"; then
 		printf '%s geometry mismatch\n' "$stage" >&2
 		return 1
 	fi
@@ -136,10 +144,10 @@ compare_stage()
 
 compare_stage default
 "$sender" "$xterm_window" + 8 >/dev/null
-"$sender" "$revenant_window" + 8 >/dev/null
+"$sender" "$xterm_plus_window" + 8 >/dev/null
 compare_stage largest
 "$sender" "$xterm_window" - 8 >/dev/null
-"$sender" "$revenant_window" - 8 >/dev/null
+"$sender" "$xterm_plus_window" - 8 >/dev/null
 compare_stage smallest
 
 printf 'xterm font geometry compatibility: OK (display %s)\n' "$DISPLAY"

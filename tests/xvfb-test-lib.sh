@@ -79,7 +79,7 @@ xtp_wait_for_title()
         attempt=$((attempt + 1))
         if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
         then
-            echo "revenant did not become ready for $description" >&2
+            echo "xterm+ did not become ready for $description" >&2
             sed -n "1,${lines}p" "$log" >&2
             exit 1
         fi
@@ -99,7 +99,7 @@ xtp_wait_for_log()
         attempt=$((attempt + 1))
         if test "$attempt" -ge 100 || ! kill -0 "$terminal_pid" 2>/dev/null
         then
-            echo "revenant did not log $description" >&2
+            echo "xterm+ did not log $description" >&2
             sed -n "1,${lines}p" "$log" >&2
             exit 1
         fi

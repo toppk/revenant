@@ -4,7 +4,7 @@ set -eu
 
 if test "$#" -ne 5
 then
-    echo "usage: $0 XVFB REVENANT WINDOW-INK FONT-KEYS FIXTURE-ROOT" >&2
+    echo "usage: $0 XVFB XTERM_PLUS WINDOW-INK FONT-KEYS FIXTURE-ROOT" >&2
     exit 2
 fi
 
@@ -156,7 +156,7 @@ run_case colrv0 OpenMoji color colrv0 - 😀
 run_case colrv1 'Noto Color Emoji' color colrv1 - 😀
 run_case mono 'Noto Emoji' mono mono - 😀
 run_case svginot 'Twitter Color Emoji' color svginot - 😀
-run_case sbix 'Revenant Synthetic sbix' color sbix - 😀
+run_case sbix 'XTP Synthetic sbix' color sbix - 😀
 run_case cjk 'Noto Sans Mono CJK JP' mono cjk - 日
 
 # Exercise the same formats through faceNameDoublesize with a primary face
@@ -167,7 +167,7 @@ run_case colrv0 'DejaVu Sans Mono' color fd-colrv0 OpenMoji 😀
 run_case colrv1 'DejaVu Sans Mono' color fd-colrv1 'Noto Color Emoji' 😀
 run_case mono 'DejaVu Sans Mono' mono fd-mono 'Noto Emoji' 😀
 run_case svginot 'DejaVu Sans Mono' color fd-svg 'Twitter Color Emoji' 😀
-run_case sbix 'DejaVu Sans Mono' color fd-sbix 'Revenant Synthetic sbix' 😀
+run_case sbix 'DejaVu Sans Mono' color fd-sbix 'XTP Synthetic sbix' 😀
 run_case cjk 'DejaVu Sans Mono' mono fd-cjk 'Noto Sans Mono CJK JP' 日
 
 # Xterm gives an embedded size in the first faceName item precedence over the

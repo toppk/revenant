@@ -1009,7 +1009,7 @@ main(int argc, char **argv)
         if (argc == 2 && strcmp(argv[1], "--self-test") == 0)
                 return XtpSelfTest();
         if (argc == 2 && strcmp(argv[1], "--version") == 0) {
-                puts("revenant " XTP_VERSION);
+                puts(XTP_PROGRAM_NAME " " XTP_VERSION);
                 return EXIT_SUCCESS;
         }
 

@@ -533,7 +533,7 @@ XtpTerminalSetCursorBlinkDefault(XtpTerminal *terminal, bool blinking)
         /*
          * Retain the configured operand in libghostty for its reset and
          * default-style baseline. Presentation and mode reports use
-         * Revenant's separate raw application state, so restore mode 12 after
+         * xterm+'s separate raw application state, so restore mode 12 after
          * changing the default.
          */
         result = ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_DEFAULT_CURSOR_BLINK,

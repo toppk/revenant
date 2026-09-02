@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate Revenant's compact emoji property ranges from emoji-data.txt."""
+"""Generate xterm+'s compact emoji property ranges from emoji-data.txt."""
 
 import argparse
 import hashlib

@@ -17,6 +17,7 @@ enough samples for a useful graph.
 
 Environment overrides:
   XTP_PROFILE_BUILD_DIR   Meson build directory (default: build-profile)
+  XTP_PROFILE_EXECUTABLE  built terminal executable (default: Meson install target)
   XTP_PROFILE_OUTPUT_DIR  capture parent directory (default: profiles)
   XTP_PROFILE_FREQUENCY   samples per second (default: 997)
   XTP_PROFILE_CALL_GRAPH  perf unwinder (default: dwarf,16384)
@@ -61,7 +62,9 @@ else
 fi
 
 required_programs=(perf flamegraph.pl)
-if [[ $build == true ]]; then
+if [[ -z ${XTP_PROFILE_EXECUTABLE:-} ]]; then
+    required_programs+=(meson python3)
+elif [[ $build == true ]]; then
     required_programs+=(meson)
 fi
 for program in "${required_programs[@]}"; do
@@ -95,10 +98,27 @@ if [[ $build == true ]]; then
     meson compile -C "$build_dir"
 fi
 
-readonly executable="$build_dir/revenant"
+if [[ -n ${XTP_PROFILE_EXECUTABLE:-} ]]; then
+    executable=$XTP_PROFILE_EXECUTABLE
+else
+    executable=$(meson introspect --targets "$build_dir" | python3 -c '
+import json
+import sys
+
+matches = [
+    target["filename"][0]
+    for target in json.load(sys.stdin)
+    if target.get("type") == "executable" and target.get("installed")
+]
+if len(matches) != 1:
+    raise SystemExit(f"expected one installed executable, found {len(matches)}")
+print(matches[0])
+')
+fi
+readonly executable
 if [[ ! -x "$executable" ]]; then
     echo "tools/flamegraph: executable not found: $executable" >&2
-    echo "Run without --no-build, or set XTP_PROFILE_BUILD_DIR." >&2
+    echo "Run without --no-build, or set XTP_PROFILE_BUILD_DIR/XTP_PROFILE_EXECUTABLE." >&2
     exit 1
 fi
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Replay the blessed patch-411 font deposition against Revenant.
+"""Replay the blessed patch-411 font deposition against xterm+.
 
 The xterm oracle and this conformance runner are deliberately separate.  The
 oracle records stock behavior; this runner projects that record onto durable
-Revenant outcomes: resolved role file/index, command/resource precedence,
+xterm+ outcomes: resolved role file/index, command/resource precedence,
 cell geometry, glyph-time role choice, and characterized diagnostics.
 
 Cases whose inherited behavior is not implemented yet must be listed in
@@ -66,7 +66,7 @@ PROBES = {
     ),
 }
 
-# (base codepoint, fixture slot selector, Revenant role).  A None selector
+# (base codepoint, fixture slot selector, xterm+ role).  A None selector
 # means the deposition says no fallback font may serve that probe.
 ROUTES = {
     "FD-01-doublesize-single": [("65E5", "[wide]", "doublesize")],
@@ -83,10 +83,10 @@ ROUTES = {
     "ST-01-bold-glyph-fallback": [("65E5", "renderFontBold", "fallback")],
     "ST-02-italic-glyph-fallback": [("65E5", "renderFontItal", "fallback")],
     # Intentional normal-canonical drift: stock's bold-italic chain selects the
-    # CJK bold (roman) face.  Revenant keeps the already-selected normal role
+    # CJK bold (roman) face.  xterm+ keeps the already-selected normal role
     # because that family has no genuine bold-italic instance.
     "ST-03-bolditalic-glyph-fallback": [
-        ("65E5", "revenant-normal-canonical", "fallback")
+        ("65E5", "xtp-normal-canonical", "fallback")
     ],
     "ST-04-boldFont-xft-entry": [("65E5", "renderFontBold", "fallback")],
     "ST-05-wideBoldFont-xft-entry": [("65E5", "renderWideBold", "doublesize-fallback")],
@@ -175,7 +175,7 @@ def normalized_file(path: str) -> str:
 
 
 def fixture_font(case: dict, selector: str) -> dict:
-    if selector == "revenant-normal-canonical":
+    if selector == "xtp-normal-canonical":
         stock = fixture_font(case, "renderFontBtal")
         result = dict(stock)
         result["file"] = result["file"].replace("-Bold.otf", "-Regular.otf")
@@ -270,7 +270,7 @@ def run_case(
     done = case_root / "done"
     probe = bytes(PROBES.get(case["id"], ""), "ascii").decode("unicode_escape")
     child = (
-        'printf "%s" "$1"; printf "\\033]2;t0-revenant-ready\\007"; '
+        'printf "%s" "$1"; printf "\\033]2;t0-xtp-ready\\007"; '
         'printf "%s\\n" "$WINDOWID" >"$2"; '
         'while test ! -e "$3"; do sleep 0.05; done'
     )
@@ -325,9 +325,9 @@ def run_case(
         process.terminate()
         process.wait(timeout=3)
         fail(
-            f"{case['id']}: Revenant did not publish a window\n{stderr_path.read_text()}"
+            f"{case['id']}: xterm+ did not publish a window\n{stderr_path.read_text()}"
         )
-    ready = 'title changed bytes=17 preview="t0-revenant-ready"'
+    ready = 'title changed bytes=12 preview="t0-xtp-ready"'
     ready_deadline = time.monotonic() + 8
     while time.monotonic() < ready_deadline:
         if ready in stderr_path.read_text():
@@ -338,11 +338,11 @@ def run_case(
     else:
         process.terminate()
         process.wait(timeout=3)
-        fail(f"{case['id']}: Revenant did not become ready\n{stderr_path.read_text()}")
+        fail(f"{case['id']}: xterm+ did not become ready\n{stderr_path.read_text()}")
     if ready not in stderr_path.read_text():
         process.terminate()
         process.wait(timeout=3)
-        fail(f"{case['id']}: Revenant exited before ready\n{stderr_path.read_text()}")
+        fail(f"{case['id']}: xterm+ exited before ready\n{stderr_path.read_text()}")
     log_before_exit = stderr_path.read_text()
     shell_windows = re.findall(
         r"shell: realized window=(0x[0-9a-fA-F]+)", log_before_exit
@@ -407,7 +407,7 @@ def main() -> int:
     parser.add_argument("--xvfb", required=True)
     parser.add_argument("--xprop", required=True)
     parser.add_argument("--xrdb", required=True)
-    parser.add_argument("--revenant", required=True)
+    parser.add_argument("--xterm-plus", required=True)
     parser.add_argument("--fixture", required=True)
     parser.add_argument("--fixture-root", required=True)
     parser.add_argument("--keep-artifacts", action="store_true")
@@ -425,7 +425,7 @@ def main() -> int:
         print("SKIP: stage fixtures with tools/stage-font-fixtures first")
         return 77
 
-    artifact_root = Path(tempfile.mkdtemp(prefix="revenant-t0-"))
+    artifact_root = Path(tempfile.mkdtemp(prefix="xtp-t0-"))
     xvfb_process: subprocess.Popen | None = None
     unexpected: list[str] = []
     passed = 0
@@ -450,7 +450,7 @@ def main() -> int:
         for case_id, case in document["cases"].items():
             try:
                 mismatches = run_case(
-                    arguments.revenant,
+                    arguments.xterm_plus,
                     fixture_root,
                     arguments.xprop,
                     display,
@@ -488,7 +488,7 @@ def main() -> int:
             shutil.rmtree(artifact_root)
 
     print(
-        f"T0 Revenant projection: {passed} passed, "
+        f"T0 xterm+ projection: {passed} passed, "
         f"{expected_failures} expected gaps, {len(unexpected)} unexpected"
     )
     if unexpected:

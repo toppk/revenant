@@ -238,9 +238,9 @@
         "information_text_default": "color"
       }
     },
-    "RevenantSyntheticSbix.ttf": {
-      "sha256": "d4c5c0db9e7933015017624ff0aa795adc7e68153b8adce54cd63f59d621b0ec",
-      "family": "Revenant Synthetic sbix",
+    "XtpSyntheticSbix.ttf": {
+      "sha256": "87959441b45fcd3b0e3a56b593b3687ae8cf12bc197654a8d29be7d9fd5b8af2",
+      "family": "XTP Synthetic sbix",
       "technologies": ["sbix"],
       "outline": "glyf",
       "strikes": {"sbix": [16]},

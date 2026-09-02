@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""Reject product branding from internal implementation and test trees."""
+
+from pathlib import Path
+import sys
+
+
+INTERNAL_TREES = ("src", "tools", "tests")
+FORBIDDEN = "reve" + "nant"
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        print("usage: tools/check-internal-branding SOURCE_ROOT", file=sys.stderr)
+        return 2
+
+    source_root = Path(sys.argv[1])
+    findings: list[str] = []
+    for tree_name in INTERNAL_TREES:
+        tree = source_root / tree_name
+        for path in sorted(tree.rglob("*")):
+            if not path.is_file() or "__pycache__" in path.parts:
+                continue
+            for line_number, line in enumerate(
+                path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
+            ):
+                if FORBIDDEN in line.casefold():
+                    findings.append(
+                        f"{path.relative_to(source_root)}:{line_number}:{line}"
+                    )
+
+    if findings:
+        print(
+            "product branding is limited to documentation, Meson, and packaging:",
+            file=sys.stderr,
+        )
+        print(*findings, sep="\n", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

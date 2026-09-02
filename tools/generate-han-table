@@ -3,7 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""Generate Revenant's compact Script=Han ranges from Unicode Scripts.txt."""
+"""Generate xterm+'s compact Script=Han ranges from Unicode Scripts.txt."""
 
 import argparse
 import hashlib

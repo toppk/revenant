@@ -46,7 +46,7 @@ build-stub:
 test-stub: build-stub
     meson test -C {{stub_build}} --print-errorlogs
 
-# Repeatedly resize a Revenant window to exercise reflow and expose handling
+# Repeatedly resize an xterm+ window to exercise reflow and expose handling
 resize-loop window cycles="4" delay_ms="100": build-gcc
     ./{{gcc_build}}/xtp-resize-loop "{{window}}" "{{cycles}}" "{{delay_ms}}"
 
@@ -70,9 +70,9 @@ probe-color:
 probe-colors *args:
     python3 tools/probe-colors.py {{args}}
 
-# Compare live xterm/Revenant font geometry on the current graphical display
+# Compare live xterm/xterm+ font geometry on the current graphical display
 xterm-font-compat build_dir="build":
-    tools/check-xterm-font-compat "{{build_dir}}"
+    tools/check-xterm-font-compat "{{build_dir}}" "{{build_dir}}/revenant"
 
 # Step through SGR 7, DECSCNM, and widget reverse-video rendering
 probe-reverse-video *args:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the GitHub release body for one CHANGELOG.md entry.
 
-usage: tools/release-notes VERSION [DIST_DIR]
+usage: packaging/release-notes VERSION [DIST_DIR]
 
 Prints Markdown with three sections: the entry's summary paragraph(s), its
 Features / Bug fixes / Other change lists, and a table of the artifacts found

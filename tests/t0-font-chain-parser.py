@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Replay the blessed T0 face-list inputs through Revenant's C parser."""
+"""Replay the blessed T0 face-list inputs through xterm+'s C parser."""
 
 import json
 import subprocess

@@ -4,7 +4,7 @@ set -eu
 
 if test "$#" -ne 3
 then
-    echo "usage: $0 XVFB REVENANT FIXTURE-ROOT" >&2
+    echo "usage: $0 XVFB XTERM_PLUS FIXTURE-ROOT" >&2
     exit 2
 fi
 

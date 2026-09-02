@@ -4,7 +4,7 @@ set -eu
 
 if test "$#" -ne 4
 then
-    echo "usage: $0 XVFB REVENANT WINDOW-INK FIXTURE-ROOT" >&2
+    echo "usage: $0 XVFB XTERM_PLUS WINDOW-INK FIXTURE-ROOT" >&2
     exit 2
 fi
 

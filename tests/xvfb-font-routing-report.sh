@@ -4,7 +4,7 @@ set -eu
 
 if test "$#" -ne 5
 then
-    echo "usage: $0 XVFB REVENANT KEY-SENDER FIXTURE-ROOT REPORT-CHECKER" >&2
+    echo "usage: $0 XVFB XTERM_PLUS KEY-SENDER FIXTURE-ROOT REPORT-CHECKER" >&2
     exit 2
 fi
 

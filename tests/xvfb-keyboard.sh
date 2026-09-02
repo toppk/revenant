@@ -50,7 +50,7 @@ done
 DISPLAY=127.0.0.1:$(sed -n '1p' "$test_dir/display")
 XTP_KEY_CAPTURE=$test_dir/key.capture
 XTP_KEY_READY=$test_dir/key.ready
-XMODIFIERS=@im=revenant-missing
+XMODIFIERS=@im=xtp-missing
 export DISPLAY XMODIFIERS XTP_KEY_CAPTURE XTP_KEY_READY
 
 log=$test_dir/xterm-keyboard.log
