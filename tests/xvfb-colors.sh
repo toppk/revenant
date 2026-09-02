@@ -160,10 +160,12 @@ fi
 pixel_log=$test_dir/palette-pixel.log
 XENVIRONMENT=/dev/null "$terminal" -debug +sb -fa monospace \
     -xrm 'XTerm*color1: #ff8000' \
+    -xrm 'XTerm*color9: #90a0b0' \
     -xrm 'xterm.vt100.background: #000000' \
+    -xrm 'xterm.vt100.foreground: #f09030' \
     -xrm 'xterm.vt100.internalBorder: 2' \
     -xrm 'xterm.vt100.renderFont: true' \
-    -e sh -c 'printf "\033[2J\033[H\033[41m    \033[0m\033]2;palette-pixel-ready\007"; sleep 20' \
+    -e sh -c 'printf "\033[2J\033[H\033[41m    \033[0m\r\n\033[2;7m    \033[0m\r\n\033[1;31;7m    \033[0m\033]2;palette-pixel-ready\007"; sleep 20' \
     >"$test_dir/palette-pixel.out" 2>"$pixel_log" &
 terminal_pid=$!
 xtp_wait_for_title "$pixel_log" palette-pixel-ready 'ANSI-palette painted pixels'
@@ -176,6 +178,49 @@ if test "$pixel" != 0xffff8000
 then
     echo "SGR color1 painted $pixel instead of configured 0xffff8000" >&2
     sed -n '1,300p' "$pixel_log" >&2
+    exit 1
+fi
+faint_pixel=$("$window_alpha" "$window" --expose --argb \
+    $((2 + cell_width / 2)) $((2 + cell_height + cell_height / 2)))
+if test "$faint_pixel" != 0xffa06020
+then
+    echo "SGR faint reverse painted $faint_pixel instead of 0xffa06020" >&2
+    sed -n '1,300p' "$pixel_log" >&2
+    exit 1
+fi
+bold_pixel=$("$window_alpha" "$window" --expose --argb \
+    $((2 + cell_width / 2)) $((2 + 2 * cell_height + cell_height / 2)))
+if test "$bold_pixel" != 0xff90a0b0
+then
+    echo "bold ANSI color1 painted $bold_pixel instead of bright color9 0xff90a0b0" >&2
+    sed -n '1,300p' "$pixel_log" >&2
+    exit 1
+fi
+
+kill "$terminal_pid"
+wait "$terminal_pid" 2>/dev/null || true
+terminal_pid=
+
+disabled_log=$test_dir/bold-colors-disabled.log
+XENVIRONMENT=/dev/null "$terminal" -debug +sb +pc -fa monospace \
+    -xrm 'XTerm*color1: #ff8000' \
+    -xrm 'XTerm*color9: #90a0b0' \
+    -xrm 'xterm.vt100.background: #000000' \
+    -xrm 'xterm.vt100.internalBorder: 2' \
+    -xrm 'xterm.vt100.renderFont: true' \
+    -e sh -c 'printf "\033[2J\033[H\033[1;31;7m    \033[0m\033]2;bold-colors-disabled-ready\007"; sleep 20' \
+    >"$test_dir/bold-colors-disabled.out" 2>"$disabled_log" &
+terminal_pid=$!
+xtp_wait_for_title "$disabled_log" bold-colors-disabled-ready 'disabled boldColors pixels'
+window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$disabled_log" | tail -1)
+cell_width=$(sed -n 's/.*VT100 resolved renderer=.* cell=\([0-9][0-9]*\)x[0-9][0-9]* .*/\1/p' "$disabled_log" | tail -1)
+cell_height=$(sed -n 's/.*VT100 resolved renderer=.* cell=[0-9][0-9]*x\([0-9][0-9]*\) .*/\1/p' "$disabled_log" | tail -1)
+bold_pixel=$("$window_alpha" "$window" --expose --argb \
+    $((2 + cell_width / 2)) $((2 + cell_height / 2)))
+if test "$bold_pixel" != 0xffff8000
+then
+    echo "+pc bold ANSI color1 painted $bold_pixel instead of base color1 0xffff8000" >&2
+    sed -n '1,300p' "$disabled_log" >&2
     exit 1
 fi
 

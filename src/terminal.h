@@ -351,6 +351,7 @@ int XtpTerminalSetDefaultColors(XtpTerminal *terminal, XtpRgbColor foreground,
                                 XtpRgbColor background, XtpRgbColor cursor);
 int XtpTerminalSetAnsiPalette(XtpTerminal *terminal,
                               const XtpRgbColor palette[XTP_ANSI_PALETTE_SIZE]);
+int XtpTerminalSetBoldColors(XtpTerminal *terminal, bool enabled);
 int XtpTerminalSetCharClass(XtpTerminal *terminal, const char *specification);
 int XtpTerminalGetScrollbar(XtpTerminal *terminal, XtpTerminalScrollbar *scrollbar);
 int XtpTerminalScrollBy(XtpTerminal *terminal, intptr_t rows);

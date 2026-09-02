@@ -133,6 +133,8 @@ static XtResource resources[] = {
      (XtPointer)XTP_ANSI_COLOR_14_DEFAULT},
     {"color15", "Color15", XtRString, sizeof(String), OFFSET(ansi_palette[15]), XtRString,
      (XtPointer)XTP_ANSI_COLOR_15_DEFAULT},
+    {"boldColors", "ColorMode", XtRBoolean, sizeof(Boolean), OFFSET(bold_colors), XtRImmediate,
+     (XtPointer)True},
     {XtNfont, XtCFont, XtRFontStruct, sizeof(XFontStruct *), OFFSET(initial_font), XtRString,
      (XtPointer) "fixed"},
     {XtNfont1, XtCFont1, XtRString, sizeof(String), XtOffsetOf(Vt100Rec, vt.font_names[1]),
@@ -1178,6 +1180,14 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                 ApplyTerminalAnsiPalette(new_vt);
                 changed = True;
         }
+        if (old_vt->vt.bold_colors != new_vt->vt.bold_colors) {
+                if (new_vt->vt.terminal != NULL &&
+                    XtpTerminalSetBoldColors(new_vt->vt.terminal,
+                                             new_vt->vt.bold_colors != False) != 0)
+                        XtpLog(XTP_LOG_ERROR, "terminal", "cannot apply boldColors=%s",
+                               new_vt->vt.bold_colors ? "true" : "false");
+                changed = True;
+        }
         if (old_vt->vt.cursor_on_time != new_vt->vt.cursor_on_time ||
             old_vt->vt.cursor_off_time != new_vt->vt.cursor_off_time) {
                 XtpLog(XTP_LOG_INFO, "config", "VT100 cursor timing on=%dms off=%dms",
@@ -1709,6 +1719,9 @@ XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
         if (ApplyTerminalCursorBlinkPolicy(terminal, vt->vt.cursor_blink_policy) != 0)
                 XtpLog(XTP_LOG_ERROR, "render", "cannot apply cursorBlink=%s",
                        vt->vt.cursor_blink_name);
+        if (XtpTerminalSetBoldColors(terminal, vt->vt.bold_colors != False) != 0)
+                XtpLog(XTP_LOG_ERROR, "terminal", "cannot apply boldColors=%s",
+                       vt->vt.bold_colors ? "true" : "false");
         ApplyTerminalDefaultColors(vt);
         ApplyTerminalAnsiPalette(vt);
         if (XtpTerminalSetScrollbackLines(terminal, (size_t)vt->vt.save_lines) != 0)

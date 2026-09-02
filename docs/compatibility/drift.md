@@ -277,8 +277,13 @@ design decisions:
   numbered user fallback resources and the remaining expanded-resolution
   policy are still transitional.
 - The xterm `color0` through `color15` resources configure the ANSI palette.
-  Pointer colors and the remaining specialized color resources are merged by
-  Xt but are not yet applied by the drawer.
+  `boldColors` and `-/+pc` select PC-style bright bold colors. Libghostty's
+  rendered cell style retains the palette index but not whether it came from a
+  legacy SGR 30–37 color or an indexed SGR 38;5 form, so Revenant currently
+  promotes either origin when its index is 0–7. Patch-411 xterm excludes the
+  indexed form. This is a transitional backend-API gap, not an intentional
+  difference. Pointer colors and the remaining specialized color resources
+  are merged by Xt but are not yet applied by the drawer.
 - `-report-config` is a Revenant diagnostic which presents resolved resources,
   provenance, font-menu ordering, fontconfig matches, all 331 resources in the
   active patch-411 xterm tables plus 17 compile-conditional resources,

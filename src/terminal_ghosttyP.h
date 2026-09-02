@@ -29,6 +29,7 @@ struct XtpTerminal
         bool selection_extend_rectangle;
         bool reverse_colors_initialized;
         bool reverse_colors;
+        bool bold_colors;
         XtpCursorBlinkObserver cursor_blink;
         XtpCharClassTable *char_classes;
         XtpTerminalEffects effects;

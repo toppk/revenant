@@ -380,6 +380,7 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
 
         if (terminal == NULL)
                 return NULL;
+        terminal->bold_colors = true;
 
         XtpLog(XTP_LOG_INFO, "terminal",
                "creating backend=libghostty-vt grid=%ux%u cell=%ux%u graphemeWidth=%s", columns,
@@ -591,6 +592,15 @@ XtpTerminalSetAnsiPalette(XtpTerminal *terminal,
                 summary_length += (size_t)written;
         }
         XtpLog(XTP_LOG_INFO, "terminal", "configured ANSI palette %s", summary);
+        return 0;
+}
+
+int
+XtpTerminalSetBoldColors(XtpTerminal *terminal, bool enabled)
+{
+        if (terminal == NULL)
+                return -1;
+        terminal->bold_colors = enabled;
         return 0;
 }
 
@@ -813,15 +823,19 @@ XtpTerminalSetMode(XtpTerminal *terminal, XtpTerminalMode mode, bool enabled)
 }
 
 static XtpColor
-ConvertColor(GhosttyStyleColor color, const GhosttyRenderStateColors *colors)
+ConvertColor(GhosttyStyleColor color, const GhosttyRenderStateColors *colors, bool promote_bold)
 {
         XtpColor result = {XTP_COLOR_DEFAULT, 0, 0, 0, 0};
         GhosttyColorRgb rgb;
 
         if (color.tag == GHOSTTY_STYLE_COLOR_PALETTE) {
+                uint8_t palette = color.value.palette;
+
+                if (promote_bold && palette < 8U)
+                        palette += 8U;
                 result.kind = XTP_COLOR_PALETTE;
-                result.palette = color.value.palette;
-                rgb = colors->palette[color.value.palette];
+                result.palette = palette;
+                rgb = colors->palette[palette];
                 result.red = rgb.r;
                 result.green = rgb.g;
                 result.blue = rgb.b;
@@ -1007,8 +1021,9 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                         cell.width = wide == GHOSTTY_CELL_WIDE_WIDE          ? 2U
                                      : wide == GHOSTTY_CELL_WIDE_SPACER_TAIL ? 0U
                                                                              : 1U;
-                        cell.foreground = ConvertColor(style.fg_color, &colors);
-                        cell.background = ConvertColor(style.bg_color, &colors);
+                        cell.foreground = ConvertColor(style.fg_color, &colors,
+                                                       style.bold && terminal->bold_colors);
+                        cell.background = ConvertColor(style.bg_color, &colors, false);
                         if (cell.background.kind == XTP_COLOR_DEFAULT &&
                             ghostty_render_state_row_cells_get(
                                 terminal->cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_BG_COLOR,

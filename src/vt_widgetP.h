@@ -107,6 +107,7 @@ typedef struct
         Pixel foreground;
         Pixel cursor_color;
         String ansi_palette[XTP_ANSI_PALETTE_SIZE];
+        Boolean bold_colors;
         XFontStruct *initial_font;
         String font_names[XTP_FONT_SLOTS];
         String render_font_name;

@@ -178,6 +178,13 @@ XtpTerminalSetAnsiPalette(XtpTerminal *terminal, const XtpRgbColor palette[XTP_A
 }
 
 int
+XtpTerminalSetBoldColors(XtpTerminal *terminal, bool enabled)
+{
+        (void)enabled;
+        return terminal != NULL ? 0 : -1;
+}
+
+int
 XtpTerminalSetCharClass(XtpTerminal *terminal, const char *specification)
 {
         XtpCharClassTable *table = NULL;

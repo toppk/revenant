@@ -92,6 +92,18 @@ RenderFrameColor(Vt100Rec *vt, XtpColor color, Boolean foreground)
         return foreground ? vt->vt.foreground : vt->vt.opaque_background_pixel;
 }
 
+static XftColor CachedXftColor(Vt100Rec *vt, Pixel pixel);
+
+static Pixel
+FaintPixel(Vt100Rec *vt, Pixel pixel)
+{
+        XftColor color = CachedXftColor(vt, pixel);
+
+        return RgbPixel(vt, (uint8_t)(((unsigned int)(color.color.red >> 8) * 2U) / 3U),
+                        (uint8_t)(((unsigned int)(color.color.green >> 8) * 2U) / 3U),
+                        (uint8_t)(((unsigned int)(color.color.blue >> 8) * 2U) / 3U));
+}
+
 int
 VtTerminalX(Vt100Rec *vt)
 {
@@ -171,6 +183,8 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
         visual.foreground = RenderFrameColor(vt, cell->foreground, True);
         visual.background = RenderFrameColor(vt, cell->background, False);
         visual.width = cell->width;
+        if (cell->faint)
+                visual.foreground = FaintPixel(vt, visual.foreground);
         if (cell->inverse) {
                 Pixel temporary = visual.foreground;
 
