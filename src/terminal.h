@@ -1,6 +1,8 @@
 #ifndef XTERM_PLUS_TERMINAL_H
 #define XTERM_PLUS_TERMINAL_H
 
+#include "ansi_palette.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -340,6 +342,8 @@ int XtpTerminalSetCursorBlinkDefault(XtpTerminal *terminal, bool blinking);
 int XtpTerminalSetCursorBlinkRequestsEnabled(XtpTerminal *terminal, bool enabled);
 int XtpTerminalSetDefaultColors(XtpTerminal *terminal, XtpRgbColor foreground,
                                 XtpRgbColor background, XtpRgbColor cursor);
+int XtpTerminalSetAnsiPalette(XtpTerminal *terminal,
+                              const XtpRgbColor palette[XTP_ANSI_PALETTE_SIZE]);
 int XtpTerminalSetCharClass(XtpTerminal *terminal, const char *specification);
 int XtpTerminalGetScrollbar(XtpTerminal *terminal, XtpTerminalScrollbar *scrollbar);
 int XtpTerminalScrollBy(XtpTerminal *terminal, intptr_t rows);

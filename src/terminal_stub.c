@@ -178,6 +178,12 @@ XtpTerminalSetDefaultColors(XtpTerminal *terminal, XtpRgbColor foreground, XtpRg
 }
 
 int
+XtpTerminalSetAnsiPalette(XtpTerminal *terminal, const XtpRgbColor palette[XTP_ANSI_PALETTE_SIZE])
+{
+        return terminal != NULL && palette != NULL ? 0 : -1;
+}
+
+int
 XtpTerminalSetCharClass(XtpTerminal *terminal, const char *specification)
 {
         XtpCharClassTable *table = NULL;

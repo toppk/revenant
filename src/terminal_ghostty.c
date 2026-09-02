@@ -6,6 +6,7 @@
 
 #include <ghostty/vt.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -573,6 +574,42 @@ XtpTerminalSetDefaultColors(XtpTerminal *terminal, XtpRgbColor foreground, XtpRg
                "cursor=#%02x%02x%02x",
                foreground.red, foreground.green, foreground.blue, background.red, background.green,
                background.blue, cursor.red, cursor.green, cursor.blue);
+        return 0;
+}
+
+int
+XtpTerminalSetAnsiPalette(XtpTerminal *terminal,
+                          const XtpRgbColor ansi_palette[XTP_ANSI_PALETTE_SIZE])
+{
+        GhosttyColorRgb palette[256];
+        char summary[512];
+        size_t summary_length = 0;
+        size_t index;
+
+        if (terminal == NULL || ansi_palette == NULL)
+                return -1;
+        if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_COLOR_PALETTE_DEFAULT,
+                                 palette) != GHOSTTY_SUCCESS)
+                return -1;
+        for (index = 0; index < XTP_ANSI_PALETTE_SIZE; ++index) {
+                palette[index] = (GhosttyColorRgb){
+                    ansi_palette[index].red, ansi_palette[index].green, ansi_palette[index].blue};
+        }
+        if (ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_COLOR_PALETTE, palette) !=
+            GHOSTTY_SUCCESS)
+                return -1;
+        summary[0] = '\0';
+        for (index = 0; index < XTP_ANSI_PALETTE_SIZE; ++index) {
+                int written = snprintf(summary + summary_length, sizeof(summary) - summary_length,
+                                       "%scolor%zu=#%02x%02x%02x", index == 0 ? "" : " ", index,
+                                       ansi_palette[index].red, ansi_palette[index].green,
+                                       ansi_palette[index].blue);
+
+                if (written < 0 || (size_t)written >= sizeof(summary) - summary_length)
+                        break;
+                summary_length += (size_t)written;
+        }
+        XtpLog(XTP_LOG_INFO, "terminal", "configured ANSI palette %s", summary);
         return 0;
 }
 

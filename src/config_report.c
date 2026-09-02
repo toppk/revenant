@@ -1,5 +1,6 @@
 #include "config_report.h"
 
+#include "ansi_palette.h"
 #include "command_options.h"
 #include "diagnostics.h"
 #include "resource_catalog.h"
@@ -108,22 +109,22 @@ static const ResourceProbe resource_probes[] = {
     {"xterm.vt100.cursorOffTime", "XTerm.VT100.CursorOffTime"},
     {"xterm.vt100.pointerColor", "XTerm.VT100.PointerColor"},
     {"xterm.vt100.pointerShape", "XTerm.VT100.PointerShape"},
-    {"xterm.vt100.color0", "XTerm.VT100.Color"},
-    {"xterm.vt100.color1", "XTerm.VT100.Color"},
-    {"xterm.vt100.color2", "XTerm.VT100.Color"},
-    {"xterm.vt100.color3", "XTerm.VT100.Color"},
-    {"xterm.vt100.color4", "XTerm.VT100.Color"},
-    {"xterm.vt100.color5", "XTerm.VT100.Color"},
-    {"xterm.vt100.color6", "XTerm.VT100.Color"},
-    {"xterm.vt100.color7", "XTerm.VT100.Color"},
-    {"xterm.vt100.color8", "XTerm.VT100.Color"},
-    {"xterm.vt100.color9", "XTerm.VT100.Color"},
-    {"xterm.vt100.color10", "XTerm.VT100.Color"},
-    {"xterm.vt100.color11", "XTerm.VT100.Color"},
-    {"xterm.vt100.color12", "XTerm.VT100.Color"},
-    {"xterm.vt100.color13", "XTerm.VT100.Color"},
-    {"xterm.vt100.color14", "XTerm.VT100.Color"},
-    {"xterm.vt100.color15", "XTerm.VT100.Color"},
+    {"xterm.vt100.color0", "XTerm.VT100.Color0"},
+    {"xterm.vt100.color1", "XTerm.VT100.Color1"},
+    {"xterm.vt100.color2", "XTerm.VT100.Color2"},
+    {"xterm.vt100.color3", "XTerm.VT100.Color3"},
+    {"xterm.vt100.color4", "XTerm.VT100.Color4"},
+    {"xterm.vt100.color5", "XTerm.VT100.Color5"},
+    {"xterm.vt100.color6", "XTerm.VT100.Color6"},
+    {"xterm.vt100.color7", "XTerm.VT100.Color7"},
+    {"xterm.vt100.color8", "XTerm.VT100.Color8"},
+    {"xterm.vt100.color9", "XTerm.VT100.Color9"},
+    {"xterm.vt100.color10", "XTerm.VT100.Color10"},
+    {"xterm.vt100.color11", "XTerm.VT100.Color11"},
+    {"xterm.vt100.color12", "XTerm.VT100.Color12"},
+    {"xterm.vt100.color13", "XTerm.VT100.Color13"},
+    {"xterm.vt100.color14", "XTerm.VT100.Color14"},
+    {"xterm.vt100.color15", "XTerm.VT100.Color15"},
 };
 
 static bool
@@ -173,8 +174,8 @@ XtpLogResourceDatabases(Display *display)
                "resource precedence effective=command-line > server RESOURCE_MANAGER > "
                "app-defaults/fallbacks > compiled resource defaults");
         XtpLog(XTP_LOG_INFO, "compat",
-               "renderer is resolved by the VT100 widget; cursorColor is applied; color0..color15, "
-               "pointerColor, and pointerShape are merged but not applied yet");
+               "renderer is resolved by the VT100 widget; cursorColor and color0..color15 are "
+               "applied; pointerColor and pointerShape are merged but not applied yet");
         XtpLog(XTP_LOG_INFO, "scrollback",
                "saveLines, scrollbar visibility/side, wheel navigation, thumb dragging, and "
                "scroll-back/scroll-forw actions are active");
@@ -704,26 +705,29 @@ ReportResourceGroup(XrmDatabase merged, XrmDatabase server, XrmDatabase command,
 static void
 ReportPaletteAndPointer(XrmDatabase merged, XrmDatabase server, XrmDatabase command)
 {
-        int color;
+        static const char *const defaults[XTP_ANSI_PALETTE_SIZE] = {XTP_ANSI_PALETTE_DEFAULT_LIST};
+        unsigned int color;
 
         puts("\n! ----------------------------------------------------------------------");
         puts("! ANSI palette and pointer");
-        puts("! These values are resolved for compatibility but are not applied yet.");
-        for (color = 0; color < 16; ++color) {
+        puts("! ANSI palette values are applied; pointer values are not applied yet.");
+        for (color = 0; color < XTP_ANSI_PALETTE_SIZE; ++color) {
                 char resource[64];
+                char class_name[64];
                 char display_name[64];
                 char explanation[96];
                 ResourceSpec spec;
                 Resolved resolved;
 
-                (void)snprintf(resource, sizeof(resource), "xterm.vt100.color%d", color);
-                (void)snprintf(display_name, sizeof(display_name), "XTerm*color%d", color);
-                (void)snprintf(explanation, sizeof(explanation), "ANSI palette index %d.", color);
+                (void)snprintf(resource, sizeof(resource), "xterm.vt100.color%u", color);
+                (void)snprintf(class_name, sizeof(class_name), "XTerm.VT100.Color%u", color);
+                (void)snprintf(display_name, sizeof(display_name), "XTerm*color%u", color);
+                (void)snprintf(explanation, sizeof(explanation), "ANSI palette index %u.", color);
                 spec.resource = resource;
-                spec.class_name = "XTerm.VT100.Color";
-                spec.default_value = NULL;
+                spec.class_name = class_name;
+                spec.default_value = defaults[color];
                 resolved = ResolveResource(merged, server, command, &spec);
-                PrintResolved(display_name, "accepted but ignored", explanation, &resolved);
+                PrintResolved(display_name, "supported", explanation, &resolved);
                 free(resolved.value);
         }
         {
@@ -897,6 +901,10 @@ static const char *
 CatalogSupport(const XtpResourceCatalogEntry *entry)
 {
         const char *name = entry->name;
+        bool ansi_palette =
+            strncmp(name, "color", 5) == 0 &&
+            (((name[5] >= '0' && name[5] <= '9') && name[6] == '\0') ||
+             (name[5] == '1' && name[6] >= '0' && name[6] <= '5' && name[7] == '\0'));
 
         if (entry->scope == XTP_RESOURCE_APPLICATION_CONDITIONAL ||
             entry->scope == XTP_RESOURCE_VT100_CONDITIONAL ||
@@ -930,7 +938,7 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "emojiPresentation") == 0 || strcmp(name, "graphemeWidth") == 0 ||
             strcmp(name, "colorGlyphs") == 0 || strcmp(name, "limitFontsets") == 0 ||
             strcmp(name, "limitFontHeight") == 0 || strcmp(name, "limitFontWidth") == 0 ||
-            strncmp(name, "faceSize", 8) == 0)
+            strncmp(name, "faceSize", 8) == 0 || ansi_palette)
                 return "supported";
         if (strncmp(name, "color", 5) == 0 || strcmp(name, "pointerColor") == 0 ||
             strcmp(name, "pointerColorBackground") == 0 || strcmp(name, "pointerShape") == 0)

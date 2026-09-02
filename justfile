@@ -66,6 +66,10 @@ probe-keymodes *args:
 probe-color:
     tools/probe-color.sh
 
+# Query or interactively compare the live ANSI palette
+probe-colors *args:
+    python3 tools/probe-colors.py {{args}}
+
 # Compare live xterm/Revenant font geometry on the current graphical display
 xterm-font-compat build_dir="build":
     tools/check-xterm-font-compat "{{build_dir}}"

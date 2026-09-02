@@ -12,29 +12,55 @@ fixture_root=$3
 xtp_xvfb_test_init
 xtp_require_font_fixtures "$fixture_root"
 xtp_start_xvfb "$xvfb"
+mkdir "$test_dir/empty-home"
 
 report=$test_dir/report
 log=$test_dir/log
-XENVIRONMENT=/dev/null "$fixture_root/run" base "$terminal" -report-config >"$report" 2>"$log"
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+    "$fixture_root/run" base "$terminal" -report-config >"$report" 2>"$log"
 
-for resource in limitFontsets limitFontHeight limitFontWidth cursorBlink cursorBlinkXOR
+for resource in limitFontsets limitFontHeight limitFontWidth cursorBlink cursorBlinkXOR color0 color15
 do
-    block=$(grep -F -B 1 -- "XTerm*$resource:" "$report")
-    if ! printf '%s\n' "$block" | grep -F -q '[supported]'
+    if ! awk -v needle="XTerm*$resource:" '
+        index($0, needle) {
+            found = 1
+            if (previous !~ /\[supported\]/)
+                inconsistent = 1
+        }
+        { previous = $0 }
+        END { exit !(found && !inconsistent) }
+    ' "$report"
     then
-        echo "$resource is not classified as supported" >&2
+        block=$(grep -F -B 1 -- "XTerm*$resource:" "$report")
+        echo "$resource is not classified consistently as supported" >&2
         printf '%s\n' "$block" >&2
         exit 1
     fi
 done
 
+grep -F -q 'patch-411 VT100 resource (class Color0).' "$report"
+grep -F -q 'patch-411 VT100 resource (class Color15).' "$report"
+if grep -E -q '^! XTerm\*color(0|15):[[:space:]]+<unset>$' "$report"
+then
+    echo "supported ANSI palette resource reported as unset" >&2
+    exit 1
+fi
+grep -E -B 1 '^XTerm\*color0:[[:space:]]+black$' "$report" | \
+    grep -q '\[compiled default\] \[supported\]'
+grep -E -B 1 '^XTerm\*color15:[[:space:]]+white$' "$report" | \
+    grep -q '\[compiled default\] \[supported\]'
+
 override_report=$test_dir/override-report
-XENVIRONMENT=/dev/null "$fixture_root/run" base "$terminal" \
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+    "$fixture_root/run" base "$terminal" \
     -xrm 'XTerm*cursorBlink: always' \
     -xrm 'XTerm*cursorBlinkXOR: false' \
+    -xrm 'XTerm*color0: #123456' \
     -report-config >"$override_report" 2>>"$log"
 
 grep -E -q '^XTerm\*cursorBlink:[[:space:]]+always$' "$override_report"
 grep -E -q '^XTerm\*cursorBlinkXOR:[[:space:]]+false$' "$override_report"
+grep -B 1 -E '^XTerm\*color0:[[:space:]]+#123456$' "$override_report" | \
+    grep -q '\[command line\] \[supported\]'
 
 echo "report-config resource classifications and cursor-blink overrides passed"

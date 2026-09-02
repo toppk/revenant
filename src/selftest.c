@@ -1508,7 +1508,7 @@ done:
 
 typedef struct
 {
-        uint8_t bytes[256];
+        uint8_t bytes[1024];
         size_t used;
         bool overflow;
 } SelfTestPtyCapture;
@@ -1636,6 +1636,93 @@ SelfTestDefaultColors(void)
             memcmp(capture.bytes, expected, sizeof(expected) - 1U) != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "default-color query mismatch length=%zu",
                        capture.used);
+                goto done;
+        }
+        result = 0;
+done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestAnsiPalette(void)
+{
+        static const uint8_t high_query[] = "\033]4;200;?\033\\";
+        static const uint8_t override_reset[] = "\033]4;0;#abcdef\033\\"
+                                                "\033]4;0;?\033\\"
+                                                "\033]104;0\033\\"
+                                                "\033]4;0;?\033\\";
+        static const uint8_t override_reset_expected[] = "\033]4;0;rgb:abab/cdcd/efef\033\\"
+                                                         "\033]4;0;rgb:0000/2020/4040\033\\";
+        XtpRgbColor palette[XTP_ANSI_PALETTE_SIZE];
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        uint8_t high_reply[sizeof(capture.bytes)];
+        char query[256];
+        char expected[768];
+        size_t high_reply_length;
+        size_t query_length = 0;
+        size_t expected_length = 0;
+        unsigned int index;
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestCapturePty,
+            .closure = &capture,
+        };
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNew(80, 24, 8, 16);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        XtpTerminalFeed(terminal, high_query, sizeof(high_query) - 1U);
+        if (capture.overflow || capture.used == 0)
+                goto done;
+        high_reply_length = capture.used;
+        memcpy(high_reply, capture.bytes, high_reply_length);
+        capture = (SelfTestPtyCapture){0};
+        for (index = 0; index < XTP_ANSI_PALETTE_SIZE; ++index) {
+                int written;
+
+                palette[index] = (XtpRgbColor){(uint8_t)index, (uint8_t)(0x20U + index),
+                                               (uint8_t)(0x40U + index)};
+                written = snprintf(query + query_length, sizeof(query) - query_length,
+                                   "\033]4;%u;?\033\\", index);
+                if (written < 0 || (size_t)written >= sizeof(query) - query_length)
+                        goto done;
+                query_length += (size_t)written;
+                written =
+                    snprintf(expected + expected_length, sizeof(expected) - expected_length,
+                             "\033]4;%u;rgb:%02x%02x/%02x%02x/%02x%02x\033\\", index, index, index,
+                             0x20U + index, 0x20U + index, 0x40U + index, 0x40U + index);
+                if (written < 0 || (size_t)written >= sizeof(expected) - expected_length)
+                        goto done;
+                expected_length += (size_t)written;
+        }
+        if (XtpTerminalSetAnsiPalette(terminal, palette) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)query, query_length);
+        if (capture.overflow || capture.used != expected_length ||
+            memcmp(capture.bytes, expected, expected_length) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "ANSI-palette query mismatch length=%zu",
+                       capture.used);
+                goto done;
+        }
+        capture = (SelfTestPtyCapture){0};
+        XtpTerminalFeed(terminal, high_query, sizeof(high_query) - 1U);
+        if (!SelfTestPtyEquals(&capture, high_reply, high_reply_length)) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "ANSI-palette high-index changed length=%zu",
+                       capture.used);
+                goto done;
+        }
+        capture = (SelfTestPtyCapture){0};
+        XtpTerminalFeed(terminal, override_reset, sizeof(override_reset) - 1U);
+        if (capture.overflow || capture.used != sizeof(override_reset_expected) - 1U ||
+            memcmp(capture.bytes, override_reset_expected, sizeof(override_reset_expected) - 1U) !=
+                0) {
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "ANSI-palette override/reset mismatch length=%zu", capture.used);
                 goto done;
         }
         result = 0;
@@ -1927,6 +2014,10 @@ XtpSelfTest(void)
         }
         if (SelfTestDefaultColors() != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "default-color check failed");
+                goto failure;
+        }
+        if (SelfTestAnsiPalette() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "ANSI-palette check failed");
                 goto failure;
         }
         if (SelfTestSelection(&renderer) != 0) {

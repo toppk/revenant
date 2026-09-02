@@ -17,7 +17,7 @@ not finished the user-visible integration or acceptance coverage.
 | Advertised Ghostling capability | Status | Promotion still required |
 | --- | --- | --- |
 | Resize with text reflow | Present | Retain live Readline, large-history, and stale-frame regression coverage. |
-| Full 24-bit color and 256-color palette | Present | The terminal output works; applying xterm `color0` through `color15` resources is a separate xterm-fidelity task. |
+| Full 24-bit color and 256-color palette | Present | Retain xterm `color0` through `color15` resource and OSC palette coverage. |
 | Bold, italic, and inverse styles | Present | Retain real bold/italic/bold-italic Xft roles and style-combination coverage; bitmap synthetic bold remains an xterm-fidelity task. |
 | Unicode and multi-codepoint graphemes | Present | Retain Unicode 17 emoji roles, general fontconfig fallback, contextual adjacent-cell shaping, color formats, and atomic role selection. |
 | Keyboard input with Shift, Ctrl, Alt, and Super | Present | Retain exact normal/application mode, modifier, editing/function-key, non-US, XIM, and no-XIM UTF-8 fixtures. |

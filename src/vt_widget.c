@@ -101,6 +101,38 @@ static XtResource resources[] = {
      XtDefaultForeground},
     {"cursorColor", "CursorColor", XtRPixel, sizeof(Pixel), OFFSET(cursor_color), XtRString,
      XtDefaultForeground},
+    {"color0", "Color0", XtRString, sizeof(String), OFFSET(ansi_palette[0]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_0_DEFAULT},
+    {"color1", "Color1", XtRString, sizeof(String), OFFSET(ansi_palette[1]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_1_DEFAULT},
+    {"color2", "Color2", XtRString, sizeof(String), OFFSET(ansi_palette[2]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_2_DEFAULT},
+    {"color3", "Color3", XtRString, sizeof(String), OFFSET(ansi_palette[3]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_3_DEFAULT},
+    {"color4", "Color4", XtRString, sizeof(String), OFFSET(ansi_palette[4]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_4_DEFAULT},
+    {"color5", "Color5", XtRString, sizeof(String), OFFSET(ansi_palette[5]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_5_DEFAULT},
+    {"color6", "Color6", XtRString, sizeof(String), OFFSET(ansi_palette[6]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_6_DEFAULT},
+    {"color7", "Color7", XtRString, sizeof(String), OFFSET(ansi_palette[7]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_7_DEFAULT},
+    {"color8", "Color8", XtRString, sizeof(String), OFFSET(ansi_palette[8]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_8_DEFAULT},
+    {"color9", "Color9", XtRString, sizeof(String), OFFSET(ansi_palette[9]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_9_DEFAULT},
+    {"color10", "Color10", XtRString, sizeof(String), OFFSET(ansi_palette[10]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_10_DEFAULT},
+    {"color11", "Color11", XtRString, sizeof(String), OFFSET(ansi_palette[11]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_11_DEFAULT},
+    {"color12", "Color12", XtRString, sizeof(String), OFFSET(ansi_palette[12]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_12_DEFAULT},
+    {"color13", "Color13", XtRString, sizeof(String), OFFSET(ansi_palette[13]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_13_DEFAULT},
+    {"color14", "Color14", XtRString, sizeof(String), OFFSET(ansi_palette[14]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_14_DEFAULT},
+    {"color15", "Color15", XtRString, sizeof(String), OFFSET(ansi_palette[15]), XtRString,
+     (XtPointer)XTP_ANSI_COLOR_15_DEFAULT},
     {XtNfont, XtCFont, XtRFontStruct, sizeof(XFontStruct *), OFFSET(initial_font), XtRString,
      (XtPointer) "fixed"},
     {XtNfont1, XtCFont1, XtRString, sizeof(String), XtOffsetOf(Vt100Rec, vt.font_names[1]),
@@ -727,12 +759,21 @@ SwapDefaultColors(Vt100Rec *vt)
 }
 
 static void
+ColorsToRgb(const XColor *colors, XtpRgbColor *rgb, size_t count)
+{
+        size_t index;
+
+        for (index = 0; index < count; ++index) {
+                rgb[index] = (XtpRgbColor){colors[index].red >> 8, colors[index].green >> 8,
+                                           colors[index].blue >> 8};
+        }
+}
+
+static void
 ApplyTerminalDefaultColors(Vt100Rec *vt)
 {
         XColor colors[3] = {{0}, {0}, {0}};
-        XtpRgbColor foreground;
-        XtpRgbColor background;
-        XtpRgbColor cursor;
+        XtpRgbColor rgb[3];
 
         if (vt->vt.terminal == NULL)
                 return;
@@ -740,11 +781,41 @@ ApplyTerminalDefaultColors(Vt100Rec *vt)
         colors[1].pixel = vt->vt.opaque_background_pixel;
         colors[2].pixel = vt->vt.cursor_color;
         XQueryColors(XtDisplay((Widget)vt), vt->core.colormap, colors, XtNumber(colors));
-        foreground = (XtpRgbColor){colors[0].red >> 8, colors[0].green >> 8, colors[0].blue >> 8};
-        background = (XtpRgbColor){colors[1].red >> 8, colors[1].green >> 8, colors[1].blue >> 8};
-        cursor = (XtpRgbColor){colors[2].red >> 8, colors[2].green >> 8, colors[2].blue >> 8};
-        if (XtpTerminalSetDefaultColors(vt->vt.terminal, foreground, background, cursor) != 0)
+        ColorsToRgb(colors, rgb, XtNumber(colors));
+        if (XtpTerminalSetDefaultColors(vt->vt.terminal, rgb[0], rgb[1], rgb[2]) != 0)
                 XtpLog(XTP_LOG_ERROR, "terminal", "cannot apply configured terminal colors");
+}
+
+static void
+ApplyTerminalAnsiPalette(Vt100Rec *vt)
+{
+        static const char *const defaults[XTP_ANSI_PALETTE_SIZE] = {XTP_ANSI_PALETTE_DEFAULT_LIST};
+        XtpRgbColor palette[XTP_ANSI_PALETTE_SIZE];
+        size_t index;
+
+        if (vt->vt.terminal == NULL)
+                return;
+        for (index = 0; index < XTP_ANSI_PALETTE_SIZE; ++index) {
+                const char *configured = vt->vt.ansi_palette[index];
+                XColor color = {0};
+
+                if (configured == NULL ||
+                    !XParseColor(XtDisplay((Widget)vt), vt->core.colormap, configured, &color)) {
+                        XtpLog(XTP_LOG_WARNING, "config",
+                               "cannot parse color%zu=%s; using compiled default=%s", index,
+                               configured != NULL ? configured : "(null)", defaults[index]);
+                        if (!XParseColor(XtDisplay((Widget)vt), vt->core.colormap, defaults[index],
+                                         &color)) {
+                                XtpLog(XTP_LOG_ERROR, "terminal",
+                                       "cannot parse compiled ANSI color%zu=%s", index,
+                                       defaults[index]);
+                                return;
+                        }
+                }
+                palette[index] = (XtpRgbColor){color.red >> 8, color.green >> 8, color.blue >> 8};
+        }
+        if (XtpTerminalSetAnsiPalette(vt->vt.terminal, palette) != 0)
+                XtpLog(XTP_LOG_ERROR, "terminal", "cannot apply configured ANSI palette");
 }
 
 static void
@@ -1087,6 +1158,11 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
             old_vt->vt.cursor_color != new_vt->vt.cursor_color ||
             old_vt->vt.reverse_video != new_vt->vt.reverse_video)
                 ApplyTerminalDefaultColors(new_vt);
+        if (memcmp(old_vt->vt.ansi_palette, new_vt->vt.ansi_palette,
+                   sizeof(new_vt->vt.ansi_palette)) != 0) {
+                ApplyTerminalAnsiPalette(new_vt);
+                changed = True;
+        }
         if (old_vt->vt.cursor_on_time != new_vt->vt.cursor_on_time ||
             old_vt->vt.cursor_off_time != new_vt->vt.cursor_off_time) {
                 XtpLog(XTP_LOG_INFO, "config", "VT100 cursor timing on=%dms off=%dms",
@@ -1695,6 +1771,7 @@ XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
                 XtpLog(XTP_LOG_ERROR, "render",
                        "cannot apply cursorBlink application-request policy");
         ApplyTerminalDefaultColors(vt);
+        ApplyTerminalAnsiPalette(vt);
         if (XtpTerminalSetScrollbackLines(terminal, (size_t)vt->vt.save_lines) != 0)
                 XtpLog(XTP_LOG_ERROR, "scrollback", "cannot set history limit=%d",
                        vt->vt.save_lines);

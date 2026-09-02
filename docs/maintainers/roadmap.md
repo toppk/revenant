@@ -36,7 +36,7 @@ present, but the complete user-visible integration is not yet available.
 | --- | --- | --- |
 | PTY-backed shell and terminal effects | Present | Retain ordered backpressure coverage for the shared write queue and expand the effect surface. |
 | Resize with primary-screen reflow | Partial | Retain geometry regression coverage; the [Readline 8.3 wrapped-prompt regression](../reference/bash-readline-resize.md) is fixed upstream and requires no terminal workaround. |
-| 24-bit and 256-color terminal output | Partial | Terminal colors render, but xterm `color0` through `color15` resource overrides are not all applied. |
+| 24-bit and 256-color terminal output | Present | Retain xterm `color0` through `color15` resource and OSC 4/104 reset coverage. |
 | Bold, italic, inverse, and decorations | Present | Xft uses real clipped bold, italic, and bold-italic faces; bitmap bold remains synthetic as a separate xterm-fidelity task. |
 | Unicode and multi-codepoint graphemes | Present | Unicode 17 emoji presentation, color formats, general fontconfig fallback, contextual shaping, and atomic role selection are covered. |
 | Mode-aware keyboard input and modifiers | Present | Normal/application cursor and keypad modes, modifiers, editing/function keys, non-US UTF-8, XIM Compose, and Kitty event delivery have exact fixtures. |
@@ -149,7 +149,7 @@ semantics and describes the implemented named-selection path.
 
 ### 5. Renderer parity and Kitty graphics
 
-- Apply xterm palette and pointer resources.
+- Apply the remaining xterm pointer and specialized color resources.
 - Retain real clipped bold/italic Xft faces, Unicode emoji/CJK role routing,
   bounded fontconfig fallback, color formats, contextual HarfBuzz shaping, and
   fixed cell placement while preserving display-aware Xft point sizing.

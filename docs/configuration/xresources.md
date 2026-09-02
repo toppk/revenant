@@ -261,7 +261,7 @@ renames a menu entry; and `XTerm*title` sets the window title because
 | Works in one window, not after `-name` | Lines written against instance `xterm` instead of class `XTerm` |
 | Font "not found" though `fc-list` shows it | Trailing whitespace after the value, or a `#` comment that cpp swallowed |
 | Menu font changed when you meant the terminal font | `XTerm*font` is loose; use `XTerm*vt100.font` |
-| Colour works in xterm, ignored in Revenant | The resource is accepted but not applied yet; `-report-config` labels it *accepted but ignored* |
+| Specialized colour works in xterm, ignored in Revenant | `color0` through `color15` are supported; other unapplied colour resources are labelled *accepted but ignored* by `-report-config` |
 | `~/.Xdefaults` ignored | Something loaded `xrdb` at login, so the file is never consulted |
 
 ## Further reading

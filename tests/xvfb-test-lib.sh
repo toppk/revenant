@@ -7,6 +7,11 @@ xtp_xvfb_test_cleanup()
         kill "$terminal_pid" 2>/dev/null || true
         wait "$terminal_pid" 2>/dev/null || true
     fi
+    if test -n "${aux_pid:-}"
+    then
+        kill "$aux_pid" 2>/dev/null || true
+        wait "$aux_pid" 2>/dev/null || true
+    fi
     if test -n "${xvfb_pid:-}"
     then
         kill "$xvfb_pid" 2>/dev/null || true
@@ -23,6 +28,7 @@ xtp_xvfb_test_init()
     test_dir=$(mktemp -d)
     xvfb_pid=
     terminal_pid=
+    aux_pid=
     trap xtp_xvfb_test_cleanup EXIT HUP INT TERM
 }
 
@@ -39,7 +45,8 @@ xtp_require_font_fixtures()
 xtp_start_xvfb()
 {
     xvfb=$1
-    "$xvfb" -displayfd 3 -screen 0 1024x768x24 -nolisten unix -listen tcp -ac \
+    screen=${xtp_xvfb_screen:-1024x768x24}
+    "$xvfb" -displayfd 3 -screen 0 "$screen" -noreset -nolisten unix -listen tcp -ac \
         3>"$test_dir/display" >"$test_dir/xvfb.log" 2>&1 &
     xvfb_pid=$!
 

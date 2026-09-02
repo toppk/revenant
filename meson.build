@@ -323,6 +323,13 @@ window_ink_test_tool = executable(
     install: false,
 )
 
+hold_colors_test_tool = executable(
+    'xtp-hold-colors',
+    'tests/xtp-hold-colors.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
 opacity_slider_test_tool = executable(
     'xtp-drag-opacity-slider',
     'tests/xtp-drag-opacity-slider.c',
@@ -366,6 +373,12 @@ test(
     args: [files('tools/probe-keymodes.py'), '--self-test'],
 )
 
+test(
+    'probe-colors-parser',
+    python3,
+    args: [files('tools/probe-colors.py'), '--self-test'],
+)
+
 xvfb_tests_option = get_option('xvfb-tests')
 if xvfb_tests_option.enabled() and not build_with_ghostty
     error('xvfb-tests was enabled, but the libghostty backend is unavailable')
@@ -374,6 +387,7 @@ endif
 xvfb = find_program('Xvfb', required: xvfb_tests_option)
 xprop = find_program('xprop', required: xvfb_tests_option)
 xrdb = find_program('xrdb', required: xvfb_tests_option)
+timeout_program = find_program('timeout', required: xvfb_tests_option)
 if build_with_ghostty and xvfb.found()
     test(
         'xvfb-report-config',
@@ -383,6 +397,21 @@ if build_with_ghostty and xvfb.found()
             xvfb.full_path(),
             xterm_plus.full_path(),
             meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-colors',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-colors.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            xrdb.full_path(),
+            window_alpha_test_tool.full_path(),
+            timeout_program.full_path(),
+            hold_colors_test_tool.full_path(),
         ],
         timeout: 30,
         is_parallel: false,

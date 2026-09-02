@@ -483,11 +483,11 @@ item. Otherwise record it under v0.6 and keep moving.
    press/repeat/release is covered under Kitty reporting with a synthetic XKB
    mapping. Keep libghostty's intentional fixterms default visible in the
    drift ledger, and turn future application failures into named fixtures.
-9. **Triage a small, visible xterm-compatibility set.** Examine `color0`
-   through `color15`, startup cursor-shape resources, `clear-saved-lines`, and
-   the remaining high-use key/action gaps. Implement the small pieces and move
-   the rest into the v0.6 compatibility gate. Do not turn v0.5 into an
-   exhaustive resource-catalog exercise.
+9. **Triage a small, visible xterm-compatibility set. In progress.** `color0` through
+   `color15` are implemented; examine startup cursor-shape resources,
+   `clear-saved-lines`, and the remaining high-use key/action gaps. Implement
+   the small pieces and move the rest into the v0.6 compatibility gate. Do not
+   turn v0.5 into an exhaustive resource-catalog exercise.
 10. **Review the documentation as a new user.** Start from a clean supported
     system and follow install, first launch, configuration, fonts, copy/paste,
     keyboard, troubleshooting, and removal without maintainer knowledge.

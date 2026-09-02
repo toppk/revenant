@@ -83,8 +83,8 @@ scrollback with the real Athena scrollbar, font switching from the font menu
 or Shift+keypad, [named X11 selection with middle-button
 paste](usage/copy-paste.md), [OSC 8 hyperlinks](usage/hyperlinks.md),
 application mouse and focus reporting, and the mode toggles in the main and VT
-menus. Startup cursor-shape resources, palette resources, and Kitty graphics
-are on the roadmap. Application-selected block, underline, and bar
+menus. Startup cursor-shape resources and the sixteen-color ANSI palette are
+implemented; Kitty graphics are on the roadmap. Application-selected block, underline, and bar
 cursors and blink requests work now. Menu entries and options that are not
 implemented yet stay visible but insensitive, so the UI never claims more than
 the code delivers.

@@ -107,6 +107,23 @@ ordinary text is never promoted to a link heuristically. This is an
 intentional extension to the patch-411 interaction contract, including when
 Shift overrides application mouse reporting.
 
+### OSC 4 palette operations enabled by default
+
+Stock xterm patch 411 includes `SetColor`, `GetColor`, and `GetAnsiColor` in
+its default `disallowedColorOps` list. It therefore neither accepts OSC 4
+palette changes nor answers OSC 4 palette queries without an explicit policy
+override. Revenant's libghostty terminal core accepts OSC 4 changes and queries
+by default, and OSC 104 restores the configured `color0` through `color15`
+resource values.
+
+This is an intentional modern-terminal compatibility choice and a difference
+from xterm's secure default. Query replies are written into the application's
+input stream, so an untrusted process which can write terminal control
+sequences may be able to inject a terminal response. Revenant does not yet
+provide xterm's fine-grained `allowColorOps`/`disallowedColorOps` policy
+surface; users who require that boundary should treat OSC color-operation
+gating as an open compatibility and hardening gap.
+
 ### Major default keyboard-input drift
 
 This difference affects bytes sent to applications under the default terminal
@@ -226,8 +243,9 @@ design decisions:
   also implemented. The characterized two-entry slot chain is implemented;
   numbered user fallback resources and the remaining expanded-resolution
   policy are still transitional.
-- The xterm color palette and pointer resources are merged by Xt but are not
-  all applied by the drawer.
+- The xterm `color0` through `color15` resources configure the ANSI palette.
+  Pointer colors and the remaining specialized color resources are merged by
+  Xt but are not yet applied by the drawer.
 - `-report-config` is a Revenant diagnostic which presents resolved resources,
   provenance, font-menu ordering, fontconfig matches, all 331 resources in the
   active patch-411 xterm tables plus 17 compile-conditional resources,

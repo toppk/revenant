@@ -11,6 +11,7 @@ with any result.
 | Probe | Purpose |
 | --- | --- |
 | `tools/probe-color.sh` | SGR attributes, underline styles, 16/256 colors, and semicolon/colon truecolor ramps. |
+| `tools/probe-colors.py` | OSC 4 palette queries and resets, named palettes, and an `-xrm` spawn harness alongside expanded 16/256/truecolor displays. |
 | `tools/probe-reverse-video.sh` | Enter-gated comparison of SGR 7, DECSCNM repaint/restoration, explicit backgrounds, and widget reverse video. |
 | `tools/probe-osc8.sh` | OSC 8 labels for Shift-hover and safe HTTP(S)-only Shift-click activation. |
 | `tools/probe-emoji.py` | CPR-measured legacy-versus-mode-2027 widths for emoji presentation, modifiers, ZWJ sequences, flags, cluster boundaries, right-margin wrapping, and over-capacity clusters. |
@@ -21,6 +22,8 @@ Examples:
 
 ```sh
 tools/probe-color.sh
+python3 tools/probe-colors.py --query
+python3 tools/probe-colors.py --spawn --query --program ./build/revenant
 tools/probe-reverse-video.sh
 tools/probe-osc8.sh
 python3 tools/probe-emoji.py --no-pause
@@ -30,7 +33,7 @@ python3 tools/probe-fonts.py --no-pause
 python3 tools/probe-keymodes.py --kitty-only
 ```
 
-The equivalent `just` recipes are `probe-color`, `probe-reverse-video`,
+The equivalent `just` recipes are `probe-color`, `probe-colors`, `probe-reverse-video`,
 `probe-osc8`, `probe-emoji`, `probe-fonts`, and `probe-keymodes`.
 
 For a sequence that differs between terminals, render it directly from the

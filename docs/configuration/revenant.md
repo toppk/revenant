@@ -180,10 +180,11 @@ XTerm*cursorColor: #ffaf00    ! -cr
 ```
 
 Programs that emit 256-colour and 24-bit colour sequences are rendered
-directly. The sixteen palette overrides `color0` … `color15`, plus
-`colorBD`, `colorUL`, `pointerColor`, and friends are accepted by the
-resource system but not yet applied by the renderer; they are classified
-*accepted but ignored* until the palette slice of the roadmap lands.
+directly. The sixteen `color0` … `color15` resources configure the ANSI
+palette, using xterm's compiled defaults when no override is present. OSC 4
+can still override individual entries at runtime, and OSC 104 restores the
+configured resource value. `colorBD`, `colorUL`, `pointerColor`, and related
+resources remain accepted but not yet applied.
 
 Reverse video is available through the `reverseVideo` resource, the `-rv` and
 `+rv` command-line forms, and the runtime toggle in the VT Options menu. It
