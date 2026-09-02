@@ -1,7 +1,7 @@
 ---
 man: revenant-drift
 section: 7
-manual: revenant
+manual: compat
 description: recorded differences from xterm patch 411
 ---
 

@@ -1,7 +1,7 @@
 ---
 man: revenant-parity
 section: 7
-manual: revenant
+manual: compat
 description: Ghostling feature-parity gate
 ---
 

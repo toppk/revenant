@@ -1,7 +1,7 @@
 ---
 man: revenant-menus-audit
 section: 7
-manual: revenant
+manual: compat
 description: every xterm menu entry and its status in Revenant
 ---
 

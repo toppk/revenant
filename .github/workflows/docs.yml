@@ -5,6 +5,8 @@ on:
     branches: [master]
     paths:
       - docs/**
+      - docs-theme/**
+      - tools/mkdocs-hooks.py
       - mkdocs.yml
       - tdn/**
       - www/**
@@ -12,6 +14,8 @@ on:
   pull_request:
     paths:
       - docs/**
+      - docs-theme/**
+      - tools/mkdocs-hooks.py
       - mkdocs.yml
       - tdn/**
       - www/**

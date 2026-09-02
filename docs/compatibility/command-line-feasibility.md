@@ -1,7 +1,7 @@
 ---
 man: revenant-options-audit
 section: 7
-manual: revenant
+manual: compat
 description: every xterm option and its status in Revenant
 ---
 

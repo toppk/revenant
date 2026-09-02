@@ -112,9 +112,9 @@ site:
 serve: site
     python3 -m http.server -d site 8000
 
-# Live-reload the Revenant docs only
+# Live-reload the Revenant docs, watching the theme and hooks too
 serve-docs:
-    {{mkdocs}} serve
+    {{mkdocs}} serve --watch docs-theme --watch tools/mkdocs-hooks.py
 
 # Live-reload TDN only
 serve-tdn:
@@ -122,9 +122,9 @@ serve-tdn:
 
 # Strict-build both mkdocs sites without writing site/
 check:
-    {{mkdocs}} build --strict -d /tmp/xterm-plus-check/docs
-    {{mkdocs}} build --strict -f tdn/mkdocs.yml -d /tmp/xterm-plus-check/tdn
-    rm -rf /tmp/xterm-plus-check
+    {{mkdocs}} build --strict -d /tmp/revenant-docs-check/docs
+    {{mkdocs}} build --strict -f tdn/mkdocs.yml -d /tmp/revenant-docs-check/tdn
+    rm -rf /tmp/revenant-docs-check
 
 # Run formatting, compiler/backend, and documentation checks
 check-all: format-check test check

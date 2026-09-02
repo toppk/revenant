@@ -1,7 +1,7 @@
 ---
 man: revenant-rendering
 section: 7
-manual: revenant
+manual: compat
 description: repaint, damage, cursor, and resize invariants
 ---
 

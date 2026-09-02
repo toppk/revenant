@@ -8,32 +8,37 @@ docs_dir: docs
 site_dir: site
 copyright: Revenant documentation is MIT licensed. xterm-derived material is covered by the xterm license.
 
+# The xman-style theme derives the Sections menu and every directory from page
+# front matter (man, section, manual, description); there is no nav to maintain.
 theme:
-  name: material
-  logo: assets/xterm-plus.svg
-  favicon: assets/xterm-plus.png
-  features:
-    - navigation.sections
-    - navigation.footer
-    - navigation.top
-    - content.code.copy
-    - content.action.edit
-    - search.suggest
-  palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: black
-      accent: teal
-      toggle:
-        icon: material/weather-night
-        name: Dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: black
-      accent: teal
-      toggle:
-        icon: material/weather-sunny
-        name: Light mode
+  name: null
+  custom_dir: docs-theme
+
+hooks:
+  - tools/mkdocs-hooks.py
+
+plugins:
+  - search
+
+extra:
+  tdn_url: https://toppk.github.io/revenant/tdn/
+  manuals:
+    - id: revenant
+      label: "(1) Revenant"
+      head: Revenant Manual
+      description: The program manual, from installation to the compatibility ledgers.
+    - id: compat
+      label: "(7) Compatibility"
+      head: Compatibility ledgers
+      description: How faithfully Revenant tracks xterm and Ghostling, audit by audit.
+    - id: x11
+      label: "(7) X11 and Unix basics"
+      head: X11 and Unix basics
+      description: The platform a terminal lives on, explained from scratch.
+    - id: maintainers
+      label: "(8) Maintainers"
+      head: Maintainer Manual
+      description: Architecture, contracts, style, and release procedure.
 
 markdown_extensions:
   - admonition
@@ -47,41 +52,3 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
-
-plugins:
-  - search
-
-nav:
-  - Home: index.md
-  - Getting started:
-      - Install: getting-started/install.md
-      - First run: getting-started/first-run.md
-  - Using Revenant:
-      - Copy and paste on X11: usage/copy-paste.md
-      - OSC 8 hyperlinks: usage/hyperlinks.md
-  - Configuration:
-      - X resources, explained: configuration/xresources.md
-      - Configuring Revenant: configuration/revenant.md
-      - Fonts and fallback: configuration/fonts.md
-      - Command-line options: configuration/command-line.md
-  - Reference:
-      - Diagnostics: reference/diagnostics.md
-      - Interactive probes: reference/probes.md
-      - Readline 8.3 resize regression: reference/bash-readline-resize.md
-  - Compatibility:
-      - Recorded xterm differences: compatibility/drift.md
-      - Keyboard input differences: compatibility/keyboard-input.md
-      - Ghostling feature parity: compatibility/ghostling-parity.md
-      - Default VT bindings: compatibility/default-bindings.md
-      - Command-line feasibility: compatibility/command-line-feasibility.md
-      - Popup-menu feasibility: compatibility/menu-feasibility.md
-      - Rendering review: compatibility/rendering-review.md
-      - Font format baseline: compatibility/font-format-baseline.md
-  - Maintainers:
-      - Architecture: maintainers/architecture.md
-      - Font-resolution contract: maintainers/font-resolution.md
-      - Roadmap: maintainers/roadmap.md
-      - Upstream references: maintainers/upstream.md
-      - C style guide: maintainers/style.md
-      - Releasing: maintainers/releasing.md
-  - Terminal Developers Network: https://toppk.github.io/revenant/tdn/

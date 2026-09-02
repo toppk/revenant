@@ -1,0 +1,129 @@
+{#- xman-style shell: Sections menu, per-manual directory, manual page pane. -#}
+{%- set meta = page.meta -%}
+{%- set man = meta.man ~ '(' ~ meta.section ~ ')' -%}
+{%- set manual_labels = {} -%}
+{%- for m in config.extra.manuals %}{% set _ = manual_labels.update({m.id: m}) %}{% endfor -%}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ man }} — {{ config.site_name }}</title>
+  <meta name="description" content="{{ meta.description }}">
+  <link rel="icon" href="{{ 'assets/xterm-plus.png' | url }}">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+  <link rel="stylesheet" href="{{ 'xman.css' | url }}">
+  <script>try{if(localStorage.getItem("xman-rv")==="1")document.documentElement.classList.add("rv");}catch(e){}</script>
+</head>
+<body>
+<div class="frame">
+  <div class="bar">
+    <button class="menubtn" id="optbtn" aria-haspopup="true" aria-expanded="false" aria-controls="optmenu">Options
+      <div class="menu" id="optmenu" role="menu" hidden>
+        <div class="mtitle">Options</div>
+        <div class="item" role="menuitem" tabindex="-1" data-act="dir"><span>Display Directory</span><span class="acc">Ctrl+D</span></div>
+        <div class="item" role="menuitem" tabindex="-1" data-act="page"><span>Display Manual Page</span><span class="acc">Ctrl+M</span></div>
+        <div class="item" role="menuitem" tabindex="-1" data-act="help"><span>Help</span><span class="acc">Ctrl+H</span></div>
+        <div class="item" role="menuitem" tabindex="-1" data-act="search"><span>Search</span><span class="acc">Ctrl+S</span></div>
+        <div class="item" role="menuitemcheckbox" tabindex="-1" data-act="both" id="bothitem" aria-checked="false"><span>Show Both Screens</span><span class="acc">Ctrl+B</span></div>
+        <div class="sep"></div>
+        <div class="item" role="menuitemcheckbox" tabindex="-1" data-act="rv" id="rvitem" aria-checked="false"><span>Reverse Video</span><span class="acc">Ctrl+R</span></div>
+        {%- if page.edit_url %}
+        <a class="item" role="menuitem" tabindex="-1" href="{{ page.edit_url }}"><span>Edit This Page</span><span class="acc"></span></a>
+        {%- endif %}
+      </div>
+    </button>
+    <button class="menubtn" id="secbtn" aria-haspopup="true" aria-expanded="false" aria-controls="secmenu">Sections
+      <div class="menu" id="secmenu" role="menu" hidden>
+        <div class="mtitle">Sections</div>
+        {%- for m in config.extra.manuals %}
+        <div class="item" role="menuitem" tabindex="-1" data-manual="{{ m.id }}"><span>{{ m.label }}</span></div>
+        {%- endfor %}
+        <div class="sep"></div>
+        <a class="item ext" role="menuitem" tabindex="-1" href="{{ config.extra.tdn_url }}" target="_blank" rel="noopener"><span>Terminal Developers Network</span></a>
+      </div>
+    </button>
+    <div class="label" id="label"><span class="mono">{{ man }}</span></div>
+  </div>
+
+  <div class="panes" id="panes">
+    <div class="pane dir" id="dirpane" hidden>
+      <div class="scroll">
+        {%- for m in config.extra.manuals %}
+        <div class="directory" data-manual="{{ m.id }}"{% if m.id != meta.manual %} hidden{% endif %}>
+          <div class="dirhead">{{ m.head }}</div>
+          <div class="list" role="list">
+            {%- for entry in config.extra.whatis if entry.manual == m.id %}
+            <a role="listitem" href="{{ entry.url | url }}" title="{{ entry.description }}"{% if entry.url == page.url %} aria-current="page"{% endif %}>{{ entry.man }}</a>
+            {%- endfor %}
+          </div>
+        </div>
+        {%- endfor %}
+      </div>
+    </div>
+    <div class="grip" id="grip" hidden></div>
+    <div class="pane page" id="manpane">
+      <div class="sb" id="sb" aria-hidden="true"><div class="th" id="th"></div></div>
+      <div class="scroll" id="manscroll">
+        <main class="man" id="man">
+          <div class="hdr"><span>{{ man | upper }}</span><span>{{ manual_labels[meta.manual].head if meta.manual in manual_labels else meta.manual }}</span><span>{{ man | upper }}</span></div>
+          <h2 class="sh">Name</h2>
+          <p class="name"><b>{{ meta.man }}</b> &ndash; {{ meta.description }}</p>
+          <div class="content" id="content">
+{{ page.content }}
+          </div>
+          <div class="ftr"><span>{{ config.site_name }}</span><span>{{ config.extra.build_date }}</span><span>{{ man | upper }}</span></div>
+        </main>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="shell" id="searchshell" hidden>
+  <div class="dialog" role="dialog" aria-labelledby="searchq">
+    <div class="q" id="searchq">Search the manuals:</div>
+    <input id="searchin" class="mono" type="text" autocomplete="off" spellcheck="false" aria-controls="results" aria-autocomplete="list">
+    <div class="results" id="results" role="listbox"></div>
+    <div class="row">
+      <button id="s-open">Open</button>
+      <button id="s-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<template id="helptext">
+  <div class="hdr"><span>XMAN(1)</span><span>{{ config.site_name }}</span><span>XMAN(1)</span></div>
+  <h2 class="sh">Name</h2>
+  <p class="name"><b>xman</b> &ndash; browse the {{ config.site_name }} manual</p>
+  <h2 class="sh">Description</h2>
+  <p>This site presents the documentation in the manner of the X11 <code>xman</code> program. Choose a manual from the <b>Sections</b> menu to see its directory; select an entry to display that page. Cross-references such as <code>revenant(1)</code> are links, and <b>Search</b> looks through every page.</p>
+  <h2 class="sh">Options menu</h2>
+  <dl>
+    <dt>Display Directory</dt><dd>Show the directory of the current manual.</dd>
+    <dt>Display Manual Page</dt><dd>Return to the page.</dd>
+    <dt>Show Both Screens</dt><dd>Split the window so the directory and the page are visible at once.</dd>
+    <dt>Search</dt><dd>Type a page name, a resource, or any words; results update as you type. Enter opens the first match, or the one chosen with the arrow keys.</dd>
+    <dt>Reverse Video</dt><dd>Swap foreground and background, as <code>-rv</code> would.</dd>
+  </dl>
+  <h2 class="sh">Keys</h2>
+  <p>Ctrl+D directory, Ctrl+M manual page, Ctrl+B both screens, Ctrl+S search, Ctrl+H help, Ctrl+R reverse video. Escape closes a menu or dialog.</p>
+  <h2 class="sh">Sections</h2>
+  <dl>
+    {%- for m in config.extra.manuals %}
+    <dt>{{ m.label }}</dt><dd>{{ m.description }}</dd>
+    {%- endfor %}
+    <dt>Terminal Developers Network</dt><dd>A separate reference for terminal protocols and emulator behaviour. Links into it are marked with a globe and open the external site.</dd>
+  </dl>
+</template>
+
+<script id="whatis" type="application/json">{{ config.extra.whatis | tojson }}</script>
+<script>
+  window.XMAN = {
+    base: "{{ base_url }}",
+    manual: "{{ meta.manual }}",
+    tdn: "{{ config.extra.tdn_url }}"
+  };
+</script>
+<script src="{{ 'xman.js' | url }}"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 ---
 man: revenant-font-baseline
 section: 7
-manual: revenant
+manual: compat
 description: font format baseline and emoji renderer contract
 ---
 
