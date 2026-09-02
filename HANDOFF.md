@@ -6,6 +6,49 @@ priorities and the Ghostling capability comparison live in the
 [upstream reference guide](docs/maintainers/upstream.md). Avoid recording an uncommitted
 file list or a single transient commit as project state here.
 
+## Maintainer transition — 2026-09-02
+
+The cursor-blink, ANSI-palette, and internal-naming rounds are complete. There
+are no known open findings from their final reviews. The complete maintained
+matrix passed at the transition point: GCC, Clang, and AddressSanitizer each
+passed 26/26 tests, the stub backend passed 6/6, all four builds were
+warning-free, and `git diff --check` was clean.
+
+The important completed state is:
+
+- Cursor blinking matches xterm's DECSCUSR/DEC mode 12 model, including the
+  separate application operand, configurable XOR/OR composition, forced
+  `always`/`never` policies, reset behavior, and query replies. The observer
+  workaround and its parser tests are intentional; see Current architecture
+  below before changing it.
+- `color0` through `color15` are real supported resources with xterm's compiled
+  defaults. They seed libghostty's default palette, survive OSC 4 current-color
+  overrides, become the OSC 104 reset target, reach painted pixels, and leave
+  indices 16 through 255 unchanged. Color names are parsed to RGB without
+  allocating an X colormap entry.
+- Product branding now has an enforced boundary. Project prose, Meson,
+  packaging/release metadata, and concrete justfile launch paths may name the
+  installed product. Internal C, tools, and tests use `XTP` or `xterm+`; the C
+  program name comes from Meson's generated `XTP_PROGRAM_NAME`. The Meson
+  `internal-branding` test enforces the internal trees. The release-note helper
+  consequently lives at `packaging/release-notes`, and the synthetic sbix
+  fixture is `XTP Synthetic sbix`/`XtpSyntheticSbix.ttf`.
+
+Two review-method rules are now evidence-backed project practice. First, any
+claim that “xterm does X” must be checked against the pinned
+`upstream/xterm-snapshots` source and, when observable behavior is involved,
+differentially exercised against xterm. Second, X resource tests must use an
+isolated `HOME`; setting `XENVIRONMENT=/dev/null` does not suppress
+`~/.Xdefaults`. A maintainer's loose `xterm*colorN` entries caused two false
+palette findings and one implementation detour before a hermetic HOME and a
+real-xterm differential exposed the contamination.
+
+Resume from the v0.5 early-access plan and roadmap rather than reopening these
+rounds without a concrete regression. Item 9 still names startup cursor-shape
+resources, `clear-saved-lines`, and high-use key/action gaps after the completed
+palette work; command-line honesty and session logging remain larger scoped
+items immediately ahead of it.
+
 ## Mission
 
 Revenant is a faithful, sustainable X11 replacement for xterm's visible user
@@ -172,6 +215,69 @@ run `just reflow-resize WINDOW_ID`; one cycle is sufficient. The source
 diagnosis, upstream links, version boundary, and fixed-build checks are in
 `docs/reference/bash-readline-resize.md`.
 
+libghostty exposes a resolved cursor-blink value, but xterm compatibility needs
+the raw application request as a separate operand. `cursor_blink.c` therefore
+observes the same PTY stream solely for DECSCUSR, DEC mode 12, their save/restore
+forms, RIS, and DECSTR; libghostty remains authoritative for shape and all other
+terminal state. This is deliberately a small second parser. Keep its streaming
+state aligned with the pinned parser's anywhere transitions, cancellation,
+empty-parameter, C1, OSC, and DCS-ignore behavior. Query replies must use state
+at the query's byte position, not the final state of a coalesced PTY read. The
+existing same-buffer, malformed-sequence, raw-C1, overflow, reply-rewrite, and
+reset tests pin those requirements. Forced policies freeze application blink
+tracking exactly where xterm's `SettableCursorBlink` does while shape remains
+independently application-controlled.
+
+## Deferred organization debt — 2026-09-02
+
+The pre-multiplexing organization review completed the low-risk boundary work:
+Ghostty selection policy is isolated from the adapter, failed render
+transactions abort explicitly, font-universe types no longer live in the
+widget-private header, repeated UTF-8 and widget invalidation idioms have names,
+and the self-test runner and Meson source inventory are table-driven. The
+remaining findings below are intentional deferrals, not release blockers by
+themselves. Revisit them when work enters the named owner rather than performing
+an unbounded cleanup pass.
+
+- Before adding a second terminal handle, decide which state is per-terminal
+  and which is per-window. Only then group the flat `Vt100Part` fields into
+  cursor, selection, frame-cache, and input sub-structures. Grouping them first
+  risks encoding the wrong lifetime. At the same boundary, replace the long
+  selection geometry argument lists with one geometry/event value and decide
+  whether terminal creation needs a configuration structure.
+- During the next substantial font-routing change, finish removing widget
+  ownership from the font stack: snapshot its resource inputs into
+  `XtpFontUniverse`, pass the universe and display explicitly, return one route
+  result instead of repeated out-parameters, and collapse the three parallel
+  primary/wide/emoji/Han role representations. Also move the glyph-ink cache
+  beside the Cairo scaled-font cache, establish one visible `FcPattern`
+  ownership rule, and split consumer-specific helpers out of `font_role.c`.
+- During configuration-report work, derive compiled defaults from the canonical
+  Xt resource table instead of repeating string literals. Do not derive
+  behavioral support merely from `XtGetResourceList`: a parsed resource is not
+  necessarily implemented, so the support catalog remains an explicit claim.
+- During the command-line honesty slice, replace the repeated pre-Xt argv scans
+  with one `ScanCommandLine` result, fold the font overrides into the normal
+  option path or document why they cannot use it, and remove hard-coded prose
+  that duplicates defaults. Review the runtime stub/backend PTY branch and the
+  placement of `TERM` policy in the same startup ownership pass.
+- When `vt_interaction.c` next receives material work, split X selection/paste,
+  hyperlink launching, and mouse reporting into focused owners. Other local
+  cleanup should follow its owning feature: table-drive the order-dependent
+  default character classes, give `WarnRecord` kind-specific fields, name the
+  remaining viewport/cell/frame-cache idioms, and shorten the large reporting,
+  routing, drawing, and `SetValues` functions as they are changed.
+- A logging-density pass remains worthwhile after behavior stabilizes. Prefer
+  removing INFO narration and generated summaries over changing diagnostic
+  coverage during feature work.
+
+Two reviewed choices are deliberate. Keep `--self-test` in the installed binary
+as a package smoke diagnostic; the table-driven runner addresses its structural
+cost. Keep the three Ghostty callback-pointer shims typed: assignment to each
+Ghostty callback typedef provides compile-time signature checking, while their
+documented copy handles the option API's representation boundary. A generic
+function-pointer helper would lose the useful type check.
+
 ## Implemented behavior
 
 - Real PTY-backed shell with libghostty parsing, mode-aware basic keyboard
@@ -200,6 +306,15 @@ diagnosis, upstream links, version boundary, and fixed-build checks are in
 - True color, palette terminal values, inverse, bold, underline, overline, and
   strikeout rendering, subject to the gaps recorded in the
   [roadmap](docs/maintainers/roadmap.md).
+- xterm-compatible `color0` through `color15` resources with exact compiled
+  defaults, all normal Xt/Xrm name/class and precedence behavior, safe
+  name-to-RGB parsing independent of colormap capacity, and one atomic
+  libghostty default-palette update. OSC 4 overrides the current palette and
+  OSC 104 returns to the configured resource value. The self-test preserves a
+  high palette index, while `xvfb-colors` covers every resource index,
+  `-report-config`, RESOURCE_MANAGER and command-line forms, Xrm precedence,
+  painted pixels, and constrained PseudoColor operation. `probe-colors.py`
+  supplies the human query/spawn comparison.
 - Full UTF-8 grapheme bytes at the renderer boundary; HarfBuzz shapes primary
   and fallback faces, including compatible adjacent non-emoji cells whose
   context spans a backend grapheme boundary. Fontconfig supplies a bounded
@@ -288,9 +403,26 @@ The project and repository are named Revenant. The installed binary is
 `revenant`; `xterm+` remains an installed compatibility symlink. The `XTerm`
 application class, `xterm` instance, `vt100` widget name, resources, menus, and
 translations remain intentional compatibility surfaces and must not be renamed
-as cosmetic cleanup. Use Revenant for project prose and package names while
-using xterm+ only when referring to the compatibility executable or historical
-work recorded under that name.
+as cosmetic cleanup.
+
+Keep product branding at the outer product boundary: documentation and website
+prose, Meson build/install metadata, desktop and release/package assets, and
+justfile recipes that must name the concrete `build*/revenant` output. Internal
+C source, tools, test programs, fixtures, diagnostics about implementation
+roles, temporary names, and variable names use `XTP` or `xterm+`. Meson owns
+`program_name = 'revenant'`, exports it through the generated
+`XTP_PROGRAM_NAME`, names the executable and install symlink target from that
+setting, and reports it in the configuration summary. Do not reintroduce a
+literal product name into `src/` to print `--version` or for another runtime
+purpose. `tools/check-internal-branding` is a normal Meson test and makes this
+boundary executable rather than conventional.
+
+The justfile is the intentional exception among internal-looking files: a
+recipe that launches a build artifact must know that `./build*/revenant` is the
+concrete path. Generic tools receive that path from the justfile or discover
+the sole installed Meson executable; they must not hardcode it. Keep
+release-specific helpers under `packaging/`, not under `tools/`, when their
+purpose requires product and artifact names.
 
 A useful product lens is that xterm is unusually broad in historical terminal
 protocols but deliberately narrow as a modern terminal application. Patch 411
@@ -710,6 +842,14 @@ configuration error, and `tools/check-release-tests` rejects skipped suites.
 The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
+
+The normal full matrix currently contains 26 tests for each libghostty build
+and 6 for the stub build. One of those is `internal-branding`, which scans
+`src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
+failure to investigate rather than an expected consequence of changing build
+options. The generated font fixture staging tree now contains
+`XtpSyntheticSbix.ttf`; rerun `tools/stage-font-fixtures` after changing its
+generator or manifest rather than retaining the old product-branded fixture.
 
 ## Performance and longer-term direction
 
