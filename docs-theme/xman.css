@@ -155,9 +155,11 @@ body{
 .man .content li{margin:0 0 3px;}
 .man .content li > p{margin-left:0;}
 .man .content li > ul,.man .content li > ol{margin:3px 0 0;}
-.man dl{display:grid;grid-template-columns:max-content 1fr;column-gap:1.6em;row-gap:6px;margin:0 0 10px 2.6em;}
-.man dt{font-family:var(--mono);font-size:.9em;white-space:nowrap;font-weight:700;}
-.man dd{margin:0;}
+.man dl{margin:0 0 10px 2.6em;}
+.man dt{font-family:var(--mono);font-size:.9em;font-weight:700;margin:10px 0 2px;}
+.man dt:first-child{margin-top:0;}
+.man dd{margin:0 0 0 2.6em;}
+.man dd p{margin-left:0;}
 .man a{color:inherit;text-decoration:underline;text-underline-offset:2px;}
 .man a:focus-visible{outline:1px solid var(--ink);}
 .man .headerlink{text-decoration:none;opacity:0;margin-left:.4em;font-family:var(--sans);font-weight:400;}

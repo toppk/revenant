@@ -1,6 +1,6 @@
 ---
-man: revenant
-section: 1
+man: revenant-intro
+section: 7
 manual: revenant
 description: xterm-compatible X11 terminal with a libghostty core
 ---

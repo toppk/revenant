@@ -17,6 +17,11 @@ theme:
 hooks:
   - tools/mkdocs-hooks.py
 
+# Hand-written shared fragments live in docs/fragments; generated ones are
+# written to .cache/fragments by the hook before every build.
+exclude_docs: |
+  fragments/**
+
 plugins:
   - search
 
@@ -45,9 +50,15 @@ markdown_extensions:
   - attr_list
   - md_in_html
   - tables
+  - def_list
   - toc:
       permalink: true
   - pymdownx.details
+  - pymdownx.snippets:
+      base_path:
+        - docs/fragments
+        - .cache/fragments
+      check_paths: true
   - pymdownx.keys
   - pymdownx.superfences
   - pymdownx.tabbed:
