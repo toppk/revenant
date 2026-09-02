@@ -13,18 +13,26 @@
 #include <stdint.h>
 #include <string.h>
 
+typedef enum
+{
+        MENU_SPEC_ITEM,
+        MENU_SPEC_LINE,
+        MENU_SPEC_OPACITY_LINE,
+} MenuSpecKind;
+
 typedef struct
 {
         const char *name;
         XtpMenuItem item;
-        Boolean separator;
+        MenuSpecKind kind;
         Boolean implemented;
 } MenuSpec;
 
-#define ITEM(name, item, implemented) {name, item, False, implemented}
+#define ITEM(name, item, implemented) {name, item, MENU_SPEC_ITEM, implemented}
 #define INERT(name) ITEM(name, XTP_MENU_ITEM_NONE, False)
 #define ACTIVE(name, item) ITEM(name, item, True)
-#define LINE(name) {name, XTP_MENU_ITEM_NONE, True, False}
+#define LINE(name) {name, XTP_MENU_ITEM_NONE, MENU_SPEC_LINE, False}
+#define OPACITY_LINE(name) {name, XTP_MENU_ITEM_NONE, MENU_SPEC_OPACITY_LINE, False}
 
 static const MenuSpec main_specs[] = {
     INERT("toolbar"),
@@ -40,7 +48,7 @@ static const MenuSpec main_specs[] = {
     INERT("print-redir"),
     INERT("dump-html"),
     INERT("dump-svg"),
-    LINE("line2"),
+    OPACITY_LINE("line2"),
     INERT("8-bit control"),
     ACTIVE("backarrow key", XTP_MENU_ITEM_BACKARROW_KEY),
     ACTIVE("num-lock", XTP_MENU_ITEM_NUM_LOCK),
@@ -134,6 +142,7 @@ static const MenuSpec font_specs[] = {
 #undef INERT
 #undef ACTIVE
 #undef LINE
+#undef OPACITY_LINE
 
 _Static_assert(XtNumber(main_specs) == XTP_MAIN_MENU_ENTRIES, "main menu inventory changed");
 _Static_assert(XtNumber(vt_specs) == XTP_VT_MENU_ENTRIES, "VT menu inventory changed");
@@ -207,7 +216,7 @@ CreateMenu(XtpMenus *menus, Widget parent, const char *name, const MenuSpec *spe
         menu = XtCreatePopupShell(name, simpleMenuWidgetClass, parent, args, XtNumber(args));
 
         for (index = 0; index < count; ++index) {
-                if (!specs[index].separator && specs[index].implemented)
+                if (specs[index].kind == MENU_SPEC_ITEM && specs[index].implemented)
                         ++implemented;
         }
         XtpLog(XTP_LOG_DEBUG, "menu",
@@ -217,13 +226,14 @@ CreateMenu(XtpMenus *menus, Widget parent, const char *name, const MenuSpec *spe
         for (index = 0; index < count; ++index) {
                 Widget item;
 
-                if (strcmp(name, "mainMenu") == 0 && strcmp(specs[index].name, "line2") == 0)
+                if (specs[index].kind == MENU_SPEC_OPACITY_LINE)
                         CreateOpacitySlider(menus, menu);
                 item = XtCreateManagedWidget(
                     specs[index].name,
-                    specs[index].separator ? smeLineObjectClass : smeBSBObjectClass, menu, NULL, 0);
+                    specs[index].kind == MENU_SPEC_ITEM ? smeBSBObjectClass : smeLineObjectClass,
+                    menu, NULL, 0);
 
-                if (!specs[index].separator) {
+                if (specs[index].kind == MENU_SPEC_ITEM) {
                         if (!specs[index].implemented)
                                 XtSetSensitive(item, False);
                         if (specs[index].item != XTP_MENU_ITEM_NONE) {

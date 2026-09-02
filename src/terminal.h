@@ -80,6 +80,7 @@ typedef struct
         void (*begin)(const XtpRenderFrame *frame, void *closure);
         void (*cell)(const XtpRenderCell *cell, void *closure);
         void (*end)(const XtpRenderFrame *frame, void *closure);
+        void (*abort)(const XtpRenderFrame *frame, void *closure);
 } XtpRenderer;
 
 typedef enum
@@ -319,8 +320,14 @@ typedef enum
         XTP_SELECTION_AUTOSCROLL_DOWN,
 } XtpSelectionAutoscroll;
 
-XtpTerminal *XtpTerminalNew(uint16_t columns, uint16_t rows, uint32_t cell_width,
-                            uint32_t cell_height);
+/* Selection mutations distinguish failure, no visible change, and change. */
+typedef enum
+{
+        XTP_SELECTION_ERROR = -1,
+        XTP_SELECTION_UNCHANGED = 0,
+        XTP_SELECTION_CHANGED = 1,
+} XtpSelectionResult;
+
 XtpTerminal *XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_width,
                                              uint32_t cell_height, bool unicode_width);
 void XtpTerminalFree(XtpTerminal *terminal);
@@ -349,23 +356,24 @@ int XtpTerminalGetScrollbar(XtpTerminal *terminal, XtpTerminalScrollbar *scrollb
 int XtpTerminalScrollBy(XtpTerminal *terminal, intptr_t rows);
 int XtpTerminalScrollTo(XtpTerminal *terminal, uint64_t row);
 int XtpTerminalScrollToBottom(XtpTerminal *terminal);
-int XtpTerminalSelectionStart(XtpTerminal *terminal, uint16_t column, uint16_t row,
-                              double surface_x, double surface_y, uint64_t time_ns,
-                              XtpSelectionUnit unit, bool repeat);
-int XtpTerminalSelectionExtend(XtpTerminal *terminal, uint16_t column, uint16_t row,
-                               double surface_x, double surface_y, uint32_t columns,
-                               uint32_t cell_width, uint32_t padding_left, uint32_t screen_height,
-                               bool rectangle);
+XtpSelectionResult XtpTerminalSelectionStart(XtpTerminal *terminal, uint16_t column, uint16_t row,
+                                             double surface_x, double surface_y, uint64_t time_ns,
+                                             XtpSelectionUnit unit, bool repeat);
+XtpSelectionResult XtpTerminalSelectionExtend(XtpTerminal *terminal, uint16_t column, uint16_t row,
+                                              double surface_x, double surface_y, uint32_t columns,
+                                              uint32_t cell_width, uint32_t padding_left,
+                                              uint32_t screen_height, bool rectangle);
 int XtpTerminalSelectionGetAutoscroll(XtpTerminal *terminal, XtpSelectionAutoscroll *direction);
-int XtpTerminalSelectionAutoscrollTick(XtpTerminal *terminal, uint16_t column, uint16_t row,
-                                       double surface_x, double surface_y, uint32_t columns,
-                                       uint32_t cell_width, uint32_t padding_left,
-                                       uint32_t screen_height, bool rectangle);
+XtpSelectionResult XtpTerminalSelectionAutoscrollTick(XtpTerminal *terminal, uint16_t column,
+                                                      uint16_t row, double surface_x,
+                                                      double surface_y, uint32_t columns,
+                                                      uint32_t cell_width, uint32_t padding_left,
+                                                      uint32_t screen_height, bool rectangle);
 void XtpTerminalSelectionEnd(XtpTerminal *terminal, uint16_t column, uint16_t row, bool valid);
-int XtpTerminalSelectionExtendStart(XtpTerminal *terminal, uint16_t column, uint16_t row,
-                                    XtpSelectionUnit unit);
-int XtpTerminalSelectionExtendActive(XtpTerminal *terminal, uint16_t column, uint16_t row,
-                                     bool rectangle);
+XtpSelectionResult XtpTerminalSelectionExtendStart(XtpTerminal *terminal, uint16_t column,
+                                                   uint16_t row, XtpSelectionUnit unit);
+XtpSelectionResult XtpTerminalSelectionExtendActive(XtpTerminal *terminal, uint16_t column,
+                                                    uint16_t row, bool rectangle);
 void XtpTerminalSelectionExtendEnd(XtpTerminal *terminal);
 void XtpTerminalSelectionClear(XtpTerminal *terminal);
 int XtpTerminalSelectionText(XtpTerminal *terminal, uint8_t **bytes, size_t *length);

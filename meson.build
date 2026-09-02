@@ -63,10 +63,8 @@ harfbuzz_dep = dependency('harfbuzz')
 util_dep = cc.find_library('util')
 m_dep = cc.find_library('m')
 
-sources = files(
+widget_sources = files(
     'src/char_class.c',
-    'src/command_options.c',
-    'src/config_report.c',
     'src/cursor_blink.c',
     'src/diagnostics.c',
     'src/emoji_presentation.c',
@@ -78,13 +76,11 @@ sources = files(
     'src/font_route_cache.c',
     'src/glyph_cairo.c',
     'src/glyph_shape.c',
-    'src/main.c',
     'src/menus.c',
-    'src/pty.c',
-    'src/selftest.c',
     'src/sme_slider.c',
     'src/terminal.c',
     'src/unicode_script.c',
+    'src/utf8.c',
     'src/vt_font.c',
     'src/vt_draw.c',
     'src/vt_input.c',
@@ -92,6 +88,15 @@ sources = files(
     'src/vt_widget.c',
     'src/x11_opacity.c',
 )
+
+sources = files(
+    'src/command_options.c',
+    'src/config_report.c',
+    'src/main.c',
+    'src/pty.c',
+    'src/selftest.c',
+)
+sources += widget_sources
 
 xterm_resource_catalog = custom_target(
     'xterm-411-resource-catalog',
@@ -156,7 +161,7 @@ if build_with_ghostty
         build_by_default: true,
     )
 
-    terminal_sources += files('src/terminal_ghostty.c')
+    terminal_sources += files('src/terminal_ghostty.c', 'src/terminal_ghostty_selection.c')
     terminal_link_sources += ghostty_archive
     terminal_compile_args += [
         '-DGHOSTTY_STATIC',
@@ -220,29 +225,8 @@ font_reload_test_tool = executable(
     'xtp-font-reload',
     [
         'tests/xtp-font-reload.c',
-        'src/char_class.c',
-        'src/cursor_blink.c',
-        'src/diagnostics.c',
-        'src/emoji_presentation.c',
-        'src/font_chain.c',
-        'src/font_metrics.c',
-        'src/font_report.c',
-        'src/font_role.c',
-        'src/font_router.c',
-        'src/font_route_cache.c',
-        'src/glyph_cairo.c',
-        'src/glyph_shape.c',
-        'src/menus.c',
-        'src/sme_slider.c',
-        'src/terminal.c',
+        widget_sources,
         'src/terminal_stub.c',
-        'src/unicode_script.c',
-        'src/vt_font.c',
-        'src/vt_draw.c',
-        'src/vt_input.c',
-        'src/vt_interaction.c',
-        'src/vt_widget.c',
-        'src/x11_opacity.c',
     ],
     include_directories: include_directories('src'),
     dependencies: [

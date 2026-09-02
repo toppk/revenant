@@ -47,7 +47,8 @@ The boundaries are deliberate:
   damage restoration, and redisplay.
 - `src/vt_font.c` owns the heap-allocated Xft font universe: slot and style
   loading, metric normalization, named and system fallback candidates, lazy
-  non-default size slots, and transactional universe replacement.
+  non-default size slots, and transactional universe replacement. Its state
+  types live in `src/font_universe.h` rather than the private widget header.
 - `src/font_router.c` owns atom-to-role selection, fallback traversal, route
   caching, style degradation, and deterministic missing-glyph decisions. It
   returns a selected font and shaped run to `vt_draw.c`; it does not paint
@@ -81,7 +82,9 @@ The boundaries are deliberate:
 - `src/terminal.h` is the backend-neutral terminal boundary.
   `src/terminal.c` holds policy shared by both backends, currently output feed
   plus viewport anchoring. The `terminal_ghostty.c` and `terminal_stub.c`
-  implementations are selected at link time.
+  implementations are selected at link time. Ghostty-backed xterm selection
+  policy is isolated in `terminal_ghostty_selection.c`; Ghostty handles shared
+  by those two backend files remain private in `terminal_ghosttyP.h`.
 - `src/pty.c` owns child creation, lifecycle, queued writes, reads, and kernel
   window-size updates.
 

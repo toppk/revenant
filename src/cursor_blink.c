@@ -2,6 +2,11 @@
 
 #include <limits.h>
 
+/*
+ * TODO(libghostty): delete this observer when the terminal API exposes the raw
+ * application cursor-blink request separately from its resolved blink state.
+ */
+
 #define XTP_MAX_CSI_PARAMETER 65535U
 #define XTP_MAX_CSI_PARAMETERS 24U
 

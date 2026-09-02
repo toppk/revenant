@@ -165,8 +165,8 @@ KeyFromKeysym(KeySym keysym)
         }
 }
 
-static unsigned int
-KeyModifiers(unsigned int state)
+unsigned int
+VtModifiersFromState(unsigned int state)
 {
         unsigned int result = 0;
 
@@ -281,7 +281,7 @@ KeyEvent(Vt100Rec *vt, XKeyEvent *xkey, XtpKeyAction action)
 
         event.action = action;
         event.key = KeyFromKeysym(physical != NoSymbol ? physical : keysym);
-        event.modifiers = KeyModifiers(xkey->state);
+        event.modifiers = VtModifiersFromState(xkey->state);
         if (event.key == XTP_KEY_SHIFT_LEFT || event.key == XTP_KEY_SHIFT_RIGHT) {
                 event.modifiers |= XTP_MOD_SHIFT;
         } else if (event.key == XTP_KEY_CONTROL_LEFT || event.key == XTP_KEY_CONTROL_RIGHT) {
@@ -358,6 +358,72 @@ ClassicAutoRepeatRelease(Vt100Rec *vt, const XKeyEvent *release)
                next.xkey.time == release->time;
 }
 
+/*
+ * Xt translations and the raw key handler both see local key bindings.  Keep
+ * a short event fingerprint ring so a translated action is not also encoded
+ * and delivered through the terminal input callback.
+ */
+Boolean
+VtAcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action)
+{
+        KeyActionIdentity *identity;
+        unsigned int slot;
+
+        if (event == NULL || event->type != KeyPress)
+                return True;
+        for (slot = 0; slot < XTP_RECENT_KEY_ACTIONS; ++slot) {
+                identity = &vt->vt.recent_key_actions[slot];
+                if (!identity->used || identity->serial != event->xkey.serial ||
+                    identity->time != event->xkey.time ||
+                    identity->keycode != event->xkey.keycode ||
+                    identity->state != event->xkey.state || identity->action != action)
+                        continue;
+                if (!identity->duplicate_logged) {
+                        XtpLog(XTP_LOG_DEBUG, "input",
+                               "ignored duplicate local key action=%d serial=%lu time=%lu "
+                               "keycode=%u state=0x%x",
+                               action, event->xkey.serial, event->xkey.time, event->xkey.keycode,
+                               event->xkey.state);
+                        identity->duplicate_logged = True;
+                }
+                return False;
+        }
+        identity = &vt->vt.recent_key_actions[vt->vt.next_key_action];
+        identity->used = True;
+        identity->duplicate_logged = False;
+        identity->serial = event->xkey.serial;
+        identity->time = event->xkey.time;
+        identity->keycode = event->xkey.keycode;
+        identity->state = event->xkey.state;
+        identity->action = action;
+        vt->vt.next_key_action = (vt->vt.next_key_action + 1U) % XTP_RECENT_KEY_ACTIONS;
+        return True;
+}
+
+Boolean
+VtLocalKeyActionOwnsEvent(Vt100Rec *vt, const XKeyEvent *event, Boolean release)
+{
+        Boolean owned = False;
+        unsigned int slot;
+
+        if (vt == NULL || event == NULL)
+                return False;
+        for (slot = 0; slot < XTP_RECENT_KEY_ACTIONS; ++slot) {
+                KeyActionIdentity *identity = &vt->vt.recent_key_actions[slot];
+
+                if (!identity->used || identity->keycode != event->keycode ||
+                    identity->state != event->state)
+                        continue;
+                if (!release &&
+                    (identity->serial != event->serial || identity->time != event->time))
+                        continue;
+                owned = True;
+                if (release)
+                        identity->used = False;
+        }
+        return owned;
+}
+
 static bool
 TranslationOwnsKey(const XKeyEvent *event)
 {
@@ -416,8 +482,7 @@ SetFocus(Vt100Rec *vt, Boolean focused)
                 unsigned int column = vt->vt.last_cursor_column;
                 unsigned int row = vt->vt.last_cursor_row;
 
-                vt->vt.cursor_cell_seen = False;
-                vt->vt.cursor_text_length = 0;
+                VtForgetCursorCell(vt);
                 VtDrawCursor(vt, True, column, row, vt->vt.last_cursor_shape);
                 XtpLog(XTP_LOG_DEBUG, "render", "cursor-only repaint column=%u row=%u", column,
                        row);

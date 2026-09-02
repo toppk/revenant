@@ -343,6 +343,20 @@ VtAsRecord(Widget widget)
         return (Vt100Rec *)widget;
 }
 
+void
+VtInvalidateFrame(Vt100Rec *vt)
+{
+        vt->vt.frame_valid = False;
+        vt->vt.last_cursor_visible = False;
+}
+
+void
+VtForgetCursorCell(Vt100Rec *vt)
+{
+        vt->vt.cursor_cell_seen = False;
+        vt->vt.cursor_text_length = 0;
+}
+
 static XtpCursorBlinkPolicy
 ParseCursorBlinkPolicy(const char *value)
 {
@@ -376,6 +390,20 @@ static Boolean
 CursorBlinkDefault(XtpCursorBlinkPolicy policy)
 {
         return policy == XTP_CURSOR_BLINK_DEFAULT_TRUE || policy == XTP_CURSOR_BLINK_ALWAYS;
+}
+
+static int
+ApplyTerminalCursorBlinkPolicy(XtpTerminal *terminal, XtpCursorBlinkPolicy policy)
+{
+        Boolean requests_enabled =
+            policy != XTP_CURSOR_BLINK_ALWAYS && policy != XTP_CURSOR_BLINK_NEVER;
+        int result = 0;
+
+        if (XtpTerminalSetCursorBlinkDefault(terminal, CursorBlinkDefault(policy)) != 0)
+                result = -1;
+        if (XtpTerminalSetCursorBlinkRequestsEnabled(terminal, requests_enabled) != 0)
+                result = -1;
+        return result;
 }
 
 Dimension
@@ -636,6 +664,13 @@ CreateGc(Widget widget)
         vt->vt.gc = XCreateGC(XtDisplay(widget), drawable, mask, &values);
         if (pixmap != None)
                 XFreePixmap(XtDisplay(widget), pixmap);
+}
+
+static void
+RecreateGc(Widget widget)
+{
+        ReleaseGc(widget);
+        CreateGc(widget);
 }
 
 static XFontStruct *
@@ -963,8 +998,7 @@ ResizeWidget(Widget widget)
 
                 XtpLog(XTP_LOG_INFO, "resize", "VT100 grid changed %ux%u -> %ux%u",
                        (unsigned int)vt->vt.columns, (unsigned int)vt->vt.rows, columns, rows);
-                vt->vt.frame_valid = False;
-                vt->vt.last_cursor_visible = False;
+                VtInvalidateFrame(vt);
                 vt->vt.columns = (int)columns;
                 vt->vt.rows = (int)rows;
                 changed.columns = columns;
@@ -1020,10 +1054,8 @@ VtFontReloadApplied(Vt100Rec *vt)
 {
         XtpFontChanged font_changed;
 
-        vt->vt.frame_valid = False;
-        vt->vt.last_cursor_visible = False;
-        ReleaseGc((Widget)vt);
-        CreateGc((Widget)vt);
+        VtInvalidateFrame(vt);
+        RecreateGc((Widget)vt);
         font_changed.slot = vt->vt.current_font;
         font_changed.cell_width = VtSlotWidth(vt, vt->vt.current_font);
         font_changed.cell_height = VtSlotHeight(vt, vt->vt.current_font);
@@ -1062,11 +1094,7 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                 if (VtFontUniverseReload(new_vt))
                         changed = True;
         }
-        if ((old_vt->vt.background_opacity_name == NULL) !=
-                (new_vt->vt.background_opacity_name == NULL) ||
-            (old_vt->vt.background_opacity_name != NULL &&
-             new_vt->vt.background_opacity_name != NULL &&
-             strcmp(old_vt->vt.background_opacity_name, new_vt->vt.background_opacity_name) != 0))
+        if (StringChanged(old_vt->vt.background_opacity_name, new_vt->vt.background_opacity_name))
                 ResolveBackgroundOpacity(new_vt);
         if (old_vt->core.background_pixel != new_vt->core.background_pixel)
                 new_vt->vt.opaque_background_pixel =
@@ -1078,18 +1106,14 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
             XtpTerminalSetScrollbackLines(new_vt->vt.terminal, (size_t)new_vt->vt.save_lines) != 0)
                 XtpLog(XTP_LOG_ERROR, "scrollback", "cannot set history limit=%d",
                        new_vt->vt.save_lines);
-        if ((old_vt->vt.char_class == NULL) != (new_vt->vt.char_class == NULL) ||
-            (old_vt->vt.char_class != NULL && new_vt->vt.char_class != NULL &&
-             strcmp(old_vt->vt.char_class, new_vt->vt.char_class) != 0)) {
+        if (StringChanged(old_vt->vt.char_class, new_vt->vt.char_class)) {
                 if (new_vt->vt.terminal != NULL &&
                     XtpTerminalSetCharClass(new_vt->vt.terminal, new_vt->vt.char_class) != 0)
                         XtpLog(XTP_LOG_ERROR, "selection", "cannot apply charClass=%s",
                                new_vt->vt.char_class != NULL ? new_vt->vt.char_class : "(default)");
         }
 
-        if ((old_vt->vt.cursor_blink_name == NULL) != (new_vt->vt.cursor_blink_name == NULL) ||
-            (old_vt->vt.cursor_blink_name != NULL && new_vt->vt.cursor_blink_name != NULL &&
-             strcmp(old_vt->vt.cursor_blink_name, new_vt->vt.cursor_blink_name) != 0))
+        if (StringChanged(old_vt->vt.cursor_blink_name, new_vt->vt.cursor_blink_name))
                 new_vt->vt.cursor_blink_policy =
                     ParseCursorBlinkPolicy(new_vt->vt.cursor_blink_name);
         if (old_vt->vt.cursor_blink_policy != new_vt->vt.cursor_blink_policy) {
@@ -1098,18 +1122,10 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                                                             new_vt->vt.cursor_blink_requested);
 
                 if (new_vt->vt.terminal != NULL &&
-                    XtpTerminalSetCursorBlinkDefault(
-                        new_vt->vt.terminal, CursorBlinkDefault(new_vt->vt.cursor_blink_policy)) !=
-                        0)
+                    ApplyTerminalCursorBlinkPolicy(new_vt->vt.terminal,
+                                                   new_vt->vt.cursor_blink_policy) != 0)
                         XtpLog(XTP_LOG_ERROR, "render", "cannot apply cursorBlink=%s",
                                new_vt->vt.cursor_blink_name);
-                if (new_vt->vt.terminal != NULL &&
-                    XtpTerminalSetCursorBlinkRequestsEnabled(
-                        new_vt->vt.terminal,
-                        new_vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_ALWAYS &&
-                            new_vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_NEVER) != 0)
-                        XtpLog(XTP_LOG_ERROR, "render",
-                               "cannot apply cursorBlink application-request policy");
                 VtStopCursorBlink(new_vt);
                 new_vt->vt.cursor_blink_on = True;
                 new_vt->vt.cursor_blinking = effective;
@@ -1137,8 +1153,7 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                        "VT100 colors changed foreground=%lu->%lu background=%lu->%lu",
                        old_vt->vt.foreground, new_vt->vt.foreground, old_vt->core.background_pixel,
                        new_vt->core.background_pixel);
-                ReleaseGc(new_widget);
-                CreateGc(new_widget);
+                RecreateGc(new_widget);
                 if (XtIsRealized(new_widget))
                         XSetWindowBackground(XtDisplay(new_widget), XtWindow(new_widget),
                                              new_vt->core.background_pixel);
@@ -1199,8 +1214,7 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
         if (changed)
                 LayoutScrollbar(new_vt);
         if (changed) {
-                new_vt->vt.frame_valid = False;
-                new_vt->vt.last_cursor_visible = False;
+                VtInvalidateFrame(new_vt);
         }
         return changed;
 }
@@ -1226,10 +1240,8 @@ XtpVtSelectFont(Widget widget, int slot)
                vt->vt.current_font, slot, XtpVtCellWidth(widget), XtpVtCellHeight(widget),
                VtSlotWidth(vt, slot), VtSlotHeight(vt, slot));
         vt->vt.current_font = slot;
-        vt->vt.frame_valid = False;
-        vt->vt.last_cursor_visible = False;
-        ReleaseGc(widget);
-        CreateGc(widget);
+        VtInvalidateFrame(vt);
+        RecreateGc(widget);
 
         changed.slot = slot;
         changed.cell_width = XtpVtCellWidth(widget);
@@ -1286,67 +1298,19 @@ RelativeFont(Widget widget, int direction)
         }
 }
 
-Boolean
-VtAcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action)
+static void
+RelativeFontAction(Widget widget, XEvent *event, LocalKeyAction action, int direction,
+                   const char *name)
 {
-        KeyActionIdentity *identity;
-        unsigned int slot;
-
-        if (event == NULL || event->type != KeyPress)
-                return True;
-
-        for (slot = 0; slot < XTP_RECENT_KEY_ACTIONS; ++slot) {
-                identity = &vt->vt.recent_key_actions[slot];
-                if (!identity->used || identity->serial != event->xkey.serial ||
-                    identity->time != event->xkey.time ||
-                    identity->keycode != event->xkey.keycode ||
-                    identity->state != event->xkey.state || identity->action != action)
-                        continue;
-                if (!identity->duplicate_logged) {
-                        XtpLog(XTP_LOG_DEBUG, "input",
-                               "ignored duplicate local key action=%d serial=%lu time=%lu "
-                               "keycode=%u state=0x%x",
-                               action, event->xkey.serial, event->xkey.time, event->xkey.keycode,
-                               event->xkey.state);
-                        identity->duplicate_logged = True;
-                }
-                return False;
-        }
-
-        identity = &vt->vt.recent_key_actions[vt->vt.next_key_action];
-        identity->used = True;
-        identity->duplicate_logged = False;
-        identity->serial = event->xkey.serial;
-        identity->time = event->xkey.time;
-        identity->keycode = event->xkey.keycode;
-        identity->state = event->xkey.state;
-        identity->action = action;
-        vt->vt.next_key_action = (vt->vt.next_key_action + 1U) % XTP_RECENT_KEY_ACTIONS;
-        return True;
-}
-
-Boolean
-VtLocalKeyActionOwnsEvent(Vt100Rec *vt, const XKeyEvent *event, Boolean release)
-{
-        Boolean owned = False;
-        unsigned int slot;
-
-        if (vt == NULL || event == NULL)
-                return False;
-        for (slot = 0; slot < XTP_RECENT_KEY_ACTIONS; ++slot) {
-                KeyActionIdentity *identity = &vt->vt.recent_key_actions[slot];
-
-                if (!identity->used || identity->keycode != event->keycode ||
-                    identity->state != event->state)
-                        continue;
-                if (!release &&
-                    (identity->serial != event->serial || identity->time != event->time))
-                        continue;
-                owned = True;
-                if (release)
-                        identity->used = False;
-        }
-        return owned;
+        if (!VtAcceptLocalKeyAction(VtAsRecord(widget), event, action))
+                return;
+        XtpLog(XTP_LOG_INFO, "input",
+               "action %s event=%d serial=%lu synthetic=%s time=%lu keycode=%u state=0x%x", name,
+               event != NULL ? event->type : 0, event != NULL ? event->xany.serial : 0,
+               event != NULL && event->xany.send_event ? "true" : "false",
+               event != NULL ? event->xkey.time : 0, event != NULL ? event->xkey.keycode : 0,
+               event != NULL ? event->xkey.state : 0);
+        RelativeFont(widget, direction);
 }
 
 static void
@@ -1354,16 +1318,7 @@ LargerFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_par
 {
         (void)params;
         (void)num_params;
-        if (!VtAcceptLocalKeyAction(VtAsRecord(widget), event, XTP_LOCAL_ACTION_FONT_LARGER))
-                return;
-        XtpLog(
-            XTP_LOG_INFO, "input",
-            "action larger-vt-font event=%d serial=%lu synthetic=%s time=%lu keycode=%u state=0x%x",
-            event != NULL ? event->type : 0, event != NULL ? event->xany.serial : 0,
-            event != NULL && event->xany.send_event ? "true" : "false",
-            event != NULL ? event->xkey.time : 0, event != NULL ? event->xkey.keycode : 0,
-            event != NULL ? event->xkey.state : 0);
-        RelativeFont(widget, 1);
+        RelativeFontAction(widget, event, XTP_LOCAL_ACTION_FONT_LARGER, 1, "larger-vt-font");
 }
 
 static void
@@ -1371,16 +1326,25 @@ SmallerFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_pa
 {
         (void)params;
         (void)num_params;
-        if (!VtAcceptLocalKeyAction(VtAsRecord(widget), event, XTP_LOCAL_ACTION_FONT_SMALLER))
-                return;
-        XtpLog(XTP_LOG_INFO, "input",
-               "action smaller-vt-font event=%d serial=%lu synthetic=%s time=%lu keycode=%u "
-               "state=0x%x",
-               event != NULL ? event->type : 0, event != NULL ? event->xany.serial : 0,
-               event != NULL && event->xany.send_event ? "true" : "false",
-               event != NULL ? event->xkey.time : 0, event != NULL ? event->xkey.keycode : 0,
-               event != NULL ? event->xkey.state : 0);
-        RelativeFont(widget, -1);
+        RelativeFontAction(widget, event, XTP_LOCAL_ACTION_FONT_SMALLER, -1, "smaller-vt-font");
+}
+
+static Boolean
+ParseToggleParam(Boolean current, String *params, Cardinal num_params, Boolean *enabled)
+{
+        if (num_params == 0 || strcmp(params[0], "toggle") == 0) {
+                *enabled = !current;
+                return True;
+        }
+        if (num_params == 1 && (strcmp(params[0], "on") == 0 || strcmp(params[0], "true") == 0)) {
+                *enabled = True;
+                return True;
+        }
+        if (num_params == 1 && (strcmp(params[0], "off") == 0 || strcmp(params[0], "false") == 0)) {
+                *enabled = False;
+                return True;
+        }
+        return False;
 }
 
 static void
@@ -1389,15 +1353,7 @@ SetRenderFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_
         Boolean enabled = XtpVtUsingXft(widget);
 
         (void)event;
-        if (*num_params == 0 || strcmp(params[0], "toggle") == 0) {
-                enabled = !enabled;
-        } else if (*num_params == 1 &&
-                   (strcmp(params[0], "on") == 0 || strcmp(params[0], "true") == 0)) {
-                enabled = True;
-        } else if (*num_params == 1 &&
-                   (strcmp(params[0], "off") == 0 || strcmp(params[0], "false") == 0)) {
-                enabled = False;
-        } else {
+        if (!ParseToggleParam(enabled, params, *num_params, &enabled)) {
                 XtpLog(XTP_LOG_WARNING, "font", "set-render-font expects on, off, or toggle");
                 XBell(XtDisplay(widget), 0);
                 return;
@@ -1412,15 +1368,7 @@ SetSelectAction(Widget widget, XEvent *event, String *params, Cardinal *num_para
         Boolean enabled = XtpVtSelectToClipboard(widget);
 
         (void)event;
-        if (*num_params == 0 || strcmp(params[0], "toggle") == 0) {
-                enabled = !enabled;
-        } else if (*num_params == 1 &&
-                   (strcmp(params[0], "on") == 0 || strcmp(params[0], "true") == 0)) {
-                enabled = True;
-        } else if (*num_params == 1 &&
-                   (strcmp(params[0], "off") == 0 || strcmp(params[0], "false") == 0)) {
-                enabled = False;
-        } else {
+        if (!ParseToggleParam(enabled, params, *num_params, &enabled)) {
                 XtpLog(XTP_LOG_WARNING, "selection", "set-select expects on, off, or toggle");
                 XBell(XtDisplay(widget), 0);
                 return;
@@ -1588,8 +1536,7 @@ XtpVtSetBackgroundOpacityPercent(Widget widget, unsigned int percent)
                 XSetWindowBackground(XtDisplay(widget), XtWindow(widget), background);
         if (vt->vt.scrollbar != NULL)
                 XtVaSetValues(vt->vt.scrollbar, XtNbackground, background, NULL);
-        vt->vt.frame_valid = False;
-        vt->vt.last_cursor_visible = False;
+        VtInvalidateFrame(vt);
         XtpLog(XTP_LOG_INFO, "render", "background opacity changed percent=%u alpha=%u", percent,
                vt->vt.background_alpha);
         XtpVtRedraw(widget);
@@ -1619,10 +1566,8 @@ XtpVtSetRenderFont(Widget widget, Boolean enabled)
                vt->vt.use_xft ? "xft" : "xlib-bitmap", enabled ? "xft" : "xlib-bitmap",
                vt->vt.current_font);
         vt->vt.use_xft = enabled;
-        vt->vt.frame_valid = False;
-        vt->vt.last_cursor_visible = False;
-        ReleaseGc(widget);
-        CreateGc(widget);
+        VtInvalidateFrame(vt);
+        RecreateGc(widget);
 
         changed.slot = vt->vt.current_font;
         changed.cell_width = XtpVtCellWidth(widget);
@@ -1761,15 +1706,9 @@ XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
                 XtpLog(XTP_LOG_INFO, "terminal", "bound terminal=no");
                 return;
         }
-        if (XtpTerminalSetCursorBlinkDefault(terminal,
-                                             CursorBlinkDefault(vt->vt.cursor_blink_policy)) != 0)
+        if (ApplyTerminalCursorBlinkPolicy(terminal, vt->vt.cursor_blink_policy) != 0)
                 XtpLog(XTP_LOG_ERROR, "render", "cannot apply cursorBlink=%s",
                        vt->vt.cursor_blink_name);
-        if (XtpTerminalSetCursorBlinkRequestsEnabled(
-                terminal, vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_ALWAYS &&
-                              vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_NEVER) != 0)
-                XtpLog(XTP_LOG_ERROR, "render",
-                       "cannot apply cursorBlink application-request policy");
         ApplyTerminalDefaultColors(vt);
         ApplyTerminalAnsiPalette(vt);
         if (XtpTerminalSetScrollbackLines(terminal, (size_t)vt->vt.save_lines) != 0)
@@ -1791,16 +1730,11 @@ void
 XtpVtResetCursorBlinkPolicy(Widget widget)
 {
         Vt100Rec *vt = VtAsRecord(widget);
-        Boolean requests_enabled;
 
         vt->vt.cursor_blink_policy = vt->vt.initial_cursor_blink_policy;
         vt->vt.cursor_blink_requested = False;
-        requests_enabled = vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_ALWAYS &&
-                           vt->vt.cursor_blink_policy != XTP_CURSOR_BLINK_NEVER;
         if (vt->vt.terminal != NULL &&
-            (XtpTerminalSetCursorBlinkDefault(
-                 vt->vt.terminal, CursorBlinkDefault(vt->vt.cursor_blink_policy)) != 0 ||
-             XtpTerminalSetCursorBlinkRequestsEnabled(vt->vt.terminal, requests_enabled) != 0))
+            ApplyTerminalCursorBlinkPolicy(vt->vt.terminal, vt->vt.cursor_blink_policy) != 0)
                 XtpLog(XTP_LOG_ERROR, "render", "cannot restore initial cursorBlink policy");
         VtStopCursorBlink(vt);
         vt->vt.cursor_blink_on = True;

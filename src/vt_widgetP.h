@@ -256,6 +256,8 @@ typedef struct _Vt100ClassRec
 } Vt100ClassRec;
 
 Vt100Rec *VtAsRecord(Widget widget);
+void VtInvalidateFrame(Vt100Rec *vt);
+void VtForgetCursorCell(Vt100Rec *vt);
 void VtFontReloadApplied(Vt100Rec *vt);
 Dimension VtScrollbarTotalWidth(Vt100Rec *vt);
 void VtUpdateScrollbar(Vt100Rec *vt);
@@ -279,6 +281,7 @@ void VtRedisplay(Widget widget, XEvent *event, Region region);
 
 void VtInitializeInput(Vt100Rec *vt);
 void VtDestroyInput(Vt100Rec *vt);
+unsigned int VtModifiersFromState(unsigned int state);
 Boolean VtHyperlinkUriEqualsCell(Vt100Rec *vt, const XtpRenderCell *cell);
 void VtHyperlinkEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch);
 void VtScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);

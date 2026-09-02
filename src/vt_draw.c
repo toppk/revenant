@@ -148,13 +148,13 @@ EnsureFrameStorage(Vt100Rec *vt, unsigned int columns, unsigned int rows)
                 vt->vt.frame_capacity = 0;
                 vt->vt.frame_columns = 0;
                 vt->vt.frame_rows = 0;
-                vt->vt.frame_valid = False;
+                VtInvalidateFrame(vt);
                 return False;
         }
         vt->vt.frame_capacity = count;
         vt->vt.frame_columns = columns;
         vt->vt.frame_rows = rows;
-        vt->vt.frame_valid = False;
+        VtInvalidateFrame(vt);
         ResetVisualCells(vt, vt->vt.frame_cells, count);
         ResetVisualCells(vt, vt->vt.pending_cells, count);
         return True;
@@ -944,8 +944,7 @@ CursorBlinkTick(XtPointer closure, XtIntervalId *timer)
         active = vt->vt.focused || vt->vt.always_highlight;
         if (!active) {
                 if (!vt->vt.last_cursor_visible) {
-                        vt->vt.cursor_cell_seen = False;
-                        vt->vt.cursor_text_length = 0;
+                        VtForgetCursorCell(vt);
                         VtDrawCursor(vt, True, vt->vt.last_cursor_column, vt->vt.last_cursor_row,
                                      vt->vt.last_cursor_shape);
                         XFlush(XtDisplay((Widget)vt));
@@ -958,8 +957,7 @@ CursorBlinkTick(XtPointer closure, XtIntervalId *timer)
                 vt->vt.cursor_blink_on = False;
                 XFlush(XtDisplay((Widget)vt));
         } else {
-                vt->vt.cursor_cell_seen = False;
-                vt->vt.cursor_text_length = 0;
+                VtForgetCursorCell(vt);
                 VtDrawCursor(vt, True, vt->vt.last_cursor_column, vt->vt.last_cursor_row,
                              vt->vt.last_cursor_shape);
                 vt->vt.cursor_blink_on = True;
@@ -1017,8 +1015,7 @@ RenderBegin(const XtpRenderFrame *frame, void *closure)
         vt->vt.render_reverse_colors = frame->reverse_colors ? True : False;
         vt->vt.render_cursor_column = frame->cursor_column;
         vt->vt.render_cursor_row = frame->cursor_row;
-        vt->vt.cursor_cell_seen = False;
-        vt->vt.cursor_text_length = 0;
+        VtForgetCursorCell(vt);
         vt->vt.capture_full_frame =
             frame->full_repaint && EnsureFrameStorage(vt, frame->columns, frame->rows);
         if (vt->vt.capture_full_frame) {
@@ -1172,13 +1169,25 @@ RenderEnd(const XtpRenderFrame *frame, void *closure)
         VtUpdateScrollbar(vt);
 }
 
+static void
+RenderAbort(const XtpRenderFrame *frame, void *closure)
+{
+        Vt100Rec *vt = closure;
+
+        (void)frame;
+        VtInvalidateFrame(vt);
+        VtForgetCursorCell(vt);
+        vt->vt.capture_full_frame = False;
+}
+
 int
 VtRenderTerminal(Vt100Rec *vt, Boolean force_full)
 {
         static const XtpRenderer renderer = {
-            RenderBegin,
-            RenderCell,
-            RenderEnd,
+            .begin = RenderBegin,
+            .cell = RenderCell,
+            .end = RenderEnd,
+            .abort = RenderAbort,
         };
 
         if (vt->vt.terminal == NULL)
@@ -1247,8 +1256,7 @@ VtRepaintCached(Vt100Rec *vt, const XRectangle *damage)
                         unsigned int column = vt->vt.last_cursor_column;
                         unsigned int cursor_row = vt->vt.last_cursor_row;
 
-                        vt->vt.cursor_cell_seen = False;
-                        vt->vt.cursor_text_length = 0;
+                        VtForgetCursorCell(vt);
                         VtDrawCursor(vt, True, column, cursor_row, vt->vt.last_cursor_shape);
                 }
         }

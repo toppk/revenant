@@ -1,6 +1,7 @@
 #include "vt_widgetP.h"
 
 #include "diagnostics.h"
+#include "utf8.h"
 
 #include <X11/Xatom.h>
 
@@ -55,37 +56,10 @@ static uint32_t
 DecodeUtf8(const uint8_t *bytes, size_t length, size_t *consumed)
 {
         uint32_t codepoint;
-        size_t need;
-        size_t index;
 
         *consumed = 1;
-        if (length == 0)
+        if (!XtpUtf8Decode((const char *)bytes, length, &codepoint, consumed))
                 return '?';
-        if (bytes[0] < 0x80)
-                return bytes[0];
-        if (bytes[0] >= 0xc2 && bytes[0] <= 0xdf) {
-                codepoint = bytes[0] & 0x1fU;
-                need = 2;
-        } else if (bytes[0] >= 0xe0 && bytes[0] <= 0xef) {
-                codepoint = bytes[0] & 0x0fU;
-                need = 3;
-        } else if (bytes[0] >= 0xf0 && bytes[0] <= 0xf4) {
-                codepoint = bytes[0] & 0x07U;
-                need = 4;
-        } else {
-                return '?';
-        }
-        if (length < need)
-                return '?';
-        for (index = 1; index < need; ++index) {
-                if ((bytes[index] & 0xc0U) != 0x80U)
-                        return '?';
-                codepoint = (codepoint << 6) | (bytes[index] & 0x3fU);
-        }
-        if ((need == 3 && codepoint < 0x800U) || (need == 4 && codepoint < 0x10000U) ||
-            codepoint > 0x10ffffU || (codepoint >= 0xd800U && codepoint <= 0xdfffU))
-                return '?';
-        *consumed = need;
         return codepoint;
 }
 
@@ -625,26 +599,6 @@ EvalSelectUnit(Vt100Rec *vt, Time button_down_time, unsigned int button, XtpSele
         return fallback;
 }
 
-static unsigned int
-MouseModifiers(unsigned int state)
-{
-        unsigned int result = 0;
-
-        if ((state & ShiftMask) != 0)
-                result |= XTP_MOD_SHIFT;
-        if ((state & ControlMask) != 0)
-                result |= XTP_MOD_CONTROL;
-        if ((state & Mod1Mask) != 0)
-                result |= XTP_MOD_ALT;
-        if ((state & Mod4Mask) != 0)
-                result |= XTP_MOD_SUPER;
-        if ((state & LockMask) != 0)
-                result |= XTP_MOD_CAPS_LOCK;
-        if ((state & Mod2Mask) != 0)
-                result |= XTP_MOD_NUM_LOCK;
-        return result;
-}
-
 static XtpMouseButton
 MouseButton(unsigned int button)
 {
@@ -710,7 +664,7 @@ SendMouseInput(Vt100Rec *vt, XtpMouseAction action, XtpMouseButton button, unsig
         XtpMouseEvent event = {
             .action = action,
             .button = button,
-            .modifiers = MouseModifiers(state),
+            .modifiers = VtModifiersFromState(state),
             .x = (float)x,
             .y = (float)y,
             .screen_width = vt->core.width,

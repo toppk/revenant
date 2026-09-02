@@ -36,12 +36,6 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
         return terminal;
 }
 
-XtpTerminal *
-XtpTerminalNew(uint16_t columns, uint16_t rows, uint32_t cell_width, uint32_t cell_height)
-{
-        return XtpTerminalNewWithGraphemeWidth(columns, rows, cell_width, cell_height, false);
-}
-
 void
 XtpTerminalFree(XtpTerminal *terminal)
 {
@@ -233,7 +227,7 @@ XtpTerminalScrollToBottom(XtpTerminal *terminal)
         return terminal != NULL ? 0 : -1;
 }
 
-int
+XtpSelectionResult
 XtpTerminalSelectionStart(XtpTerminal *terminal, uint16_t column, uint16_t row, double surface_x,
                           double surface_y, uint64_t time_ns, XtpSelectionUnit unit, bool repeat)
 {
@@ -244,10 +238,10 @@ XtpTerminalSelectionStart(XtpTerminal *terminal, uint16_t column, uint16_t row, 
         (void)time_ns;
         (void)unit;
         (void)repeat;
-        return terminal != NULL ? 0 : -1;
+        return terminal != NULL ? XTP_SELECTION_UNCHANGED : XTP_SELECTION_ERROR;
 }
 
-int
+XtpSelectionResult
 XtpTerminalSelectionExtend(XtpTerminal *terminal, uint16_t column, uint16_t row, double surface_x,
                            double surface_y, uint32_t columns, uint32_t cell_width,
                            uint32_t padding_left, uint32_t screen_height, bool rectangle)
@@ -261,7 +255,7 @@ XtpTerminalSelectionExtend(XtpTerminal *terminal, uint16_t column, uint16_t row,
         (void)padding_left;
         (void)screen_height;
         (void)rectangle;
-        return terminal != NULL ? 0 : -1;
+        return terminal != NULL ? XTP_SELECTION_UNCHANGED : XTP_SELECTION_ERROR;
 }
 
 int
@@ -273,7 +267,7 @@ XtpTerminalSelectionGetAutoscroll(XtpTerminal *terminal, XtpSelectionAutoscroll 
         return 0;
 }
 
-int
+XtpSelectionResult
 XtpTerminalSelectionAutoscrollTick(XtpTerminal *terminal, uint16_t column, uint16_t row,
                                    double surface_x, double surface_y, uint32_t columns,
                                    uint32_t cell_width, uint32_t padding_left,
@@ -288,7 +282,7 @@ XtpTerminalSelectionAutoscrollTick(XtpTerminal *terminal, uint16_t column, uint1
         (void)padding_left;
         (void)screen_height;
         (void)rectangle;
-        return terminal != NULL ? 0 : -1;
+        return terminal != NULL ? XTP_SELECTION_UNCHANGED : XTP_SELECTION_ERROR;
 }
 
 void
@@ -300,24 +294,24 @@ XtpTerminalSelectionEnd(XtpTerminal *terminal, uint16_t column, uint16_t row, bo
         (void)valid;
 }
 
-int
+XtpSelectionResult
 XtpTerminalSelectionExtendStart(XtpTerminal *terminal, uint16_t column, uint16_t row,
                                 XtpSelectionUnit unit)
 {
         (void)column;
         (void)row;
         (void)unit;
-        return terminal != NULL ? 0 : -1;
+        return terminal != NULL ? XTP_SELECTION_UNCHANGED : XTP_SELECTION_ERROR;
 }
 
-int
+XtpSelectionResult
 XtpTerminalSelectionExtendActive(XtpTerminal *terminal, uint16_t column, uint16_t row,
                                  bool rectangle)
 {
         (void)column;
         (void)row;
         (void)rectangle;
-        return terminal != NULL ? 0 : -1;
+        return terminal != NULL ? XTP_SELECTION_UNCHANGED : XTP_SELECTION_ERROR;
 }
 
 void

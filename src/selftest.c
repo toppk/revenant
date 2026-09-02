@@ -589,7 +589,7 @@ SelfTestScrollTtyOutput(void)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(20, 4, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(20, 4, 8, 16, false);
         if (terminal == NULL || XtpTerminalSetScrollbackLines(terminal, 64) != 0)
                 goto done;
         for (line = 0; line < 12; ++line) {
@@ -716,7 +716,7 @@ SelfTestReverseColors(const XtpRenderer *renderer)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(8, 3, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(8, 3, 8, 16, false);
         if (terminal == NULL)
                 return -1;
         XtpTerminalFeed(terminal, styled, sizeof(styled) - 1U);
@@ -839,7 +839,7 @@ SelfTestCursorStyles(const XtpRenderer *renderer)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(8, 3, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(8, 3, 8, 16, false);
         if (terminal == NULL)
                 return -1;
         reset.terminal = terminal;
@@ -1015,7 +1015,7 @@ SelfTestHyperlinks(const XtpRenderer *renderer)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(30, 2, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(30, 2, 8, 16, false);
         if (terminal == NULL)
                 return -1;
         XtpTerminalFeed(terminal, content, sizeof(content) - 1U);
@@ -1072,20 +1072,26 @@ SelfTestSelection(const XtpRenderer *renderer)
         uint8_t *paste = NULL;
         size_t length = 0;
         size_t paste_length = 0;
-        int start_result;
-        int extend_result;
+        XtpSelectionResult start_result;
+        XtpSelectionResult extend_result;
         int result = -1;
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(30, 4, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(30, 4, 8, 16, false);
         if (terminal == NULL)
                 return -1;
+        if (XtpTerminalSelectionExtendStart(terminal, 0, 0, XTP_SELECTION_CELL) !=
+            XTP_SELECTION_ERROR) {
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "selection extension without an existing selection did not fail");
+                goto done;
+        }
         XtpTerminalFeed(terminal, content, sizeof(content) - 1U);
         start_result = XtpTerminalSelectionStart(terminal, 0, 0, 1.0, 1.0, 1000000000U,
                                                  XTP_SELECTION_CELL, false);
         extend_result = XtpTerminalSelectionExtend(terminal, 4, 0, 38.0, 1.0, 30, 8, 0, 64, false);
-        if (start_result != 0 || extend_result != 1) {
+        if (start_result != XTP_SELECTION_UNCHANGED || extend_result != XTP_SELECTION_CHANGED) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "selection gesture start=%d extend=%d",
                        start_result, extend_result);
                 goto done;
@@ -1316,7 +1322,7 @@ SelfTestScrollbackLimit(void)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(80, 24, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
         content = malloc((size_t)emitted_lines * bytes_per_line + 1U);
         if (terminal == NULL || content == NULL)
                 goto done;
@@ -1374,7 +1380,7 @@ SelfTestSelectionScrollback(void)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(8, 3, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(8, 3, 8, 16, false);
         if (terminal == NULL || XtpTerminalSetScrollbackLines(terminal, 64) != 0)
                 goto done;
         for (line = 0; line < 12; ++line) {
@@ -1479,7 +1485,7 @@ SelfTestFocus(void)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(80, 24, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
         if (terminal == NULL)
                 return -1;
         if (XtpTerminalEncodeFocus(terminal, true, encoded, sizeof(encoded), &written) != 0 ||
@@ -1555,7 +1561,7 @@ SelfTestCursorBlinkReports(void)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(80, 24, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
         if (terminal == NULL)
                 return -1;
         XtpTerminalSetEffects(terminal, &effects);
@@ -1623,7 +1629,7 @@ SelfTestDefaultColors(void)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(80, 24, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
         if (terminal == NULL)
                 return -1;
         XtpTerminalSetEffects(terminal, &effects);
@@ -1672,7 +1678,7 @@ SelfTestAnsiPalette(void)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(80, 24, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
         if (terminal == NULL)
                 return -1;
         XtpTerminalSetEffects(terminal, &effects);
@@ -1755,7 +1761,7 @@ SelfTestKittyKeyboardState(void)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(80, 24, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
         if (terminal == NULL)
                 return -1;
         XtpTerminalSetEffects(terminal, &effects);
@@ -1813,7 +1819,7 @@ SelfTestMouse(void)
 
         if (XtpTerminalBackendIsStub())
                 return 0;
-        terminal = XtpTerminalNew(80, 24, 8, 16);
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
         if (terminal == NULL)
                 return -1;
         if (XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
@@ -1887,12 +1893,64 @@ done:
         return result;
 }
 
+typedef int (*SelfTestCaseFn)(void);
+
+typedef struct
+{
+        const char *name;
+        SelfTestCaseFn run;
+} SelfTestCase;
+
+static int
+RunSelfTestCases(const SelfTestCase *cases, size_t count)
+{
+        size_t index;
+
+        for (index = 0; index < count; ++index) {
+                if (cases[index].run() != 0) {
+                        XtpLog(XTP_LOG_ERROR, "self-test", "%s check failed", cases[index].name);
+                        return -1;
+                }
+        }
+        return 0;
+}
+
 int
 XtpSelfTest(void)
 {
+        static const SelfTestCase foundation_cases[] = {
+            {"log-level", SelfTestLogLevels},
+            {"emoji-presentation", SelfTestEmojiPresentation},
+            {"Unicode Script=Han", SelfTestUnicodeScript},
+            {"font-chain", SelfTestFontChain},
+            {"font-metrics", SelfTestFontMetrics},
+            {"font-report bound", SelfTestFontReportBound},
+            {"font-route-cache", SelfTestFontRouteCache},
+            {"background-opacity", SelfTestBackgroundOpacity},
+        };
+        static const SelfTestCase backend_cases[] = {
+            {"cursor-blink policy", SelfTestCursorBlinkPolicy},
+            {"cursor-blink report", SelfTestCursorBlinkReports},
+            {"default-color", SelfTestDefaultColors},
+            {"ANSI-palette", SelfTestAnsiPalette},
+            {"scrollback-limit", SelfTestScrollbackLimit},
+            {"scrollback-selection", SelfTestSelectionScrollback},
+            {"tty-output scroll", SelfTestScrollTtyOutput},
+            {"focus", SelfTestFocus},
+            {"Kitty keyboard", SelfTestKittyKeyboardState},
+            {"mouse", SelfTestMouse},
+        };
+        static const SelfTestCase pty_cases[] = {
+            {"PTY lifecycle", SelfTestPty},
+            {"PTY queue", SelfTestPtyQueue},
+        };
         static const uint8_t sample[] = "plain\033[31m red\033[0m wide=界\r\n";
-        XtpTerminal *terminal = XtpTerminalNew(80, 24, 8, 16);
-        XtpRenderer renderer = {SelfTestBegin, SelfTestCell, SelfTestEnd};
+        XtpTerminal *terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        XtpRenderer renderer = {
+            .begin = SelfTestBegin,
+            .cell = SelfTestCell,
+            .end = SelfTestEnd,
+        };
         SelfTestRender render = {0};
         XtpKeyEvent key = {
             .action = XTP_KEY_ACTION_PRESS,
@@ -1909,49 +1967,11 @@ XtpSelfTest(void)
 
         if (terminal == NULL)
                 return EXIT_FAILURE;
-        if (SelfTestLogLevels() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "log-level check failed");
+        if (RunSelfTestCases(foundation_cases, XtNumber(foundation_cases)) != 0)
                 goto failure;
-        }
-        if (SelfTestEmojiPresentation() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "emoji-presentation check failed");
-                XtpTerminalFree(terminal);
-                return EXIT_FAILURE;
-        }
-        if (SelfTestUnicodeScript() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "Unicode Script=Han check failed");
-                XtpTerminalFree(terminal);
-                return EXIT_FAILURE;
-        }
-        if (SelfTestFontChain() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "font-chain check failed");
-                XtpTerminalFree(terminal);
-                return EXIT_FAILURE;
-        }
-        if (SelfTestFontMetrics() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "font-metrics check failed");
-                XtpTerminalFree(terminal);
-                return EXIT_FAILURE;
-        }
-        if (SelfTestFontReportBound() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "font-report bound check failed");
-                XtpTerminalFree(terminal);
-                return EXIT_FAILURE;
-        }
-        if (SelfTestFontRouteCache() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "font-route-cache check failed");
-                XtpTerminalFree(terminal);
-                return EXIT_FAILURE;
-        }
         if (SelfTestCharClass(terminal) != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "charClass check failed");
-                XtpTerminalFree(terminal);
-                return EXIT_FAILURE;
-        }
-        if (SelfTestBackgroundOpacity() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "background-opacity check failed");
-                XtpTerminalFree(terminal);
-                return EXIT_FAILURE;
+                goto failure;
         }
         if (XtpTerminalSetScrollbackLines(terminal, 64) != 0) {
                 XtpTerminalFree(terminal);
@@ -2004,22 +2024,6 @@ XtpSelfTest(void)
                 XtpLog(XTP_LOG_ERROR, "self-test", "cursor-style check failed");
                 goto failure;
         }
-        if (SelfTestCursorBlinkPolicy() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "cursor-blink policy check failed");
-                goto failure;
-        }
-        if (SelfTestCursorBlinkReports() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "cursor-blink report check failed");
-                goto failure;
-        }
-        if (SelfTestDefaultColors() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "default-color check failed");
-                goto failure;
-        }
-        if (SelfTestAnsiPalette() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "ANSI-palette check failed");
-                goto failure;
-        }
         if (SelfTestSelection(&renderer) != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "selection check failed");
                 goto failure;
@@ -2028,43 +2032,15 @@ XtpSelfTest(void)
                 XtpLog(XTP_LOG_ERROR, "self-test", "hyperlink check failed");
                 goto failure;
         }
-        if (SelfTestScrollbackLimit() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "scrollback-limit check failed");
+        if (RunSelfTestCases(backend_cases, XtNumber(backend_cases)) != 0)
                 goto failure;
-        }
-        if (SelfTestSelectionScrollback() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "scrollback-selection check failed");
-                goto failure;
-        }
-        if (SelfTestScrollTtyOutput() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "tty-output scroll check failed");
-                goto failure;
-        }
-        if (SelfTestFocus() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "focus check failed");
-                goto failure;
-        }
-        if (SelfTestKittyKeyboardState() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "Kitty keyboard check failed");
-                goto failure;
-        }
-        if (SelfTestMouse() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "mouse check failed");
-                goto failure;
-        }
         if (XtpTerminalResize(terminal, 100, 30, 9, 18) != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "resize check failed");
                 goto failure;
         }
         XtpTerminalFree(terminal);
-        if (SelfTestPty() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "PTY lifecycle check failed");
+        if (RunSelfTestCases(pty_cases, XtNumber(pty_cases)) != 0)
                 return EXIT_FAILURE;
-        }
-        if (SelfTestPtyQueue() != 0) {
-                XtpLog(XTP_LOG_ERROR, "self-test", "PTY queue check failed");
-                return EXIT_FAILURE;
-        }
 
         printf("xterm+ self-test: backend=%s menus=%d/%d/%d\n", XtpTerminalBackend(),
                XTP_MAIN_MENU_ENTRIES, XTP_VT_MENU_ENTRIES, XTP_FONT_MENU_ENTRIES);
