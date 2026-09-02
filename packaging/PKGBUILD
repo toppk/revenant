@@ -7,7 +7,7 @@ arch=(x86_64 aarch64)
 url='https://github.com/toppk/revenant'
 license=(MIT)
 depends=(libx11 libxt libxaw libxmu libxcb fontconfig libxft libxrender cairo harfbuzz)
-makedepends=(meson ninja pkgconf python)
+makedepends=(meson ninja pkgconf python pandoc)
 checkdepends=(xorg-server-xvfb xorg-fonts-misc)
 options=(!debug)
 # zig >= 0.16 must be on PATH; the source tree is $REVENANT_SOURCE.
@@ -15,7 +15,7 @@ _source=${REVENANT_SOURCE:?set by packaging/build-arch}
 
 build() {
     arch-meson "$_source" "$_source/build-arch" -Dlibghostty=enabled \
-        -Dxvfb-tests=enabled -Drelease-version="$pkgver"
+        -Dxvfb-tests=enabled -Dman=enabled -Drelease-version="$pkgver"
     meson compile -C "$_source/build-arch"
 }
 

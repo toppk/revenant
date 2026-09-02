@@ -1,0 +1,17 @@
+# Translation action descriptions for the manual page and the web reference. Columns: action	parameters	description
+select-start	[block]	Begin a selection at the pointer. Repeated clicks within multiClickTime select by word and then by line. With the block parameter, or Meta held, the selection is rectangular.
+select-extend		Extend the selection in progress to the pointer, scrolling the history when the pointer leaves the window.
+select-end	[name ...]	Finish the selection and publish it to the named selections and cut buffers, for example SELECT and CUT_BUFFER0.
+start-extend		Move the nearer end of the existing selection to the pointer and continue extending from there.
+insert-selection	[name ...]	Paste the first named selection or cut buffer that yields text, trying UTF8_STRING before STRING.
+set-select	[on|off|toggle]	Set selectToClipboard for this window.
+scroll-back	count [unit] [m]	Scroll the viewport back by count lines, halfpages, or pages. The m suffix means the binding is also a mouse action and is forwarded to an application that has enabled mouse reporting.
+scroll-forw	count [unit] [m]	Scroll the viewport forward, with the same parameters as scroll-back.
+larger-vt-font		Switch to the next larger configured font slot.
+smaller-vt-font		Switch to the next smaller configured font slot.
+set-render-font	[on|off|toggle]	Switch between the Xft and bitmap renderers.
+popup-menu	name	Post the named popup menu: mainMenu, vtMenu, or fontMenu.
+mouse-press		Report the button press to an application that has enabled mouse reporting; otherwise do nothing.
+mouse-motion		Report pointer motion to an application that has enabled mouse reporting.
+hyperlink-start		If the cell under the pointer carries an OSC 8 hyperlink, arm it so that the release opens it with xdg-open(1); otherwise behave as select-start.
+report-font-routing		Write a snapshot of collected font routing decisions to standard error. Requires reportFontRouting.

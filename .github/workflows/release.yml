@@ -75,7 +75,7 @@ jobs:
           ref: ${{ inputs.tag }}
       - run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential meson ninja-build pkgconf python3 jq \
+          sudo apt-get install -y build-essential meson ninja-build pkgconf python3 pandoc jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
             xvfb xfonts-base
@@ -121,7 +121,7 @@ jobs:
           ref: ${{ inputs.tag }}
       - run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential debhelper meson ninja-build pkgconf python3 jq \
+          sudo apt-get install -y build-essential debhelper meson ninja-build pkgconf python3 pandoc jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
             xvfb xfonts-base
@@ -171,7 +171,7 @@ jobs:
     container: fedora:latest
     steps:
       - run: |
-          dnf install -y git rpm-build gcc meson ninja-build python3 jq xz \
+          dnf install -y git rpm-build gcc meson ninja-build python3 pandoc jq xz \
             libX11-devel libXt-devel libXaw-devel libXmu-devel libxcb-devel \
             fontconfig-devel libXft-devel libXrender-devel cairo-devel harfbuzz-devel \
             xorg-x11-server-Xvfb xorg-x11-fonts-misc
@@ -225,7 +225,7 @@ jobs:
     container: archlinux:latest
     steps:
       - run: |
-          pacman -Syu --noconfirm --needed base-devel git meson ninja pkgconf python jq xz \
+          pacman -Syu --noconfirm --needed base-devel git meson ninja pkgconf python pandoc jq xz \
             libx11 libxt libxaw libxmu libxcb fontconfig libxft libxrender cairo harfbuzz \
             xorg-server-xvfb xorg-fonts-misc xorg-mkfontscale
           mkfontdir /usr/share/fonts/misc

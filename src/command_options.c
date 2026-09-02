@@ -446,7 +446,8 @@ XtpCommandPrintHelp(FILE *stream, const char *program)
                 fprintf(stream, "    %-28s %s\n", option_help[index].option,
                         option_help[index].description);
         fputs("\nThe -e option, if given, must appear at the end of the command line.\n"
-              "Options beginning with plus (+) restore the corresponding default.\n\n",
+              "An option beginning with plus (+) turns off the behavior that the "
+              "same option with minus (-) turns on.\n\n",
               stream);
 }
 

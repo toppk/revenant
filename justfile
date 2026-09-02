@@ -112,9 +112,14 @@ site:
 serve: site
     python3 -m http.server -d site 8000
 
+# Build revenant(1) from man/revenant.1.md and view it
+man:
+    python3 tools/build-man man/revenant.1.md .cache/revenant.1 pandoc "revenant $(git describe --tags --always)"
+    man -l .cache/revenant.1
+
 # Live-reload the Revenant docs, watching the theme and hooks too
 serve-docs:
-    {{mkdocs}} serve --watch docs-theme --watch tools/mkdocs-hooks.py
+    {{mkdocs}} serve --watch docs-theme --watch tools/mkdocs-hooks.py --watch compat --watch man
 
 # Live-reload TDN only
 serve-tdn:

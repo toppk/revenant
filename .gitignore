@@ -11,3 +11,4 @@
 /font-fixtures-stage/
 /libghostty-zig/
 __pycache__/
+/.cache/

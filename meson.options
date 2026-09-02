@@ -32,3 +32,10 @@ option(
     value: 'auto',
     description: 'Build the Xvfb integration tests; release builds require them',
 )
+
+option(
+    'man',
+    type: 'feature',
+    value: 'auto',
+    description: 'Build and install revenant(1) with pandoc',
+)

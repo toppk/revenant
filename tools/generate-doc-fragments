@@ -1,0 +1,258 @@
+#!/usr/bin/env python3
+"""Generate the reference fragments shared by the web manual and the man page.
+
+Descriptions come from compat/manual-*.tsv. The inventory they describe is read
+from the C tables: a resource or action the program knows but the tables do not,
+a table row the program no longer knows, a duplicate row, or a class or literal
+default that disagrees with the widget table fails the build. Types and the
+descriptions themselves are not checked.
+"""
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+RESOURCES_TSV = ROOT / "compat/manual-resources.tsv"
+ACTIONS_TSV = ROOT / "compat/manual-actions.tsv"
+
+
+def read_tsv(path, columns):
+    rows = []
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line or line.startswith("#"):
+            continue
+        fields = line.split("\t")
+        if len(fields) != columns:
+            raise SystemExit(f"{path}:{number}: expected {columns} fields, found {len(fields)}")
+        rows.append(fields)
+    return rows
+
+
+def c_table(source, name):
+    text = source.read_text(encoding="utf-8")
+    start = text.index(name)
+    return text[start:text.index("\n};", start)]
+
+
+def expand_family(name, span):
+    if not span:
+        return name
+    low, high = span.split("-")
+    return f"{name[:-1]}{low} through {name[:-1]}{high}"
+
+
+def family_members(name, span):
+    if not span:
+        return [name]
+    low, high = span.split("-")
+    return [f"{name[:-1]}{n}" for n in range(int(low), int(high) + 1)]
+
+
+def literal_default(text):
+    """Normalise a C default to the TSV spelling, or None when it is a macro."""
+    text = text.strip()
+    if text.startswith("(XtPointer)"):
+        text = text[len("(XtPointer)"):].strip()
+    if text.startswith('"') and text.endswith('"'):
+        return text[1:-1]
+    if text in ("True", "False"):
+        return text.lower()
+    if text == "NULL":
+        return "(unset)"
+    if re.fullmatch(r"-?\d+(\.\d+)?", text):
+        return text
+    return None
+
+
+def widget_resources():
+    """name -> (class, literal default or None) from the widget's resource table."""
+    table = c_table(ROOT / "src/vt_widget.c", "static XtResource resources[] = {")
+    known = {}
+    entry = re.compile(r'\{\s*(?:"([A-Za-z0-9]+)"|XtN([A-Za-z0-9]+))\s*,\s*(?:"([A-Za-z0-9]+)"|XtC([A-Za-z0-9]+))\s*,'
+                       r'[^}]*?,\s*Xt[A-Za-z]+\s*,\s*([^}]+)\}', re.S)
+    for m in entry.finditer(table):
+        name = m.group(1) or m.group(2)
+        if name.endswith("Callback"):
+            continue
+        known[name] = (m.group(3) or m.group(4), literal_default(m.group(5)))
+    app = ROOT / "src/main.c"
+    text = app.read_text(encoding="utf-8") if app.exists() else ""
+    if "application_resources[] = {" in text:
+        table = c_table(app, "application_resources[] = {")
+        for m in re.finditer(r'\{\s*"([A-Za-z0-9]+)",\s*"([A-Za-z0-9]+)",[^}]*?,\s*Xt[A-Za-z]+,\s*([^}]+)\}', table, re.S):
+            known[m.group(1)] = (m.group(2), literal_default(m.group(3)))
+    return known
+
+
+def check_resources(rows):
+    known = widget_resources()
+    problems = []
+    seen = set()
+    described = set()
+    for scope, name, klass, _kind, default, span, _description in rows:
+        if name in seen:
+            problems.append(f"duplicate row for {name}")
+        seen.add(name)
+        if scope == "shell":
+            continue
+        members = family_members(name, span)
+        defaults = [d.strip() for d in default.split(",")] if span and "," in default else [default] * len(members)
+        for index, member in enumerate(members):
+            described.add(member)
+            if member not in known:
+                problems.append(f"{member} is described but the program has no such resource")
+                continue
+            actual_class, actual_default = known[member]
+            expected_class = klass.replace("N", str(index + int(span.split("-")[0]))) if span else klass
+            if actual_class != expected_class:
+                problems.append(f"{member}: class is {actual_class}, table says {expected_class}")
+            if actual_default is not None and actual_default != defaults[index]:
+                problems.append(f"{member}: default is {actual_default}, table says {defaults[index]}")
+    for name in known:
+        if name not in described:
+            problems.append(f"{name} has no description")
+    if problems:
+        raise SystemExit(f"{RESOURCES_TSV.relative_to(ROOT)}:\n  " + "\n  ".join(problems))
+
+
+def resources_fragment(rows):
+    scopes = [
+        ("vt100", "VT100 widget resources",
+         "These belong to the terminal widget, so their full names are `xterm.vt100.`*name* and a loose "
+         "binding such as `XTerm*`*name* reaches them."),
+        ("application", "Application resources",
+         "These belong to the application shell: `xterm.`*name* or `XTerm.`*name*."),
+        ("shell", "Toolkit resources",
+         "These are ordinary shell and core widget resources that every Xt program understands; "
+         "they are listed because xterm users set them."),
+    ]
+    out = []
+    for scope, heading, intro in scopes:
+        out.append(f"### {heading}\n\n{intro}\n")
+        for r in [r for r in rows if r[0] == scope]:
+            _, name, klass, kind, default, span, description = r
+            shown = expand_family(name, span)
+            out.append(f"`{shown}` (class `{klass}`)\n:   {description}\n    *Type:* {kind}. *Default:* {default}.\n")
+    return "\n".join(out)
+
+
+def parse_options():
+    source = ROOT / "src/command_options.c"
+    table = c_table(source, "XrmOptionDescRec XtpCommandOptions[] = {")
+    resource_of = {}
+    for m in re.finditer(r'\{"([^"]+)",\s*"([^"]+)",\s*(Xrmoption\w+),\s*(?:\(XPointer\)\s*"([^"]*)"|NULL)\}', table):
+        resource_of[m.group(1)] = (m.group(2).lstrip("*."), m.group(4))
+    help_table = c_table(source, "static const OptionHelp option_help[] = {")
+    help_rows = re.findall(r'\{"([^"]+)",\s*"([^"]+)"\}', help_table)
+    return resource_of, help_rows
+
+
+def options_fragment():
+    resource_of, help_rows = parse_options()
+    out = []
+    for spelled, description in help_rows:
+        term = spelled
+        parts = spelled.split(" ", 1)
+        base = parts[0]
+        argument = " *" + parts[1] + "*" if len(parts) > 1 else ""
+        forms = []
+        if base.startswith("-/+"):
+            forms = ["-" + base[3:], "+" + base[3:]]
+            term = f"`-{base[3:]}` / `+{base[3:]}`"
+        elif base == "#geom":
+            forms = ["#"]
+            term = "`#`*geometry*"
+        else:
+            forms = [base]
+            term = f"`{base}`{argument}"
+        detail = description[0].upper() + description[1:] + "."
+        notes = []
+        for form in forms:
+            if form in resource_of:
+                resource, value = resource_of[form]
+                if value is not None:
+                    notes.append(f"`{form}` sets `{resource}` to `{value}`")
+                else:
+                    notes.append(f"Sets `{resource}`")
+        note = "; ".join(dict.fromkeys(notes))
+        out.append(f"{term}\n:   {detail}" + (f" {note}." if note else "") + "\n")
+    return "\n".join(out)
+
+
+def actions_fragment(rows):
+    known = re.findall(r'\{"([a-z-]+)",', c_table(ROOT / "src/vt_widget.c", "static XtActionsRec actions[] = {"))
+    names = [r[0] for r in rows]
+    problems = [f"{n} has no description" for n in known if n not in names]
+    problems += [f"{n} is described but the program has no such action" for n in names if n not in known]
+    problems += [f"duplicate row for {n}" for n in set(names) if names.count(n) > 1]
+    if problems:
+        raise SystemExit(f"{ACTIONS_TSV.relative_to(ROOT)}:\n  " + "\n  ".join(problems))
+    out = []
+    for name, params, description in rows:
+        term = f"`{name}(`*{params}*`)`" if params else f"`{name}()`"
+        out.append(f"{term}\n:   {description}\n")
+    return "\n".join(out)
+
+
+def translations_fragment():
+    text = (ROOT / "src/vt_widget.c").read_text(encoding="utf-8")
+    start = text.index("static char translations[] =")
+    body = text[start:text.index(";", start)]
+    lines = [m.group(1) for m in re.finditer(r'"([^"]*)\\n"', body)]
+    return "```text\n" + "\n".join(lines) + "\n```\n"
+
+
+def menus_fragment():
+    """Menu entries as line-broken paragraphs: compact in roff, readable on the web."""
+    labels = {}
+    for line in (ROOT / "data/app-defaults/XTerm").read_text(encoding="utf-8").splitlines():
+        m = re.match(r"\*(mainMenu|vtMenu|fontMenu)\*([^*]+)\*Label:\s*(.*)", line)
+        if m:
+            labels[(m.group(1), m.group(2))] = m.group(3).strip()
+    source = ROOT / "src/menus.c"
+    menus = [("mainMenu", "main_specs", "Main Options (Ctrl+Button 1)"),
+             ("vtMenu", "vt_specs", "VT Options (Ctrl+Button 2)"),
+             ("fontMenu", "font_specs", "VT Fonts (Ctrl+Button 3)")]
+    out = []
+    for menu, table, heading in menus:
+        out.append(f"### {heading}\n")
+        group = []
+        for m in re.finditer(r'(ACTIVE|INERT|LINE|OPACITY_LINE)\("([^"]+)"', c_table(source, f"static const MenuSpec {table}[] = {{")):
+            kind, name = m.groups()
+            if kind in ("LINE", "OPACITY_LINE"):
+                if kind == "OPACITY_LINE":
+                    group.append("*Opacity slider*, which adjusts backgroundOpacity for this window")
+                out.append("  \n".join(group) + "\n")
+                group = []
+                continue
+            label = labels.get((menu, name), name)
+            group.append(label if kind == "ACTIVE" else f"{label} *(not yet available)*")
+        out.append("  \n".join(group) + "\n")
+    return "\n".join(out) + "\n"
+
+
+def main():
+    if len(sys.argv) != 2:
+        raise SystemExit(f"usage: {sys.argv[0]} OUTPUT_DIR")
+    target = Path(sys.argv[1])
+    target.mkdir(parents=True, exist_ok=True)
+    resources = read_tsv(RESOURCES_TSV, 7)
+    actions = read_tsv(ACTIONS_TSV, 3)
+    check_resources(resources)
+    fragments = {
+        "resources.md": resources_fragment(resources),
+        "options.md": options_fragment(),
+        "actions.md": actions_fragment(actions),
+        "translations.md": translations_fragment(),
+        "menus.md": menus_fragment(),
+    }
+    for name, text in fragments.items():
+        path = target / name
+        if not path.exists() or path.read_text(encoding="utf-8") != text:
+            path.write_text(text, encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

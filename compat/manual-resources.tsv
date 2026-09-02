@@ -1,0 +1,60 @@
+# Resource descriptions for the manual page and the web reference. One row per
+# resource or numbered family. Names, classes, and literal defaults are checked
+# against the widget's resource table; descriptions and types are by hand.
+# Columns:
+# scope	name	class	type	default	range	description
+vt100	font	Font	font	fixed		Bitmap font for the Default entry of the VT Fonts menu, used when renderFont is false. Give an X logical font description or an alias known to xlsfonts(1).
+vt100	fontN	FontN	font	nil2, 5x7, 6x10, 7x13, 9x15, 10x20, 12x24	1-7	Bitmap fonts for the Unreadable through Enormous entries of the VT Fonts menu, in that order. Shift+keypad plus and minus step through the configured slots by size.
+vt100	renderFont	RenderFont	string	default		Selects the Xft renderer (true) or the Xlib bitmap renderer (false). The value default behaves as true when faceName is set and false otherwise. The TrueType Fonts menu entry toggles it at run time.
+vt100	faceName	FaceName	pattern	(unset)		Fontconfig pattern for the primary Xft face, for example "DejaVu Sans Mono" or "Hack:style=Regular". As in xterm the value may hold two comma-separated entries; the second is the first fallback. A size= field in the first entry overrides faceSize.
+vt100	faceSize	FaceSize	number	8.0		Point size of the Default entry when the Xft renderer is active. Sizes are resolved against the screen's Xft DPI so the physical size matches xterm.
+vt100	faceSizeN	FaceSizeN	number	0.0	1-7	Point sizes for the remaining VT Fonts menu entries. A zero value derives the size from the proportions of the corresponding bitmap font, as xterm does.
+vt100	faceNameDoublesize	FaceNameDoublesize	pattern	(unset)		Xft face tried first for wide (double-width) text, and second for emoji when faceNameEmoji misses. The terminal engine decides cell width; this face only paints it.
+vt100	faceNameEmoji	FaceNameEmoji	pattern	(unset)		Xft face tried first for clusters that resolve to emoji presentation.
+vt100	faceNameHan	FaceNameHan	pattern	(unset)		Xft face tried first for text-presentation characters whose base has the Unicode script property Han. Point it at the same face as faceNameDoublesize for a consistent CJK look.
+vt100	boldFont	BoldFont	font	(unset)		Explicit bold face chain. With the Xft renderer an xft: entry names a fontconfig pattern for SGR bold; without it the bold style is derived from the primary face.
+vt100	wideBoldFont	WideBoldFont	font	(unset)		Explicit bold face chain for wide text, in the same form as boldFont.
+vt100	fallbackFaceN	FallbackFaceN	pattern	(unset)	1-16	Ordered user-supplied fallback faces consulted after the explicit role faces and before fontconfig's own candidates. Each holds one fontconfig pattern.
+vt100	systemFallback	SystemFallback	boolean	true		Permit unnamed fontconfig candidates after the named faces are exhausted. When false, a cluster no named face can draw is shown as a deterministic placeholder box.
+vt100	limitFontsets	LimitFontsets	integer	50		Budget of fallback faces that may be opened per font slot and style. Zero disables all fallback, including the second faceName entry and every fallbackFaceN.
+vt100	limitFontHeight	LimitFontHeight	integer	10		Percentage tolerance applied when recognising a DEC double-height face. Accepted for xterm compatibility; double-height rendering is not implemented.
+vt100	limitFontWidth	LimitFontWidth	integer	10		Percentage by which a fallback glyph's advance may exceed the cell before the face is rejected for that cluster.
+vt100	emojiPresentation	EmojiPresentation	string	unicode		Presentation for emoji without an explicit selector: unicode follows the Unicode default, text forces monochrome text presentation, emoji forces emoji presentation. VS15 and VS16 always win.
+vt100	colorGlyphs	ColorGlyphs	boolean	true		Permit colour glyph paint (CBDT, sbix, COLR, SVG). When false a face is used only if it has a genuine outline for the glyph.
+vt100	graphemeWidth	GraphemeWidth	string	legacy		Initial state of DEC private mode 2027. legacy keeps wcwidth-compatible cursor arithmetic; unicode enables grapheme-cluster width at startup and after reset. Applications may still set or reset the mode.
+vt100	reportFontRouting	ReportFontRouting	boolean	false		Collect bounded records of font routing decisions for the report-font-routing() action. Off by default because collection has a cost.
+vt100	foreground	Foreground	color	XtDefaultForeground		Default text colour.
+shell	background	Background	color	XtDefaultBackground		Default background colour of the terminal widget, a core widget resource that also sets the scrollbar trough.
+vt100	cursorColor	CursorColor	color	XtDefaultForeground		Text cursor colour. A focused block cursor is filled; an unfocused block is an outline.
+vt100	colorN	ColorN	color	xterm's palette	0-15	The sixteen ANSI palette entries: color0 through color7 are the normal colours and color8 through color15 the bright ones. OSC 4 may change an entry at run time and OSC 104 restores the configured value.
+vt100	boldColors	ColorMode	boolean	true		Render bold text in palette colours 0 through 7 with the corresponding bright colour 8 through 15, as xterm does. When false, bold changes only the font weight.
+vt100	backgroundOpacity	BackgroundOpacity	number	1.0		Opacity of the default background from 0.0 (transparent) to 1.0. Takes effect only when a compositor owns the screen and an ARGB visual exists; otherwise the window starts opaque. Text, explicit cell backgrounds, the cursor, and menus stay opaque. The Opacity slider in the Main Options menu adjusts it at run time.
+vt100	reverseVideo	ReverseVideo	boolean	false		Swap the default foreground and background. Independent of the application-controlled DECSCNM mode and of SGR 7 inverse cells.
+vt100	saveLines	SaveLines	integer	1024		Lines of scrollback kept by the terminal engine. Zero disables history. The engine frees history in whole pages, so the limit is approximate within one page.
+vt100	scrollBar	ScrollBar	boolean	false		Show the Athena scrollbar. The scrollbar is an ordinary Xaw Scrollbar child named scrollbar, so its own resources such as width and thickness may be set through that path.
+vt100	rightScrollBar	RightScrollBar	boolean	false		Place the scrollbar on the right instead of the left.
+vt100	scrollBarBorder	ScrollBarBorder	dimension	1		Border width of the scrollbar in pixels.
+vt100	scrollTtyOutput	ScrollCond	boolean	true		Jump to the live bottom when output arrives. When false the viewport keeps its distance from the bottom as new rows arrive.
+vt100	scrollKey	ScrollCond	boolean	false		Jump to the live bottom when a key is pressed.
+vt100	multiClickTime	MultiClickTime	integer	250		Maximum interval in milliseconds between clicks of a double or triple click.
+vt100	charClass	CharClass	string	(unset)		Character classes for double-click word selection, in xterm's low[-high]:class form separated by commas. Letters, digits, and underscore share class 48 by default; punctuation characters each form their own class.
+vt100	selectToClipboard	SelectToClipboard	boolean	false		Make the symbolic SELECT selection name mean CLIPBOARD instead of PRIMARY, for both copying and pasting.
+vt100	internalBorder	BorderWidth	dimension	2		Padding in pixels between the text and the window edge.
+vt100	columns	Columns	integer	80		Initial number of columns when no geometry is given.
+vt100	rows	Rows	integer	24		Initial number of rows when no geometry is given.
+vt100	alwaysHighlight	AlwaysHighlight	boolean	false		Draw a filled block cursor even when the window does not have focus.
+vt100	cursorBlink	CursorBlink	string	false		Configured cursor blink operand: false, true, always, or never. false and true combine with the application's DECSCUSR or mode 12 request under cursorBlinkXOR; always and never ignore the application. A reset restores this value.
+vt100	cursorBlinkXOR	CursorBlinkXOR	boolean	true		Combine the configured and application blink states with exclusive or (true) or inclusive or (false), as in xterm.
+vt100	cursorOnTime	CursorOnTime	integer	600		Milliseconds a blinking cursor remains visible.
+vt100	cursorOffTime	CursorOffTime	integer	300		Milliseconds a blinking cursor remains hidden.
+application	menuLocale	MenuLocale	string	C		Locale under which the popup menus are created, so bitmap menu fonts work on UTF-8 desktops without charset warnings.
+application	logLevel	LogLevel	string	warning		Minimum severity written to standard error: debug, info, warning, or error.
+application	debug	Debug	boolean	false		Compatibility alias: when logLevel is unset, true selects the debug level.
+application	reportConfig	ReportConfig	boolean	false		Print the resolved configuration report and exit instead of opening a window. Normally set with -report-config.
+shell	geometry	Geometry	string	(unset)		Initial size in characters and position in pixels, in the standard X form WIDTHxHEIGHT+X+Y.
+shell	title	Title	string	program name		Window title. Applications may change it at run time with OSC 0 or OSC 2.
+shell	iconName	IconName	string	program name		Icon name shown by the window manager.
+shell	iconGeometry	IconGeometry	string	(unset)		Preferred position of the icon.
+shell	iconic	Iconic	boolean	false		Start iconified.
+shell	borderColor	BorderColor	color	XtDefaultForeground		Colour of the window border drawn by the shell.
+shell	borderWidth	BorderWidth	dimension	0		Width of the window border drawn by the shell.

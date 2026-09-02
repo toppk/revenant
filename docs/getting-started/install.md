@@ -104,6 +104,10 @@ additionally needs Zig, because `libghostty-vt` is built from Ghostty's source.
     than the version Ghostty requires, install Zig from
     [ziglang.org](https://ziglang.org/download/) instead.
 
+Add `pandoc` to build and install the `revenant(1)` manual page. Without it
+the page is skipped; `-Dman=enabled` makes its absence a configure error,
+which is what the package recipes use.
+
 ## Full build with libghostty-vt
 
 The helper checks out the exact Ghostty revision this project is tested

@@ -42,6 +42,7 @@ grep -q '^    -name string ' "$test_dir/out"
 grep -q '^    -class string ' "$test_dir/out"
 grep -q '^    -/+pc ' "$test_dir/out"
 grep -q '^    -e command args \.\.\. ' "$test_dir/out"
+grep -q '^An option beginning with plus (+) turns off the behavior that the same option with minus (-) turns on\.$' "$test_dir/out"
 test ! -s "$test_dir/err"
 
 run 0 -h

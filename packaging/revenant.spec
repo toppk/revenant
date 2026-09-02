@@ -13,6 +13,7 @@ BuildRequires:  gcc
 BuildRequires:  meson >= 1.3
 BuildRequires:  ninja-build
 BuildRequires:  python3
+BuildRequires:  pandoc
 BuildRequires:  pkgconfig(x11)
 BuildRequires:  pkgconfig(xt)
 BuildRequires:  pkgconfig(xaw7)
@@ -32,7 +33,7 @@ interface and X resource contract while using libghostty-vt as its terminal
 core. It installs as revenant, with an xterm+ compatibility symlink.
 
 %build
-%meson -Dlibghostty=enabled -Dxvfb-tests=enabled -Drelease-version=%{version}
+%meson -Dlibghostty=enabled -Dxvfb-tests=enabled -Dman=enabled -Drelease-version=%{version}
 %meson_build
 
 %install
@@ -47,6 +48,7 @@ tools/check-release-tests %{_vpath_builddir}
 %doc README.md
 %{_bindir}/revenant
 %{_bindir}/xterm+
+%{_mandir}/man1/revenant.1*
 %{_datadir}/applications/revenant.desktop
 %{_datadir}/icons/hicolor/scalable/apps/revenant.svg
 %{_datadir}/icons/hicolor/256x256/apps/revenant.png

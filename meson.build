@@ -200,6 +200,34 @@ xterm_plus = executable(
 )
 
 install_symlink('xterm+', install_dir: get_option('bindir'), pointing_to: program_name)
+
+pandoc = find_program('pandoc', required: get_option('man'))
+if pandoc.found()
+    man_page = custom_target(
+        'revenant.1',
+        input: 'man/revenant.1.md',
+        output: 'revenant.1',
+        command: [
+            python3,
+            files('tools/build-man'),
+            '@INPUT@',
+            '@OUTPUT@',
+            pandoc,
+            program_name + ' ' + build_version,
+        ],
+        depend_files: files(
+            'compat/manual-resources.tsv',
+            'compat/manual-actions.tsv',
+            'data/app-defaults/XTerm',
+            'src/command_options.c',
+            'src/menus.c',
+            'src/vt_widget.c',
+            'tools/generate-doc-fragments',
+        ),
+        install: true,
+        install_dir: get_option('mandir') / 'man1',
+    )
+endif
 install_data('data/revenant.desktop', install_dir: get_option('datadir') / 'applications')
 install_data('data/icons/revenant.svg',
     install_dir: get_option('datadir') / 'icons/hicolor/scalable/apps')

@@ -2,6 +2,9 @@
 
 import datetime
 import re
+import subprocess
+import sys
+from pathlib import Path
 
 from mkdocs.utils import get_relative_url
 from mkdocs.utils.meta import get_data
@@ -11,7 +14,10 @@ PROTECTED = re.compile(r"(<pre\b.*?</pre>|<a\b.*?</a>|<code\b.*?</code>)", re.S)
 
 
 def on_config(config):
-    config.extra.setdefault("tdn_url", "https://toppk.github.io/revenant/tdn/")
+    root = Path(config.config_file_path).resolve().parent
+    subprocess.run([sys.executable, str(root / "tools/generate-doc-fragments"), str(root / ".cache/fragments")], check=True)
+    if "tdn_url" not in config.extra:
+        raise ValueError("mkdocs.yml: extra.tdn_url is required")
     config.extra["build_date"] = datetime.date.today().strftime("%B %d, %Y")
     return config
 
@@ -27,7 +33,7 @@ def on_files(files, config):
             {
                 "man": meta["man"],
                 "section": str(meta.get("section", 7)),
-                "manual": meta.get("manual", "revenant"),
+                "manual": meta["manual"],
                 "description": meta.get("description", ""),
                 "url": file.url,
             }
