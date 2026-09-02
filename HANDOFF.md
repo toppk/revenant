@@ -46,8 +46,8 @@ real-xterm differential exposed the contamination.
 Resume from the v0.5 early-access plan and roadmap rather than reopening these
 rounds without a concrete regression. Item 9 still names startup cursor-shape
 resources, `clear-saved-lines`, and high-use key/action gaps after the completed
-palette work; command-line honesty and session logging remain larger scoped
-items immediately ahead of it.
+palette work. The honest command-line surface is now complete; session logging
+and the option-driven process behaviors remain ahead.
 
 ## Mission
 
@@ -256,11 +256,13 @@ an unbounded cleanup pass.
   Xt resource table instead of repeating string literals. Do not derive
   behavioral support merely from `XtGetResourceList`: a parsed resource is not
   necessarily implemented, so the support catalog remains an explicit claim.
-- During the command-line honesty slice, replace the repeated pre-Xt argv scans
-  with one `ScanCommandLine` result, fold the font overrides into the normal
-  option path or document why they cannot use it, and remove hard-coded prose
-  that duplicates defaults. Review the runtime stub/backend PTY branch and the
-  placement of `TERM` policy in the same startup ownership pass.
+- During the next option-driven process slice, add the accepted login-shell,
+  terminal-name/mode, hold, map timing, message-permission, and session-logging
+  behaviors from the command-line feasibility study. Review the runtime
+  stub/backend PTY branch and the placement of `TERM` policy in that startup
+  ownership pass. Hard-coded startup prose that duplicates defaults also
+  remains cleanup debt. The pre-X scanner and font resource aliases are already
+  centralized; do not reintroduce independent argv scans.
 - When `vt_interaction.c` next receives material work, split X selection/paste,
   hyperlink launching, and mouse reporting into focused owners. Other local
   cleanup should follow its owning feature: table-drive the order-dependent
@@ -596,18 +598,16 @@ item. Otherwise record it under v0.6 and keep moving.
    visual checks, and user actions. It must not mutate persistent
    configuration, leak sensitive environment data, or report a visual sample
    as mechanically verified when it was merely printed.
-7. **Write the name/class transition plan.** For v0.5, preserve the
+7. **Write the name/class transition plan. Completed for v0.5.** Preserve the
    seamless transition invariant: application class `XTerm`, instance `xterm`,
-   and widget `vt100` remain fixed for both `revenant` and `xterm+` until the
-   plan is reviewed. Define the eventual matrix for invocation as `revenant`,
-   `xterm+`, another symlink, and explicit `-name`/`-class`; include WM_CLASS,
-   app-default lookup, resource precedence, titles/icons, documentation
-   examples, and where generated or saved customizations should be stored.
-   The likely long-term rule is an `argv[0]`-derived default instance with the
-   `XTerm` class preserving shared configuration, but do not flip the default
-   until existing `xterm*` resources have a documented compatibility path and
-   oracle tests. Implement `-name` and `-class` only as part of this coherent
-   decision, not as isolated option-table entries.
+   and widget `vt100` remain the defaults for both `revenant` and `xterm+`.
+   Explicit `-name` and `-class` now override the application and shell
+   identity before `XtOpenDisplay`; Xvfb pins WM_CLASS, custom instance/class
+   resource lookup and report provenance, and xterm's `-e` child-basename
+   default for WM_NAME and WM_ICON_NAME. Invocation through another symlink
+   does not silently change resource identity. An `argv[0]`-derived application
+   identity remains a possible future migration only after existing `xterm*`
+   resources have a documented path.
 8. **Remaining keyboard/XIM compatibility matrix. Completed.** The exact-byte
    Xvfb matrix covers ordinary and application cursor/keypad modes,
    Shift/Ctrl/Alt/Super combinations, function and editing keys, XIM Compose,
@@ -843,8 +843,8 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 26 tests for each libghostty build
-and 6 for the stub build. One of those is `internal-branding`, which scans
+The normal full matrix currently contains 28 tests for each libghostty build
+and 7 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build
 options. The generated font fixture staging tree now contains

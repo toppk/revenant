@@ -63,4 +63,27 @@ grep -E -q '^XTerm\*cursorBlinkXOR:[[:space:]]+false$' "$override_report"
 grep -B 1 -E '^XTerm\*color0:[[:space:]]+#123456$' "$override_report" | \
     grep -q '\[command line\] \[supported\]'
 
-echo "report-config resource classifications and cursor-blink overrides passed"
+alias_report=$test_dir/alias-report
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+    "$fixture_root/run" base "$terminal" \
+    -fa monospace -fd serif -fe emoji -fb bold -fwb wide-bold \
+    -bg '#010203' -fg '#fefefe' -cr red -T cli-title -n cli-icon '#+10+20' \
+    -report-config >"$alias_report" 2>>"$log"
+
+for expected in \
+    'XTerm\*faceName:[[:space:]]+monospace' \
+    'XTerm\*faceNameDoublesize:[[:space:]]+serif' \
+    'XTerm\*faceNameEmoji:[[:space:]]+emoji' \
+    'XTerm\*boldFont:[[:space:]]+bold' \
+    'XTerm\*wideBoldFont:[[:space:]]+wide-bold' \
+    'XTerm\*background:[[:space:]]+#010203' \
+    'XTerm\*foreground:[[:space:]]+#fefefe' \
+    'XTerm\*cursorColor:[[:space:]]+red' \
+    'XTerm\*title:[[:space:]]+cli-title' \
+    'XTerm\*iconName:[[:space:]]+cli-icon' \
+    'XTerm\*iconGeometry:[[:space:]]+\+10\+20'
+do
+    grep -E -q "^$expected$" "$alias_report"
+done
+
+echo "report-config resource classifications, overrides, and aliases passed"

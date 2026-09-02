@@ -165,7 +165,9 @@ semantics and describes the implemented named-selection path.
 
 - Continue converting insensitive menu entries and unsupported actions into
   tested implementations.
-- Complete command-line parsing, including `-name`.
+- Extend the now-honest command-line parser with the remaining process and
+  resource semantics classified in the feasibility study. Unknown options,
+  `-help`/`-version`, `-e`, resource aliases, and `-name`/`-class` are covered.
 - Add a man page, CI, installable icons, and an app-default packaging strategy
   that does not overwrite a distributor's upstream `XTerm` file.
 - Advance beyond patch 411 only as an explicit compatibility migration.

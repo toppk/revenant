@@ -229,6 +229,32 @@ preserve xterm and wcwidth application arithmetic. `graphemeWidth: unicode`
 changes the initial and reset default; applications may still select or reset
 the mode explicitly.
 
+### Command-line diagnostics and extensions
+
+Revenant accepts only options whose effect it implements or whose behavior is
+owned by Xt. Unlike xterm's `-help`, which also advertises unavailable
+compile-time features, Revenant's help output is an executable inventory of its
+accepted surface. Unknown options and missing values are rejected before an X
+display is opened. This is intentionally stricter than letting Xt discover a
+missing resource argument after display startup; the error wording and wrapped
+usage otherwise follow patch 411. `-e` ends application parsing and preserves
+all remaining arguments for the child.
+
+Like xterm/Xrm, Revenant accepts an unambiguous prefix of any single-dash
+option: for example, `-geo`, `-clas`, `-h`, and `-v`. Exact options take
+precedence, while ambiguous prefixes such as `-fo` and `-bo` are rejected.
+The xterm-compatible informational forms are `-help` and `-version`. Revenant
+additionally accepts GNU-style `--help` and `--version`; double-dash options do
+not abbreviate. Its version line identifies the installed product and project
+version rather than using xterm's `XTerm(411)` form.
+
+Revenant-only command options are `--self-test`, `-report-config`,
+`-report-font-routing`, `-log`, and `-fe`. The first is an installed package
+diagnostic; the report and logging options expose Revenant's structured
+configuration/diagnostic facilities; `-fe` selects the explicit emoji face.
+The complete accepted and deferred option inventory is maintained in the
+[command-line feasibility study](command-line-feasibility.md).
+
 ## Transitional gaps, not intended differences
 
 The following are incomplete compatibility work and should not be treated as
@@ -264,10 +290,20 @@ design decisions:
   implemented. The `cursorUnderLine` and `cursorBar` startup shape resources
   are not wired yet.
 - Unimplemented xterm menu commands remain visible but insensitive.
-- The xterm command-line implementation remains incomplete. The patch-411
-  resource and translation-action names are now exhaustively inventoried, but
-  most are explicitly classified unsupported and still need implementations
-  and compatibility tests.
+- Command-line parsing itself is complete and honest, but much of xterm's
+  option-driven behavior is not implemented yet. Current process/session gaps
+  include `-/+ls`, `-baudrate`, `-tm`, `-/+ie`, `-/+hold`, `-/+wf`,
+  `-/+mesg`, `-into`, `-/+sm`, `-/+ut`, `-/+l`/`-lf`, and
+  `-/+lc`/`-lcc`. Window/render gaps include `-/+132`, `-/+aw`, `-/+rw`,
+  `-/+j`, margin bell, startup cursor shape, pointer configuration,
+  selection colors, fullscreen/maximize/nomap, and the remaining specialized
+  font/color switches. `-fb` and `-fwb` currently affect the Xft fallback
+  model but do not supply xterm's complete bitmap bold/wide behavior. Terminal
+  ID, C1-printable, and width-policy switches remain blocked on backend
+  support. Legacy keyboard tables, Tek mode, active icon, toolbar, console and
+  slave modes, TERMCAP insert-mode, and multiscroll are intentionally omitted
+  candidates rather than silently accepted options. Patch 411 also permits one
+  bare explicit shell path; Revenant requires `-e` for an explicit command.
 
 Detailed compatibility classifications live in the repository's
 [`compat/README.md`](https://github.com/toppk/revenant/blob/master/compat/README.md).

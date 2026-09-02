@@ -33,6 +33,10 @@ The boundaries are deliberate:
 
 - `src/main.c` owns the Xt application shell, PTY event loop, menus, geometry,
   and terminal effects such as bell and title changes.
+- `src/command_options.c` owns the accepted command-line inventory, pre-X
+  validation, xterm-style help and error output, application name/class, and
+  the Xt resource aliases. `-e` is the boundary after which bytes belong to the
+  child command rather than the application parser.
 - `src/vt_widget.c` owns the custom `VT100` widget class, resources, lifecycle,
   bitmap font-slot loading, translations, callbacks, font-selection actions,
   and public widget API.

@@ -4,8 +4,10 @@
 #include <X11/Intrinsic.h>
 #include <X11/Xresource.h>
 
-XrmDatabase XtpConfigCommandDatabase(int argc, char **argv);
-void XtpLogResourceDatabases(Display *display);
-void XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database);
+XrmDatabase XtpConfigCommandDatabase(int argc, char **argv, const char *application_name);
+void XtpLogResourceDatabases(Display *display, const char *application_name,
+                             const char *application_class);
+void XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
+                     const char *application_name, const char *application_class);
 
 #endif

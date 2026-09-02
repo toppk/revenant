@@ -5,7 +5,8 @@ Every option in xterm patch-411's `-help` output (`xtermOptions[]` in
 does behind it, whether libghostty-vt or plain X11 supplies the mechanism,
 and how approachable it is for Revenant. Companion to the
 [popup-menu study](menu-feasibility.md); reviewed against `src/main.c` and
-the then-selected libghostty headers on 2026-08-25.
+the then-selected libghostty headers on 2026-08-25, and updated after the
+honest command-line parser landed on 2026-09-02.
 
 Status key: **DONE** implemented; **XT** parsed and applied by the X Toolkit
 without Revenant code; **ACCEPTED** parsed into a resource that the code does
@@ -15,7 +16,7 @@ given); **BLOCKED** needs a libghostty change; **SKIP** recommend not
 implementing (record in the [xterm differences ledger](drift.md)).
 
 Totals over 96 rows (grouped where xterm's help lists one family several
-ways): 16 done, 5 Xt-handled, 1 accepted, 41 ready, 15 roadmap, 5 blocked,
+ways): 23 done, 5 Xt-handled, 1 accepted, 34 ready, 15 roadmap, 5 blocked,
 13 skip.
 
 ## The big pattern
@@ -27,17 +28,17 @@ study viewed from the command line, and its statuses track the
 `-report-config` classifications: an option is DONE only when the resource
 behind it is *supported* there.
 
-Two structural gaps come first, because they affect every row:
+The two original structural gaps are complete:
 
-1. **Unknown options are dropped silently.** Xt leaves unrecognised
-   arguments in `argv`, and Revenant ignores whatever remains. `-ls`, `-fb
-   fixed`, or a typo start a normal window with no message. xterm prints
-   `bad command line option` and its usage. Fix: after `XtOpenDisplay`,
-   treat any leftover argument other than `-e` as an error. READY, and the
-   prerequisite for calling the surface complete.
-2. **`-help` and `-version` are missing** in xterm's single-dash form;
-   Revenant has `--version` and `--self-test`. `-help` should print the option
-   table with one-line descriptions. READY.
+1. One pre-X scanner now rejects every unknown option and missing value before
+   opening a display. `-e` terminates option parsing and preserves the child
+   argument vector byte-for-byte. Error output follows xterm's short message,
+   wrapped usage, and `-help` pointer.
+2. `-help` and `-version` work without an X display. Single-dash options accept
+   xterm/Xrm-style unambiguous prefixes (`-geo`, `-clas`, `-h`, `-v`); exact
+   options win and ambiguous prefixes are rejected. The help inventory is
+   deliberately the accepted surface, not xterm's larger list of unavailable
+   features.
 
 ## Process and session
 
@@ -46,11 +47,11 @@ Two structural gaps come first, because they affect every row:
 | Option | What xterm does | Mechanism | Approachability | Status |
 | --- | --- | --- | --- | --- |
 | `-e command args…` | Run command in the PTY | `pty.c` | — | DONE |
-| `-help` | Print usage | None | Print table; add descriptions to the option list | READY |
-| `-version` | Print version | None | Alias of `--version` | READY |
+| `-help` | Print usage | None | Accepted-option table with one-line descriptions | DONE |
+| `-version` | Print version | None | Alias of `--version` | DONE |
 | `-display name` | Xt standard | Xt | — | XT |
-| `-class string` | Override application class before Xt init | Pre-scan argv, pass to `XtOpenDisplay` | Small; class is currently hard-coded `XTerm` | READY |
-| `-name string` | Override instance name (`xterm.` resources, icon, title) | Same pre-scan; currently `"xterm"` is passed explicitly so Xt never sees `-name` | Same change as `-class`; Roadmap #6 names it explicitly | READY |
+| `-class string` | Override application class before Xt init | Single pre-X scan, then `XtOpenDisplay`/shell identity | WM_CLASS, app-default resolution, and `CustomTerm*resource` lookup are covered under Xvfb | DONE |
+| `-name string` | Override instance name (`xterm.` resources, icon, title) | Same scan; `-e` defaults icon/title to the child basename | WM_CLASS, `custom*resource`, command provenance, WM_NAME, and WM_ICON_NAME are covered under Xvfb | DONE |
 | `-/+ls` | `loginShell`: prefix `argv[0]` with `-` | `pty.c` exec | One line at exec time | READY |
 | `-tn name` | `termName`: `TERM` for the child | `pty.c` environment; libghostty `OPT_TERMINFO_NAME` should match for XTGETTCAP | Set env; also feed the name to libghostty | READY |
 | `-ti termid` | `decTerminalID`: DA responses (vt100/220/…) | libghostty answers DA itself; no terminal-ID option in the reviewed API | Needs an ID option or DA callback | BLOCKED |
@@ -74,10 +75,10 @@ Two structural gaps come first, because they affect every row:
 | Option | What xterm does | Mechanism | Approachability | Status |
 | --- | --- | --- | --- | --- |
 | `-geometry geom` | Size in characters | — | — | DONE |
-| `#geom` | `iconGeometry` | Xt shell resource | Sticky-arg entry in option table; resource already supported | READY |
+| `#geom` | `iconGeometry` | Xt shell resource | Sticky-arg entry in option table; resource already supported | DONE |
 | `%geom` | Tek window geometry | None | Tek not planned | SKIP |
-| `-title string` / `-T string` | Window title | Xt shell | `-T` needs a table entry aliasing `.title` | XT / READY |
-| `-n string` | `iconName` | Xt shell | Table entry aliasing `.iconName` | READY |
+| `-title string` / `-T string` | Window title | Xt shell | Both forms resolve through `.title` | DONE |
+| `-n string` | `iconName` | Xt shell | Table entry aliases `.iconName` | DONE |
 | `-iconic` | Start iconified | Xt | — | XT |
 | `-/+maximized` | `_NET_WM_STATE_MAXIMIZED_*` at startup | EWMH client message | Same helper as the fullscreen menu entry | READY |
 | `-/+fullscreen` | `_NET_WM_STATE_FULLSCREEN` at startup | EWMH client message | Same helper | READY |
@@ -118,7 +119,7 @@ Two structural gaps come first, because they affect every row:
 | Option | What xterm does | Mechanism | Approachability | Status |
 | --- | --- | --- | --- | --- |
 | `-bg color` / `-fg color` | Background / foreground | Xt → `vt100` core and `foreground` | — | XT |
-| `-cr color` | `cursorColor` | Resource supported | Table entry aliasing `*cursorColor` | READY |
+| `-cr color` | `cursorColor` | Resource supported | Table entry aliases `*cursorColor` | DONE |
 | `-ms color` | `pointerColor` | Resource merged, not applied | `XRecolorCursor`; pairs with `pointerShape` | READY |
 | `-pf fontname` | `pointerFont` | None | Cursor font glyphs; trivial with `XCreateGlyphCursor` | READY |
 | `-selbg` / `-selfg color`, `-/+hm` | Selection colours, `highlightColorMode` | Selection renderer | Roadmap #4 | ROADMAP #4 |
@@ -192,13 +193,13 @@ Two structural gaps come first, because they affect every row:
 
 ## Suggested order
 
-1. **Slice A — make the surface honest.** Reject unknown options, add
+1. **Slice A — make the surface honest. Completed.** Reject unknown options, add
    `-help`/`-version`, and add every pure-alias entry for resources that are
    already supported: `-T`, `-n`, `#geom`, `-cr`. This is an afternoon and
    removes the silent-ignore trap.
-2. **Slice B — `-name`/`-class`** by pre-scanning `argv` before
-   `XtOpenDisplay`; Roadmap #6 calls this out as the last blocker before the
-   command line is declared complete.
+2. **Slice B — `-name`/`-class`. Completed.** One scan supplies the application
+   and shell identity before `XtOpenDisplay`; Xvfb tests pin resource aliases
+   and the resulting WM properties.
 3. **Slice C — process options** in `pty.c`: `-ls`, `-tn`, `-tm`, `-ie`,
    `-hold`, `-wf`, `-mesg`, `-baudrate`, `-l`/`-lf`, `-lc`/`-lcc`.
 4. **Slice D — startup application of existing menu modes**: `-rv`, `-aw`,

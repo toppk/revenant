@@ -52,6 +52,15 @@ typedef struct
 
 typedef struct
 {
+        XrmDatabase merged;
+        XrmDatabase server;
+        XrmDatabase command;
+        const char *application_name;
+        const char *application_class;
+} ReportContext;
+
+typedef struct
+{
         const char *label;
         const char *resource;
         XtpFontSlotInfo loaded;
@@ -127,16 +136,20 @@ static const ResourceProbe resource_probes[] = {
     {"xterm.vt100.color15", "XTerm.VT100.Color15"},
 };
 
+static char *QualifiedResource(const char *path, const char *default_root, const char *actual_root);
+
 static bool
-RelevantServerResource(const char *line)
+RelevantServerResource(const char *line, const char *application_name,
+                       const char *application_class)
 {
-        return strncmp(line, "XTerm", 5) == 0 || strncmp(line, "Xterm", 5) == 0 ||
-               strncmp(line, "xterm", 5) == 0 || strncmp(line, "Xft.", 4) == 0 ||
-               strncmp(line, "Xcursor.", 8) == 0;
+        return strncmp(line, application_name, strlen(application_name)) == 0 ||
+               strncmp(line, application_class, strlen(application_class)) == 0 ||
+               strncmp(line, "Xft.", 4) == 0 || strncmp(line, "Xcursor.", 8) == 0;
 }
 
 void
-XtpLogResourceDatabases(Display *display)
+XtpLogResourceDatabases(Display *display, const char *application_name,
+                        const char *application_class)
 {
         const char *manager = XResourceManagerString(display);
         char *copy = manager != NULL ? strdup(manager) : NULL;
@@ -149,7 +162,7 @@ XtpLogResourceDatabases(Display *display)
                manager != NULL ? "true" : "false");
         for (line = copy != NULL ? strtok_r(copy, "\n", &state) : NULL; line != NULL;
              line = strtok_r(NULL, "\n", &state)) {
-                if (RelevantServerResource(line))
+                if (RelevantServerResource(line, application_name, application_class))
                         XtpLog(XTP_LOG_DEBUG, "xresource", "server %s", line);
         }
         free(copy);
@@ -157,18 +170,24 @@ XtpLogResourceDatabases(Display *display)
         for (probe = 0; probe < XtNumber(resource_probes); ++probe) {
                 XrmValue value;
                 String type = NULL;
+                char *resource_name = QualifiedResource(resource_probes[probe].name,
+                                                        XTP_APPLICATION_NAME, application_name);
+                char *class_name = QualifiedResource(resource_probes[probe].class_name,
+                                                     XTP_APPLICATION_CLASS, application_class);
 
-                if (XrmGetResource(database, resource_probes[probe].name,
-                                   resource_probes[probe].class_name, &type, &value)) {
+                if (resource_name != NULL && class_name != NULL &&
+                    XrmGetResource(database, resource_name, class_name, &type, &value)) {
                         int length = (int)value.size;
 
                         if (length > 0 && ((const char *)value.addr)[length - 1] == '\0')
                                 --length;
                         XtpLog(XTP_LOG_DEBUG, "xresource",
-                               "merged name=%s class=%s type=%s value=%.*s",
-                               resource_probes[probe].name, resource_probes[probe].class_name,
-                               type != NULL ? type : "(null)", length, (const char *)value.addr);
+                               "merged name=%s class=%s type=%s value=%.*s", resource_name,
+                               class_name, type != NULL ? type : "(null)", length,
+                               (const char *)value.addr);
                 }
+                free(resource_name);
+                free(class_name);
         }
         XtpLog(XTP_LOG_INFO, "config",
                "resource precedence effective=command-line > server RESOURCE_MANAGER > "
@@ -214,17 +233,50 @@ OriginColor(Origin origin)
 }
 
 static char *
-DatabaseValue(XrmDatabase database, const ResourceSpec *spec)
+QualifiedResource(const char *path, const char *default_root, const char *actual_root)
+{
+        size_t default_length = strlen(default_root);
+        size_t actual_length;
+        size_t path_length;
+        char *qualified;
+
+        if (strncmp(path, default_root, default_length) != 0 ||
+            (path[default_length] != '.' && path[default_length] != '\0'))
+                return strdup(path);
+        actual_length = strlen(actual_root);
+        path_length = strlen(path);
+        qualified = malloc(actual_length + path_length - default_length + 1U);
+        if (qualified == NULL)
+                return NULL;
+        memcpy(qualified, actual_root, actual_length);
+        memcpy(qualified + actual_length, path + default_length, path_length - default_length + 1U);
+        return qualified;
+}
+
+static char *
+DatabaseValue(XrmDatabase database, const ResourceSpec *spec, const ReportContext *context)
 {
         XrmValue value;
         char *type = NULL;
         size_t length;
         char *copy;
+        char *resource;
+        char *class_name;
 
-        if (database == NULL ||
-            !XrmGetResource(database, spec->resource, spec->class_name, &type, &value) ||
-            value.addr == NULL)
+        if (database == NULL)
                 return NULL;
+        resource =
+            QualifiedResource(spec->resource, XTP_APPLICATION_NAME, context->application_name);
+        class_name =
+            QualifiedResource(spec->class_name, XTP_APPLICATION_CLASS, context->application_class);
+        if (resource == NULL || class_name == NULL ||
+            !XrmGetResource(database, resource, class_name, &type, &value) || value.addr == NULL) {
+                free(resource);
+                free(class_name);
+                return NULL;
+        }
+        free(resource);
+        free(class_name);
         length = value.size;
         if (length != 0 && ((const char *)value.addr)[length - 1] == '\0')
                 --length;
@@ -237,21 +289,26 @@ DatabaseValue(XrmDatabase database, const ResourceSpec *spec)
 }
 
 static Resolved
-ResolveResource(XrmDatabase merged, XrmDatabase server, XrmDatabase command,
-                const ResourceSpec *spec)
+ResolveResource(const ReportContext *context, const ResourceSpec *spec)
 {
         Resolved result = {NULL, ORIGIN_UNSET};
-        char *probe = DatabaseValue(command, spec);
+        char *probe = DatabaseValue(context->command, spec, context);
 
-        result.value = DatabaseValue(merged, spec);
+        result.value = DatabaseValue(context->merged, spec, context);
         if (probe != NULL) {
                 result.origin = ORIGIN_COMMAND_LINE;
-                free(probe);
+                if (result.value == NULL)
+                        result.value = probe;
+                else
+                        free(probe);
         } else {
-                probe = DatabaseValue(server, spec);
+                probe = DatabaseValue(context->server, spec, context);
                 if (probe != NULL) {
                         result.origin = ORIGIN_X_RESOURCES;
-                        free(probe);
+                        if (result.value == NULL)
+                                result.value = probe;
+                        else
+                                free(probe);
                 } else if (result.value != NULL) {
                         result.origin = ORIGIN_X_RESOURCES;
                 } else if (spec->default_value != NULL) {
@@ -279,7 +336,7 @@ PrintResolved(const char *display_name, const char *support, const char *explana
         PrintComment(resolved->origin, support, explanation);
         if (use_color)
                 fputs(OriginColor(resolved->origin), stdout);
-        if (resolved->origin == ORIGIN_UNSET)
+        if (resolved->origin == ORIGIN_UNSET || resolved->value == NULL)
                 printf("! %s:\t<unset>", display_name);
         else
                 printf("%s:\t%s", display_name, resolved->value);
@@ -289,21 +346,13 @@ PrintResolved(const char *display_name, const char *support, const char *explana
 }
 
 XrmDatabase
-XtpConfigCommandDatabase(int argc, char **argv)
+XtpConfigCommandDatabase(int argc, char **argv, const char *application_name)
 {
         XrmDatabase database = NULL;
         XrmOptionDescRec *options;
         char **arguments;
         int option_count = XtpCommandOptionCount + 1;
         int parse_argc = argc;
-        int argument;
-
-        for (argument = 1; argument < argc; ++argument) {
-                if (strcmp(argv[argument], "-e") == 0) {
-                        parse_argc = argument;
-                        break;
-                }
-        }
 
         options = malloc((size_t)option_count * sizeof(*options));
         arguments = malloc(((size_t)parse_argc + 1U) * sizeof(*arguments));
@@ -318,7 +367,7 @@ XtpConfigCommandDatabase(int argc, char **argv)
         arguments[parse_argc] = NULL;
 
         XrmInitialize();
-        XrmParseCommand(&database, options, option_count, "xterm", &parse_argc, arguments);
+        XrmParseCommand(&database, options, option_count, application_name, &parse_argc, arguments);
         free(arguments);
         free(options);
         return database;
@@ -420,7 +469,7 @@ CompareFontChoice(const void *left, const void *right)
 }
 
 static void
-ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget vt)
+ReportFonts(const ReportContext *context, Widget vt)
 {
         static const char *const labels[8] = {
             "Default", "Unreadable", "Tiny", "Small", "Medium", "Large", "Huge", "Enormous",
@@ -496,19 +545,19 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
             "XTerm.VT100.ReportFontRouting",
             "false",
         };
-        Resolved render = ResolveResource(merged, server, command, &render_spec);
-        Resolved face = ResolveResource(merged, server, command, &face_spec);
-        Resolved double_face = ResolveResource(merged, server, command, &double_spec);
-        Resolved base_size = ResolveResource(merged, server, command, &size_spec);
-        Resolved emoji_face = ResolveResource(merged, server, command, &emoji_spec);
-        Resolved han_face = ResolveResource(merged, server, command, &han_spec);
-        Resolved bold_face = ResolveResource(merged, server, command, &bold_spec);
-        Resolved wide_bold_face = ResolveResource(merged, server, command, &wide_bold_spec);
-        Resolved presentation = ResolveResource(merged, server, command, &presentation_spec);
-        Resolved grapheme_width = ResolveResource(merged, server, command, &grapheme_width_spec);
-        Resolved color_glyphs = ResolveResource(merged, server, command, &color_glyphs_spec);
-        Resolved system_fallback = ResolveResource(merged, server, command, &system_fallback_spec);
-        Resolved report_routing = ResolveResource(merged, server, command, &report_routing_spec);
+        Resolved render = ResolveResource(context, &render_spec);
+        Resolved face = ResolveResource(context, &face_spec);
+        Resolved double_face = ResolveResource(context, &double_spec);
+        Resolved base_size = ResolveResource(context, &size_spec);
+        Resolved emoji_face = ResolveResource(context, &emoji_spec);
+        Resolved han_face = ResolveResource(context, &han_spec);
+        Resolved bold_face = ResolveResource(context, &bold_spec);
+        Resolved wide_bold_face = ResolveResource(context, &wide_bold_spec);
+        Resolved presentation = ResolveResource(context, &presentation_spec);
+        Resolved grapheme_width = ResolveResource(context, &grapheme_width_spec);
+        Resolved color_glyphs = ResolveResource(context, &color_glyphs_spec);
+        Resolved system_fallback = ResolveResource(context, &system_fallback_spec);
+        Resolved report_routing = ResolveResource(context, &report_routing_spec);
         FontChoice choices[8];
         FontChoice ordered[8];
         double base_points = NumberValue(&base_size, 8.0);
@@ -567,7 +616,7 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
                 fallback_spec.resource = resource_name;
                 fallback_spec.class_name = class_name;
                 fallback_spec.default_value = NULL;
-                fallback = ResolveResource(merged, server, command, &fallback_spec);
+                fallback = ResolveResource(context, &fallback_spec);
                 if (fallback.origin != ORIGIN_UNSET)
                         PrintResolved(label, "supported",
                                       "Ordered user fallback before unnamed system candidates.",
@@ -601,7 +650,7 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
                 bitmap_spec.resource = resource;
                 bitmap_spec.class_name = class_name;
                 bitmap_spec.default_value = defaults[slot];
-                bitmap = ResolveResource(merged, server, command, &bitmap_spec);
+                bitmap = ResolveResource(context, &bitmap_spec);
                 (void)XtpVtFontSlotInfo(vt, slot, &choices[slot].loaded);
                 choices[slot].label = labels[slot];
                 choices[slot].resource = resource_names[slot];
@@ -636,7 +685,7 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
                         alternative_spec.resource = resource;
                         alternative_spec.class_name = class_name;
                         alternative_spec.default_value = "0.0";
-                        alternative = ResolveResource(merged, server, command, &alternative_spec);
+                        alternative = ResolveResource(context, &alternative_spec);
                         {
                                 char display_name[64];
                                 char explanation[192];
@@ -686,8 +735,7 @@ ReportFonts(XrmDatabase merged, XrmDatabase server, XrmDatabase command, Widget 
 }
 
 static void
-ReportResourceGroup(XrmDatabase merged, XrmDatabase server, XrmDatabase command,
-                    const char *heading, const ResourceSpec *specs,
+ReportResourceGroup(const ReportContext *context, const char *heading, const ResourceSpec *specs,
                     const char *const *display_names, const char *const *support,
                     const char *const *explanations, size_t count)
 {
@@ -696,14 +744,14 @@ ReportResourceGroup(XrmDatabase merged, XrmDatabase server, XrmDatabase command,
         printf("\n! ----------------------------------------------------------------------\n");
         printf("! %s\n", heading);
         for (item = 0; item < count; ++item) {
-                Resolved resolved = ResolveResource(merged, server, command, &specs[item]);
+                Resolved resolved = ResolveResource(context, &specs[item]);
                 PrintResolved(display_names[item], support[item], explanations[item], &resolved);
                 free(resolved.value);
         }
 }
 
 static void
-ReportPaletteAndPointer(XrmDatabase merged, XrmDatabase server, XrmDatabase command)
+ReportPaletteAndPointer(const ReportContext *context)
 {
         static const char *const defaults[XTP_ANSI_PALETTE_SIZE] = {XTP_ANSI_PALETTE_DEFAULT_LIST};
         unsigned int color;
@@ -726,7 +774,7 @@ ReportPaletteAndPointer(XrmDatabase merged, XrmDatabase server, XrmDatabase comm
                 spec.resource = resource;
                 spec.class_name = class_name;
                 spec.default_value = defaults[color];
-                resolved = ResolveResource(merged, server, command, &spec);
+                resolved = ResolveResource(context, &spec);
                 PrintResolved(display_name, "supported", explanation, &resolved);
                 free(resolved.value);
         }
@@ -748,9 +796,8 @@ ReportPaletteAndPointer(XrmDatabase merged, XrmDatabase server, XrmDatabase comm
                     "Pointer cursor shape.",
                 };
 
-                ReportResourceGroup(merged, server, command, "Pointer details", pointer_specs,
-                                    pointer_names, pointer_support, pointer_help,
-                                    XtNumber(pointer_specs));
+                ReportResourceGroup(context, "Pointer details", pointer_specs, pointer_names,
+                                    pointer_support, pointer_help, XtNumber(pointer_specs));
         }
 }
 
@@ -834,14 +881,14 @@ PrintTranslationResource(const Resolved *resolved, const char *support)
 }
 
 static void
-ReportTranslations(XrmDatabase merged, XrmDatabase server, XrmDatabase command)
+ReportTranslations(const ReportContext *context)
 {
         ResourceSpec spec = {
             "xterm.vt100.translations",
             "XTerm.VT100.Translations",
             "<class defaults>",
         };
-        Resolved resolved = ResolveResource(merged, server, command, &spec);
+        Resolved resolved = ResolveResource(context, &spec);
         char actions[64][64] = {{0}};
         size_t action_count = 0;
         size_t unsupported = 0;
@@ -1001,7 +1048,7 @@ CatalogResourceSpec(const XtpResourceCatalogEntry *entry, char *resource, size_t
 }
 
 static void
-ReportUpstreamCatalog(XrmDatabase merged, XrmDatabase server, XrmDatabase command)
+ReportUpstreamCatalog(const ReportContext *context)
 {
         size_t item;
         size_t conditional = 0;
@@ -1037,7 +1084,7 @@ ReportUpstreamCatalog(XrmDatabase merged, XrmDatabase server, XrmDatabase comman
                 spec.resource = resource;
                 spec.class_name = class_name;
                 spec.default_value = entry->default_value;
-                resolved = ResolveResource(merged, server, command, &spec);
+                resolved = ResolveResource(context, &spec);
                 (void)snprintf(explanation, sizeof(explanation),
                                "patch-411 %s resource (class %s).", CatalogScopeName(entry->scope),
                                entry->class_name);
@@ -1119,8 +1166,7 @@ ToolkitDefault(const XtResource *resource)
 }
 
 static void
-ReportToolkitClass(XrmDatabase merged, XrmDatabase server, XrmDatabase command,
-                   const ToolkitClassSpec *class_spec)
+ReportToolkitClass(const ReportContext *context, const ToolkitClassSpec *class_spec)
 {
         XtResourceList resources = NULL;
         Cardinal count = 0;
@@ -1152,7 +1198,7 @@ ReportToolkitClass(XrmDatabase merged, XrmDatabase server, XrmDatabase command,
                 spec.resource = resource_name;
                 spec.class_name = class_name;
                 spec.default_value = default_value;
-                resolved = ResolveResource(merged, server, command, &spec);
+                resolved = ResolveResource(context, &spec);
                 if (class_spec->widget_class == vt100WidgetClass &&
                     strcmp(resource->resource_name, XtNtranslations) == 0)
                         support = "partially supported";
@@ -1165,8 +1211,7 @@ ReportToolkitClass(XrmDatabase merged, XrmDatabase server, XrmDatabase command,
 }
 
 static void
-ReportToolkitConstraints(XrmDatabase merged, XrmDatabase server, XrmDatabase command,
-                         const ToolkitClassSpec *class_spec)
+ReportToolkitConstraints(const ReportContext *context, const ToolkitClassSpec *class_spec)
 {
         XtResourceList resources = NULL;
         Cardinal count = 0;
@@ -1197,7 +1242,7 @@ ReportToolkitConstraints(XrmDatabase merged, XrmDatabase server, XrmDatabase com
                 spec.resource = resource_name;
                 spec.class_name = class_name;
                 spec.default_value = default_value;
-                resolved = ResolveResource(merged, server, command, &spec);
+                resolved = ResolveResource(context, &spec);
                 PrintResolved(display_name, class_spec->support, explanation, &resolved);
                 free(resolved.value);
                 free(default_value);
@@ -1207,7 +1252,7 @@ ReportToolkitConstraints(XrmDatabase merged, XrmDatabase server, XrmDatabase com
 }
 
 static void
-ReportToolkitCatalog(XrmDatabase merged, XrmDatabase server, XrmDatabase command)
+ReportToolkitCatalog(const ReportContext *context)
 {
         const ToolkitClassSpec classes[] = {
             {"ApplicationShell (including inherited Xt classes)", "XTerm*", "xterm", "XTerm",
@@ -1252,12 +1297,12 @@ ReportToolkitCatalog(XrmDatabase merged, XrmDatabase server, XrmDatabase command
         puts("! therefore include Core/Shell/Object resources which xterm does not repeat");
         puts("! in its own tables, plus the Xaw menu and scrollbar component surfaces.");
         for (item = 0; item < XtNumber(classes); ++item)
-                ReportToolkitClass(merged, server, command, &classes[item]);
-        ReportToolkitConstraints(merged, server, command, &form_constraints);
+                ReportToolkitClass(context, &classes[item]);
+        ReportToolkitConstraints(context, &form_constraints);
 }
 
 static void
-ReportResourceSources(Display *display, const char *manager)
+ReportResourceSources(Display *display, const char *manager, const char *application_class)
 {
         static const char *const environment_names[] = {
             "XENVIRONMENT",
@@ -1274,9 +1319,9 @@ ReportResourceSources(Display *display, const char *manager)
         puts("! compiled fallbacks when no app-defaults file is found), the X server");
         puts("! RESOURCE_MANAGER database or legacy ~/.Xdefaults, XENVIRONMENT (or its");
         puts("! host-specific default), and command-line options/-xrm.");
-        app_defaults =
-            XtResolvePathname(display, "app-defaults", "XTerm", NULL, NULL, NULL, 0, NULL);
-        printf("! resolved XTerm app-defaults: %s\n",
+        app_defaults = XtResolvePathname(display, "app-defaults", application_class, NULL, NULL,
+                                         NULL, 0, NULL);
+        printf("! resolved %s app-defaults: %s\n", application_class,
                app_defaults != NULL ? app_defaults : "<not found; fallbacks apply>");
         if (app_defaults != NULL)
                 XtFree(app_defaults);
@@ -1297,7 +1342,8 @@ ReportResourceSources(Display *display, const char *manager)
 }
 
 void
-XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database)
+XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
+                const char *application_name, const char *application_class)
 {
         static const ResourceSpec appearance[] = {
             {"xterm.geometry", "XTerm.Geometry", NULL},
@@ -1378,29 +1424,33 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database)
         XrmDatabase merged = XtDatabase(display);
         XrmDatabase server = NULL;
         const char *manager = XResourceManagerString(display);
+        ReportContext context;
 
         use_color = isatty(STDOUT_FILENO) != 0 && getenv("NO_COLOR") == NULL;
         if (manager != NULL)
                 server = XrmGetStringDatabase(manager);
+        context.merged = merged;
+        context.server = server;
+        context.command = command_database;
+        context.application_name = application_name;
+        context.application_class = application_class;
         puts("! xterm+ consolidated configuration");
         puts("! Syntax is intentionally close to .Xresources. Redirect stdout for");
         puts("! plain, reusable text; terminal output uses colors unless NO_COLOR is set.");
         puts("! Origins: command line, merged X resources, compiled default, unset.");
         puts("! Support: supported, partially supported, accepted but ignored, or unsupported.");
         puts("! Active renderer: Xlib bitmap (transitional xterm+ implementation)");
-        ReportResourceSources(display, manager);
-        ReportFonts(merged, server, command_database, vt);
-        ReportTranslations(merged, server, command_database);
-        ReportPaletteAndPointer(merged, server, command_database);
-        ReportResourceGroup(merged, server, command_database, "Window and appearance", appearance,
-                            appearance_names, appearance_support, appearance_help,
-                            XtNumber(appearance));
-        ReportResourceGroup(merged, server, command_database, "Behavior and transitional features",
-                            behavior, behavior_names, behavior_support, behavior_help,
-                            XtNumber(behavior));
-        ReportUpstreamCatalog(merged, server, command_database);
+        ReportResourceSources(display, manager, application_class);
+        ReportFonts(&context, vt);
+        ReportTranslations(&context);
+        ReportPaletteAndPointer(&context);
+        ReportResourceGroup(&context, "Window and appearance", appearance, appearance_names,
+                            appearance_support, appearance_help, XtNumber(appearance));
+        ReportResourceGroup(&context, "Behavior and transitional features", behavior,
+                            behavior_names, behavior_support, behavior_help, XtNumber(behavior));
+        ReportUpstreamCatalog(&context);
         ReportUpstreamAppDefaults();
-        ReportToolkitCatalog(merged, server, command_database);
+        ReportToolkitCatalog(&context);
         if (server != NULL)
                 XrmDestroyDatabase(server);
 }

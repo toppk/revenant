@@ -10,6 +10,10 @@ xterm's convention: `-opt` turns a boolean on and `+opt` turns it off. A few
 options (`-si`, `-fbb`) are named for the *inhibit*, so `-si` disables the
 behaviour; the table gives the resource value each form sets.
 
+Unknown options and missing values fail before Revenant opens an X display,
+using xterm-style error and usage output. Run `revenant -help` for the accepted
+inventory; an option not shown there is not silently accepted.
+
 <!-- markdownlint-disable MD013 -->
 
 ## Running a command
@@ -23,6 +27,8 @@ behaviour; the table gives the resource value each form sets.
 | Option | Resource | Meaning |
 | --- | --- | --- |
 | `-fn font` | `vt100.font` | Bitmap font for the Default slot |
+| `-fb font` | `vt100.boldFont` | Bold fallback for the Xft path; bitmap bold remains incomplete |
+| `-fwb font` | `vt100.wideBoldFont` | Wide-bold fallback for the Xft path; bitmap wide-bold remains incomplete |
 | `-fa pattern` | `vt100.faceName` | Xft face (fontconfig pattern) |
 | `-fs size` | `vt100.faceSize` | Xft point size |
 | `-fd pattern` | `vt100.faceNameDoublesize` | Xft face for wide text and emoji fallback |
@@ -34,11 +40,18 @@ behaviour; the table gives the resource value each form sets.
 | --- | --- | --- |
 | `-bg color` | `*background` | Background |
 | `-fg color` | `*foreground` | Foreground |
-| `-rv` / `+rv` | `vt100.reverseVideo` true / false | Swap the configured default foreground and background |
+| `-bd color` | `.borderColor` | Shell border color |
+| `-bw pixels` / `-w pixels` | `.borderWidth` | Shell border width |
+| `-rv` / `+rv`, `-r` / `+r` | `vt100.reverseVideo` true / false | Swap the configured default foreground and background |
 | `-geometry WxH+X+Y` | `.geometry` | Size in characters, position in pixels |
 | `-b pixels` | `vt100.internalBorder` | Padding inside the window |
-| `-title string` | `.title` | Window title |
+| `-cr color` | `vt100.cursorColor` | Text cursor color |
+| `-title string` / `-T string` | `.title` | Window title |
+| `-n string` | `.iconName` | Icon name |
+| `#geom` | `.iconGeometry` | Icon geometry in xterm's sticky form |
 | `-iconic` | `.iconic` | Start iconified |
+| `-name string` | — | Override the application instance; with `-e`, default title/icon still use the child basename |
+| `-class string` | — | Override the application class |
 | `-display name` | — | X server to connect to |
 | `-xrm 'spec: value'` | any | Any resource, repeatable |
 
@@ -77,13 +90,19 @@ that ignores application blink requests.
 | `-debug` / `+debug` | `logLevel` debug / warning | xterm-compatible aliases for verbose/default logging |
 | `-report-config` | `reportConfig` | Print the resolved configuration report and exit |
 | `-report-font-routing` | `vt100.reportFontRouting` | Collect bounded font-routing records for `report-font-routing()` snapshots |
-| `--version` | — | Print the version and exit (Revenant specific; xterm uses `-version`) |
+| `-help` / `--help` | — | Print accepted options and exit without opening a display |
+| `-version` / `--version` | — | Print the version and exit; the double-dash form is Revenant specific |
 | `--self-test` | — | Run the built-in self test and exit (Revenant specific) |
 
-!!! warning "Unknown options are ignored silently"
-    Options Revenant does not know are left in `argv` and dropped. `revenant -ls`
-    starts without a login shell and without complaint. Until the option
-    table is complete, check the [feasibility table](../compatibility/command-line-feasibility.md)
-    when an option seems to have no effect.
+!!! note "Unsupported means rejected"
+    For example, `revenant -ls` currently exits with a bad-option diagnostic;
+    it does not start an ordinary non-login shell. The
+    [feasibility table](../compatibility/command-line-feasibility.md) classifies
+    every patch-411 option that is not yet accepted.
+
+Single-dash options may use an unambiguous prefix, as in xterm: `-geo` means
+`-geometry` and `-clas` means `-class`. Exact spellings take precedence;
+ambiguous prefixes such as `-fo` are rejected. Revenant's double-dash
+extensions require their full spelling.
 
 <!-- markdownlint-enable MD013 -->

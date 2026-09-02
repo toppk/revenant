@@ -330,6 +330,12 @@ test(
 )
 
 test(
+    'command-line',
+    find_program('sh'),
+    args: [files('tests/command-line.sh'), xterm_plus.full_path()],
+)
+
+test(
     'internal-branding',
     python3,
     args: [files('tools/check-internal-branding'), meson.current_source_dir()],
@@ -378,6 +384,7 @@ endif
 
 xvfb = find_program('Xvfb', required: xvfb_tests_option)
 xprop = find_program('xprop', required: xvfb_tests_option)
+xwininfo = find_program('xwininfo', required: xvfb_tests_option)
 xrdb = find_program('xrdb', required: xvfb_tests_option)
 timeout_program = find_program('timeout', required: xvfb_tests_option)
 if build_with_ghostty and xvfb.found()
@@ -393,6 +400,21 @@ if build_with_ghostty and xvfb.found()
         timeout: 30,
         is_parallel: false,
     )
+    if xwininfo.found() and xprop.found()
+        test(
+            'xvfb-command-line',
+            find_program('sh'),
+            args: [
+                files('tests/xvfb-command-line.sh'),
+                xvfb.full_path(),
+                xterm_plus.full_path(),
+                xwininfo.full_path(),
+                xprop.full_path(),
+            ],
+            timeout: 30,
+            is_parallel: false,
+        )
+    endif
     test(
         'xvfb-colors',
         find_program('sh'),

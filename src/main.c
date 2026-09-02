@@ -117,7 +117,6 @@ static const char *const fallback_resources[] = {
     "*mainMenu.Label:  Main Options",
     "*vtMenu.Label:  VT Options",
     "*fontMenu.Label:  VT Fonts",
-    "*title: xterm+",
     NULL,
 };
 
@@ -200,23 +199,13 @@ ConfigureApplicationVisual(App *app)
 }
 
 static void
-SetEarlyLogLevel(int argc, char **argv)
+SetEarlyLogLevel(const XtpCommandLine *command_line)
 {
-        int argument;
+        XtpLogLevel level;
 
-        for (argument = 1; argument < argc; ++argument) {
-                XtpLogLevel level;
-
-                if (strcmp(argv[argument], "-e") == 0)
-                        break;
-                if (strcmp(argv[argument], "-debug") == 0)
-                        XtpLogSetLevel(XTP_LOG_DEBUG);
-                else if (strcmp(argv[argument], "+debug") == 0)
-                        XtpLogSetLevel(XTP_LOG_WARNING);
-                else if (strcmp(argv[argument], "-log") == 0 && argument + 1 < argc &&
-                         XtpLogLevelParse(argv[argument + 1], &level) == 0)
-                        XtpLogSetLevel(level);
-        }
+        if (command_line->early_log_level != NULL &&
+            XtpLogLevelParse(command_line->early_log_level, &level) == 0)
+                XtpLogSetLevel(level);
 }
 
 static void
@@ -243,6 +232,86 @@ LogCommandLine(int argc, char **argv)
         XtpLog(XTP_LOG_INFO, "startup", "command-line argc=%d", argc);
         for (argument = 0; argument < argc; ++argument)
                 XtpLog(XTP_LOG_DEBUG, "startup", "argv[%d]=%s", argument, argv[argument]);
+}
+
+static void
+PutShellIdentityDefault(Display *display, const char *application_name,
+                        const char *application_class, const char *resource_name,
+                        const char *resource_class, const char *value)
+{
+        XrmDatabase database = XrmGetDatabase(display);
+        XrmValue existing = {0};
+        char *type = NULL;
+        char *name;
+        char *class_name;
+        size_t name_length = strlen(application_name) + strlen(resource_name) + 2U;
+        size_t class_length = strlen(application_class) + strlen(resource_class) + 2U;
+
+        name = malloc(name_length);
+        class_name = malloc(class_length);
+        if (name == NULL || class_name == NULL) {
+                free(name);
+                free(class_name);
+                return;
+        }
+        (void)snprintf(name, name_length, "%s.%s", application_name, resource_name);
+        (void)snprintf(class_name, class_length, "%s.%s", application_class, resource_class);
+        if (!XrmGetResource(database, name, class_name, &type, &existing)) {
+                XrmPutStringResource(&database, name, value);
+                XrmSetDatabase(display, database);
+        }
+        free(name);
+        free(class_name);
+}
+
+static void
+PutCommandFontOverride(Display *display, const XtpCommandLine *command_line, const char *resource,
+                       const char *value)
+{
+        XrmDatabase database;
+        char *name;
+        size_t name_length;
+
+        if (value == NULL)
+                return;
+
+        /*
+         * Patch 411 gives -fa/-fd precedence over -xrm regardless of argv
+         * order (PREC-01/02).  Keeping their values in the single scanner
+         * preserves that rule while the typed Xrm table still handles normal
+         * option parsing and provenance.
+         */
+        database = XrmGetDatabase(display);
+        name_length = strlen(command_line->application_name) + strlen(resource) + 2U;
+        name = malloc(name_length);
+        if (name == NULL)
+                return;
+        (void)snprintf(name, name_length, "%s.%s", command_line->application_name, resource);
+        XrmPutStringResource(&database, name, value);
+        XrmSetDatabase(display, database);
+        free(name);
+}
+
+static void
+ApplyShellIdentityDefaults(Display *display, const XtpCommandLine *command_line)
+{
+        const char *default_name;
+        const char *slash;
+
+        if (command_line->command != NULL) {
+                slash = strrchr(command_line->command[0], '/');
+                default_name = slash != NULL ? slash + 1 : command_line->command[0];
+        } else {
+                default_name = strcmp(command_line->application_name, XTP_APPLICATION_NAME) == 0
+                                   ? "xterm+"
+                                   : command_line->application_name;
+        }
+
+        PutShellIdentityDefault(display, command_line->application_name,
+                                command_line->application_class, "title", "Title", default_name);
+        PutShellIdentityDefault(display, command_line->application_name,
+                                command_line->application_class, "iconName", "IconName",
+                                default_name);
 }
 
 static void PtyOutputReady(XtPointer closure, int *source, XtInputId *input_id);
@@ -732,53 +801,11 @@ UpdateGeometry(App *app)
 }
 
 static int
-ResolveChildCommand(int *argc, char **argv, char *default_command[2], char ***command)
-{
-        int argument;
-
-        *command = NULL;
-        for (argument = 1; argument < *argc; ++argument) {
-                if (strcmp(argv[argument], "-e") == 0) {
-                        if (argument + 1 == *argc) {
-                                XtpLog(XTP_LOG_ERROR, "startup", "-e requires a command");
-                                return -1;
-                        }
-                        *command = &argv[argument + 1];
-                        *argc = argument;
-                        break;
-                }
-        }
-        if (*command == NULL) {
-                default_command[0] = getenv("SHELL");
-                if (default_command[0] == NULL || default_command[0][0] == '\0')
-                        default_command[0] = (char *)"/bin/sh";
-                default_command[1] = NULL;
-                *command = default_command;
-        }
-        return 0;
-}
-
-static void
-PutCommandFontOverride(Display *display, const char *resource, const char *value)
-{
-        XrmDatabase database;
-        char name[128];
-
-        if (display == NULL || value == NULL)
-                return;
-        database = XrmGetDatabase(display);
-        (void)snprintf(name, sizeof(name), "xterm.vt100.%s", resource);
-        XrmPutStringResource(&database, name, value);
-        XrmSetDatabase(display, database);
-}
-
-static int
-OpenApplication(App *app, int *argc, char **argv, AppResources *resources,
-                const char *face_name_override, const char *wide_face_override,
-                const char *emoji_face_override)
+OpenApplication(App *app, XtpCommandLine *command_line, AppResources *resources)
 {
         Arg args[7];
         Cardinal num_args = 0;
+        int xt_argc = command_line->xt_argc;
 
         XtSetLanguageProc(NULL, NULL, NULL);
         XtToolkitInitialize();
@@ -789,23 +816,32 @@ OpenApplication(App *app, int *argc, char **argv, AppResources *resources,
         }
         XtAppSetFallbackResources(app->context, (String *)fallback_resources);
 
-        app->display = XtOpenDisplay(app->context, NULL, "xterm", "XTerm", XtpCommandOptions,
-                                     XtpCommandOptionCount, argc, argv);
+        app->display = XtOpenDisplay(app->context, NULL, command_line->application_name,
+                                     command_line->application_class, XtpCommandOptions,
+                                     XtpCommandOptionCount, &xt_argc, command_line->xt_argv);
         if (app->display == NULL) {
                 XtpLog(XTP_LOG_ERROR, "startup", "cannot open display");
                 return -1;
         }
-        PutCommandFontOverride(app->display, "faceName", face_name_override);
-        PutCommandFontOverride(app->display, "faceNameDoublesize", wide_face_override);
-        PutCommandFontOverride(app->display, "faceNameEmoji", emoji_face_override);
+        if (xt_argc != 1) {
+                XtpLog(XTP_LOG_ERROR, "startup", "toolkit left command-line option unparsed: %s",
+                       command_line->xt_argv[1]);
+                return -1;
+        }
         XtpLog(XTP_LOG_INFO, "startup", "display opened name=%s remaining-argc=%d",
-               DisplayString(app->display), *argc);
+               DisplayString(app->display), xt_argc);
+
+        ApplyShellIdentityDefaults(app->display, command_line);
+        PutCommandFontOverride(app->display, command_line, "vt100.faceName",
+                               command_line->face_name);
+        PutCommandFontOverride(app->display, command_line, "vt100.faceNameDoublesize",
+                               command_line->wide_face_name);
+        PutCommandFontOverride(app->display, command_line, "vt100.faceNameEmoji",
+                               command_line->emoji_face_name);
 
         ConfigureApplicationVisual(app);
 
         XtSetArg(args[num_args], XtNallowShellResize, True);
-        ++num_args;
-        XtSetArg(args[num_args], XtNtitle, "xterm+");
         ++num_args;
         XtSetArg(args[num_args], XtNinput, True);
         ++num_args;
@@ -817,13 +853,15 @@ OpenApplication(App *app, int *argc, char **argv, AppResources *resources,
         ++num_args;
         XtSetArg(args[num_args], XtNcolormap, app->colormap);
         ++num_args;
-        app->shell = XtAppCreateShell("xterm", "XTerm", applicationShellWidgetClass, app->display,
-                                      args, num_args);
+        app->shell =
+            XtAppCreateShell(command_line->application_name, command_line->application_class,
+                             applicationShellWidgetClass, app->display, args, num_args);
         if (app->shell == NULL) {
                 XtpLog(XTP_LOG_ERROR, "startup", "cannot create application shell");
                 return -1;
         }
-        XtpLog(XTP_LOG_INFO, "shell", "created instance=xterm class=XTerm title=xterm+");
+        XtpLog(XTP_LOG_INFO, "shell", "created instance=%s class=%s",
+               command_line->application_name, command_line->application_class);
 
         XtGetApplicationResources(app->shell, resources, application_resources,
                                   XtNumber(application_resources), NULL, 0);
@@ -831,7 +869,8 @@ OpenApplication(App *app, int *argc, char **argv, AppResources *resources,
         XtpLog(XTP_LOG_INFO, "config", "application resolved menuLocale=%s log-level=%s",
                resources->menu_locale != NULL ? resources->menu_locale : "(null)",
                XtpLogLevelName(XtpLogLevelCurrent()));
-        XtpLogResourceDatabases(app->display);
+        XtpLogResourceDatabases(app->display, command_line->application_name,
+                                command_line->application_class);
 
         app->vt = XtVaCreateManagedWidget("vt100", vt100WidgetClass, app->shell, XtNdepth,
                                           app->depth, XtNcolormap, app->colormap, NULL);
@@ -842,21 +881,6 @@ OpenApplication(App *app, int *argc, char **argv, AppResources *resources,
         XtpLog(XTP_LOG_INFO, "shell", "created child instance=vt100 class=VT100");
         XtpLog(XTP_LOG_INFO, "config", "active renderer=%s", XtpVtRendererName(app->vt));
         return 0;
-}
-
-static char *
-CommandFontOverride(int argc, char **argv, const char *option)
-{
-        const char *value = NULL;
-        int argument;
-
-        for (argument = 1; argument < argc; ++argument) {
-                if (strcmp(argv[argument], "-e") == 0)
-                        break;
-                if (strcmp(argv[argument], option) == 0 && argument + 1 < argc)
-                        value = argv[++argument];
-        }
-        return value != NULL ? strdup(value) : NULL;
 }
 
 static void
@@ -978,52 +1002,54 @@ main(int argc, char **argv)
 {
         App app;
         AppResources resources;
+        XtpCommandLine command_line;
         char **command = NULL;
         char *default_command[2];
-        int argument;
-        int original_argc = argc;
         int status = EXIT_FAILURE;
         XrmDatabase command_database = NULL;
-        Boolean report_requested = False;
-        char *face_name_override;
-        char *wide_face_override;
-        char *emoji_face_override;
 
-        for (argument = 1; argument < argc; ++argument) {
-                if (strcmp(argv[argument], "-e") == 0)
-                        break;
-                if (strcmp(argv[argument], "-report-config") == 0) {
-                        report_requested = True;
-                        break;
-                }
+        if (XtpScanCommandLine(argc, argv, &command_line) != 0) {
+                if (command_line.print_version)
+                        XtpCommandPrintVersion(stdout);
+                if (command_line.print_help)
+                        XtpCommandPrintHelp(stdout, argv[0]);
+                XtpCommandPrintError(stderr, argv[0], &command_line);
+                XtpCommandLineDestroy(&command_line);
+                return EXIT_FAILURE;
         }
-        if (report_requested)
+        if (command_line.report_config)
                 XtpLogSetQuiet(1);
 
-        SetEarlyLogLevel(argc, argv);
+        SetEarlyLogLevel(&command_line);
         LogCommandLine(argc, argv);
         XtpLog(XTP_LOG_INFO, "config",
                "compiled version=" XTP_VERSION " application=xterm class=XTerm widget=vt100/VT100 "
                "backend-option=auto default-grid=80x24 default-font=fixed log-level=warning");
 
-        if (argc == 2 && strcmp(argv[1], "--self-test") == 0)
-                return XtpSelfTest();
-        if (argc == 2 && strcmp(argv[1], "--version") == 0) {
-                puts(XTP_PROGRAM_NAME " " XTP_VERSION);
+        if (command_line.print_version)
+                XtpCommandPrintVersion(stdout);
+        if (command_line.print_help)
+                XtpCommandPrintHelp(stdout, argv[0]);
+        if (command_line.print_version || command_line.print_help) {
+                XtpCommandLineDestroy(&command_line);
                 return EXIT_SUCCESS;
         }
-
-        face_name_override = CommandFontOverride(argc, argv, "-fa");
-        wide_face_override = CommandFontOverride(argc, argv, "-fd");
-        emoji_face_override = CommandFontOverride(argc, argv, "-fe");
-
-        if (ResolveChildCommand(&argc, argv, default_command, &command) != 0) {
-                free(face_name_override);
-                free(wide_face_override);
-                free(emoji_face_override);
-                return EXIT_FAILURE;
+        if (command_line.self_test) {
+                status = XtpSelfTest();
+                XtpCommandLineDestroy(&command_line);
+                return status;
         }
-        command_database = XtpConfigCommandDatabase(original_argc, argv);
+
+        command = command_line.command;
+        if (command == NULL) {
+                default_command[0] = getenv("SHELL");
+                if (default_command[0] == NULL || default_command[0][0] == '\0')
+                        default_command[0] = (char *)"/bin/sh";
+                default_command[1] = NULL;
+                command = default_command;
+        }
+        command_database = XtpConfigCommandDatabase(command_line.xt_argc, command_line.xt_argv,
+                                                    command_line.application_name);
         XtpLog(XTP_LOG_INFO, "startup", "child command=%s", command[0]);
 
         memset(&app, 0, sizeof(app));
@@ -1036,12 +1062,12 @@ main(int argc, char **argv)
                        getenv("DISPLAY") != NULL ? getenv("DISPLAY") : "(unset)",
                        getenv("SHELL") != NULL ? getenv("SHELL") : "(unset)");
         }
-        if (OpenApplication(&app, &argc, argv, &resources, face_name_override, wide_face_override,
-                            emoji_face_override) != 0)
+        if (OpenApplication(&app, &command_line, &resources) != 0)
                 goto done;
 
         if (resources.report_config) {
-                XtpReportConfig(app.display, app.vt, command_database);
+                XtpReportConfig(app.display, app.vt, command_database,
+                                command_line.application_name, command_line.application_class);
                 status = EXIT_SUCCESS;
                 goto done;
         }
@@ -1066,9 +1092,7 @@ done:
         DestroyApplication(&app);
         if (command_database != NULL)
                 XrmDestroyDatabase(command_database);
-        free(face_name_override);
-        free(wide_face_override);
-        free(emoji_face_override);
+        XtpCommandLineDestroy(&command_line);
         XtpLog(XTP_LOG_INFO, "startup", "shutdown complete status=%d", status);
         return status;
 }
