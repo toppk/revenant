@@ -1,3 +1,10 @@
+---
+man: revenant-options
+section: 7
+manual: revenant
+description: command-line options and the resources they set
+---
+
 # Command-line options
 
 xterm's command-line options are almost all shorthand for resources: `-sl

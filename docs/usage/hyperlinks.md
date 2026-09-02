@@ -1,3 +1,10 @@
+---
+man: revenant-hyperlinks
+section: 7
+manual: revenant
+description: OSC 8 hyperlinks and how to open them
+---
+
 # OSC 8 hyperlinks
 
 Terminal applications can attach a URI to arbitrary visible text with the

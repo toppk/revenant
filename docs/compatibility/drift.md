@@ -1,3 +1,10 @@
+---
+man: revenant-drift
+section: 7
+manual: revenant
+description: recorded differences from xterm patch 411
+---
+
 # Recorded differences from xterm
 
 Revenant is intended to be a faithful, drop-in xterm replacement at its visible

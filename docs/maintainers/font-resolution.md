@@ -1,3 +1,10 @@
+---
+man: revenant-font-resolution
+section: 7
+manual: maintainers
+description: font-resolution architecture and contract
+---
+
 # Font-resolution architecture and contract
 
 **Status:** implementation in progress. This document is the maintained

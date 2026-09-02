@@ -1,3 +1,10 @@
+---
+man: readline-resize
+section: 7
+manual: x11
+description: Readline 8.3 wrapped-prompt regression after SIGWINCH
+---
+
 # Readline 8.3 wrapped-prompt resize regression
 
 Status: identified upstream and fixed in Bash development. The observations

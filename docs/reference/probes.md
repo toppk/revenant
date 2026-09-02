@@ -1,3 +1,10 @@
+---
+man: revenant-probes
+section: 7
+manual: revenant
+description: interactive verification programs
+---
+
 # Interactive terminal probes
 
 Human-run visual and interactive verification programs use the naming pattern

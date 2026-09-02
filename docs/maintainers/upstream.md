@@ -1,3 +1,10 @@
+---
+man: revenant-upstream
+section: 7
+manual: maintainers
+description: reference checkouts and update procedure
+---
+
 # Upstream reference checkouts
 
 The ignored `upstream/` directory holds local checkouts used for building,

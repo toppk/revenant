@@ -1,3 +1,10 @@
+---
+man: revenant-rendering
+section: 7
+manual: revenant
+description: repaint, damage, cursor, and resize invariants
+---
+
 # X11 rendering review
 
 Review of `src/vt_widget.c` drawing against upstream xterm

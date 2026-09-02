@@ -1,3 +1,10 @@
+---
+man: revenant-options-audit
+section: 7
+manual: revenant
+description: every xterm option and its status in Revenant
+---
+
 # Command-line feasibility study
 
 Every option in xterm patch-411's `-help` output (`xtermOptions[]` in

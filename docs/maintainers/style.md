@@ -1,3 +1,10 @@
+---
+man: revenant-style
+section: 7
+manual: maintainers
+description: C style guide
+---
+
 # Xterm+ C Style Guide
 
 > **Status:** Adopted. C sources and headers are formatted by the repository's

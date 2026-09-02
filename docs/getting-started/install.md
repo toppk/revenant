@@ -1,3 +1,10 @@
+---
+man: revenant-install
+section: 7
+manual: revenant
+description: packages, dependencies, and building from source
+---
+
 # Install
 
 Revenant releases provide Linux tarballs plus Debian and RPM packages. You can

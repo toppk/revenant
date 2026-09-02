@@ -1,3 +1,10 @@
+---
+man: revenant-menus-audit
+section: 7
+manual: revenant
+description: every xterm menu entry and its status in Revenant
+---
+
 # Popup-menu feasibility study
 
 Every entry from xterm patch-411's `mainMenu` (Ctrl-Button1), `vtMenu`

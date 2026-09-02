@@ -1,3 +1,10 @@
+---
+man: revenant-diagnostics
+section: 7
+manual: revenant
+description: the configuration report, the log, and profiling
+---
+
 # Diagnostics
 
 Revenant ships three tools for answering "what is it actually doing":

@@ -1,3 +1,10 @@
+---
+man: xresources
+section: 7
+manual: x11
+description: X resources, explained from scratch
+---
+
 # X resources, explained
 
 <!-- markdownlint-disable MD013 -->

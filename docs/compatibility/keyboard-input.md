@@ -1,3 +1,10 @@
+---
+man: revenant-keyboard
+section: 7
+manual: revenant
+description: keyboard encoding differences from xterm
+---
+
 # Keyboard input differences from xterm
 
 !!! warning "Major default-input compatibility difference"

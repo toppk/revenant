@@ -1,3 +1,10 @@
+---
+man: revenant-selection
+section: 7
+manual: revenant
+description: copy and paste on X11
+---
+
 # Copy and paste on X11
 
 Copy and paste in xterm comes from X11, not from the terminal protocol. X11

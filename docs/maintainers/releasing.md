@@ -1,3 +1,10 @@
+---
+man: revenant-releasing
+section: 7
+manual: maintainers
+description: release checklist and workflow
+---
+
 # Releasing
 
 Releases are built by `.github/workflows/release.yml`. It is intentionally

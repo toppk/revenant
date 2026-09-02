@@ -1,3 +1,10 @@
+---
+man: revenant-architecture
+section: 7
+manual: maintainers
+description: source boundaries and ownership rules
+---
+
 # Architecture and source boundaries
 
 Revenant combines an xterm-compatible X11 host with a modern terminal engine.

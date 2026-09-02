@@ -1,3 +1,10 @@
+---
+man: revenant-font-baseline
+section: 7
+manual: revenant
+description: font format baseline and emoji renderer contract
+---
+
 # Font format baseline and emoji renderer contract
 
 The original baseline commit captured Revenant's pre-routing Xft behavior. The

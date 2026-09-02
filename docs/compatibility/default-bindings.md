@@ -1,3 +1,10 @@
+---
+man: revenant-bindings
+section: 7
+manual: revenant
+description: default VT translations audited against xterm
+---
+
 # Default VT bindings
 
 This audit tracks the default VT translation groups assembled by

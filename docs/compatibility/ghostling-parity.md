@@ -1,3 +1,10 @@
+---
+man: revenant-parity
+section: 7
+manual: revenant
+description: Ghostling feature-parity gate
+---
+
 # Ghostling feature-parity gate
 
 Ghostling is Revenant's minimum modern-terminal capability floor. The goal is

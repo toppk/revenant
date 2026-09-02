@@ -1,3 +1,10 @@
+---
+man: revenant-roadmap
+section: 7
+manual: maintainers
+description: priorities and architecture guardrails
+---
+
 # Revenant roadmap
 
 Revenant has two simultaneous product requirements:

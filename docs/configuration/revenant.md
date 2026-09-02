@@ -1,3 +1,10 @@
+---
+man: revenant-config
+section: 7
+manual: revenant
+description: resources for fonts, colours, scrollback, cursor, and menus
+---
+
 # Configuring Revenant
 
 This page assumes you have read [X resources, explained](xresources.md), or

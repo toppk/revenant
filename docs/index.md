@@ -1,3 +1,10 @@
+---
+man: revenant
+section: 1
+manual: revenant
+description: xterm-compatible X11 terminal with a libghostty core
+---
+
 # Revenant
 
 Revenant is an X11 terminal emulator that looks, configures, and behaves like

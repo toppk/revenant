@@ -1,3 +1,10 @@
+---
+man: revenant-fonts
+section: 7
+manual: revenant
+description: font renderers, face chains, roles, and fallback
+---
+
 # Fonts and font fallback
 
 Revenant has two font renderers. The traditional Xlib renderer uses xterm's

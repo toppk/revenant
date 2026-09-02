@@ -1,3 +1,10 @@
+---
+man: revenant-firstrun
+section: 7
+manual: revenant
+description: menus, keys, and fonts on the first run
+---
+
 # First run
 
 <!-- markdownlint-disable MD013 -->
