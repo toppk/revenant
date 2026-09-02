@@ -389,6 +389,19 @@ xrdb = find_program('xrdb', required: xvfb_tests_option)
 timeout_program = find_program('timeout', required: xvfb_tests_option)
 if build_with_ghostty and xvfb.found()
     test(
+        'xvfb-pty-burst',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-pty-burst.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            python3.full_path(),
+            files('tests/pty-burst.py'),
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
         'xvfb-report-config',
         find_program('sh'),
         args: [

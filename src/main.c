@@ -677,26 +677,46 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
 static void
 PtyReady(XtPointer closure, int *source, XtInputId *input_id)
 {
+        enum
+        {
+                READ_BUDGET = 256 * 1024
+        };
         App *app = closure;
         uint8_t buffer[65536];
+        size_t total = 0;
+        unsigned int reads = 0;
         ssize_t amount;
+        Boolean closed = False;
 
         (void)source;
-        do {
-                amount = XtpPtyRead(app->pty, buffer, sizeof(buffer));
-        } while (amount < 0 && errno == EINTR);
+        /* One application refresh can cross a kernel read boundary. Preserve
+         * byte-order effects while presenting one bounded available burst. */
+        while (total < READ_BUDGET) {
+                do {
+                        amount = XtpPtyRead(app->pty, buffer, sizeof(buffer));
+                } while (amount < 0 && errno == EINTR);
 
-        if (amount > 0) {
-                XtpLogBytePreview(XTP_LOG_DEBUG, "pty", "read", buffer, (size_t)amount);
-                if (XtpTerminalFeedOutput(app->terminal, buffer, (size_t)amount,
-                                          XtpVtScrollTtyOutput(app->vt) != False) != 0)
-                        XtpLog(XTP_LOG_WARNING, "scrollback",
-                               "cannot preserve tty-output viewport policy");
+                if (amount > 0) {
+                        XtpLogBytePreview(XTP_LOG_DEBUG, "pty", "read", buffer, (size_t)amount);
+                        if (XtpTerminalFeedOutput(app->terminal, buffer, (size_t)amount,
+                                                  XtpVtScrollTtyOutput(app->vt) != False) != 0)
+                                XtpLog(XTP_LOG_WARNING, "scrollback",
+                                       "cannot preserve tty-output viewport policy");
+                        total += (size_t)amount;
+                        ++reads;
+                        continue;
+                }
+                if (amount < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+                        break;
+                closed = True;
+                break;
+        }
+        if (reads != 0) {
+                XtpLog(XTP_LOG_DEBUG, "pty", "drained reads=%u bytes=%zu", reads, total);
                 XtpVtUpdate(app->vt);
                 XFlush(app->display);
-        } else if (amount < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-                return;
-        } else {
+        }
+        if (closed) {
                 if (amount == 0)
                         XtpLog(XTP_LOG_INFO, "pty", "EOF");
                 else
