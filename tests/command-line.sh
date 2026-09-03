@@ -91,7 +91,10 @@ grep -q "^$program: option -log requires a value\$" "$test_dir/err"
 run 1 -welcome -report-config
 grep -q "^$program: options -welcome and -report-config cannot be combined\$" "$test_dir/err"
 
-run 1 -welcome
+printf 'leak:XtOpenDisplay\n' >"$test_dir/lsan-suppressions"
+# libXt retains its display-name allocation when XtOpenDisplay fails.
+LSAN_OPTIONS="${LSAN_OPTIONS:+$LSAN_OPTIONS:}suppressions=$test_dir/lsan-suppressions" \
+    run 1 -welcome
 grep -q 'startup: cannot open display$' "$test_dir/err"
 
 run 1 -help -bogus
