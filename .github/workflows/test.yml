@@ -16,6 +16,7 @@ concurrency:
 env:
   ZIG_VERSION: 0.16.0
   FONTTOOLS_VERSION: 4.62.0
+  CLANG_FORMAT_VERSION: 22.1.8
   DEBIAN_FRONTEND: noninteractive
   LIBGHOSTTY_ZIG_CACHE_DIR: ${{ github.workspace }}/libghostty-zig
 
@@ -63,7 +64,9 @@ jobs:
           echo "$RUNNER_TEMP/zig" >> "$GITHUB_PATH"
           tools/fetch-libghostty
       - name: Check C formatting
-        run: clang-format --dry-run --Werror src/*.[ch] tests/*.c
+        run: |
+          python3 -m pip install --user --break-system-packages "clang-format==$CLANG_FORMAT_VERSION"
+          ~/.local/bin/clang-format --dry-run --Werror src/*.[ch] tests/*.c
       - name: Run the complete suite with GCC
         run: |
           CC=gcc meson setup build-gcc -Dlibghostty=enabled -Dxvfb-tests=enabled

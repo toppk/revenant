@@ -53,7 +53,7 @@ def render(source: Path, version: str, ranges: list[tuple[int, int]]) -> str:
     for first, last in ranges:
         lines.append(f"    {{0x{first:06x}U, 0x{last:06x}U}},")
     lines.extend(("};", "", "/* clang-format on */"))
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n"
 
 
 def main() -> int:

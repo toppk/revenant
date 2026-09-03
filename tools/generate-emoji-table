@@ -67,7 +67,7 @@ def render(
             lines.append(f"    {{0x{first:06x}U, 0x{last:06x}U}},")
         lines.extend(("};", ""))
     lines.append("/* clang-format on */")
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n"
 
 
 def main() -> int:
