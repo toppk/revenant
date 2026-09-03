@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/revenant.png" width="360" alt="Revenant: a skeleton rising from the grave, coffin lid on its shoulder">
+  <img src="docs/assets/revenant.png" width="250" alt="Revenant: a skeleton rising from the grave, coffin lid on its shoulder">
 </p>
 
 <h1 align="center">Revenant</h1>

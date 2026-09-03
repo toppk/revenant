@@ -83,6 +83,7 @@
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 2.5rem;
+      align-items: start;
     }
 
     .hero figure {
@@ -92,10 +93,8 @@
 
     .hero img {
       display: block;
-      height: 100%;
+      height: auto;
       width: 100%;
-      object-fit: fill;
-      object-position: center top;
       filter: drop-shadow(0 .3rem .6rem rgba(0, 0, 0, .35));
     }
 
