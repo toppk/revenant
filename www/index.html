@@ -204,6 +204,12 @@
           <code>~/.Xresources</code> lines you wrote twenty years ago, with the terminal engine
           underneath replaced by <code>libghostty-vt</code>. This is still an ongoing effort.
         </p>
+        <p>
+          It starts with xterm's defaults. The traditional fixed bitmap font is often too
+          small on a modern high-density display, and useful modern defaults are a future
+          goal. After installing, run <code>revenant -welcome</code>; when it detects that
+          problem it prints the few resources that fix it.
+        </p>
         <!-- ==== END EDIT ==== -->
 
         <div class="cards">
@@ -216,6 +222,11 @@
             <strong>Terminal Developers Network</strong>
             <span>A reference for terminal protocols across emulators: syntax,
               behavior, compatibility tables, and probes you can run yourself.</span>
+          </a>
+          <a class="card" href="https://github.com/toppk/revenant/releases">
+            <strong>Releases</strong>
+            <span>Linux tarballs and Debian, RPM, and Arch packages, with signed
+              build provenance for every file.</span>
           </a>
           <a class="card" href="https://github.com/toppk/revenant">
             <strong>Source</strong>

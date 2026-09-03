@@ -16,6 +16,23 @@ popup menus, the same `~/.Xresources` lines. If you have never run xterm,
 this documentation starts from zero — including the X11 configuration
 mechanism that xterm inherits and that most modern terminals never had.
 
+## Expect to configure it
+
+Revenant starts with xterm's defaults on purpose: the `fixed` bitmap font, an
+80x24 window, and 1024 lines of history. The traditional `fixed` bitmap font
+is often too small on a modern high-density display. Shipping useful modern
+defaults is a future goal; today a few `~/.Xresources` lines are part of the
+first run, and Revenant tells you which ones:
+
+```sh
+revenant -welcome
+```
+
+The report audits your X resources, fonts, and tools without changing anything,
+and prints a starter fragment when it detects that the unconfigured bitmap
+default may be difficult to read. The [first-run
+guide](getting-started/first-run.md) explains the rest.
+
 ## Two product bars
 
 Revenant has two requirements that pull in different directions, and the
@@ -39,6 +56,15 @@ is classified in the
 ## Where to go
 
 <div class="grid cards" markdown>
+
+- **Installing or building it**
+  [Install](getting-started/install.md) covers the release packages, the
+  full `libghostty-vt` build, and the stub build for UI work.
+
+- **Your first window**
+  [First run](getting-started/first-run.md) starts with `revenant -welcome`,
+  the resources that make xterm's defaults readable, then menus, keys, and
+  fonts.
 
 - **New to xterm and X11?**
   Start with [X resources, explained](configuration/xresources.md). It is
@@ -65,10 +91,6 @@ is classified in the
   Use the dedicated [font configuration guide](configuration/fonts.md) for
   working Xft examples, xterm's two-entry chain grammar, role ordering, and
   the current expanded-resolver rollout status.
-
-- **Building it**
-  [Install](getting-started/install.md) covers the stub build for UI work
-  and the full `libghostty-vt` build.
 
 - **Something looks wrong**
   [Diagnostics](reference/diagnostics.md) explains `-report-config`, the

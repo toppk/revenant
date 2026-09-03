@@ -6,6 +6,33 @@
 
 <p align="center"><strong>A modern X11 terminal for users who like xterm.</strong></p>
 
+## Quick start
+
+Revenant starts with xterm's defaults on purpose: the `fixed` bitmap font, an
+80x24 window, and 1024 lines of history. The traditional `fixed` bitmap font
+is often too small on a modern high-density display, so expect to configure
+Revenant before judging it. Shipping useful modern defaults is a future goal;
+today a few `~/.Xresources` lines are part of the first run.
+
+**Users:** grab a package from the
+[releases page](https://github.com/toppk/revenant/releases) or start at the
+[documentation site](https://toppk.github.io/revenant/docs/), then run
+`revenant -welcome`. It audits your X resources, fonts, and tools without
+changing anything, and prints a starter fragment for `~/.Xresources` when it
+detects that the unconfigured bitmap default may be difficult to read.
+
+**Developers:** build the full terminal from a checkout:
+
+```sh
+tools/fetch-libghostty
+meson setup build-ghostty -Dlibghostty=enabled
+meson compile -C build-ghostty
+meson test -C build-ghostty
+./build-ghostty/revenant
+```
+
+## What Revenant is
+
 Revenant (installed as `revenant`, with `xterm+` as an alternative name) is an
 X11 terminal emulator that preserves xterm's Xt/Athena interface and X resource
 contract while using `libghostty-vt` as its terminal core.
@@ -47,15 +74,7 @@ treating Revenant as a transparent replacement.
 Releases provide Linux archives and Debian, RPM, and Arch packages; system packages
 also install a Revenant application-menu launcher and icons. The
 [installation guide](docs/getting-started/install.md) lists dependencies and
-packaging details. To build the full terminal from a checkout:
-
-```sh
-tools/fetch-libghostty
-meson setup build-ghostty -Dlibghostty=enabled
-meson compile -C build-ghostty
-meson test -C build-ghostty
-./build-ghostty/revenant
-```
+packaging details; the full build is shown in the quick start above.
 
 Without arguments, Revenant starts `$SHELL` (falling back to `/bin/sh`) and sets
 `TERM=xterm-256color`. Use xterm's trailing `-e` form to run another command:
@@ -75,6 +94,9 @@ meson test -C build
 
 ## First things to know
 
+- The defaults are xterm's. Run `revenant -welcome` first; it reports font,
+  resource, and tool gaps and prints a starter resource fragment when
+  appropriate.
 - Ctrl+button 1, 2, and 3 open the Main Options, VT Options, and VT Fonts
   menus.
 - Shift+Page Up and Shift+Page Down navigate saved history.

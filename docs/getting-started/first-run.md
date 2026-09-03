@@ -9,7 +9,47 @@ description: menus, keys, and fonts on the first run
 
 <!-- markdownlint-disable MD013 -->
 
-Run the binary from your build directory:
+Revenant starts with xterm's defaults on purpose: the `fixed` bitmap font, an
+80x24 window, and 1024 lines of history. The traditional `fixed` bitmap font
+is often too small on a modern high-density display, so configure Revenant
+before judging it. Shipping useful modern defaults is a future goal; today a
+few `~/.Xresources` lines are part of the first run.
+
+## Check your setup
+
+Run the read-only welcome assistant first. It tells you whether X resources
+are loaded, whether a scalable font is configured, and which fonts and tools
+are missing:
+
+```sh
+revenant -welcome
+```
+
+It reports the active renderer and cell size, app-default and live X resource
+status, the resolved primary/emoji/CJK fonts, and whether `xrdb` is installed.
+On Debian-family, Fedora-family, and Arch-family systems it gives appropriate
+package suggestions for missing capabilities; other systems receive generic
+capability names. It does not install packages, edit files, load resources, or
+use the network.
+
+When it detects that the unconfigured bitmap default may be difficult to read,
+it prints a small `XTerm*` fragment for `~/.Xresources` that switches to Xft
+at a readable size and enlarges history.
+Apply a fragment only after reviewing it, then load it with
+`xrdb -merge ~/.Xresources`. A visual Unicode sample is shown when the report
+is itself running inside Revenant with the Xft renderer and emoji coverage;
+elsewhere it avoids judging the host terminal. The final support block is
+designed to be copied into a bug report without including home paths or the
+complete resource database.
+
+For colors, [terminal.love](https://terminal.love/) offers a scheme catalog
+with a live demo and an Xresources export; review its `foreground`,
+`background`, and `color0` through `color15` entries before adding them.
+
+## Running it
+
+Installed packages put `revenant` on your path. From a checkout, run the
+binary in your build directory instead:
 
 ```sh
 ./build-ghostty/revenant

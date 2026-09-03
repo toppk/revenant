@@ -162,3 +162,16 @@ install it: overwriting `/usr/share/X11/app-defaults/XTerm` would conflict
 with a distribution's xterm package. When upstream xterm is installed, Xt
 loads that existing app-defaults file for Revenant automatically, which is
 exactly what you want — see [X resources, explained](../configuration/xresources.md#where-resources-come-from).
+
+## Next
+
+Whichever way you installed it, run the welcome report before the first real
+session. Revenant starts with xterm's defaults, and the traditional `fixed`
+bitmap font is often too small on a modern high-density display. The report
+says whether that applies to you and prints the resources that fix it:
+
+```sh
+revenant -welcome
+```
+
+Then continue with the [first-run guide](first-run.md).
