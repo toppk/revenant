@@ -15,6 +15,7 @@ typedef enum
         XTP_COMMAND_ERROR_UNKNOWN,
         XTP_COMMAND_ERROR_MISSING_VALUE,
         XTP_COMMAND_ERROR_MISSING_COMMAND,
+        XTP_COMMAND_ERROR_CONFLICT,
         XTP_COMMAND_ERROR_MEMORY,
 } XtpCommandError;
 
@@ -32,6 +33,7 @@ typedef struct
         const char *error_option;
         XtpCommandError error;
         bool report_config;
+        bool welcome;
         bool print_help;
         bool print_version;
         bool self_test;

@@ -7,6 +7,7 @@
 #include "terminal.h"
 #include "version.h"
 #include "vt_widget.h"
+#include "welcome.h"
 #include "x11_opacity.h"
 
 #include <X11/Intrinsic.h>
@@ -39,7 +40,6 @@ typedef struct
         Colormap colormap;
         int depth;
         uint16_t background_alpha;
-        Boolean owns_colormap;
         Boolean argb_visual;
         Boolean running;
 } App;
@@ -190,7 +190,6 @@ ConfigureApplicationVisual(App *app)
         app->depth = visual_info.depth;
         app->colormap =
             XCreateColormap(app->display, RootWindow(app->display, screen), app->visual, AllocNone);
-        app->owns_colormap = True;
         app->argb_visual = True;
         XtpLog(XTP_LOG_INFO, "render",
                "backgroundOpacity=%s visual=0x%lx depth=%d alpha-mask=0x%lx compositor=present",
@@ -1001,13 +1000,9 @@ DestroyApplication(App *app)
                 app->shell = NULL;
                 app->vt = NULL;
         }
-        if (app->owns_colormap && app->display != NULL) {
-                XFreeColormap(app->display, app->colormap);
-                app->colormap = None;
-                app->owns_colormap = False;
-        }
         XtpMenusDestroy(&app->menus, app->display);
         if (app->display != NULL) {
+                /* XtCloseDisplay flushes cached color converters that use this colormap. */
                 XtCloseDisplay(app->display);
                 app->display = NULL;
         }
@@ -1037,7 +1032,7 @@ main(int argc, char **argv)
                 XtpCommandLineDestroy(&command_line);
                 return EXIT_FAILURE;
         }
-        if (command_line.report_config)
+        if (command_line.report_config || command_line.welcome)
                 XtpLogSetQuiet(1);
 
         SetEarlyLogLevel(&command_line);
@@ -1085,9 +1080,20 @@ main(int argc, char **argv)
         if (OpenApplication(&app, &command_line, &resources) != 0)
                 goto done;
 
+        if (resources.report_config && command_line.welcome) {
+                XtpLog(XTP_LOG_ERROR, "startup", "-welcome and reportConfig cannot be combined");
+                goto done;
+        }
+
         if (resources.report_config) {
                 XtpReportConfig(app.display, app.vt, command_database,
                                 command_line.application_name, command_line.application_class);
+                status = EXIT_SUCCESS;
+                goto done;
+        }
+        if (command_line.welcome) {
+                XtpWelcomeReport(stdout, app.display, app.vt, command_line.application_name,
+                                 command_line.application_class);
                 status = EXIT_SUCCESS;
                 goto done;
         }

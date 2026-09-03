@@ -5,6 +5,8 @@
 #include "diagnostics.h"
 #include "resource_catalog.h"
 #include "sme_slider.h"
+#include "terminal.h"
+#include "version.h"
 #include "vt_widget.h"
 
 #include <fontconfig/fontconfig.h>
@@ -1436,6 +1438,10 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
         context.application_name = application_name;
         context.application_class = application_class;
         puts("! xterm+ consolidated configuration");
+        printf("! version: %s\n", XTP_VERSION);
+        printf("! backend: %s\n", XtpTerminalBackend());
+        if (!XtpTerminalBackendIsStub())
+                printf("! backend revision: %s\n", XTP_GHOSTTY_REVISION);
         puts("! Syntax is intentionally close to .Xresources. Redirect stdout for");
         puts("! plain, reusable text; terminal output uses colors unless NO_COLOR is set.");
         puts("! Origins: command line, merged X resources, compiled default, unset.");

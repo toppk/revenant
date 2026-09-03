@@ -16,15 +16,66 @@ fs = import('fs')
 python3 = find_program('python3')
 uv = find_program('uv', required: false)
 
+ghostty_option = get_option('libghostty')
+ghostty_source_option = get_option('libghostty-source')
+if fs.is_absolute(ghostty_source_option)
+    ghostty_source_dir = ghostty_source_option
+else
+    ghostty_source_dir = meson.current_source_dir() / ghostty_source_option
+endif
+have_ghostty_source = fs.exists(ghostty_source_dir / 'build.zig')
+build_with_ghostty = not ghostty_option.disabled() and have_ghostty_source
+
+if ghostty_option.enabled() and not have_ghostty_source
+    error(
+        'libghostty was enabled, but no Ghostty checkout exists at ' +
+        ghostty_source_dir + '. Run tools/fetch-libghostty first.',
+    )
+endif
+
 build_version = get_option('release-version')
 if build_version == ''
     build_version = meson.project_version()
 endif
 program_name = 'revenant'
+support_url = 'https://github.com/toppk/revenant/issues'
+ghostty_reference = 'none'
+if build_with_ghostty
+    git = find_program('git', required: false)
+    if git.found() and fs.exists(ghostty_source_dir / '.git')
+        ghostty_head = run_command(
+            git,
+            '-C', ghostty_source_dir,
+            'rev-parse', 'HEAD',
+            check: false,
+        )
+        if ghostty_head.returncode() == 0 and ghostty_head.stdout().strip() != ''
+            ghostty_reference = ghostty_head.stdout().strip()
+            ghostty_changes = run_command(
+                git,
+                '-C', ghostty_source_dir,
+                'status', '--porcelain', '--untracked-files=no',
+                check: false,
+            )
+            if ghostty_changes.returncode() == 0 and ghostty_changes.stdout().strip() != ''
+                ghostty_reference += '-dirty'
+            endif
+        endif
+    endif
+    if ghostty_reference == 'none'
+        ghostty_reference = run_command(
+            find_program('tools/fetch-libghostty'),
+            '--print-reference',
+            check: true,
+        ).stdout().strip()
+    endif
+endif
 
 version_configuration = configuration_data()
 version_configuration.set_quoted('XTP_VERSION', build_version)
 version_configuration.set_quoted('XTP_PROGRAM_NAME', program_name)
+version_configuration.set_quoted('XTP_SUPPORT_URL', support_url)
+version_configuration.set_quoted('XTP_GHOSTTY_REVISION', ghostty_reference)
 configure_file(
     output: 'version.h',
     configuration: version_configuration,
@@ -95,6 +146,7 @@ sources = files(
     'src/main.c',
     'src/pty.c',
     'src/selftest.c',
+    'src/welcome.c',
 )
 sources += widget_sources
 
@@ -120,24 +172,6 @@ sources += xterm_resource_catalog
 terminal_sources = []
 terminal_link_sources = []
 terminal_compile_args = []
-
-ghostty_option = get_option('libghostty')
-ghostty_source_option = get_option('libghostty-source')
-if fs.is_absolute(ghostty_source_option)
-    ghostty_source_dir = ghostty_source_option
-else
-    ghostty_source_dir = meson.current_source_dir() / ghostty_source_option
-endif
-
-have_ghostty_source = fs.exists(ghostty_source_dir / 'build.zig')
-build_with_ghostty = not ghostty_option.disabled() and have_ghostty_source
-
-if ghostty_option.enabled() and not have_ghostty_source
-    error(
-        'libghostty was enabled, but no Ghostty checkout exists at ' +
-        ghostty_source_dir + '. Run tools/fetch-libghostty first.',
-    )
-endif
 
 if build_with_ghostty
     zig = find_program('zig', required: true)
@@ -437,6 +471,20 @@ if build_with_ghostty and xvfb.found()
             xvfb.full_path(),
             xterm_plus.full_path(),
             meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-welcome',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-welcome.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+            xrdb.full_path(),
+            compositor_owner_test_tool.full_path(),
         ],
         timeout: 30,
         is_parallel: false,

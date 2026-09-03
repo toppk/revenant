@@ -41,6 +41,7 @@ grep -q '^    -help ' "$test_dir/out"
 grep -q '^    -name string ' "$test_dir/out"
 grep -q '^    -class string ' "$test_dir/out"
 grep -q '^    -/+pc ' "$test_dir/out"
+grep -q '^    -welcome ' "$test_dir/out"
 grep -q '^    -e command args \.\.\. ' "$test_dir/out"
 grep -q '^An option beginning with plus (+) turns off the behavior that the same option with minus (-) turns on\.$' "$test_dir/out"
 test ! -s "$test_dir/err"
@@ -52,6 +53,9 @@ run 0 -v
 cmp "$test_dir/version" "$test_dir/out"
 
 run 0 -geo 80x24 -version
+cmp "$test_dir/version" "$test_dir/out"
+
+run 0 -wel -version
 cmp "$test_dir/version" "$test_dir/out"
 
 run 0 -clas CustomTerm -nam custom -sele 1000 -version
@@ -83,6 +87,12 @@ grep -q "^$program: option -name requires a value\$" "$test_dir/err"
 
 run 1 -log
 grep -q "^$program: option -log requires a value\$" "$test_dir/err"
+
+run 1 -welcome -report-config
+grep -q "^$program: options -welcome and -report-config cannot be combined\$" "$test_dir/err"
+
+run 1 -welcome
+grep -q 'startup: cannot open display$' "$test_dir/err"
 
 run 1 -help -bogus
 grep -q "^$program .* usage:\$" "$test_dir/out"

@@ -86,6 +86,7 @@ typedef enum
         OPTION_COMMAND,
         OPTION_HELP,
         OPTION_VERSION,
+        OPTION_WELCOME,
         OPTION_NAME,
         OPTION_CLASS,
 } OptionKind;
@@ -111,8 +112,8 @@ static const ToolkitOption toolkit_options[] = {
 };
 
 static const SpecialOption special_options[] = {
-    {"-e", OPTION_COMMAND}, {"-help", OPTION_HELP},   {"-version", OPTION_VERSION},
-    {"-name", OPTION_NAME}, {"-class", OPTION_CLASS},
+    {"-e", OPTION_COMMAND},       {"-help", OPTION_HELP}, {"-version", OPTION_VERSION},
+    {"-welcome", OPTION_WELCOME}, {"-name", OPTION_NAME}, {"-class", OPTION_CLASS},
 };
 
 static const OptionHelp option_help[] = {
@@ -172,6 +173,7 @@ static const OptionHelp option_help[] = {
     {"-/+debug", "turn debug diagnostics on/off"},
     {"-report-config", "print resolved configuration and exit"},
     {"-report-font-routing", "report font-routing decisions"},
+    {"-welcome", "analyze resources and fonts, then suggest a readable setup"},
     {"-e command args ...", "command to execute"},
     {"--self-test", "run the installed package diagnostic"},
 };
@@ -340,6 +342,10 @@ XtpScanCommandLine(int argc, char **argv, XtpCommandLine *result)
                         result->print_version = true;
                         continue;
                 }
+                if (match.kind == OPTION_WELCOME) {
+                        result->welcome = true;
+                        continue;
+                }
                 if (match.kind == OPTION_CLASS || match.kind == OPTION_NAME) {
                         if (argument + 1 >= argc) {
                                 result->error = XTP_COMMAND_ERROR_MISSING_VALUE;
@@ -381,6 +387,11 @@ XtpScanCommandLine(int argc, char **argv, XtpCommandLine *result)
                 return -1;
         }
         result->xt_argv[result->xt_argc] = NULL;
+        if (result->welcome && result->report_config) {
+                result->error = XTP_COMMAND_ERROR_CONFLICT;
+                result->error_option = "-welcome and -report-config";
+                return -1;
+        }
         return 0;
 }
 
@@ -424,6 +435,11 @@ XtpCommandPrintError(FILE *stream, const char *program, const XtpCommandLine *co
         }
         if (command_line->error == XTP_COMMAND_ERROR_MISSING_VALUE) {
                 fprintf(stream, "%s: option %s requires a value\n", program,
+                        command_line->error_option);
+                return;
+        }
+        if (command_line->error == XTP_COMMAND_ERROR_CONFLICT) {
+                fprintf(stream, "%s: options %s cannot be combined\n", program,
                         command_line->error_option);
                 return;
         }

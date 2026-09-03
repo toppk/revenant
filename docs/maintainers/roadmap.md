@@ -36,19 +36,23 @@ driver rather than a differently skinned Ghostling.
 This matrix compares Revenant with the Ghostling checkout reviewed on
 2026-08-24. “Partial” means terminal state reaches Revenant or some behavior is
 present, but the complete user-visible integration is not yet available.
+The v0.5 inventory pass must refresh this dated comparison against the current
+Ghostling checkout and selected libghostty commit, reconcile it with the
+dedicated parity checklist, and record findings without turning the review into
+an implementation gate.
 
 <!-- markdownlint-disable MD013 -->
 
 | Capability demonstrated by Ghostling | Revenant status | Remaining integration |
 | --- | --- | --- |
-| PTY-backed shell and terminal effects | Present | Retain ordered backpressure coverage for the shared write queue and expand the effect surface. |
-| Resize with primary-screen reflow | Partial | Retain geometry regression coverage; the [Readline 8.3 wrapped-prompt regression](../reference/bash-readline-resize.md) is fixed upstream and requires no terminal workaround. |
+| PTY-backed shell and terminal effects | Present | Retain ordered backpressure coverage for the shared write queue. XTWINOPS size and XTVERSION reports are integrated; review custom device-attribute identity in v0.6. |
+| Resize with primary-screen reflow | Present | Retain geometry regression coverage; the [Readline 8.3 wrapped-prompt regression](../reference/bash-readline-resize.md) is fixed upstream and requires no terminal workaround. |
 | 24-bit and 256-color terminal output | Present | Retain xterm `color0` through `color15` resource and OSC 4/104 reset coverage. |
 | Bold, italic, inverse, and decorations | Present | Xft uses real clipped bold, italic, and bold-italic faces; bitmap bold remains synthetic as a separate xterm-fidelity task. |
 | Unicode and multi-codepoint graphemes | Present | Unicode 17 emoji presentation, color formats, general fontconfig fallback, contextual shaping, and atomic role selection are covered. |
 | Mode-aware keyboard input and modifiers | Present | Normal/application cursor and keypad modes, modifiers, editing/function keys, non-US UTF-8, XIM Compose, and Kitty event delivery have exact fixtures. |
-| Default VT bindings | Partial | The patch-411 binding groups are audited; add Shift+Select, Alt+Return fullscreen, Scroll Lock, and clear-saved-lines as their actions become available. |
-| Scrollback viewport | Present | Add saved-line clearing and retain deep-selection regression coverage. |
+| Default VT bindings | Partial | The patch-411 binding groups are audited; add Meta+Button-2 with the v0.5 clear-saved-lines slice, and defer Shift+Select, Alt+Return fullscreen, and Scroll Lock to v0.6. |
+| Scrollback viewport | Present | Add xterm-compatible reset-and-clear-saved-lines behavior in v0.5 and retain deep-selection regression coverage. |
 | Wheel behavior and draggable scrollbar | Present | Retain local-history versus application-reporting coverage and extend Xaw styling tests. |
 | Mouse tracking and reporting formats | Present | Add Xvfb event-routing coverage and the remaining xterm mouse-policy resources. |
 | Focus reporting | Present | Retain exact `CSI I`/`CSI O` encoding and X focus-transition coverage while DEC private mode 1004 is enabled. |
@@ -102,8 +106,10 @@ the first small harness, then grow it with every parity slice.
   `-rightbar`, `-leftbar`, and Athena child width/thickness resources.
 - Extend the real Xaw scrollbar coverage for thumb state, dragging, left/right
   layout, and Athena styling resources.
-- Extend `scroll-back`/`scroll-forw` parameter compatibility and implement
-  `clear-saved-lines` with xterm-compatible policy. `scrollKey` and
+- Extend `scroll-back`/`scroll-forw` parameter compatibility. For v0.5, add
+  `clear-saved-lines` with xterm-compatible hard-reset behavior by using
+  libghostty's public full-reset operation, which already clears retained
+  history, and expose xterm's Meta+Button-2 binding. `scrollKey` and
   `scrollTtyOutput` are implemented as resources, command-line options, and VT
   menu toggles.
 - When mouse tracking is active, encode wheel events for the application;
@@ -162,7 +168,10 @@ semantics and describes the implemented named-selection path.
   fixed cell placement while preserving display-aware Xft point sizing.
 - Retain application-selected block, underline, and bar cursor and blink
   coverage, the four-value `cursorBlink` policy, and xterm's `cursorBlinkXOR`
-  composition; wire the remaining startup shape resources and menu toggle.
+  composition. In v0.5, wire `cursorUnderLine`/`-uc` and `cursorBar`/`-barc`
+  through the existing default cursor-style option, with underline taking
+  precedence over bar as it does in xterm; leave the remaining menu policy for
+  its owning slice.
 - Expose Kitty graphics placement and image lifecycle through a
   backend-neutral renderer interface, then implement safe X11 composition.
 - Keep image-protocol work isolated from the traditional xterm appearance;
@@ -175,8 +184,49 @@ semantics and describes the implemented named-selection path.
 - Extend the now-honest command-line parser with the remaining process and
   resource semantics classified in the feasibility study. Unknown options,
   `-help`/`-version`, `-e`, resource aliases, and `-name`/`-class` are covered.
-- Add a man page, CI, installable icons, and an app-default packaging strategy
-  that does not overwrite a distributor's upstream `XTerm` file.
+- Implement xterm session transcript logging in v0.6 as one coherent slice:
+  `-/+l`, `-lf`, `logFile`, `logInhibit`, and the `logging` menu action must
+  share a safe, nonblocking PTY-output tee and remain separate from diagnostic
+  `-log` severity.
+- For v0.5, `-welcome` is implemented as a read-only setup assistant over the existing
+  configuration-report and font-resolution paths. It should diagnose a bare
+  installation as well as an established xterm setup: resolved app-defaults,
+  live server resources, likely resource-file workflow, configured bitmap/Xft
+  fonts and fallbacks, and representative emoji/CJK availability. Emit a small
+  starter resource fragment and actionable documentation/package suggestions;
+  do not install packages, modify user files, or load the X resource database.
+- Treat readability as an outcome, not as “an `XTerm.ad` was found.” Use
+  resource provenance, renderer, resolved cell geometry, effective Xft/display
+  density, and font matches to conservatively flag the tiny stock bitmap-font
+  experience on high-density displays. Characterize the threshold before
+  freezing it and recommend an explicit scalable-font resource fragment.
+- Parse a strict whitelist from `/etc/os-release` plus `uname` architecture to
+  select maintained package suggestions for missing `xrdb`, scalable monospace,
+  emoji, and CJK capabilities. Use tested distribution-family fixtures and a
+  generic fallback; never source the file, guess an unsupported package manager,
+  or run an installer.
+- Set `TERM_PROGRAM` and `TERM_PROGRAM_VERSION` for Revenant children so the
+  welcome report can distinguish a Revenant host from inherited outer-terminal
+  identity. Gate the advanced emoji/shaping sample on that signal and a terminal
+  stdout; the renderer and font probes describe the newly resolved widget, not
+  the terminal displaying the report. Finish with a redacted, stable support
+  block containing OS/version, architecture, Revenant and backend identity,
+  renderer, application identity, key font matches, app-default status, and
+  host-terminal status; reserve the full resource database for the opt-in
+  `-report-config` attachment.
+- Keep xterm and `xrdb` optional while measuring the bare-install experience.
+  Revenant already carries the reviewed `XTerm.ad` records and uses fontconfig
+  directly. Compare soft package recommendations with expanding the compiled
+  fallback resources; do not create a hard dependency solely to obtain another
+  terminal's app-defaults file or a command-line frontend to X resources.
+- Treat `xterm`/`XTerm` as pinned current behavior, not a closed identity
+  decision. Evaluate the leading `revenant`/`XTerm` candidate and alternatives
+  against instance-specific resources, class resources, app-defaults, WM_CLASS
+  consumers, `-name`/`-class`, compatibility invocation, desktop integration,
+  diagnostics, generated configuration, and rollback before changing it.
+- Retain the installed man page and CI, then add installable icons and an
+  app-default packaging strategy that does not overwrite a distributor's
+  upstream `XTerm` file.
 - Advance beyond patch 411 only as an explicit compatibility migration.
 
 ## Architecture guardrails

@@ -1,6 +1,7 @@
 #include "terminal_ghosttyP.h"
 
 #include "diagnostics.h"
+#include "version.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -273,6 +274,31 @@ TitleEffect(GhosttyTerminal handle, void *userdata)
         }
 }
 
+static bool
+SizeEffect(GhosttyTerminal handle, void *userdata, GhosttySizeReportSize *size)
+{
+        XtpTerminal *terminal = userdata;
+
+        (void)handle;
+        if (terminal == NULL || size == NULL)
+                return false;
+        size->columns = terminal->geometry_columns;
+        size->rows = terminal->geometry_rows;
+        size->cell_width = terminal->geometry_cell_width;
+        size->cell_height = terminal->geometry_cell_height;
+        return true;
+}
+
+static GhosttyString
+XtversionEffect(GhosttyTerminal handle, void *userdata)
+{
+        static const uint8_t version[] = XTP_PROGRAM_NAME "(" XTP_VERSION ")";
+
+        (void)handle;
+        (void)userdata;
+        return (GhosttyString){.ptr = version, .len = sizeof(version) - 1U};
+}
+
 static const void *
 WritePtyEffectPointer(void)
 {
@@ -306,6 +332,30 @@ static const void *
 TitleEffectPointer(void)
 {
         GhosttyTerminalTitleChangedFn function = TitleEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
+static const void *
+SizeEffectPointer(void)
+{
+        GhosttyTerminalSizeFn function = SizeEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
+static const void *
+XtversionEffectPointer(void)
+{
+        GhosttyTerminalXtversionFn function = XtversionEffect;
         const void *pointer = NULL;
 
         _Static_assert(sizeof(function) == sizeof(pointer),
@@ -381,6 +431,10 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
         if (terminal == NULL)
                 return NULL;
         terminal->bold_colors = true;
+        terminal->geometry_columns = columns;
+        terminal->geometry_rows = rows;
+        terminal->geometry_cell_width = cell_width;
+        terminal->geometry_cell_height = cell_height;
 
         XtpLog(XTP_LOG_INFO, "terminal",
                "creating backend=libghostty-vt grid=%ux%u cell=%ux%u graphemeWidth=%s", columns,
@@ -418,7 +472,11 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_BELL,
                                  BellEffectPointer()) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_TITLE_CHANGED,
-                                 TitleEffectPointer()) != GHOSTTY_SUCCESS) {
+                                 TitleEffectPointer()) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_SIZE,
+                                 SizeEffectPointer()) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_XTVERSION,
+                                 XtversionEffectPointer()) != GHOSTTY_SUCCESS) {
                 FreeHandles(terminal);
                 free(terminal);
                 return NULL;
@@ -466,16 +524,22 @@ int
 XtpTerminalResize(XtpTerminal *terminal, uint16_t columns, uint16_t rows, uint32_t cell_width,
                   uint32_t cell_height)
 {
+        GhosttyResult result;
+
         if (terminal == NULL)
                 return -1;
 
         XtpLog(XTP_LOG_INFO, "terminal", "resize grid=%ux%u cell=%ux%u", columns, rows, cell_width,
                cell_height);
 
-        return ghostty_terminal_resize(terminal->handle, columns, rows, cell_width, cell_height) ==
-                       GHOSTTY_SUCCESS
-                   ? 0
-                   : -1;
+        result = ghostty_terminal_resize(terminal->handle, columns, rows, cell_width, cell_height);
+        if (result != GHOSTTY_SUCCESS)
+                return -1;
+        terminal->geometry_columns = columns;
+        terminal->geometry_rows = rows;
+        terminal->geometry_cell_width = cell_width;
+        terminal->geometry_cell_height = cell_height;
+        return 0;
 }
 
 int

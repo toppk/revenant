@@ -10,6 +10,10 @@
 struct XtpTerminal
 {
         GhosttyTerminal handle;
+        uint16_t geometry_columns;
+        uint16_t geometry_rows;
+        uint32_t geometry_cell_width;
+        uint32_t geometry_cell_height;
         GhosttyRenderState render_state;
         GhosttyRenderStateRowIterator rows;
         GhosttyRenderStateRowCells cells;

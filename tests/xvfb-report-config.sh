@@ -19,6 +19,8 @@ log=$test_dir/log
 HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
     "$fixture_root/run" base "$terminal" -report-config >"$report" 2>"$log"
 
+grep -E -q '^! backend revision: [0-9a-f]{40}(-dirty)?$' "$report"
+
 for resource in limitFontsets limitFontHeight limitFontWidth cursorBlink cursorBlinkXOR color0 color15
 do
     if ! awk -v needle="XTerm*$resource:" '

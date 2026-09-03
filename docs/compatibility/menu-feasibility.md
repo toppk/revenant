@@ -46,7 +46,7 @@ configured and forced policy.
 | securekbd | `XGrabKeyboard`+`XGrabServer`, reverse-video flash | None | Pure Xlib, low value | READY |
 | allowsends | Accept `send_event` X events | None | Check `xany.send_event` in handlers | READY |
 | redraw | Full repaint | — | — | DONE |
-| logging | Tee PTY output to `logFile`, honour `logInhibit` | None (before `vt_write`) | Tee in `pty.c` read path | READY |
+| logging | Tee PTY output to `logFile`, honour `logInhibit` | None (before `vt_write`) | One coherent PTY tee with `-/+l` and `-lf`; explicitly deferred from v0.5 | ROADMAP 0.6 |
 | print-immediate | Dump screen text (+SGR) to `printerCommand` | Screen read: `ghostty_row_get`/`cell_get` or `select_all`+`selection_format_alloc` | Needs a "walk screen as styled text" helper | ROADMAP |
 | print-on-error | Same, from the X I/O error handler | Same | Same walker | ROADMAP |
 | print | Buffered screen dump | Same | Same walker | ROADMAP |
@@ -95,7 +95,7 @@ configured and forced policy.
 | copy_area | Toggle xterm's `XCopyArea` scroll optimization | None | Revenant does not use xterm's scroll-copy path; see the drift ledger | SKIP |
 | softreset | DECSTR | Pinned Ghostty does not handle `CSI ! p` | Needs DECSTR support or a soft-reset API | BLOCKED |
 | hardreset | RIS, keep saved lines | `ghostty_terminal_reset()` clears scrollback | Needs a reset-preserving-history API or a complete local RIS implementation | BLOCKED |
-| clearsavedlines | Reset + drop scrollback | No clear API; `CSI 3 J` supported | Reset + `ESC [ 3 J`; test with `DATA_SCROLLBACK_ROWS` | ROADMAP |
+| clearsavedlines | Reset + drop scrollback | `ghostty_terminal_reset()` performs RIS and clears scrollback | Add the action and Meta+Button-2 binding; test reset state and `DATA_SCROLLBACK_ROWS` against xterm | READY (v0.5) |
 | tekshow/tekmode/vthide | Tek 4014 window | None, ever | See Tek section | SKIP |
 | altscreen | Show alternate screen | `DATA_ACTIVE_SCREEN`; `OPT_MODE` ?1047 should switch — verify the set path runs the full handler | Probably one call | ROADMAP |
 | sixelScrolling | DECSDM | No sixel in Ghostty | Blocked upstream | BLOCKED |

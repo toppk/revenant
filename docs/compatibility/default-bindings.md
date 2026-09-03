@@ -20,15 +20,15 @@ options in that function; it does not include user overrides from X resources.
 
 | xterm group | Default gesture or event | Revenant status | Notes |
 | --- | --- | --- | --- |
-| select | Shift+Select | Missing | Keyboard-driven selection needs `select-cursor-start` and `select-cursor-end`. |
+| select | Shift+Select | Missing | Deferred to v0.6: keyboard-driven selection needs `select-cursor-start` and `select-cursor-end` plus explicit cursor/selection state. |
 | select | Shift+Insert | Done | Uses `insert-selection(SELECT, CUT_BUFFER0)` and the bracketed-paste encoder; `SELECT` follows `selectToClipboard`, and named arguments are tried in order. |
-| fullscreen | Alt+Return | Missing | Requires the fullscreen window-manager action. |
-| scroll-lock | Scroll Lock release | Missing | Requires the scroll-lock policy and action. |
+| fullscreen | Alt+Return | Missing | Deferred to the coherent v0.6 fullscreen resource/menu/EWMH slice; the client message is small, but policy and useful window-manager testing are not. |
+| scroll-lock | Scroll Lock release | Missing | Deferred to v0.6: output anchoring, focus/LED policy, and widget state make this more than a binding alias. |
 | shift-fonts | Shift/Ctrl+keypad plus and Shift+keypad minus | Done | Uses xterm's historical larger/smaller direction, including Shift+Ctrl+keypad plus. |
 | paging | Shift+Page Up/Down | Done | Scrolls one half-page locally and is not also sent to the PTY. |
 | keypress | Ordinary and Meta keypresses | Equivalent path | XIM lookup and libghostty key encoding run in the raw key event handler rather than `insert-seven-bit`/`insert-eight-bit` actions. |
 | popup-menu | Exact Ctrl+buttons 1, 2, and 3, including Lock/NumLock variants | Done | Opens `mainMenu`, `vtMenu`, and `fontMenu`. |
-| reset | Meta+button 2 | Missing | `clear-saved-lines` remains blocked on a history-clear implementation. |
+| reset | Meta+button 2 | Planned for v0.5 | Add with `clear-saved-lines`; libghostty's public full-reset operation matches xterm's RIS-plus-history-clear behavior. |
 | select | Buttons 1, 2, and 3, motion, and release | Done | Cell/word/line selection, Button-3 extension, Button-2 paste, autoscroll, and application mouse routing share these bindings. |
 | block-select | Meta+button 1 | Done | Starts rectangular selection. |
 | wheel-mouse | Wheel, plus Ctrl half-page variants | Done | The default wheel distance is five lines, matching xterm; application tracking and Shift override remain effective. |

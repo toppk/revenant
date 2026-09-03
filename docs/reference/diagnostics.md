@@ -7,8 +7,37 @@ description: the configuration report, the log, and profiling
 
 # Diagnostics
 
-Revenant ships three tools for answering "what is it actually doing":
-the configuration report, the structured log, and the CPU profiling helper.
+Revenant ships focused tools for answering "what is it actually doing": the
+welcome setup audit, the exhaustive configuration report, the structured log,
+and the CPU profiling helper.
+
+## `-welcome`
+
+```sh
+revenant -welcome
+```
+
+The welcome report opens the display and resolves the real widget configuration
+but exits before creating a terminal backend or starting a shell. It provides a
+short, offline assessment of readability, app-defaults, live X resources,
+`xrdb`, and primary, emoji, and CJK font matches. A bare tiny bitmap setup gets
+an explicit scalable-font resource fragment; known distribution families also
+get package suggestions for missing tools or fonts.
+
+The report also points to [terminal.love](https://terminal.love/) as an optional
+scheme catalog with a live demo and an Xresources export by default. This is a
+recommendation only: Revenant neither contacts the site nor imports or loads
+the result.
+
+The advanced Unicode sample is emitted only when stdout is a terminal and
+`TERM_PROGRAM` identifies Revenant, so redirected reports contain no styling
+escapes and the probe does not attribute another terminal's rendering to
+Revenant. Child shells receive `TERM_PROGRAM` and `TERM_PROGRAM_VERSION` from
+Revenant's generated build identity. A multiplexer may replace that identity;
+run the report directly in Revenant for the visual check. The final plain-text
+support block includes only bounded system, backend, renderer, identity, and
+font details. Use `-report-config` when the full resource inventory and
+provenance are needed.
 
 ## `-report-config`
 

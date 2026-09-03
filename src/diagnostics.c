@@ -70,7 +70,7 @@ XtpLogSetQuiet(int enabled)
 int
 XtpLogEnabled(XtpLogLevel level)
 {
-        return !quiet_enabled && level >= minimum_level;
+        return level >= minimum_level && (!quiet_enabled || level == XTP_LOG_ERROR);
 }
 
 static const char *

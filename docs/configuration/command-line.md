@@ -95,6 +95,7 @@ that ignores application blink requests.
 | --- | --- | --- |
 | `-log level` | `logLevel` | Minimum stderr severity: `debug`, `info`, `warning` (default), or `error` |
 | `-debug` / `+debug` | `logLevel` debug / warning | xterm-compatible aliases for verbose/default logging |
+| `-welcome` | — | Analyze X resources and installed fonts, print setup recommendations and a support summary, then exit |
 | `-report-config` | `reportConfig` | Print the resolved configuration report and exit |
 | `-report-font-routing` | `vt100.reportFontRouting` | Collect bounded font-routing records for `report-font-routing()` snapshots |
 | `-help` / `--help` | — | Print accepted options and exit without opening a display |

@@ -12,6 +12,8 @@
 #include "pty_process.h"
 #include "terminal.h"
 #include "unicode_script.h"
+#include "version.h"
+#include "welcome.h"
 #include "x11_opacity.h"
 
 #include <errno.h>
@@ -56,7 +58,61 @@ SelfTestLogLevels(void)
             !XtpLogEnabled(XTP_LOG_ERROR))
                 return -1;
         XtpLogSetLevel(original);
+        XtpLogSetQuiet(1);
+        if (XtpLogEnabled(XTP_LOG_WARNING) || !XtpLogEnabled(XTP_LOG_ERROR))
+                return -1;
+        XtpLogSetQuiet(0);
         return 0;
+}
+
+static int
+SelfTestOsRelease(void)
+{
+        static const char sample[] = "NAME=ignored\n"
+                                     "ID=fedora\n"
+                                     "ID_LIKE=\"rhel centos\"\n"
+                                     "VERSION_ID='43'\n"
+                                     "PRETTY_NAME=\"Fedora Linux 43 (Workstation Edition)\"\n"
+                                     "HOME_URL=\"https://example.invalid/$ID\"\n";
+        static const char escaped[] =
+            "ID=custom\nID_LIKE=\"arch linux\"\nVERSION_ID=1\nPRETTY_NAME=\"Safe\\\" Name\033\"\n";
+        static const char debian_like[] = "ID=linuxmint\nID_LIKE=\"ubuntu debian\"\n";
+        static const char unknown[] = "ID=haiku\nPRETTY_NAME=Haiku\n";
+        static const char single_quoted[] = "ID=test\nPRETTY_NAME='two\\\\slashes'\n";
+        XtpOsRelease release;
+
+        if (XtpWelcomeParseOsRelease(sample, &release) != 0 || strcmp(release.id, "fedora") != 0 ||
+            strcmp(release.id_like, "rhel centos") != 0 || strcmp(release.version, "43") != 0 ||
+            strcmp(release.name, "Fedora Linux 43 (Workstation Edition)") != 0 ||
+            strcmp(XtpWelcomePackageFamily(&release), "dnf") != 0)
+                return -1;
+        if (XtpWelcomeParseOsRelease(escaped, &release) != 0 || strcmp(release.id, "custom") != 0 ||
+            strcmp(release.id_like, "arch linux") != 0 ||
+            strcmp(release.name, "Safe\" Name") != 0 ||
+            strcmp(XtpWelcomePackageFamily(&release), "pacman") != 0 ||
+            XtpWelcomeParseOsRelease(debian_like, &release) != 0 ||
+            strcmp(XtpWelcomePackageFamily(&release), "apt") != 0 ||
+            XtpWelcomeParseOsRelease(unknown, &release) != 0 ||
+            XtpWelcomePackageFamily(&release) != NULL ||
+            XtpWelcomeParseOsRelease(single_quoted, &release) != 0 ||
+            strcmp(release.name, "two\\\\slashes") != 0 ||
+            XtpWelcomeParseOsRelease("NAME=missing-id\n", &release) == 0 ||
+            XtpWelcomeParseOsRelease(NULL, &release) == 0 ||
+            XtpWelcomeParseOsRelease(sample, NULL) == 0 || XtpWelcomePackageFamily(NULL) != NULL)
+                return -1;
+        return 0;
+}
+
+static int
+SelfTestWelcomeReadability(void)
+{
+        return !XtpWelcomeNeedsReadableFont(0, 0, 16U, 96.0) ||
+                       !XtpWelcomeNeedsReadableFont(0, 0, 18U, 192.0) ||
+                       XtpWelcomeNeedsReadableFont(1, 0, 12U, 192.0) ||
+                       XtpWelcomeNeedsReadableFont(0, 1, 12U, 192.0) ||
+                       XtpWelcomeNeedsReadableFont(0, 0, 18U, 96.0)
+                   ? -1
+                   : 0;
 }
 
 static int
@@ -365,7 +421,8 @@ SelfTestPty(void)
         char *command[] = {
             (char *)"/bin/sh",
             (char *)"-c",
-            (char *)"printf xterm-plus-pty",
+            (char *)"printf 'pty-env|%s|%s' \"$TERM_PROGRAM\" "
+                    "\"$TERM_PROGRAM_VERSION\"",
             NULL,
         };
         XtpPty *pty = XtpPtySpawn(command, 80, 24, 8, 16);
@@ -397,7 +454,13 @@ SelfTestPty(void)
         }
         output[used] = '\0';
         XtpPtyFree(pty);
-        return strstr(output, "xterm-plus-pty") != NULL ? 0 : -1;
+        {
+                char expected[256];
+
+                (void)snprintf(expected, sizeof(expected), "pty-env|%s|%s", XTP_PROGRAM_NAME,
+                               XTP_VERSION);
+                return strstr(output, expected) != NULL ? 0 : -1;
+        }
 }
 
 static int
@@ -1540,6 +1603,52 @@ SelfTestPtyEquals(const SelfTestPtyCapture *capture, const uint8_t *expected, si
 }
 
 static int
+SelfTestTerminalReports(void)
+{
+        static const uint8_t queries[] = "\033[14t\033[16t\033[18t\033[>q";
+        static const uint8_t initial_expected[] =
+            "\033[4;384;640t"
+            "\033[6;16;8t"
+            "\033[8;24;80t"
+            "\033P>|" XTP_PROGRAM_NAME "(" XTP_VERSION ")\033\\";
+        static const uint8_t resized_expected[] =
+            "\033[4;540;900t"
+            "\033[6;18;9t"
+            "\033[8;30;100t"
+            "\033P>|" XTP_PROGRAM_NAME "(" XTP_VERSION ")\033\\";
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestCapturePty,
+            .closure = &capture,
+        };
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        XtpTerminalFeed(terminal, queries, sizeof(queries) - 1U);
+        if (!SelfTestPtyEquals(&capture, initial_expected, sizeof(initial_expected) - 1U))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        if (XtpTerminalResize(terminal, 100, 30, 9, 18) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, queries, sizeof(queries) - 1U);
+        if (!SelfTestPtyEquals(&capture, resized_expected, sizeof(resized_expected) - 1U))
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test", "terminal report mismatch length=%zu",
+                       capture.used);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 SelfTestCursorBlinkReports(void)
 {
         static const uint8_t coalesced_query_reset[] = "\033[?12$p\033[?12l";
@@ -1920,6 +2029,8 @@ XtpSelfTest(void)
 {
         static const SelfTestCase foundation_cases[] = {
             {"log-level", SelfTestLogLevels},
+            {"os-release", SelfTestOsRelease},
+            {"welcome readability", SelfTestWelcomeReadability},
             {"emoji-presentation", SelfTestEmojiPresentation},
             {"Unicode Script=Han", SelfTestUnicodeScript},
             {"font-chain", SelfTestFontChain},
@@ -1929,6 +2040,7 @@ XtpSelfTest(void)
             {"background-opacity", SelfTestBackgroundOpacity},
         };
         static const SelfTestCase backend_cases[] = {
+            {"terminal reports", SelfTestTerminalReports},
             {"cursor-blink policy", SelfTestCursorBlinkPolicy},
             {"cursor-blink report", SelfTestCursorBlinkReports},
             {"default-color", SelfTestDefaultColors},

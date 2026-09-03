@@ -23,7 +23,7 @@ given); **BLOCKED** needs a libghostty change; **SKIP** recommend not
 implementing (record in the [xterm differences ledger](drift.md)).
 
 Totals over 96 rows (grouped where xterm's help lists one family several
-ways): 23 done, 5 Xt-handled, 1 accepted, 34 ready, 15 roadmap, 5 blocked,
+ways): 23 done, 5 Xt-handled, 1 accepted, 33 ready, 16 roadmap, 5 blocked,
 13 skip.
 
 ## The big pattern
@@ -150,7 +150,7 @@ The two original structural gaps are complete:
 | --- | --- | --- | --- | --- |
 | `-/+ah` | `alwaysHighlight` | — | — | DONE |
 | `-/+bc`, `-bcf`, `-bcn ms` | Cursor blink and its on/off durations | Xt timer and `cursorBlink`/`cursorOnTime`/`cursorOffTime` resources | Four-value policy; aliases select `true`/`false` and the timing resources | DONE |
-| `-/+uc` | `cursorUnderLine` | Renderer cursor shape; `OPT_DEFAULT_CURSOR_STYLE` | Alternate-shape drawing exists; wire the startup default | READY |
+| `-/+uc`, `-/+barc` | `cursorUnderLine`, `cursorBar` | Renderer cursor shape; `OPT_DEFAULT_CURSOR_STYLE` | Wire the startup default with underline taking precedence over bar, as in xterm | READY |
 
 ## Keyboard and input
 
@@ -179,13 +179,14 @@ The two original structural gaps are complete:
 
 | Option | What xterm does | Mechanism | Approachability | Status |
 | --- | --- | --- | --- | --- |
-| `-/+l` / `-lf filename` | Tee PTY output to a log file | `pty.c` read path | Same tee as the `logging` menu entry | READY |
+| `-/+l` / `-lf filename` | Tee PTY output to a log file | `pty.c` read path | Same tee as the `logging` menu entry; explicitly deferred from v0.5 | ROADMAP 0.6 |
 | `-report-charclass` | Dump `charClass` table | Selection classes | With `-cc` | ROADMAP #4 |
 | `-report-colors` | Log colour allocations | Renderer | Debug log already records colour cache; alias | READY |
 | `-report-fonts` | Log loaded fonts | `-report-config` font section covers it | Alias to a subset of `-report-config` | READY |
 | `-report-icons` | Log title/icon updates | Title callback; debug log already prints them | Alias | READY |
 | `-report-xres` | Dump VT100 resources | `-report-config` is a superset | Alias | READY |
 | `-report-config` | Revenant resolved-configuration report | — | Revenant extension, not an xterm option | DONE |
+| `-welcome` | Revenant setup-health report | — | Read-only offline Revenant extension | DONE |
 | `-log level` | Revenant severity threshold | Structured diagnostic logger | Revenant extension; debug, info, warning, or error | DONE |
 | `-/+debug` | Debug log | `logLevel` debug / warning | Compatibility aliases around the threshold | DONE |
 
@@ -208,7 +209,8 @@ The two original structural gaps are complete:
    and shell identity before `XtOpenDisplay`; Xvfb tests pin resource aliases
    and the resulting WM properties.
 3. **Slice C — process options** in `pty.c`: `-ls`, `-tn`, `-tm`, `-ie`,
-   `-hold`, `-wf`, `-mesg`, `-baudrate`, `-l`/`-lf`, `-lc`/`-lcc`.
+   `-hold`, `-wf`, `-mesg`, `-baudrate`, `-lc`/`-lcc`. Session transcript
+   logging (`-l`/`-lf`) is a separate v0.6 slice shared with the menu action.
 4. **Slice D — startup application of existing menu modes**: `-rv`, `-aw`,
    `-rw`, `-132`, `-j`, `-mb`/`-nb`, `-fc`, `-sh`,
    `-nul`, `-cm`, `-into`, `-nomap`, `-maximized`/`-fullscreen`,

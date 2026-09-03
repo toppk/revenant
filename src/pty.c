@@ -1,6 +1,7 @@
 #include "pty_process.h"
 
 #include "diagnostics.h"
+#include "version.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -58,6 +59,8 @@ XtpPtySpawn(char *const argv[], uint16_t columns, uint16_t rows, uint32_t cell_w
         }
         if (pty->child == 0) {
                 (void)setenv("TERM", "xterm-256color", 1);
+                (void)setenv("TERM_PROGRAM", XTP_PROGRAM_NAME, 1);
+                (void)setenv("TERM_PROGRAM_VERSION", XTP_VERSION, 1);
                 execvp(argv[0], argv);
                 _exit(127);
         }
