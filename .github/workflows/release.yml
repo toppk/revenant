@@ -78,7 +78,7 @@ jobs:
           sudo apt-get install -y build-essential meson ninja-build pkgconf python3 pandoc jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
-            xvfb xfonts-base
+            xvfb xfonts-base x11-utils x11-xserver-utils
       - name: Describe the libghostty build for the Zig cache key
         id: zigkey
         run: |
@@ -124,7 +124,7 @@ jobs:
           sudo apt-get install -y build-essential debhelper meson ninja-build pkgconf python3 pandoc jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
-            xvfb xfonts-base
+            xvfb xfonts-base x11-utils x11-xserver-utils
       - name: Describe the libghostty build for the Zig cache key
         id: zigkey
         run: |
@@ -174,7 +174,7 @@ jobs:
           dnf install -y git rpm-build gcc meson ninja-build python3 pandoc jq xz \
             libX11-devel libXt-devel libXaw-devel libXmu-devel libxcb-devel \
             fontconfig-devel libXft-devel libXrender-devel cairo-devel harfbuzz-devel \
-            xorg-x11-server-Xvfb xorg-x11-fonts-misc
+            xorg-x11-server-Xvfb xorg-x11-fonts-misc xprop xwininfo xrdb
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
@@ -227,7 +227,7 @@ jobs:
       - run: |
           pacman -Syu --noconfirm --needed base-devel git meson ninja pkgconf python pandoc jq xz \
             libx11 libxt libxaw libxmu libxcb fontconfig libxft libxrender cairo harfbuzz \
-            xorg-server-xvfb xorg-fonts-misc xorg-mkfontscale
+            xorg-server-xvfb xorg-fonts-misc xorg-mkfontscale xorg-xprop xorg-xwininfo xorg-xrdb
           mkfontdir /usr/share/fonts/misc
       - uses: actions/checkout@v7
         with:

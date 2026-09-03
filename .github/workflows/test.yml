@@ -31,7 +31,7 @@ jobs:
           sudo apt-get install -y clang meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
-            xvfb xfonts-base rpm2cpio cpio unzip curl fontconfig
+            xvfb xfonts-base x11-utils x11-xserver-utils rpm2cpio cpio unzip curl fontconfig
       - name: Restore staged font fixtures
         id: fixtures
         uses: actions/cache@v6
@@ -91,7 +91,7 @@ jobs:
           sudo apt-get install -y clang meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
-            xvfb xfonts-base rpm2cpio cpio unzip curl fontconfig
+            xvfb xfonts-base x11-utils x11-xserver-utils rpm2cpio cpio unzip curl fontconfig
       - name: Restore staged font fixtures
         id: fixtures
         uses: actions/cache@v6

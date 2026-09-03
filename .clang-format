@@ -23,4 +23,4 @@ AllowShortFunctionsOnASingleLine: None
 
 PointerAlignment: Right
 
-BreakAfterReturnType: AllDefinitions
+AlwaysBreakAfterReturnType: AllDefinitions
