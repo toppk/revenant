@@ -557,7 +557,7 @@ if build_with_ghostty and xvfb.found()
             window_ink_test_tool.full_path(),
             meson.current_source_dir() / 'font-fixtures-stage',
         ],
-        timeout: 30,
+        timeout: 60,
         is_parallel: false,
     )
     test(

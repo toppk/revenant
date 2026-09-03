@@ -132,5 +132,8 @@ jobs:
             -Db_sanitize=address -Db_lundef=false
       - run: meson compile -C build-asan
       - name: Run the complete suite under AddressSanitizer
+        # Ubuntu 24.04 Fontconfig 2.15 retains substitution-parser allocations.
+        env:
+          LSAN_OPTIONS: suppressions=${{ github.workspace }}/tests/lsan.supp
         run: meson test -C build-asan --print-errorlogs
       - run: tools/check-release-tests build-asan

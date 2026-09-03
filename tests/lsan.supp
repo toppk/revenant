@@ -1,0 +1,2 @@
+# Fontconfig 2.15 on Ubuntu 24.04 retains substitution-parser allocations.
+leak:FcConfigSubstituteWithPat
