@@ -1,7 +1,7 @@
 project(
     'xterm-plus',
     'c',
-    version: '0.5.0-dev',
+    version: '0.6.0-dev',
     meson_version: '>= 1.3',
     default_options: [
         'buildtype=debugoptimized',

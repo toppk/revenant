@@ -6,38 +6,120 @@ opens the next development entry, and advances the source version. Release
 artifacts take their version from the tag, not from the development version in
 `meson.build`.
 
-## 0.5.0 — Unreleased
+## 0.6.0 — Unreleased
 
-Release builds become reproducible across runner hardware, add Arch packaging,
-and apply the same complete test gate to every artifact. No terminal behavior
-changes.
+### Other
+
+- Development changes will be recorded here.
+
+## 0.5.0 — 2026-09-02
+
+Fonts resolve through xterm's complete fallback chain, the cursor and ANSI
+palette follow xterm's resources, the command line parses like xterm's, and
+release builds become reproducible with Arch packaging and an offline setup
+audit for a readable first run.
 
 ### Features
 
+- Resolve fonts through shaped primary, semantic, explicit, user, and system
+  fallback roles with real same-family styles, Han and IVS routing,
+  deterministic tofu, metric normalization, route caching and reporting, and
+  transactional reloads.
+  ([2b4d1ba](https://github.com/toppk/revenant/commit/2b4d1ba8e776723d256592864be91db5456d3c31),
+  [67077fb](https://github.com/toppk/revenant/commit/67077fbb3198c0c238efa79a150baeb85191769d))
+- Follow xterm's cursor-blink policy: the four-value `cursorBlink` resource,
+  `cursorBlinkXOR`, `-/+bc`, the VT Options toggle, and application blink
+  requests through DECSCUSR.
+  ([8d214bc](https://github.com/toppk/revenant/commit/8d214bcfbe8ebf779528d3c08244420ac280d5cf))
+- Configure the ANSI palette from `color0` through `color15` with xterm's
+  compiled defaults, and accept OSC 4 and OSC 104 palette operations by
+  default.
+  ([af03695](https://github.com/toppk/revenant/commit/af03695ba49d465d5d554d57dbda7d6a753ea813))
+- Parse the command line like xterm: unambiguous option prefixes, rejection of
+  unknown options before the display opens, xterm's `-help` and `-version`
+  wording, plus GNU-style `--help` and `--version`.
+  ([156f3e5](https://github.com/toppk/revenant/commit/156f3e5558a2bf45c1da4126e970f97023072429),
+  [bc27724](https://github.com/toppk/revenant/commit/bc277249656b98051ca6630b85e4433e0400fc62))
+- Install a `revenant(1)` manual page and present the documentation site as
+  an xman-style manual that shares the same action and resource reference.
+  ([d73e90f](https://github.com/toppk/revenant/commit/d73e90f43d89667bc500da62fe7b562d4bb16b86),
+  [a253f0c](https://github.com/toppk/revenant/commit/a253f0c862a52e946e4f49bf26cc2d766b4c1c88),
+  [b5455b9](https://github.com/toppk/revenant/commit/b5455b9c024af6a71aafce8076849936c0dc75b6),
+  [6a01a36](https://github.com/toppk/revenant/commit/6a01a36267ca34c8c4feec24928cb9362d893c4d))
 - Publish an Arch Linux package alongside the tarballs, Debian package, and
   Fedora RPM.
+  ([3a57611](https://github.com/toppk/revenant/commit/3a576118d5c499d58a508c6330765d82e2db113a))
+- Add `-welcome`, a read-only audit of X resources, display readability,
+  installed fonts and tools, with distribution-aware setup suggestions and a
+  redacted support summary.
+  ([dd462b4](https://github.com/toppk/revenant/commit/dd462b4b6720fee1d9bdc4ffe75cb38c43ee58c8))
+- Set `TERM_PROGRAM` and `TERM_PROGRAM_VERSION` in child sessions so diagnostics
+  can identify when Revenant is the host terminal.
+  ([dd462b4](https://github.com/toppk/revenant/commit/dd462b4b6720fee1d9bdc4ffe75cb38c43ee58c8))
 
 ### Bug fixes
 
+- Drain a bounded burst of available PTY output and paint once, so a
+  rapid-update refresh split by the kernel no longer flashes between erased
+  and replaced content.
+  ([3ea6f39](https://github.com/toppk/revenant/commit/3ea6f398352817365720418dbaa8e2bce3668ca2),
+  [670b3a6](https://github.com/toppk/revenant/commit/670b3a66afb5a36c598f5a1eb2857f1e921bdb99))
+- Render faint text at two-thirds intensity and promote bold foreground colors
+  0 through 7 to 8 through 15 as xterm does; `boldColors` and `-/+pc` control
+  the promotion.
+  ([93852d9](https://github.com/toppk/revenant/commit/93852d998c98b06d84f72c665405850c50982ce3))
+- Keep a client-created ARGB colormap alive while display shutdown flushes Xt's
+  cached color converters, avoiding `BadColor` when a report exits without
+  realizing a window.
+  ([dd462b4](https://github.com/toppk/revenant/commit/dd462b4b6720fee1d9bdc4ffe75cb38c43ee58c8))
 - Build libghostty for explicit `x86_64-linux-gnu`/`x86_64-v3` and
   `aarch64-linux-gnu`/`baseline` targets. Earlier releases could contain
   instructions unsupported on older CPUs; the install guide and every release
   body now state the supported CPU floor.
+  ([3a57611](https://github.com/toppk/revenant/commit/3a576118d5c499d58a508c6330765d82e2db113a))
 
 ### Other
 
 - Pin Ghostty to one exact commit, rebuild it only when its inputs change, and
   share a Zig cache keyed by target, CPU, Zig version, Ghostty commit, build
   script, and runner CPU model across packages of the same architecture.
+  ([3a57611](https://github.com/toppk/revenant/commit/3a576118d5c499d58a508c6330765d82e2db113a))
 - Require every tarball, Debian, RPM, and Arch build to run the complete Xvfb
   and font-fixture suite without skips.
+  ([3a57611](https://github.com/toppk/revenant/commit/3a576118d5c499d58a508c6330765d82e2db113a),
+  [62f6d06](https://github.com/toppk/revenant/commit/62f6d066397014bc5585ab051bda35011709726d))
 - Stage and cache the pinned font fixtures once, require every builder to
   restore that exact cache entry, and remove the staging toolchain from package
   builders.
+  ([3a57611](https://github.com/toppk/revenant/commit/3a576118d5c499d58a508c6330765d82e2db113a))
 - Validate changelog release notes before starting builds and let intermediate
   package artifacts expire after one day.
+  ([3a57611](https://github.com/toppk/revenant/commit/3a576118d5c499d58a508c6330765d82e2db113a))
+- Enforce the internal `xterm+` naming boundary across sources, tests, tools,
+  and packaging with a branding check.
+  ([c4d9150](https://github.com/toppk/revenant/commit/c4d9150f664bf53e71990c747aa3e62e26c331e8))
+- Isolate font-universe types, extract the font routing lifecycle, centralize
+  role policy and Unicode routing helpers, and move Ghostty selection policy
+  behind a private backend header to prepare the terminal boundary for
+  multiplexing.
+  ([3b150c8](https://github.com/toppk/revenant/commit/3b150c8ccd3bad7c54c426b894b83b86c97cd243),
+  [e0e0b22](https://github.com/toppk/revenant/commit/e0e0b22f195df94a7566fac173ea047f68345691),
+  [379c725](https://github.com/toppk/revenant/commit/379c725ddb8fb5c0e3ac7bf916554aeeaaf79ef8),
+  [955f3c7](https://github.com/toppk/revenant/commit/955f3c72dce6e6adcb05c07cfa23e5e5af6ea659),
+  [df3de1a](https://github.com/toppk/revenant/commit/df3de1a150c7e9480fce73580a921e9b7eabb7bb),
+  [1a3f4f8](https://github.com/toppk/revenant/commit/1a3f4f83d0c7d2223af4ebe0294b7b2cbc69cda4),
+  [40d4e56](https://github.com/toppk/revenant/commit/40d4e56b6b1e495c639455c1c478946c7fea8a72))
+- Share Xvfb harness setup across the font and keyboard suites, guard font
+  routing diagnostics, and add a pixel-level bitmap regression for
+  `renderFont: false`.
+  ([9cc6a6d](https://github.com/toppk/revenant/commit/9cc6a6d9929592cc713b2f22755ce93391d15260),
+  [ed4e40b](https://github.com/toppk/revenant/commit/ed4e40b10558bb4ca456a266c7736aec217c80a3),
+  [379c725](https://github.com/toppk/revenant/commit/379c725ddb8fb5c0e3ac7bf916554aeeaaf79ef8))
 - Document installation, CPU requirements, release provenance, and local
-  package construction.
+  package construction, and lead every entry page with the xterm-defaults
+  caveat and `revenant -welcome`.
+  ([3a57611](https://github.com/toppk/revenant/commit/3a576118d5c499d58a508c6330765d82e2db113a),
+  [172d1e8](https://github.com/toppk/revenant/commit/172d1e8e07cf509acd2d458eff9365a37a3caa34))
 
 ## 0.4.0 — 2026-08-29
 
