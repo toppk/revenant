@@ -594,6 +594,23 @@ item. Otherwise record it under v0.6 and keep moving.
    advertised list, with Kitty graphics the only missing item. The roadmap's
    stale `Partial` resize label was corrected to `Present`.
 
+   Upstream triage on 2026-09-03 included Ghostty Discussions, which are its
+   pre-work request queue. Do not open a duplicate animation request:
+   [discussion 13379](https://github.com/ghostty-org/ghostty/discussions/13379)
+   is the active request for Kitty animation frames and links the older issue
+   and discussion history. No current Discussion was found for the other
+   concrete external-renderer gap: resolving Unicode-placeholder/virtual
+   placements into drawable placement geometry through libghostty's C API.
+   The closest contribution precedent is
+   [discussion 12347](https://github.com/ghostty-org/ghostty/discussions/12347),
+   where libghostty Kitty-graphics inspection work was welcomed. Implement
+   ordinary static placements first; if that confirms the boundary, take the
+   resolved-virtual-placement request to one narrowly scoped new Discussion
+   and add any required external-renderer animation-tick detail to 13379.
+   Ghostty's submission form requires the author to write in their own voice,
+   so preserve technical facts and reproductions here rather than preparing
+   text to paste as a submission.
+
    The broader source comparison found two small terminal-effect differences.
    XTWINOPS size reports and a product-owned XTVERSION reply are now integrated
    and covered before and after resize. Full Ghostty formats XTVERSION as
