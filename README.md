@@ -102,8 +102,8 @@ meson test -C build
 - Shift+Page Up and Shift+Page Down navigate saved history.
 - Mouse selection owns X11 `PRIMARY` by default; button 2 and Shift+Insert
   paste it. X11 also has a separate `CLIPBOARD` selection.
-- Hold Shift over an OSC 8 link to underline it, then Shift+button 1 to open an
-  HTTP or HTTPS target.
+- Hold Shift over an OSC 8 link or visible HTTP(S) URL to underline it, then
+  Shift+button 1 to open the target.
 - Existing xterm resources can apply directly because the application class,
   instance, and terminal widget identity are compatible.
 
@@ -116,7 +116,7 @@ and basic controls. Continue with:
   colors, scrollback, selection, and cursor policies;
 - [copy and paste on X11](docs/usage/copy-paste.md), for `PRIMARY`,
   `CLIPBOARD`, and cut buffers;
-- [OSC 8 hyperlinks](docs/usage/hyperlinks.md), for interaction and launch
+- [Hyperlinks](docs/usage/hyperlinks.md), for explicit and detected-link
   policy;
 - [diagnostics](docs/reference/diagnostics.md), for `-report-config`, debug
   logs, regression helpers, and profiling;

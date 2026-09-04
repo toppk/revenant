@@ -1019,6 +1019,8 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                 bool row_dirty = false;
                 bool clean = false;
                 bool row_selected = false;
+                bool row_wrapped = false;
+                GhosttyRow raw_row;
                 GhosttyRenderStateRowSelection selection =
                     GHOSTTY_INIT_SIZED(GhosttyRenderStateRowSelection);
 
@@ -1033,6 +1035,11 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                 row_selected = ghostty_render_state_row_get(terminal->rows,
                                                             GHOSTTY_RENDER_STATE_ROW_DATA_SELECTION,
                                                             &selection) == GHOSTTY_SUCCESS;
+                if (ghostty_render_state_row_get(terminal->rows, GHOSTTY_RENDER_STATE_ROW_DATA_RAW,
+                                                 &raw_row) != GHOSTTY_SUCCESS ||
+                    ghostty_row_get(raw_row, GHOSTTY_ROW_DATA_WRAP, &row_wrapped) !=
+                        GHOSTTY_SUCCESS)
+                        goto render_failed;
                 if (ghostty_render_state_row_get(terminal->rows,
                                                  GHOSTTY_RENDER_STATE_ROW_DATA_CELLS,
                                                  &terminal->cells) != GHOSTTY_SUCCESS)
@@ -1099,6 +1106,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                         cell.inverse = style.inverse;
                         cell.invisible = style.invisible;
                         cell.hyperlink = hyperlink;
+                        cell.row_wrapped = row_wrapped;
                         cell.selected = row_selected && column >= selection.start_x &&
                                         column <= selection.end_x;
                         cell.strikethrough = style.strikethrough;

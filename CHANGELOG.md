@@ -8,9 +8,11 @@ artifacts take their version from the tag, not from the development version in
 
 ## 0.6.0 — Unreleased
 
-### Other
+### Features
 
-- Development changes will be recorded here.
+- Detect visible HTTP and HTTPS URLs across soft-wrapped rows and open them
+  through the existing Shift+Button-1 hyperlink gesture, excluding trailing
+  sentence punctuation and preserving explicit OSC 8 precedence.
 
 ## 0.5.0 — 2026-09-02
 

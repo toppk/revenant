@@ -227,9 +227,10 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
         }
         visual.bold = cell->bold;
         visual.italic = cell->italic;
-        visual.underline = cell->underline != 0 || VtHyperlinkUriEqualsCell(vt, cell);
+        visual.underline = cell->underline != 0 || VtHyperlinkTargetMatchesCell(vt, cell);
         visual.strikethrough = cell->strikethrough;
         visual.overline = cell->overline;
+        visual.row_wrapped = cell->row_wrapped;
         return visual;
 }
 
@@ -1015,7 +1016,7 @@ SameVisualCell(const VisualCell *left, const VisualCell *right)
                left->text_length == right->text_length && left->width == right->width &&
                left->bold == right->bold && left->italic == right->italic &&
                left->underline == right->underline && left->strikethrough == right->strikethrough &&
-               left->overline == right->overline &&
+               left->overline == right->overline && left->row_wrapped == right->row_wrapped &&
                memcmp(left->text, right->text, left->text_length) == 0;
 }
 

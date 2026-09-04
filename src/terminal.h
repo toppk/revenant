@@ -69,6 +69,7 @@ typedef struct
         bool inverse;
         bool invisible;
         bool hyperlink;
+        bool row_wrapped;
         bool selected;
         bool strikethrough;
         bool overline;

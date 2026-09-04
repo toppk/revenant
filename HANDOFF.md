@@ -301,6 +301,12 @@ an unbounded cleanup pass.
   default character classes, give `WarnRecord` kind-specific fields, name the
   remaining viewport/cell/frame-cache idioms, and shorten the large reporting,
   routing, drawing, and `SetValues` functions as they are changed.
+  Inferred-link hover is derived from the last completed frame. If terminal
+  output replaces that text while the pointer remains stationary with Shift
+  held, the old span can remain underlined until the next pointer or Shift
+  event; activation re-resolves the target and cannot open the replaced URL.
+  Fix the cosmetic lag with a non-reentrant post-render hover refresh when the
+  hyperlink interaction owner is split out.
 - A logging-density pass remains worthwhile after behavior stabilizes. Prefer
   removing INFO narration and generated summaries over changing diagnostic
   coverage during feature work.
@@ -404,11 +410,14 @@ function-pointer helper would lose the useful type check.
 - Application focus reporting through libghostty when the child enables DEC
   private mode 1004. Real X focus transitions emit exactly one `CSI I` or
   `CSI O`; ordinary shells receive no focus bytes.
-- OSC 8 hyperlink targets exposed through the backend-neutral terminal API.
-  Shift-hover underlines linked cells and Shift+Button 1 directly launches
-  only HTTP or HTTPS targets with `xdg-open`; other schemes are deliberately
-  inert. Ordinary selection and the Ctrl+button menus keep their established
-  gestures.
+- OSC 8 hyperlink targets exposed through the backend-neutral terminal API,
+  plus bounded frontend detection of visible HTTP and HTTPS URLs across
+  soft-wrapped rows. Explicit OSC 8 state wins; inferred URLs trim sentence
+  punctuation and unmatched closing delimiters without changing terminal or
+  copied text. Shift-hover underlines the selected target occurrence and
+  Shift+Button 1 launches HTTP(S) with `xdg-open`; other explicit schemes are
+  deliberately inert. Ordinary selection and the Ctrl+button menus keep their
+  established gestures.
 - Patch-411 default VT bindings are audited in
   `docs/compatibility/default-bindings.md`. Shift+Insert now owns the key event
   and pastes `SELECT` instead of also emitting modified Insert; paging and

@@ -131,6 +131,7 @@ widget_sources = files(
     'src/sme_slider.c',
     'src/terminal.c',
     'src/unicode_script.c',
+    'src/url_match.c',
     'src/utf8.c',
     'src/vt_font.c',
     'src/vt_draw.c',

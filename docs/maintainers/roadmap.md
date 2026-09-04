@@ -56,7 +56,7 @@ an implementation gate.
 | Wheel behavior and draggable scrollbar | Present | Retain local-history versus application-reporting coverage and extend Xaw styling tests. |
 | Mouse tracking and reporting formats | Present | Add Xvfb event-routing coverage and the remaining xterm mouse-policy resources. |
 | Focus reporting | Present | Retain exact `CSI I`/`CSI O` encoding and X focus-transition coverage while DEC private mode 1004 is enabled. |
-| OSC 8 hyperlinks | Present | Retain backend URI lookup and Xvfb Shift-hover/click coverage; keep non-HTTP schemes inert unless policy is deliberately revised. |
+| Hyperlinks | Present | Retain explicit OSC 8 precedence, bounded soft-wrapped HTTP(S) detection, and Xvfb Shift-hover/click coverage; keep non-HTTP schemes inert unless policy is deliberately revised. |
 | Kitty graphics | Missing | Add terminal-boundary image placement data and an X11 rendering path, with resource limits and safe image decoding. |
 | Dynamic title and bell | Present | Continue the xterm resource/permission audit for title, icon, visual bell, and urgency behavior. |
 

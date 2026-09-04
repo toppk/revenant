@@ -76,8 +76,8 @@ is classified in the
   Shift+Insert actually pastes.
 
 - **Opening terminal hyperlinks**
-  Learn how [OSC 8 links](usage/hyperlinks.md) use Shift-hover and
-  Shift+Button 1, and why only HTTP and HTTPS targets launch.
+  Learn how [explicit and detected links](usage/hyperlinks.md) use Shift-hover
+  and Shift+Button 1, and why only HTTP and HTTPS targets launch.
 
 - **Coming from xterm?**
   Go straight to [Configuring Revenant](configuration/revenant.md) and
@@ -110,7 +110,7 @@ Revenant is early. Today it runs a real PTY-backed shell, renders the
 libghostty grid through Xlib bitmap fonts or Xft, handles resize with reflow,
 scrollback with the real Athena scrollbar, font switching from the font menu
 or Shift+keypad, [named X11 selection with middle-button
-paste](usage/copy-paste.md), [OSC 8 hyperlinks](usage/hyperlinks.md),
+paste](usage/copy-paste.md), [hyperlinks](usage/hyperlinks.md),
 application mouse and focus reporting, and the mode toggles in the main and VT
 menus. Startup cursor-shape resources and the sixteen-color ANSI palette are
 implemented; Kitty graphics are on the roadmap. Application-selected block, underline, and bar

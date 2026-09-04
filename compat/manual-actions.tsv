@@ -13,5 +13,5 @@ set-render-font	[on|off|toggle]	Switch between the Xft and bitmap renderers.
 popup-menu	name	Post the named popup menu: mainMenu, vtMenu, or fontMenu.
 mouse-press		Report the button press to an application that has enabled mouse reporting; otherwise do nothing.
 mouse-motion		Report pointer motion to an application that has enabled mouse reporting.
-hyperlink-start		If the cell under the pointer carries an OSC 8 hyperlink, arm it so that the release opens it with xdg-open(1); otherwise behave as select-start.
+hyperlink-start		If the cell under the pointer carries an OSC 8 hyperlink or visible HTTP(S) URL, arm it so that the release opens it with xdg-open(1); otherwise behave as select-start.
 report-font-routing		Write a snapshot of collected font routing decisions to standard error. Requires reportFontRouting.

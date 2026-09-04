@@ -1,6 +1,7 @@
 #include "vt_widgetP.h"
 
 #include "diagnostics.h"
+#include "url_match.h"
 #include "utf8.h"
 
 #include <X11/Xatom.h>
@@ -12,6 +13,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#define XTP_URL_SCAN_MAX_BYTES 65536U
+#define XTP_URL_SCAN_MAX_CELLS 4096U
 
 static Boolean
 OwnsSelection(const Vt100Rec *vt, Atom selection)
@@ -250,30 +254,178 @@ SameUri(const uint8_t *left, size_t left_length, const uint8_t *right, size_t ri
 }
 
 static Boolean
-HyperlinkAtPointer(Vt100Rec *vt, int x, int y, uint8_t **uri, size_t *length)
+SameHyperlinkTarget(const VtHyperlinkTarget *left, const VtHyperlinkTarget *right)
+{
+        return SameUri(left->uri, left->length, right->uri, right->length) &&
+               left->inferred == right->inferred &&
+               (!left->inferred ||
+                (left->first_cell == right->first_cell && left->last_cell == right->last_cell));
+}
+
+static void
+ClearHyperlinkTarget(VtHyperlinkTarget *target)
+{
+        free(target->uri);
+        memset(target, 0, sizeof(*target));
+}
+
+static size_t
+HyperlinkCellText(const VisualCell *cell, const char **text)
+{
+        if (cell->width == 0)
+                return 0;
+        if (cell->text_length == 0) {
+                *text = " ";
+                return 1;
+        }
+        *text = cell->text;
+        return cell->text_length;
+}
+
+static Boolean
+InferredHyperlinkAt(Vt100Rec *vt, uint16_t column, uint16_t row, VtHyperlinkTarget *target)
+{
+        uint8_t *text;
+        size_t first_row;
+        size_t last_row;
+        size_t cell_count;
+        size_t capacity = 0;
+        size_t clicked_cell;
+        size_t pointer_start = SIZE_MAX;
+        size_t pointer_end = SIZE_MAX;
+        size_t length = 0;
+        size_t current_row;
+        XtpUrlMatch match;
+        Boolean found = False;
+
+        if (!vt->vt.frame_valid || vt->vt.frame_cells == NULL || column >= vt->vt.frame_columns ||
+            row >= vt->vt.frame_rows)
+                return False;
+        first_row = row;
+        while (first_row > 0 &&
+               vt->vt.frame_cells[(first_row - 1U) * vt->vt.frame_columns].row_wrapped)
+                --first_row;
+        last_row = row;
+        while (last_row + 1U < vt->vt.frame_rows &&
+               vt->vt.frame_cells[last_row * vt->vt.frame_columns].row_wrapped)
+                ++last_row;
+        cell_count = (last_row - first_row + 1U) * vt->vt.frame_columns;
+        if (cell_count == 0 || cell_count > XTP_URL_SCAN_MAX_CELLS)
+                return False;
+        clicked_cell = (size_t)row * vt->vt.frame_columns + column;
+        if (vt->vt.frame_cells[clicked_cell].width == 0 && column != 0)
+                --clicked_cell;
+        for (current_row = first_row; current_row <= last_row; ++current_row) {
+                size_t current_column;
+
+                for (current_column = 0; current_column < vt->vt.frame_columns; ++current_column) {
+                        const char *cell_text;
+                        size_t frame_index = current_row * vt->vt.frame_columns + current_column;
+                        size_t cell_length =
+                            HyperlinkCellText(&vt->vt.frame_cells[frame_index], &cell_text);
+
+                        if (cell_length > XTP_URL_SCAN_MAX_BYTES - capacity)
+                                return False;
+                        capacity += cell_length;
+                }
+        }
+        if (capacity == 0)
+                return False;
+        text = malloc(capacity);
+        if (text == NULL)
+                return False;
+        for (current_row = first_row; current_row <= last_row; ++current_row) {
+                size_t current_column;
+
+                for (current_column = 0; current_column < vt->vt.frame_columns; ++current_column) {
+                        size_t frame_index = current_row * vt->vt.frame_columns + current_column;
+                        const VisualCell *cell = &vt->vt.frame_cells[frame_index];
+                        const char *cell_text;
+                        size_t cell_length = HyperlinkCellText(cell, &cell_text);
+
+                        if (cell_length == 0)
+                                continue;
+                        if (frame_index == clicked_cell)
+                                pointer_start = length;
+                        memcpy(text + length, cell_text, cell_length);
+                        length += cell_length;
+                        if (frame_index == clicked_cell)
+                                pointer_end = length;
+                }
+        }
+        if (pointer_start == SIZE_MAX ||
+            !XtpUrlMatchAt(text, length, pointer_start, pointer_end, &match) ||
+            (match.end == length &&
+             vt->vt.frame_cells[last_row * vt->vt.frame_columns].row_wrapped))
+                goto done;
+        target->uri = malloc(match.end - match.start + 1U);
+        if (target->uri == NULL)
+                goto done;
+        target->length = match.end - match.start;
+        memcpy(target->uri, text + match.start, target->length);
+        target->uri[target->length] = '\0';
+        target->inferred = True;
+        length = 0;
+        for (current_row = first_row; current_row <= last_row; ++current_row) {
+                size_t current_column;
+
+                for (current_column = 0; current_column < vt->vt.frame_columns; ++current_column) {
+                        const char *cell_text;
+                        size_t frame_index = current_row * vt->vt.frame_columns + current_column;
+                        size_t cell_length =
+                            HyperlinkCellText(&vt->vt.frame_cells[frame_index], &cell_text);
+
+                        if (match.start >= length && match.start < length + cell_length)
+                                target->first_cell = frame_index;
+                        if (match.end - 1U >= length && match.end - 1U < length + cell_length)
+                                target->last_cell = frame_index;
+                        length += cell_length;
+                }
+        }
+        found = True;
+
+done:
+        free(text);
+        return found;
+}
+
+static Boolean
+HyperlinkAtPointer(Vt100Rec *vt, int x, int y, VtHyperlinkTarget *target)
 {
         uint16_t column;
         uint16_t row;
 
-        *uri = NULL;
-        *length = 0;
-        return vt->vt.terminal != NULL && SelectionCell(vt, x, y, &column, &row) &&
-               XtpTerminalHyperlinkAt(vt->vt.terminal, column, row, uri, length) == 0 &&
-               *length != 0;
+        memset(target, 0, sizeof(*target));
+        if (vt->vt.terminal == NULL || !SelectionCell(vt, x, y, &column, &row))
+                return False;
+        if (XtpTerminalHyperlinkAt(vt->vt.terminal, column, row, &target->uri, &target->length) ==
+                0 &&
+            target->length != 0)
+                return True;
+        ClearHyperlinkTarget(target);
+        return InferredHyperlinkAt(vt, column, row, target);
 }
 
 Boolean
-VtHyperlinkUriEqualsCell(Vt100Rec *vt, const XtpRenderCell *cell)
+VtHyperlinkTargetMatchesCell(Vt100Rec *vt, const XtpRenderCell *cell)
 {
         uint8_t *uri = NULL;
         size_t length = 0;
         Boolean matches = False;
 
-        if (!cell->hyperlink || vt->vt.hovered_hyperlink == NULL || vt->vt.terminal == NULL)
+        if (vt->vt.hovered_hyperlink.uri == NULL)
+                return False;
+        if (vt->vt.hovered_hyperlink.inferred) {
+                size_t index = (size_t)cell->row * vt->vt.frame_columns + cell->column;
+
+                return index >= vt->vt.hovered_hyperlink.first_cell &&
+                       index <= vt->vt.hovered_hyperlink.last_cell;
+        }
+        if (!cell->hyperlink || vt->vt.terminal == NULL)
                 return False;
         if (XtpTerminalHyperlinkAt(vt->vt.terminal, cell->column, cell->row, &uri, &length) == 0)
-                matches =
-                    SameUri(uri, length, vt->vt.hovered_hyperlink, vt->vt.hovered_hyperlink_length);
+                matches = SameUri(uri, length, vt->vt.hovered_hyperlink.uri,
+                                  vt->vt.hovered_hyperlink.length);
         free(uri);
         return matches;
 }
@@ -281,26 +433,23 @@ VtHyperlinkUriEqualsCell(Vt100Rec *vt, const XtpRenderCell *cell)
 static void
 SetHoveredHyperlink(Vt100Rec *vt, int x, int y, unsigned int state)
 {
-        uint8_t *uri = NULL;
-        size_t length = 0;
+        VtHyperlinkTarget target = {0};
         Boolean found = False;
 
         if ((state & ShiftMask) != 0)
-                found = HyperlinkAtPointer(vt, x, y, &uri, &length);
-        if (!found) {
-                free(uri);
-                uri = NULL;
-                length = 0;
-        }
-        if (SameUri(uri, length, vt->vt.hovered_hyperlink, vt->vt.hovered_hyperlink_length)) {
-                free(uri);
+                found = HyperlinkAtPointer(vt, x, y, &target);
+        if (!found)
+                ClearHyperlinkTarget(&target);
+        if (SameHyperlinkTarget(&target, &vt->vt.hovered_hyperlink)) {
+                ClearHyperlinkTarget(&target);
                 return;
         }
-        free(vt->vt.hovered_hyperlink);
-        vt->vt.hovered_hyperlink = uri;
-        vt->vt.hovered_hyperlink_length = length;
-        if (uri != NULL)
-                XtpLogBytePreview(XTP_LOG_DEBUG, "hyperlink", "hover", uri, length);
+        ClearHyperlinkTarget(&vt->vt.hovered_hyperlink);
+        vt->vt.hovered_hyperlink = target;
+        if (target.uri != NULL)
+                XtpLogBytePreview(XTP_LOG_DEBUG, "hyperlink",
+                                  target.inferred ? "hover inferred" : "hover", target.uri,
+                                  target.length);
         else
                 XtpLog(XTP_LOG_DEBUG, "hyperlink", "hover cleared");
         if (XtIsRealized((Widget)vt) && vt->vt.terminal != NULL) {
@@ -395,52 +544,49 @@ void
 VtHyperlinkStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
 {
         Vt100Rec *vt = VtAsRecord(widget);
-        uint8_t *uri = NULL;
-        size_t length = 0;
+        VtHyperlinkTarget target = {0};
 
         if (event == NULL || event->type != ButtonPress || event->xbutton.button != Button1)
                 return;
-        if (HyperlinkAtPointer(vt, event->xbutton.x, event->xbutton.y, &uri, &length)) {
-                free(vt->vt.pressed_hyperlink);
-                vt->vt.pressed_hyperlink = uri;
-                vt->vt.pressed_hyperlink_length = length;
+        if (HyperlinkAtPointer(vt, event->xbutton.x, event->xbutton.y, &target)) {
+                ClearHyperlinkTarget(&vt->vt.pressed_hyperlink);
+                vt->vt.pressed_hyperlink = target;
                 SetHoveredHyperlink(vt, event->xbutton.x, event->xbutton.y,
                                     event->xbutton.state | ShiftMask);
-                XtpLogBytePreview(XTP_LOG_DEBUG, "hyperlink", "press", uri, length);
+                XtpLogBytePreview(XTP_LOG_DEBUG, "hyperlink", "press", target.uri, target.length);
                 return;
         }
-        free(uri);
+        ClearHyperlinkTarget(&target);
         VtSelectStartAction(widget, event, params, num_params);
 }
 
 static Boolean
 FinishHyperlinkPress(Vt100Rec *vt, const XButtonEvent *event)
 {
-        uint8_t *uri = NULL;
-        size_t length = 0;
+        VtHyperlinkTarget target = {0};
         Boolean matches;
         int opened;
 
-        if (vt->vt.pressed_hyperlink == NULL || event->button != Button1)
+        if (vt->vt.pressed_hyperlink.uri == NULL || event->button != Button1)
                 return False;
         matches = (event->state & ShiftMask) != 0 &&
-                  HyperlinkAtPointer(vt, event->x, event->y, &uri, &length) &&
-                  SameUri(uri, length, vt->vt.pressed_hyperlink, vt->vt.pressed_hyperlink_length);
+                  HyperlinkAtPointer(vt, event->x, event->y, &target) &&
+                  SameHyperlinkTarget(&target, &vt->vt.pressed_hyperlink);
         if (matches) {
-                opened = OpenHttpUri(uri, length);
+                opened = OpenHttpUri(target.uri, target.length);
                 if (opened == 0) {
-                        XtpLogBytePreview(XTP_LOG_INFO, "hyperlink", "opened", uri, length);
+                        XtpLogBytePreview(XTP_LOG_INFO, "hyperlink", "opened", target.uri,
+                                          target.length);
                 } else if (opened > 0) {
-                        XtpLogBytePreview(XTP_LOG_INFO, "hyperlink", "blocked", uri, length);
+                        XtpLogBytePreview(XTP_LOG_INFO, "hyperlink", "blocked", target.uri,
+                                          target.length);
                 } else {
                         XtpLog(XTP_LOG_ERROR, "hyperlink", "cannot launch xdg-open");
                         XBell(XtDisplay((Widget)vt), 0);
                 }
         }
-        free(uri);
-        free(vt->vt.pressed_hyperlink);
-        vt->vt.pressed_hyperlink = NULL;
-        vt->vt.pressed_hyperlink_length = 0;
+        ClearHyperlinkTarget(&target);
+        ClearHyperlinkTarget(&vt->vt.pressed_hyperlink);
         SetHoveredHyperlink(vt, event->x, event->y, event->state);
         return True;
 }

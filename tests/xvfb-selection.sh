@@ -150,8 +150,8 @@ PATH=$test_dir/bin:$PATH
 export XTP_XDG_OPEN_LOG PATH
 
 hyperlink_log=$test_dir/xterm-hyperlink.log
-"$terminal" -debug +sb \
-    -e sh -c 'printf "\033]8;;http://example.com\033\\HTTP\033]8;;\033\\ \033]8;;file:///tmp/inert\033\\FILE\033]8;;\033\\\r\n"; sleep 20' \
+"$terminal" -debug +sb -xrm 'XTerm*columns: 30' -xrm 'XTerm*rows: 6' \
+    -e sh -c 'printf "\033]8;;http://example.com\033\\HTTP\033]8;;\033\\ \033]8;;file:///tmp/inert\033\\https://masked.test\033]8;;\033\\\r\nplain https://wrapped.example/a_(b).\r\n"; sleep 20' \
     >"$test_dir/xterm-hyperlink.out" 2>"$hyperlink_log" &
 terminal_pid=$!
 attempt=0
@@ -172,8 +172,11 @@ cell=$(sed -n 's/.*config: VT100 resolved renderer=.* cell=\([0-9][0-9]*x[0-9][0
 cell_width=${cell%x*}
 cell_height=${cell#*x}
 http_x=$((2 + cell_width / 2))
-file_x=$((2 + 5 * cell_width + cell_width / 2))
+file_x=$((2 + 10 * cell_width + cell_width / 2))
 row_y=$((2 + cell_height / 2))
+inferred_x=$((2 + 2 * cell_width + cell_width / 2))
+period_x=$((2 + 5 * cell_width + cell_width / 2))
+inferred_y=$((2 + 2 * cell_height + cell_height / 2))
 "$shift_click" "$window" "$http_x" "$row_y" >/dev/null
 attempt=0
 while ! test -s "$XTP_XDG_OPEN_LOG"
@@ -199,10 +202,37 @@ then
     echo "non-HTTP OSC 8 link unexpectedly invoked xdg-open" >&2
     exit 1
 fi
-if ! grep -q 'hyperlink: hover bytes=.*http://example.com' "$hyperlink_log" || \
-   ! grep -q 'hyperlink: blocked bytes=.*file:///tmp/inert' "$hyperlink_log"
+"$shift_click" "$window" "$inferred_x" "$inferred_y" >/dev/null
+attempt=0
+while test "$(wc -l <"$XTP_XDG_OPEN_LOG")" -lt 2
+do
+    attempt=$((attempt + 1))
+    if test "$attempt" -ge 100
+    then
+        echo "wrapped plain-text URL did not invoke xdg-open" >&2
+        sed -n '1,280p' "$hyperlink_log" >&2
+        exit 1
+    fi
+    sleep 0.05
+done
+if test "$(sed -n '2p' "$XTP_XDG_OPEN_LOG")" != 'https://wrapped.example/a_(b)'
 then
-    echo "hyperlink hover or blocked-scheme diagnostics missing" >&2
+    echo "plain-text URL was not unwrapped or trimmed correctly" >&2
+    cat "$XTP_XDG_OPEN_LOG" >&2
+    exit 1
+fi
+"$shift_click" "$window" "$period_x" "$inferred_y" >/dev/null
+sleep 0.1
+if test "$(wc -l <"$XTP_XDG_OPEN_LOG")" -ne 2
+then
+    echo "trailing URL punctuation was unexpectedly activated" >&2
+    exit 1
+fi
+if ! grep -q 'hyperlink: hover bytes=.*http://example.com' "$hyperlink_log" || \
+   ! grep -q 'hyperlink: blocked bytes=.*file:///tmp/inert' "$hyperlink_log" || \
+   ! grep -q 'hyperlink: hover inferred bytes=.*https://wrapped.example/a_(b)' "$hyperlink_log"
+then
+    echo "explicit or inferred hyperlink diagnostics missing" >&2
     sed -n '1,260p' "$hyperlink_log" >&2
     exit 1
 fi

@@ -2,14 +2,15 @@
 man: revenant-hyperlinks
 section: 7
 manual: revenant
-description: OSC 8 hyperlinks and how to open them
+description: explicit and detected hyperlinks and how to open them
 ---
 
-# OSC 8 hyperlinks
+# Hyperlinks
 
 Terminal applications can attach a URI to arbitrary visible text with the
-OSC 8 control sequence. Revenant recognizes those links; it does not guess URLs
-from ordinary terminal text.
+OSC 8 control sequence. Revenant recognizes those links. It also detects
+visible `http://` and `https://` URLs in ordinary terminal text without
+changing the terminal's contents or OSC 8 state.
 
 Try it with:
 
@@ -20,9 +21,17 @@ printf '\e]8;;http://example.com\e\\This is a link\e]8;;\e\\\n'
 ## Opening a link
 
 Hold Shift while the pointer is over linked text. Revenant underlines all
-visible cells carrying that target. Shift+Button 1 opens an `http://` or
-`https://` target with `xdg-open` when the button is released over the same
-target.
+visible cells carrying an explicit OSC 8 target, or the detected URL occurrence
+under the pointer. Shift+Button 1 opens an `http://` or `https://` target with
+`xdg-open` when the button is released over the same target.
+
+Detected URLs may cross soft-wrapped rows. Sentence punctuation at the end is
+not included: for example, the final period in `See https://example.com/.` is
+not opened. Closing parentheses, brackets, and braces remain part of the URL
+when they balance an opening delimiter, but unmatched closing delimiters are
+trimmed. Whitespace, angle brackets, quotes—including apostrophes—and backticks
+end a detected URL. An explicit OSC 8 target always takes precedence over
+detection, even when its visible label itself resembles a URL.
 
 The modifier keeps hyperlink activation separate from the established mouse
 bindings:
@@ -33,7 +42,7 @@ bindings:
 - When an application has enabled mouse reporting, Shift retains the local
   terminal gesture instead of sending it to the application.
 
-OSC 8 targets using `file:`, `mailto:`, `ftp:`, or any other scheme still
+Explicit OSC 8 targets using `file:`, `mailto:`, `ftp:`, or any other scheme still
 underline on Shift-hover, but Shift-click deliberately does nothing. This
 lets Revenant expose the terminal's actual hyperlink state without handing
 arbitrary URI schemes to a desktop launcher.
@@ -43,6 +52,11 @@ arbitrary URI schemes to a desktop launcher.
 An OSC 8 label and its target can be different: text which says
 `example.com` can point somewhere else. The underline confirms that the cells
 carry a link, not that the visible label describes its destination.
+
+A detected URL has no hidden destination: the opened bytes are the visible
+URL after the documented punctuation trimming. Detection is bounded to the
+visible logical line and does not perform a network request or validate the
+destination before opening it.
 
 Revenant passes an allowed target to `xdg-open` as one argument without invoking
 a shell. It rejects embedded NUL bytes and permits only the case-insensitive

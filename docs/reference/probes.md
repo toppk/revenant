@@ -20,7 +20,7 @@ with any result.
 | `tools/probe-color.sh` | SGR attributes, underline styles, 16/256 colors, and semicolon/colon truecolor ramps. |
 | `tools/probe-colors.py` | OSC 4 palette queries and resets, named palettes, and an `-xrm` spawn harness alongside expanded 16/256/truecolor displays. |
 | `tools/probe-reverse-video.sh` | Enter-gated comparison of SGR 7, DECSCNM repaint/restoration, explicit backgrounds, and widget reverse video. |
-| `tools/probe-osc8.sh` | OSC 8 labels for Shift-hover and safe HTTP(S)-only Shift-click activation. |
+| `tools/probe-osc8.sh` | Explicit OSC 8 labels and a detected plain URL for Shift-hover and safe HTTP(S)-only Shift-click activation. |
 | `tools/probe-emoji.py` | CPR-measured legacy-versus-mode-2027 widths for emoji presentation, modifiers, ZWJ sequences, flags, cluster boundaries, right-margin wrapping, and over-capacity clusters. |
 | `tools/probe-fonts.py` | CPR-measured widths plus visual diagnostics for combining marks, conjuncts, enclosing and spanning marks, and Zalgo-style stacking. |
 | `tools/probe-keymodes.py` | Cooked input, raw bytes, fixterms drift, Kitty flags, associated text, event types, and flag-stack restoration. |

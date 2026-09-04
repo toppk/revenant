@@ -50,12 +50,12 @@ translation route. Local key actions share an event-identity guard so paste,
 paging, and font changes run once per X event without suppressing genuine
 auto-repeat.
 
-Shift+Button 1 on an OSC 8 hyperlink is an intentional Revenant extension, not
-one of patch 411's default bindings. Shift-hover underlines the target;
-pressing and releasing on the same target launches only HTTP or HTTPS links.
-On a cell without an OSC 8 target, the same gesture falls through to ordinary
-selection. The extension and its scheme policy are documented in
-[OSC 8 hyperlinks](../usage/hyperlinks.md) and the
+Shift+Button 1 on an explicit or detected hyperlink is an intentional Revenant
+extension, not one of patch 411's default bindings. Shift-hover underlines the
+target; pressing and releasing on the same target launches only HTTP or HTTPS
+links. On a cell without an explicit OSC 8 target or detected URL, the same
+gesture falls through to ordinary selection. The extension and its scheme
+policy are documented in [Hyperlinks](../usage/hyperlinks.md) and the
 [xterm differences ledger](drift.md).
 
 Changes to the upstream baseline require re-reading `VTInitTranslations()` and

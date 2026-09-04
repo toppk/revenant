@@ -109,8 +109,10 @@ Shift+Button 1 activates a link.
 
 Activation is intentionally narrower than many terminal emulators. Revenant
 directly executes `xdg-open` with one URI argument only for `http://` and
-`https://` targets. Other schemes remain visible on Shift-hover but are inert;
-ordinary text is never promoted to a link heuristically. This is an
+`https://` targets. Other explicit schemes remain visible on Shift-hover but
+are inert. Visible HTTP and HTTPS URLs in ordinary text are detected across
+soft-wrapped rows; trailing sentence punctuation and unmatched closing
+delimiters are excluded. Explicit OSC 8 state takes precedence. This is an
 intentional extension to the patch-411 interaction contract, including when
 Shift overrides application mouse reporting.
 

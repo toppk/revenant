@@ -117,9 +117,10 @@ inside the text area are encoded for the application instead. Hold Shift to
 select or scroll locally while reporting is active. Ctrl with Buttons 1, 2, and
 3 always opens the Main Options, VT Options, and VT Fonts menus.
 
-Text carrying an OSC 8 hyperlink is underlined while Shift is held and the
-pointer is over it. Shift+Button 1 on such text opens the link with
-**xdg-open**(1); only **http** and **https** links are opened.
+Text carrying an OSC 8 hyperlink, or a visible HTTP(S) URL detected in ordinary
+terminal text, is underlined while Shift is held and the pointer is over it.
+Shift+Button 1 on such text opens the link with **xdg-open**(1); only **http**
+and **https** links are opened.
 
 # MENUS
 
