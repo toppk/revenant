@@ -37,6 +37,10 @@ Revenant (installed as `revenant`, with `xterm+` as an alternative name) is an
 X11 terminal emulator that preserves xterm's Xt/Athena interface and X resource
 contract while using `libghostty-vt` as its terminal core.
 
+<p align="center">
+  <img src="docs/assets/revenant-demo.png" width="921" alt="A translucent Revenant terminal displaying colorful OSC 8 and auto-detected links over the Revenant website artwork">
+</p>
+
 For an xterm user, the goal is a familiar window: the `XTerm` resource class,
 the `vt100` widget, Ctrl+mouse-button menus, configured bitmap and Xft font
 slots, and the same `.Xresources` vocabulary. Under that interface, Revenant

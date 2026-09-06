@@ -20,3 +20,7 @@ remain under `tests/`.
 `probe-color.sh` is the compact SGR sampler. `probe-colors.py` adds OSC 4
 palette queries, named palette installation, and an `-xrm` spawn harness for
 comparing resource-driven palettes across terminals.
+
+`demo.sh` is a compact screenshot-oriented scene showing emoji, colored
+underline styles, OSC 8 labels, and an auto-detected URL. It is illustrative,
+not a probe or automated test.

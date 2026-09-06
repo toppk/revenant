@@ -7,6 +7,7 @@ import sys
 
 INTERNAL_TREES = ("src", "tools", "tests")
 FORBIDDEN = "reve" + "nant"
+BRANDED_TOOL_DEMOS = {"tools/demo.sh"}
 
 
 def main() -> int:
@@ -21,12 +22,15 @@ def main() -> int:
         for path in sorted(tree.rglob("*")):
             if not path.is_file() or "__pycache__" in path.parts:
                 continue
+            relative_path = path.relative_to(source_root)
+            if str(relative_path) in BRANDED_TOOL_DEMOS:
+                continue
             for line_number, line in enumerate(
                 path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
             ):
                 if FORBIDDEN in line.casefold():
                     findings.append(
-                        f"{path.relative_to(source_root)}:{line_number}:{line}"
+                        f"{relative_path}:{line_number}:{line}"
                     )
 
     if findings:
