@@ -258,8 +258,8 @@ static Boolean
 SameHyperlinkTarget(const VtHyperlinkTarget *left, const VtHyperlinkTarget *right)
 {
         return SameUri(left->uri, left->length, right->uri, right->length) &&
-               left->inferred == right->inferred &&
-               left->first_cell == right->first_cell && left->last_cell == right->last_cell;
+               left->inferred == right->inferred && left->first_cell == right->first_cell &&
+               left->last_cell == right->last_cell;
 }
 
 static void
@@ -417,13 +417,12 @@ VtExpandExplicitHyperlinkRange(Vt100Rec *vt, uint16_t column, uint16_t row,
 
         target->first_cell = index;
         target->last_cell = index;
-        while (target->first_cell > 0 &&
-               ExplicitHyperlinkCellMatches(vt, target->first_cell - 1U, target->uri,
-                                             target->length))
+        while (target->first_cell > 0 && ExplicitHyperlinkCellMatches(vt, target->first_cell - 1U,
+                                                                      target->uri, target->length))
                 --target->first_cell;
-        while (target->last_cell + 1U < frame_cells &&
-               ExplicitHyperlinkCellMatches(vt, target->last_cell + 1U, target->uri,
-                                             target->length))
+        while (
+            target->last_cell + 1U < frame_cells &&
+            ExplicitHyperlinkCellMatches(vt, target->last_cell + 1U, target->uri, target->length))
                 ++target->last_cell;
 }
 
@@ -468,22 +467,22 @@ VtHyperlinkTargetMatchesCell(Vt100Rec *vt, const XtpRenderCell *cell)
                 return False;
         index = (size_t)cell->row * vt->vt.frame_columns + cell->column;
         if (vt->vt.hovered_hyperlink.inferred)
-                return VtHyperlinkTargetContainsCell(&vt->vt.hovered_hyperlink, index, cell->hyperlink,
-                                                     NULL, 0);
+                return VtHyperlinkTargetContainsCell(&vt->vt.hovered_hyperlink, index,
+                                                     cell->hyperlink, NULL, 0);
         if (!cell->hyperlink || vt->vt.terminal == NULL)
                 return False;
         {
-            uint8_t *cell_uri = NULL;
-            size_t cell_length = 0;
-            Boolean matches = False;
+                uint8_t *cell_uri = NULL;
+                size_t cell_length = 0;
+                Boolean matches = False;
 
-            if (XtpTerminalHyperlinkAt(vt->vt.terminal, cell->column, cell->row, &cell_uri,
-                                       &cell_length) != 0)
-                return False;
-            matches = VtHyperlinkTargetContainsCell(&vt->vt.hovered_hyperlink, index,
-                                                    cell->hyperlink, cell_uri, cell_length);
-            free(cell_uri);
-            return matches;
+                if (XtpTerminalHyperlinkAt(vt->vt.terminal, cell->column, cell->row, &cell_uri,
+                                           &cell_length) != 0)
+                        return False;
+                matches = VtHyperlinkTargetContainsCell(&vt->vt.hovered_hyperlink, index,
+                                                        cell->hyperlink, cell_uri, cell_length);
+                free(cell_uri);
+                return matches;
         }
 }
 

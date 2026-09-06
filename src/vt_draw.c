@@ -591,7 +591,8 @@ DrawDecorations(Vt100Rec *vt, const VisualCell *cell, const XRectangle *area)
                 switch (cell->underline) {
                 case XTP_UNDERLINE_DOUBLE:
                         if (double_top >= area_top && double_top <= area_bottom)
-                                XDrawLine(display, drawable, vt->vt.gc, x1, double_top, x2, double_top);
+                                XDrawLine(display, drawable, vt->vt.gc, x1, double_top, x2,
+                                          double_top);
                         if (double_bottom != double_top && double_bottom >= area_top &&
                             double_bottom <= area_bottom)
                                 XDrawLine(display, drawable, vt->vt.gc, x1, double_bottom, x2,
@@ -652,11 +653,11 @@ DrawDecorations(Vt100Rec *vt, const VisualCell *cell, const XRectangle *area)
                                         next_y = y - top_span + (span * m) / half_period;
                                 else
                                         next_y = y + bottom_span -
-                                                  (span * (m - half_period)) / half_period;
+                                                 (span * (m - half_period)) / half_period;
 
                                 if (next_x > x1) {
-                                        XDrawLine(display, drawable, vt->vt.gc, prev_x, prev_y, next_x,
-                                                  next_y);
+                                        XDrawLine(display, drawable, vt->vt.gc, prev_x, prev_y,
+                                                  next_x, next_y);
                                 }
                                 prev_x = next_x;
                                 prev_y = next_y;

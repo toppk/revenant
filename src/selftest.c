@@ -1106,7 +1106,8 @@ SelfTestHyperlinks(const XtpRenderer *renderer)
             "\033]8;;http://example.com\033\\This is a link\033]8;;\033\\ plain";
         static const uint8_t expected[] = "http://example.com";
         static const uint8_t underline_styles[] =
-            "plain \033[4:1msingle\033[4:2mdouble\033[4:3mcurly\033[4:4mdotted\033[4:5mdashed\033[24m";
+            "plain "
+            "\033[4:1msingle\033[4:2mdouble\033[4:3mcurly\033[4:4mdotted\033[4:5mdashed\033[24m";
         XtpTerminal *terminal;
         SelfTestRender render = {0};
         uint8_t *uri = NULL;
