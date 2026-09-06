@@ -6,13 +6,33 @@ opens the next development entry, and advances the source version. Release
 artifacts take their version from the tag, not from the development version in
 `meson.build`.
 
-## 0.6.0 — Unreleased
+## 0.7.0 — Unreleased
+
+### Other
+
+- Development changes will be recorded here.
+
+## 0.6.0 — 2026-09-06
+
+A smaller quality-of-life release: visible HTTP(S) text is now actionable, and
+Shift-hover makes terminal hyperlinks easier to find and distinguish.
 
 ### Features
 
 - Detect visible HTTP and HTTPS URLs across soft-wrapped rows and open them
   through the existing Shift+Button-1 hyperlink gesture, excluding trailing
   sentence punctuation and preserving explicit OSC 8 precedence.
+  ([3e472b0](https://github.com/toppk/revenant/commit/3e472b048148dd02c33941e83bb02b2d1bba8161))
+- Give Shift-hovered OSC 8 and detected links a hand pointer and a visible
+  underline transition: unstyled links become single-underlined, while
+  application single underlines become double-underlined.
+  ([5f9255e](https://github.com/toppk/revenant/commit/5f9255ecda52ec75369b9c0004350364668fc1b7))
+
+### Bug fixes
+
+- Keep Shift-hover feedback on the individual OSC 8 label when multiple
+  visible labels point to the same destination.
+  ([5f9255e](https://github.com/toppk/revenant/commit/5f9255ecda52ec75369b9c0004350364668fc1b7))
 
 ## 0.5.0 — 2026-09-02
 
