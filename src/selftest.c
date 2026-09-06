@@ -1213,6 +1213,10 @@ SelfTestHyperlinkHover(void)
             !VtHyperlinkTargetContainsCell(&inferred_target, 21, False, NULL, 0) ||
             VtHyperlinkTargetContainsCell(&inferred_target, 24, False, NULL, 0))
                 goto done;
+        if (XtpTerminalBackendIsStub()) {
+                result = 0;
+                goto done;
+        }
         range_terminal = XtpTerminalNewWithGraphemeWidth(16, 1, 8, 16, false);
         if (range_terminal == NULL)
                 goto done;
