@@ -97,7 +97,7 @@ typedef struct
         uint8_t width;
         Boolean bold;
         Boolean italic;
-        Boolean underline;
+        XtpUnderline underline;
         Boolean strikethrough;
         Boolean overline;
         Boolean row_wrapped;
@@ -192,6 +192,8 @@ typedef struct
         Boolean selection_rectangle;
         VtHyperlinkTarget hovered_hyperlink;
         VtHyperlinkTarget pressed_hyperlink;
+        Cursor hyperlink_cursor;
+        Boolean hyperlink_cursor_active;
         unsigned int reported_mouse_buttons;
         Time last_button_up_time;
         unsigned int last_button;
@@ -292,6 +294,13 @@ void VtInitializeInput(Vt100Rec *vt);
 void VtDestroyInput(Vt100Rec *vt);
 unsigned int VtModifiersFromState(unsigned int state);
 Boolean VtHyperlinkTargetMatchesCell(Vt100Rec *vt, const XtpRenderCell *cell);
+void VtExpandExplicitHyperlinkRange(Vt100Rec *vt, uint16_t column, uint16_t row,
+                                    VtHyperlinkTarget *target);
+Boolean VtHyperlinkTargetContainsCell(const VtHyperlinkTarget *target, size_t index,
+                                      Boolean cell_hyperlink, const uint8_t *cell_uri,
+                                      size_t cell_length);
+XtpUnderline VtHyperlinkHoverUnderline(XtpUnderline underline);
+void VtDoubleUnderlineRows(int center, int area_top, int area_bottom, int *top, int *bottom);
 void VtHyperlinkEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch);
 void VtScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 void VtScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);

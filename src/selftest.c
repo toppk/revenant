@@ -16,6 +16,7 @@
 #include "version.h"
 #include "welcome.h"
 #include "x11_opacity.h"
+#include "vt_widgetP.h"
 
 #include <errno.h>
 #include <inttypes.h>
@@ -724,6 +725,7 @@ typedef struct
         Boolean saw_wide_tail;
         Boolean saw_selected_cell;
         size_t selected_cells;
+        size_t underline_counts[XTP_UNDERLINE_DASHED + 1U];
         XtpRenderFrame frame;
 } SelfTestRender;
 
@@ -759,6 +761,8 @@ SelfTestCell(const XtpRenderCell *cell, void *closure)
                 render->saw_selected_cell = True;
         if (cell->selected)
                 ++render->selected_cells;
+        if (cell->underline <= XTP_UNDERLINE_DASHED)
+                ++render->underline_counts[cell->underline];
 }
 
 static void
@@ -1101,6 +1105,8 @@ SelfTestHyperlinks(const XtpRenderer *renderer)
         static const uint8_t content[] =
             "\033]8;;http://example.com\033\\This is a link\033]8;;\033\\ plain";
         static const uint8_t expected[] = "http://example.com";
+        static const uint8_t underline_styles[] =
+            "plain \033[4:1msingle\033[4:2mdouble\033[4:3mcurly\033[4:4mdotted\033[4:5mdashed\033[24m";
         XtpTerminal *terminal;
         SelfTestRender render = {0};
         uint8_t *uri = NULL;
@@ -1129,10 +1135,108 @@ SelfTestHyperlinks(const XtpRenderer *renderer)
                 XtpLog(XTP_LOG_ERROR, "self-test", "OSC 8 terminator left URI length=%zu", length);
                 goto done;
         }
+        XtpTerminalFree(terminal);
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 2, 8, 16, false);
+        render = (SelfTestRender){0};
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalFeed(terminal, underline_styles, sizeof(underline_styles) - 1U);
+        if (XtpTerminalRender(terminal, renderer, &render, true) != 0 ||
+            render.underline_counts[XTP_UNDERLINE_NONE] == 0 ||
+            render.underline_counts[XTP_UNDERLINE_SINGLE] == 0 ||
+            render.underline_counts[XTP_UNDERLINE_DOUBLE] == 0 ||
+            render.underline_counts[XTP_UNDERLINE_CURLY] == 0 ||
+            render.underline_counts[XTP_UNDERLINE_DOTTED] == 0 ||
+            render.underline_counts[XTP_UNDERLINE_DASHED] == 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "SGR underline styles did not render");
+                goto done;
+        }
         result = 0;
 done:
         free(uri);
         XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestHyperlinkHover(void)
+{
+        static const uint8_t same_uri[] = "https://same.example";
+        static const uint8_t duplicate_labels[] =
+            "\033]8;;https://same.example\033\\ONE\033]8;;\033\\  "
+            "\033]8;;https://same.example\033\\TWO\033]8;;\033\\";
+        VtHyperlinkTarget explicit_target = {
+            .uri = (uint8_t *)same_uri,
+            .length = sizeof(same_uri) - 1U,
+            .first_cell = 10,
+            .last_cell = 13,
+        };
+        VtHyperlinkTarget inferred_target = {
+            .uri = (uint8_t *)same_uri,
+            .length = sizeof(same_uri) - 1U,
+            .inferred = True,
+            .first_cell = 20,
+            .last_cell = 23,
+        };
+        VtHyperlinkTarget derived_target = {0};
+        Vt100Rec range_vt = {0};
+        XtpTerminal *range_terminal = NULL;
+        int top;
+        int bottom;
+        int result = -1;
+
+        if (VtHyperlinkHoverUnderline(XTP_UNDERLINE_NONE) != XTP_UNDERLINE_SINGLE ||
+            VtHyperlinkHoverUnderline(XTP_UNDERLINE_SINGLE) != XTP_UNDERLINE_DOUBLE ||
+            VtHyperlinkHoverUnderline(XTP_UNDERLINE_DOUBLE) != XTP_UNDERLINE_SINGLE ||
+            VtHyperlinkHoverUnderline(XTP_UNDERLINE_CURLY) != XTP_UNDERLINE_SINGLE ||
+            VtHyperlinkHoverUnderline(XTP_UNDERLINE_DOTTED) != XTP_UNDERLINE_SINGLE ||
+            VtHyperlinkHoverUnderline(XTP_UNDERLINE_DASHED) != XTP_UNDERLINE_SINGLE)
+                goto done;
+        VtDoubleUnderlineRows(10, 0, 20, &top, &bottom);
+        if (top != 8 || bottom != 12)
+                goto done;
+        VtDoubleUnderlineRows(1, 0, 2, &top, &bottom);
+        if (top != 0 || bottom != 2)
+                goto done;
+        VtDoubleUnderlineRows(0, 0, 0, &top, &bottom);
+        if (top != 0 || bottom != 0)
+                goto done;
+        if (!VtHyperlinkTargetContainsCell(&explicit_target, 11, True, same_uri,
+                                           sizeof(same_uri) - 1U) ||
+            VtHyperlinkTargetContainsCell(&explicit_target, 9, True, same_uri,
+                                          sizeof(same_uri) - 1U) ||
+            VtHyperlinkTargetContainsCell(&explicit_target, 11, False, same_uri,
+                                          sizeof(same_uri) - 1U) ||
+            VtHyperlinkTargetContainsCell(&explicit_target, 11, True,
+                                          (const uint8_t *)"https://other.example", 21) ||
+            !VtHyperlinkTargetContainsCell(&inferred_target, 21, False, NULL, 0) ||
+            VtHyperlinkTargetContainsCell(&inferred_target, 24, False, NULL, 0))
+                goto done;
+        range_terminal = XtpTerminalNewWithGraphemeWidth(16, 1, 8, 16, false);
+        if (range_terminal == NULL)
+                goto done;
+        range_vt.vt.terminal = range_terminal;
+        range_vt.vt.frame_columns = 16;
+        range_vt.vt.frame_rows = 1;
+        range_vt.vt.frame_valid = True;
+        range_vt.vt.frame_cells = calloc(16, sizeof(*range_vt.vt.frame_cells));
+        if (range_vt.vt.frame_cells == NULL)
+                goto done;
+        XtpTerminalFeed(range_terminal, duplicate_labels, sizeof(duplicate_labels) - 1U);
+        if (XtpTerminalHyperlinkAt(range_terminal, 1, 0, &derived_target.uri,
+                                   &derived_target.length) != 0 ||
+            derived_target.length != sizeof(same_uri) - 1U)
+                goto done;
+        VtExpandExplicitHyperlinkRange(&range_vt, 1, 0, &derived_target);
+        if (derived_target.first_cell != 0 || derived_target.last_cell != 2 ||
+            VtHyperlinkTargetContainsCell(&derived_target, 5, True, same_uri,
+                                          sizeof(same_uri) - 1U))
+                goto done;
+        result = 0;
+done:
+        free(derived_target.uri);
+        free(range_vt.vt.frame_cells);
+        XtpTerminalFree(range_terminal);
         return result;
 }
 
@@ -2174,6 +2278,10 @@ XtpSelfTest(void)
         }
         if (SelfTestHyperlinks(&renderer) != 0) {
                 XtpLog(XTP_LOG_ERROR, "self-test", "hyperlink check failed");
+                goto failure;
+        }
+        if (SelfTestHyperlinkHover() != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "hyperlink hover check failed");
                 goto failure;
         }
         if (RunSelfTestCases(backend_cases, XtNumber(backend_cases)) != 0)

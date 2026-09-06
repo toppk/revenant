@@ -58,6 +58,39 @@ RgbPixel(Vt100Rec *vt, uint8_t red, uint8_t green, uint8_t blue)
         return color.pixel;
 }
 
+XtpUnderline
+VtHyperlinkHoverUnderline(XtpUnderline underline)
+{
+        switch (underline) {
+        case XTP_UNDERLINE_SINGLE:
+                return XTP_UNDERLINE_DOUBLE;
+        case XTP_UNDERLINE_NONE:
+        case XTP_UNDERLINE_DOUBLE:
+        case XTP_UNDERLINE_CURLY:
+        case XTP_UNDERLINE_DOTTED:
+        case XTP_UNDERLINE_DASHED:
+        default:
+                return XTP_UNDERLINE_SINGLE;
+        }
+}
+
+void
+VtDoubleUnderlineRows(int center, int area_top, int area_bottom, int *top, int *bottom)
+{
+        const int preferred_gap = 4;
+        int max_top_offset = center - area_top;
+        int max_bottom_offset = area_bottom - center;
+        int preferred_offset = preferred_gap / 2;
+        int offset = preferred_offset;
+
+        if (offset > max_top_offset)
+                offset = max_top_offset;
+        if (offset > max_bottom_offset)
+                offset = max_bottom_offset;
+        *top = center - offset;
+        *bottom = center + offset;
+}
+
 static Pixel
 RenderOpaqueColor(Vt100Rec *vt, XtpColor color, Boolean foreground)
 {
@@ -227,7 +260,9 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
         }
         visual.bold = cell->bold;
         visual.italic = cell->italic;
-        visual.underline = cell->underline != 0 || VtHyperlinkTargetMatchesCell(vt, cell);
+        visual.underline = cell->underline;
+        if (VtHyperlinkTargetMatchesCell(vt, cell))
+                visual.underline = VtHyperlinkHoverUnderline(visual.underline);
         visual.strikethrough = cell->strikethrough;
         visual.overline = cell->overline;
         visual.row_wrapped = cell->row_wrapped;
@@ -519,13 +554,123 @@ DrawDecorations(Vt100Rec *vt, const VisualCell *cell, const XRectangle *area)
 {
         Widget widget = (Widget)vt;
         int right = area->x + (int)area->width - 1;
+        Display *display = XtDisplay(widget);
+        Drawable drawable = XtWindow(widget);
+        int x1;
+        int x2;
+        int y;
+        const int area_top = area->y;
+        const int area_bottom = area->y + (int)area->height - 1;
+
+        x1 = area->x;
+        x2 = right;
+        y = area_bottom - 1;
+        if (y < area_top)
+                y = area_top;
+
+        /* For diagnostics, the single underline corners are (x1,y)-(x2,y).
+         * The double underline corners are (x1, double_top)-(x2, double_top) and
+         * (x1, double_bottom)-(x2, double_bottom).
+         * Curly/dotted/dashed are best logged as their own stroke endpoints.
+         */
 
         if (!SetTextClip(vt, area, NULL))
                 return;
         XSetForeground(XtDisplay(widget), vt->vt.gc, cell->foreground);
-        if (cell->underline)
-                XDrawLine(XtDisplay(widget), XtWindow(widget), vt->vt.gc, area->x,
-                          area->y + (int)area->height - 1, right, area->y + (int)area->height - 1);
+        if (cell->underline != XTP_UNDERLINE_NONE) {
+                int max_top_offset = y - area_top;
+                int max_bottom_offset = area_bottom - y;
+                int double_top = 0;
+                int double_bottom = 0;
+                const int dotted_step = 4;
+                const int dashed_dash = 5;
+                const int dashed_gap = 4;
+                int next_x;
+
+                VtDoubleUnderlineRows(y, area_top, area_bottom, &double_top, &double_bottom);
+                switch (cell->underline) {
+                case XTP_UNDERLINE_DOUBLE:
+                        if (double_top >= area_top && double_top <= area_bottom)
+                                XDrawLine(display, drawable, vt->vt.gc, x1, double_top, x2, double_top);
+                        if (double_bottom != double_top && double_bottom >= area_top &&
+                            double_bottom <= area_bottom)
+                                XDrawLine(display, drawable, vt->vt.gc, x1, double_bottom, x2,
+                                          double_bottom);
+                        break;
+                case XTP_UNDERLINE_DOTTED:
+                        for (next_x = x1; next_x <= x2; next_x += dotted_step)
+                                XDrawPoint(display, drawable, vt->vt.gc, next_x, y);
+                        break;
+                case XTP_UNDERLINE_DASHED:
+                        for (next_x = x1; next_x <= x2; next_x += dashed_dash + dashed_gap) {
+                                int dashed_end = next_x + dashed_dash - 1;
+
+                                if (dashed_end > x2)
+                                        dashed_end = x2;
+                                XDrawLine(display, drawable, vt->vt.gc, next_x, y, dashed_end, y);
+                        }
+                        break;
+                case XTP_UNDERLINE_CURLY: {
+                        const int preferred_curly_amplitude = 3;
+                        const int preferred_curly_period = 12;
+                        int span = preferred_curly_amplitude;
+                        int top_span;
+                        int bottom_span;
+                        int phase_offset = preferred_curly_period / 4;
+                        int period = preferred_curly_period;
+                        int half_period = period / 2;
+                        int prev_x = x1;
+                        int prev_y = y;
+
+                        if (span > (max_top_offset + max_bottom_offset))
+                                span = max_top_offset + max_bottom_offset;
+                        top_span = span / 2 + (span & 1);
+                        if (top_span > max_top_offset)
+                                top_span = max_top_offset;
+                        bottom_span = span - top_span;
+                        if (bottom_span > max_bottom_offset)
+                                bottom_span = max_bottom_offset;
+                        if ((top_span + bottom_span) < span) {
+                                top_span = span - bottom_span;
+                                if (top_span > max_top_offset)
+                                        top_span = max_top_offset;
+                                bottom_span = span - top_span;
+                        }
+
+                        if (span <= 0) {
+                                XDrawLine(display, drawable, vt->vt.gc, x1, y, x2, y);
+                                break;
+                        }
+                        for (next_x = x1; next_x <= x2; ++next_x) {
+                                int t = next_x - x1 - phase_offset;
+                                int m = t % period;
+                                int next_y;
+
+                                if (m < 0)
+                                        m += period;
+                                if (m <= half_period)
+                                        next_y = y - top_span + (span * m) / half_period;
+                                else
+                                        next_y = y + bottom_span -
+                                                  (span * (m - half_period)) / half_period;
+
+                                if (next_x > x1) {
+                                        XDrawLine(display, drawable, vt->vt.gc, prev_x, prev_y, next_x,
+                                                  next_y);
+                                }
+                                prev_x = next_x;
+                                prev_y = next_y;
+                        }
+
+                        break;
+                }
+                case XTP_UNDERLINE_SINGLE:
+                case XTP_UNDERLINE_NONE:
+                default:
+                        XDrawLine(display, drawable, vt->vt.gc, x1, y, x2, y);
+                        break;
+                }
+        }
         if (cell->strikethrough)
                 XDrawLine(XtDisplay(widget), XtWindow(widget), vt->vt.gc, area->x,
                           area->y + (int)area->height / 2, right, area->y + (int)area->height / 2);

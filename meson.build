@@ -337,6 +337,13 @@ shift_click_test_tool = executable(
     install: false,
 )
 
+hover_test_tool = executable(
+    'xtp-send-hover',
+    'tests/xtp-send-hover.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
 selection_reader_tool = executable(
     'xtp-read-selection',
     'tests/xtp-read-selection.c',
@@ -717,6 +724,19 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-hyperlink-hover',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-hyperlink-hover.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            hover_test_tool.full_path(),
+            files('tests/xvfb-test-lib.sh'),
+        ],
+        timeout: 30,
+        is_parallel: false,
+    )
+    test(
         'xvfb-keyboard',
         find_program('sh'),
         args: [
@@ -767,6 +787,7 @@ summary(
         'selection test tool': selection_test_tool.full_path(),
         'selection reader tool': selection_reader_tool.full_path(),
         'Shift-click test tool': shift_click_test_tool.full_path(),
+        'hover test tool': hover_test_tool.full_path(),
         'Xvfb selection test': build_with_ghostty and xvfb.found(),
         'Xvfb opacity test': build_with_ghostty and xvfb.found(),
         'resize test tool': resize_test_tool.full_path(),

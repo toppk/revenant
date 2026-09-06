@@ -1111,7 +1111,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                                         column <= selection.end_x;
                         cell.strikethrough = style.strikethrough;
                         cell.overline = style.overline;
-                        cell.underline = style.underline;
+                        cell.underline = (XtpUnderline)style.underline;
                         if (renderer->cell != NULL)
                                 renderer->cell(&cell, closure);
                         ++rendered_cells;

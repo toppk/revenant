@@ -40,6 +40,16 @@ typedef enum
         XTP_CURSOR_SHAPE_BLOCK_HOLLOW,
 } XtpCursorShape;
 
+typedef enum
+{
+        XTP_UNDERLINE_NONE,
+        XTP_UNDERLINE_SINGLE,
+        XTP_UNDERLINE_DOUBLE,
+        XTP_UNDERLINE_CURLY,
+        XTP_UNDERLINE_DOTTED,
+        XTP_UNDERLINE_DASHED,
+} XtpUnderline;
+
 typedef struct
 {
         uint16_t columns;
@@ -73,7 +83,7 @@ typedef struct
         bool selected;
         bool strikethrough;
         bool overline;
-        int underline;
+        XtpUnderline underline;
 } XtpRenderCell;
 
 typedef struct

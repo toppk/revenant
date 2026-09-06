@@ -951,6 +951,8 @@ Destroy(Widget widget)
         free(vt->vt.owned_selections);
         free(vt->vt.hovered_hyperlink.uri);
         free(vt->vt.pressed_hyperlink.uri);
+        if (vt->vt.hyperlink_cursor != None)
+                XFreeCursor(XtDisplay(widget), vt->vt.hyperlink_cursor);
         for (color = 0; color < vt->vt.color_count; ++color) {
                 if (vt->vt.colors[color].used && vt->vt.colors[color].owned) {
                         Pixel pixel = vt->vt.colors[color].allocation_pixel;

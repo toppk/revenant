@@ -20,10 +20,13 @@ printf '\e]8;;http://example.com\e\\This is a link\e]8;;\e\\\n'
 
 ## Opening a link
 
-Hold Shift while the pointer is over linked text. Revenant underlines all
-visible cells carrying an explicit OSC 8 target, or the detected URL occurrence
-under the pointer. Shift+Button 1 opens an `http://` or `https://` target with
-`xdg-open` when the button is released over the same target.
+Hold Shift while the pointer is over linked text. Revenant gives all visible
+cells of that explicit OSC 8 target, or the detected URL occurrence under the
+pointer, a single underline. An application-supplied single underline is
+promoted to a double underline instead. Revenant also changes the pointer to a
+hand over that target. The hand appears for both explicit OSC 8 and detected
+URLs. Shift+Button 1 opens an `http://` or `https://` target with `xdg-open`
+when the button is released over the same target.
 
 Detected URLs may cross soft-wrapped rows. Sentence punctuation at the end is
 not included: for example, the final period in `See https://example.com/.` is
