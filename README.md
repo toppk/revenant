@@ -144,6 +144,7 @@ just check-all             # formatting, GCC, Clang, ASan, stub, Xvfb, and docs
 Focused commands are available when iterating:
 
 ```sh
+pre-commit install        # once per checkout: fast format and policy hooks
 just format               # rewrite C sources and test helpers
 just format-check         # verify formatting only
 just test                 # GCC + Clang + ASan libghostty builds and the stub build

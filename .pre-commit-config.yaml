@@ -1,0 +1,26 @@
+minimum_pre_commit_version: 3.2.0
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        # Imported xterm data deliberately retains its upstream whitespace.
+        exclude: '^(compat/|data/app-defaults/)'
+      - id: end-of-file-fixer
+        exclude: '^(compat/|data/app-defaults/)'
+
+  - repo: local
+    hooks:
+      - id: clang-format
+        name: format C sources
+        entry: clang-format -i
+        language: system
+        files: '^(src/.*\.[ch]|tests/.*\.c)$'
+
+      - id: internal-branding
+        name: check internal branding
+        entry: tools/check-internal-branding .
+        language: system
+        pass_filenames: false
+        always_run: true
