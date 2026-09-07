@@ -12,6 +12,19 @@ artifacts take their version from the tag, not from the development version in
 
 - Development changes will be recorded here.
 
+## 0.6.1 — 2026-09-06
+
+A focused patch release: opacity can now be adjusted from Revenant's default
+opaque start whenever the X server and compositor support transparency.
+
+### Bug fixes
+
+- Select a compositor-backed ARGB visual independently of the initial opacity,
+  so the Main Options slider remains usable at 100%; visibly grey it out only
+  when transparency is unavailable or explicitly disabled with
+  `backgroundOpacity: disabled` or `-opacity disabled`.
+  ([c4218a3](https://github.com/toppk/revenant/commit/c4218a31f4472826c0212c2c1cee7762d0cddc62))
+
 ## 0.6.0 — 2026-09-06
 
 A smaller quality-of-life release: visible HTTP(S) text is now actionable, and
