@@ -212,11 +212,23 @@ Set `backgroundOpacity` to a value from `0.0` (fully transparent) through
 XTerm*backgroundOpacity: 0.85
 ```
 
-Revenant uses a 32-bit ARGB window only when an X compositor owns the screen's
-standard compositor selection and the X server offers a suitable visual. If
-either condition is missing, it starts normally with the opaque default
-visual and logs the fallback. The visual is chosen when Revenant starts, so
-changing the resource requires a new window.
+Set it to `disabled` to deliberately use an opaque visual and grey out the
+live **Opacity** slider, even when a compositor is available:
+
+```xrdb
+XTerm*backgroundOpacity: disabled
+```
+
+The command-line equivalent is `-opacity disabled`; `-opacity 0.85` provides
+the same one-window override as the numeric resource.
+
+When an X compositor owns the screen's standard compositor selection and the
+X server offers a suitable visual, Revenant uses a 32-bit ARGB window even if
+the initial opacity is `1.0`. This keeps the live opacity control available
+from an otherwise opaque start. If either capability is missing, it starts
+normally with the opaque default visual and disables the control. The visual
+is chosen when Revenant starts, so a compositor becoming available later
+requires a new window.
 
 Alpha applies to the default terminal background and scrollbar trough.
 Foreground text, explicit SGR cell backgrounds, selections, the cursor,
@@ -231,8 +243,8 @@ The Main Options menu contains one Athena-native **Opacity** slider immediately
 below **SVG Screen Dump** for live changes to the current window. It adjusts
 this same background alpha; it does not set whole-window opacity and does not
 fade text. Because an X11 window's visual cannot be changed after creation, the
-slider is active when the window started on the ARGB path and insensitive after
-an opaque-visual fallback.
+slider is active whenever the window started on the ARGB path and insensitive
+after an opaque-visual fallback.
 Once on the ARGB path, moving the slider to 100% and back remains available
 for the life of the window.
 

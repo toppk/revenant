@@ -82,8 +82,9 @@ study.
 
 The Main Options opacity control sits immediately below **SVG Screen Dump**. It
 is a single continuous Athena slider, not a set of presets. It is available for
-windows started with compositor-backed background opacity and changes only the
-terminal's default background alpha.
+windows with a compositor-backed ARGB visual and changes only the terminal's
+default background alpha. It remains available when the initial opacity is
+100%.
 
 ## Keyboard controls
 

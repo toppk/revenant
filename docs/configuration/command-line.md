@@ -61,6 +61,7 @@ inventory; an option not shown there is not silently accepted.
 | `-class string` | — | Override the application class |
 | `-display name` | — | X server to connect to |
 | `-xrm 'spec: value'` | any | Any resource, repeatable |
+| `-opacity value` | `backgroundOpacity` | Background opacity (`0.0`–`1.0`) or `disabled` |
 
 `-bg`, `-fg`, `-geometry`, `-title`, `-iconic`, `-display`, and `-xrm` are
 parsed by the X Toolkit itself and work in every Xt program.

@@ -153,35 +153,43 @@ ConfigureApplicationVisual(App *app)
         app->colormap = DefaultColormap(app->display, screen);
         app->depth = DefaultDepth(app->display, screen);
         app->background_alpha = UINT16_MAX;
+        if (XtpBackgroundOpacityDisabled(opacity)) {
+                XtpLog(XTP_LOG_INFO, "render",
+                       "backgroundOpacity is disabled; opacity control is disabled and the "
+                       "opaque default visual is in use");
+                XtFree(opacity);
+                return;
+        }
         if (opacity == NULL || XtpBackgroundOpacityParse(opacity, &app->background_alpha) != 0) {
                 XtpLog(XTP_LOG_WARNING, "render",
                        "invalid backgroundOpacity=%s; using opaque background",
                        opacity != NULL ? opacity : "(allocation failure)");
                 app->background_alpha = UINT16_MAX;
-                if (opacity != NULL)
-                        XtFree(opacity);
-                return;
-        }
-        if (app->background_alpha == UINT16_MAX) {
-                XtpLog(XTP_LOG_INFO, "render", "backgroundOpacity=%s visual=default depth=%d",
-                       opacity, app->depth);
-                XtFree(opacity);
-                return;
         }
         if (!XtpX11CompositorPresent(app->display, screen)) {
-                XtpLog(XTP_LOG_WARNING, "render",
-                       "backgroundOpacity=%s requested but compositor is unavailable; using "
-                       "opaque default visual",
-                       opacity);
+                if (app->background_alpha != UINT16_MAX)
+                        XtpLog(XTP_LOG_WARNING, "render",
+                               "backgroundOpacity=%s requested but compositor is unavailable; "
+                               "using opaque default visual",
+                               opacity);
+                else
+                        XtpLog(XTP_LOG_INFO, "render",
+                               "compositor is unavailable; opacity control is disabled and the "
+                               "opaque default visual is in use");
                 app->background_alpha = UINT16_MAX;
                 XtFree(opacity);
                 return;
         }
         if (!XtpX11FindArgbVisual(app->display, screen, &visual_info, &alpha_format)) {
-                XtpLog(XTP_LOG_WARNING, "render",
-                       "backgroundOpacity=%s requested but no 32-bit ARGB visual is available; "
-                       "using opaque default visual",
-                       opacity);
+                if (app->background_alpha != UINT16_MAX)
+                        XtpLog(XTP_LOG_WARNING, "render",
+                               "backgroundOpacity=%s requested but no 32-bit ARGB visual is "
+                               "available; using opaque default visual",
+                               opacity);
+                else
+                        XtpLog(XTP_LOG_INFO, "render",
+                               "no 32-bit ARGB visual is available; opacity control is disabled "
+                               "and the opaque default visual is in use");
                 app->background_alpha = UINT16_MAX;
                 XtFree(opacity);
                 return;

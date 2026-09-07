@@ -765,7 +765,10 @@ ResolveBackgroundOpacity(Vt100Rec *vt)
         XtVaGetValues(XtParent((Widget)vt), XtNvisual, &visual, NULL);
         vt->vt.alpha_visual =
             XtpX11VisualAlphaFormat(XtDisplay((Widget)vt), visual, &vt->vt.alpha_format);
-        if (XtpBackgroundOpacityParse(vt->vt.background_opacity_name, &alpha) != 0) {
+        if (XtpBackgroundOpacityDisabled(vt->vt.background_opacity_name)) {
+                XtpLog(XTP_LOG_INFO, "render",
+                       "backgroundOpacity is disabled; using opaque background");
+        } else if (XtpBackgroundOpacityParse(vt->vt.background_opacity_name, &alpha) != 0) {
                 XtpLog(XTP_LOG_WARNING, "render",
                        "invalid backgroundOpacity=%s; using opaque background",
                        vt->vt.background_opacity_name != NULL ? vt->vt.background_opacity_name

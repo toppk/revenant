@@ -385,8 +385,8 @@ XtpMenusSetOpacity(XtpMenus *menus, int percent, Boolean available)
 {
         if (menus->opacity_slider == NULL)
                 return;
-        XtpSmeSliderSetValue(menus->opacity_slider, percent);
         XtSetSensitive(menus->opacity_slider, available);
+        XtpSmeSliderSetValue(menus->opacity_slider, percent);
         XtpLog(XTP_LOG_DEBUG, "menu", "opacity slider value=%d sensitive=%s", percent,
                available ? "true" : "false");
 }

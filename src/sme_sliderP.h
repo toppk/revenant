@@ -30,6 +30,8 @@ typedef struct
         XtCallbackList callbacks;
         GC gc;
         GC background_gc;
+        GC insensitive_gc;
+        Pixmap insensitive_stipple;
         Boolean highlighted;
 } XtpSmeSliderPart;
 

@@ -21,6 +21,7 @@ typedef struct
 } XtpX11AlphaFormat;
 
 int XtpBackgroundOpacityParse(const char *value, uint16_t *alpha);
+bool XtpBackgroundOpacityDisabled(const char *value);
 bool XtpX11CompositorPresent(Display *display, int screen);
 bool XtpX11FindArgbVisual(Display *display, int screen, XVisualInfo *visual_info,
                           XtpX11AlphaFormat *alpha_format);

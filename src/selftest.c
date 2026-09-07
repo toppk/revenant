@@ -567,7 +567,10 @@ SelfTestBackgroundOpacity(void)
             XtpBackgroundOpacityParse(" 0.5 ", &alpha) != 0 || alpha < 32767U || alpha > 32768U ||
             XtpBackgroundOpacityParse(".5", &alpha) != 0 || alpha < 32767U || alpha > 32768U ||
             XtpBackgroundOpacityParse("+1.", &alpha) != 0 || alpha != UINT16_MAX ||
-            XtpBackgroundOpacityParse("1.0", &alpha) != 0 || alpha != UINT16_MAX)
+            XtpBackgroundOpacityParse("1.0", &alpha) != 0 || alpha != UINT16_MAX ||
+            !XtpBackgroundOpacityDisabled("disabled") ||
+            !XtpBackgroundOpacityDisabled(" Disabled ") ||
+            XtpBackgroundOpacityDisabled("disable") || XtpBackgroundOpacityDisabled("0.5"))
                 return -1;
         for (index = 0; index < sizeof(invalid) / sizeof(invalid[0]); ++index) {
                 if (XtpBackgroundOpacityParse(invalid[index], &alpha) == 0)

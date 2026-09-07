@@ -57,6 +57,26 @@ XtpBackgroundOpacityParse(const char *value, uint16_t *alpha)
 }
 
 bool
+XtpBackgroundOpacityDisabled(const char *value)
+{
+        static const char disabled[] = "disabled";
+        size_t index;
+
+        if (value == NULL)
+                return false;
+        while (isspace((unsigned char)*value))
+                ++value;
+        for (index = 0; index < sizeof(disabled) - 1U; ++index) {
+                if (tolower((unsigned char)value[index]) != disabled[index])
+                        return false;
+        }
+        value += sizeof(disabled) - 1U;
+        while (isspace((unsigned char)*value))
+                ++value;
+        return *value == '\0';
+}
+
+bool
 XtpX11CompositorPresent(Display *display, int screen)
 {
         char name[64];

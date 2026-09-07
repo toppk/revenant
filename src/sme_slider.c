@@ -14,6 +14,8 @@
 #define XTP_SLIDER_THUMB_HEIGHT 14
 #define XTP_SLIDER_VALUE_WIDTH 44
 
+static const char insensitive_stipple_bits[] = {0x01, 0x02};
+
 static void Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args);
 static void Destroy(Widget widget);
 static void Redisplay(Widget widget, XEvent *event, Region region);
@@ -104,8 +106,14 @@ ReleaseGcs(XtpSmeSliderObject slider)
                 XtReleaseGC(menu, slider->slider.gc);
         if (slider->slider.background_gc != NULL)
                 XtReleaseGC(menu, slider->slider.background_gc);
+        if (slider->slider.insensitive_gc != NULL)
+                XtReleaseGC(menu, slider->slider.insensitive_gc);
+        if (slider->slider.insensitive_stipple != None)
+                XFreePixmap(XtDisplayOfObject((Widget)slider), slider->slider.insensitive_stipple);
         slider->slider.gc = NULL;
         slider->slider.background_gc = NULL;
+        slider->slider.insensitive_gc = NULL;
+        slider->slider.insensitive_stipple = None;
 }
 
 static void
@@ -124,6 +132,15 @@ CreateGcs(XtpSmeSliderObject slider)
         values.foreground = menu->core.background_pixel;
         values.background = slider->slider.foreground;
         slider->slider.background_gc = XtGetGC(menu, mask, &values);
+
+        slider->slider.insensitive_stipple = XCreateBitmapFromData(
+            XtDisplayOfObject((Widget)slider), RootWindowOfScreen(XtScreen(menu)),
+            insensitive_stipple_bits, 2, 2);
+        values.foreground = slider->slider.foreground;
+        values.background = menu->core.background_pixel;
+        values.fill_style = FillStippled;
+        values.stipple = slider->slider.insensitive_stipple;
+        slider->slider.insensitive_gc = XtGetGC(menu, mask | GCFillStyle | GCStipple, &values);
 }
 
 static void
@@ -139,6 +156,8 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
         slider->slider.highlighted = False;
         slider->slider.gc = NULL;
         slider->slider.background_gc = NULL;
+        slider->slider.insensitive_gc = NULL;
+        slider->slider.insensitive_stipple = None;
         CreateGcs(slider);
         if (slider->rectangle.height == 0)
                 slider->rectangle.height = XTP_SLIDER_THUMB_HEIGHT + 8;
@@ -173,22 +192,24 @@ DrawSlider(Widget widget)
         int track_width;
         int thumb_x;
         int baseline;
+        GC foreground_gc;
 
         if (window == None || width <= 0 || height <= 0)
                 return;
+        foreground_gc = XtIsSensitive(widget) ? slider->slider.gc : slider->slider.insensitive_gc;
         XFillRectangle(display, window, slider->slider.background_gc, x, y, (unsigned int)width,
                        (unsigned int)height);
-        if (slider->slider.highlighted && width > 2 && height > 2)
-                XDrawRectangle(display, window, slider->slider.gc, x + 1, y + 1,
+        if (slider->slider.highlighted && XtIsSensitive(widget) && width > 2 && height > 2)
+                XDrawRectangle(display, window, foreground_gc, x + 1, y + 1,
                                (unsigned int)(width - 3), (unsigned int)(height - 3));
 
         baseline = y + (height + font->ascent - font->descent) / 2;
         label_width = XTextWidth(font, slider->slider.label, (int)strlen(slider->slider.label));
-        XDrawString(display, window, slider->slider.gc, x + XTP_SLIDER_PAD_X, baseline,
+        XDrawString(display, window, foreground_gc, x + XTP_SLIDER_PAD_X, baseline,
                     slider->slider.label, (int)strlen(slider->slider.label));
 
         (void)snprintf(value_text, sizeof(value_text), "%d%%", slider->slider.value);
-        XDrawString(display, window, slider->slider.gc,
+        XDrawString(display, window, foreground_gc,
                     x + width - XTP_SLIDER_PAD_X -
                         XTextWidth(font, value_text, (int)strlen(value_text)),
                     baseline, value_text, (int)strlen(value_text));
@@ -197,14 +218,14 @@ DrawSlider(Widget widget)
         track_width = width - (track_x - x) - XTP_SLIDER_VALUE_WIDTH - XTP_SLIDER_PAD_X;
         if (track_width <= XTP_SLIDER_THUMB_WIDTH)
                 return;
-        XFillRectangle(display, window, slider->slider.gc, track_x,
+        XFillRectangle(display, window, foreground_gc, track_x,
                        y + (height - XTP_SLIDER_TRACK_HEIGHT) / 2, (unsigned int)track_width,
                        XTP_SLIDER_TRACK_HEIGHT);
         thumb_x = track_x + (track_width - XTP_SLIDER_THUMB_WIDTH) * slider->slider.value / 100;
         XFillRectangle(display, window, slider->slider.background_gc, thumb_x - 1,
                        y + (height - XTP_SLIDER_THUMB_HEIGHT) / 2 - 1, XTP_SLIDER_THUMB_WIDTH + 2,
                        XTP_SLIDER_THUMB_HEIGHT + 2);
-        XFillRectangle(display, window, slider->slider.gc, thumb_x,
+        XFillRectangle(display, window, foreground_gc, thumb_x,
                        y + (height - XTP_SLIDER_THUMB_HEIGHT) / 2, XTP_SLIDER_THUMB_WIDTH,
                        XTP_SLIDER_THUMB_HEIGHT);
 }
@@ -242,7 +263,8 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                 CreateGcs(new_slider);
                 redraw = True;
         }
-        return redraw;
+        return redraw || old_slider->rectangle.sensitive != new_slider->rectangle.sensitive ||
+               old_slider->rectangle.ancestor_sensitive != new_slider->rectangle.ancestor_sensitive;
 }
 
 static void
@@ -310,9 +332,8 @@ XtpSmeSliderSetValue(Widget widget, int value)
         XtpSmeSliderObject slider = (XtpSmeSliderObject)widget;
 
         value = ClampValue(value);
-        if (slider->slider.value == value)
-                return;
-        slider->slider.value = value;
+        if (slider->slider.value != value)
+                slider->slider.value = value;
         DrawSlider(widget);
 }
 

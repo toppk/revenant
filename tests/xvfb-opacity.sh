@@ -240,6 +240,23 @@ do
     sleep 0.05
 done
 
+disabled_log=$test_dir/disabled.log
+"$terminal" -debug -opacity disabled -e sh -c 'printf "disabled opacity\r\n"; sleep 20' \
+    >"$test_dir/disabled.out" 2>"$disabled_log" &
+terminal_pid=$!
+wait_for_terminal "$disabled_log" 'disabled opacity'
+if ! grep -q 'backgroundOpacity is disabled' "$disabled_log" || \
+   ! grep -q 'depth=24 argb=false background-alpha=65535' "$disabled_log" || \
+   ! grep -q 'opacity slider value=100 sensitive=false' "$disabled_log"
+then
+    echo "disabled background opacity did not select an opaque visual and grey out the slider" >&2
+    sed -n '1,260p' "$disabled_log" >&2
+    exit 1
+fi
+kill "$terminal_pid"
+wait "$terminal_pid" 2>/dev/null || true
+terminal_pid=
+
 decs_on=$test_dir/decs-on
 decs_off=$test_dir/decs-off
 decs_log=$test_dir/decs.log
@@ -360,6 +377,8 @@ run_argb_case()
     expected_pixel=$3
     exercise_slider=$4
     case_name=$5
+    opacity=$6
+    expected_alpha=$7
     log=$test_dir/$case_name.log
     if test "$renderer" = true
     then
@@ -368,16 +387,25 @@ run_argb_case()
         renderer_name=xlib-bitmap
     fi
 
-    "$terminal" -debug -sb -fa monospace \
-        -xrm 'XTerm*backgroundOpacity: 0.64' \
-        -xrm "xterm.vt100.background: $background" \
-        -xrm "xterm.vt100.renderFont: $renderer" \
-        -e sh -c 'printf "transparent background\r\n"; sleep 20' \
-        >"$test_dir/$case_name.out" 2>"$log" &
+    if test "$opacity" = default
+    then
+        "$terminal" -debug -sb -fa monospace \
+            -xrm "xterm.vt100.background: $background" \
+            -xrm "xterm.vt100.renderFont: $renderer" \
+            -e sh -c 'printf "transparent background\r\n"; sleep 20' \
+            >"$test_dir/$case_name.out" 2>"$log" &
+    else
+        "$terminal" -debug -sb -fa monospace \
+            -xrm "XTerm*backgroundOpacity: $opacity" \
+            -xrm "xterm.vt100.background: $background" \
+            -xrm "xterm.vt100.renderFont: $renderer" \
+            -e sh -c 'printf "transparent background\r\n"; sleep 20' \
+            >"$test_dir/$case_name.out" 2>"$log" &
+    fi
     terminal_pid=$!
     wait_for_terminal "$log" "$renderer ARGB visual"
-    if ! grep -q 'depth=32 argb=true background-alpha=41942' "$log" || \
-       ! grep -q 'effective-alpha=41942 visual-alpha=true depth=32' "$log" || \
+    if ! grep -q "depth=32 argb=true background-alpha=$expected_alpha" "$log" || \
+       ! grep -q "effective-alpha=$expected_alpha visual-alpha=true depth=32" "$log" || \
        ! grep -q "active renderer=$renderer_name" "$log"
     then
         echo "xterm+ did not select the requested ARGB visual for $renderer" >&2
@@ -393,7 +421,9 @@ run_argb_case()
         exit 1
     fi
     alpha=$("$window_alpha" "$window" --expose)
-    if test "$alpha" -lt 41500 || test "$alpha" -gt 42200
+    alpha_min=$((expected_alpha - 250))
+    alpha_max=$((expected_alpha + 250))
+    if test "$alpha" -lt "$alpha_min" || test "$alpha" -gt "$alpha_max"
     then
         echo "$renderer redraw changed background alpha to $alpha" >&2
         sed -n '1,260p' "$log" >&2
@@ -418,7 +448,7 @@ run_argb_case()
         slider_y=$(sed -n 's/.*opacity slider geometry .* y=\([0-9]*\) .*/\1/p' "$log" | tail -1)
         slider_w=$(sed -n 's/.*opacity slider geometry .* width=\([0-9]*\) .*/\1/p' "$log" | tail -1)
         slider_h=$(sed -n 's/.*opacity slider geometry .* height=\([0-9]*\).*/\1/p' "$log" | tail -1)
-        "$drag_slider" drag "$window" $((slider_x + slider_w * 3 / 4)) $((slider_y + slider_h / 2)) >/dev/null
+        "$drag_slider" drag "$window" $((slider_x + slider_w / 2)) $((slider_y + slider_h / 2)) >/dev/null
         attempt=0
         while ! grep -q 'background opacity changed percent=' "$log"
         do
@@ -451,10 +481,11 @@ run_argb_case()
     terminal_pid=
 }
 
-run_argb_case false '#FFFFFF' 0xa3a3a3a3 false xlib-white
-run_argb_case true '#FFFFFF' 0xa3a3a3a3 true xft-white
-run_argb_case true '#FF8000' 0xa3a35200 false xft-orange
-run_argb_case false '#000000' 0xa3000000 false xlib-black
+run_argb_case true '#FFFFFF' 0xffffffff true default-opaque default 65535
+run_argb_case false '#FFFFFF' 0xa3a3a3a3 false xlib-white 0.64 41942
+run_argb_case true '#FFFFFF' 0xa3a3a3a3 true xft-white 0.64 41942
+run_argb_case true '#FF8000' 0xa3a35200 false xft-orange 0.64 41942
+run_argb_case false '#000000' 0xa3000000 false xlib-black 0.64 41942
 
 content_log=$test_dir/content.log
 "$terminal" -debug +sb -fa monospace \
