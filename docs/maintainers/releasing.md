@@ -37,7 +37,22 @@ then dispatches the workflow against that tag.
    in the changelog's commit reconciliation. Do not release while the reference
    is a moving branch.
 
-3. Prepare one bookkeeping commit containing only `CHANGELOG.md` and the
+3. Before creating any release bookkeeping commit, run the complete suite from
+   the release-candidate commit and require its test inventory to be complete:
+
+    ```sh
+    meson compile -C build
+    meson test -C build --print-errorlogs
+    tools/check-release-tests build
+    ```
+
+   Do not substitute a focused test for this gate. The release workflow runs
+   the same complete suite for every package, but this local check catches a
+   release-blocking failure before anything is pushed. Once a branch or tag is
+   public, preserve its history: fix forward with a new commit and, if needed,
+   a new patch release rather than force-pushing a rewritten release.
+
+4. Prepare one bookkeeping commit containing only `CHANGELOG.md` and the
    project-version line in `meson.build`:
 
    - Review the whole release entry for concise, user-facing language.
@@ -72,7 +87,7 @@ then dispatches the workflow against that tag.
    rather than 0.5.0, correct the heading and development version in that
    later release commit.
 
-4. Tag the release commit and push the branch and tag:
+5. Tag the release commit and push the branch and tag:
 
     ```sh
     version=0.4.0
@@ -81,7 +96,7 @@ then dispatches the workflow against that tag.
     git push origin master "$tag"
     ```
 
-5. Explicitly dispatch the workflow with the pushed tag, from the CLI or the
+6. Explicitly dispatch the workflow with the pushed tag, from the CLI or the
    Actions tab. Tag creation and tag push do not perform this step:
 
     ```sh
@@ -90,7 +105,7 @@ then dispatches the workflow against that tag.
     gh run watch
     ```
 
-6. When the run finishes, verify the published release rather than treating a
+7. When the run finishes, verify the published release rather than treating a
    green workflow as the finish line:
 
     ```sh
