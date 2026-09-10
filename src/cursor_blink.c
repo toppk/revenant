@@ -44,6 +44,20 @@ BeginString(XtpCursorBlinkObserver *observer, XtpCursorControlString kind)
 {
         observer->state = XTP_CURSOR_CONTROL_STRING;
         observer->string_kind = kind;
+        observer->osc_header_done = false;
+        observer->osc_selector_present = false;
+        observer->osc_item_start = false;
+        observer->osc_selector = 0;
+}
+
+static void
+EndOsc(XtpCursorBlinkObserver *observer, const XtpCursorBlinkObserverEffects *effects,
+       size_t offset)
+{
+        if (observer->osc_selector_present && effects != NULL && effects->osc_end != NULL)
+                effects->osc_end(offset, effects->closure);
+        observer->osc_selector_present = false;
+        observer->osc_item_start = false;
 }
 
 static void
@@ -208,17 +222,24 @@ CompleteCsi(XtpCursorBlinkObserver *observer, uint8_t final,
 }
 
 static bool
-HandleAnywhere(XtpCursorBlinkObserver *observer, uint8_t byte)
+HandleAnywhere(XtpCursorBlinkObserver *observer, uint8_t byte,
+               const XtpCursorBlinkObserverEffects *effects, size_t item)
 {
         bool raw_high_string = observer->state == XTP_CURSOR_CONTROL_STRING &&
                                (observer->string_kind == XTP_CURSOR_STRING_DCS ||
                                 observer->string_kind == XTP_CURSOR_STRING_OSC);
+        bool in_osc = observer->state == XTP_CURSOR_CONTROL_STRING &&
+                      observer->string_kind == XTP_CURSOR_STRING_OSC;
 
         if (byte == 0x1bU) {
+                if (in_osc)
+                        EndOsc(observer, effects, item);
                 observer->state = XTP_CURSOR_CONTROL_ESCAPE;
                 return true;
         }
         if (byte == 0x18U || byte == 0x1aU) {
+                if (in_osc)
+                        EndOsc(observer, effects, item);
                 observer->state = XTP_CURSOR_CONTROL_GROUND;
                 return true;
         }
@@ -242,6 +263,8 @@ HandleAnywhere(XtpCursorBlinkObserver *observer, uint8_t byte)
         }
         if (byte == 0x9cU || (byte >= 0x80U && byte <= 0x8fU) || (byte >= 0x91U && byte <= 0x97U) ||
             byte == 0x99U || byte == 0x9aU) {
+                if (in_osc)
+                        EndOsc(observer, effects, item);
                 observer->state = XTP_CURSOR_CONTROL_GROUND;
                 return true;
         }
@@ -259,6 +282,37 @@ XtpCursorBlinkObserverFeed(XtpCursorBlinkObserver *observer, const uint8_t *byte
         for (item = 0; item < length; ++item) {
                 uint8_t byte = bytes[item];
 
+                if (observer->state == XTP_CURSOR_CONTROL_STRING &&
+                    observer->string_kind == XTP_CURSOR_STRING_OSC && !observer->osc_header_done) {
+                        if (byte >= '0' && byte <= '9') {
+                                observer->osc_selector_present = true;
+                                if (observer->osc_selector <= 6553U)
+                                        observer->osc_selector = observer->osc_selector * 10U +
+                                                                 (unsigned int)(byte - '0');
+                                else
+                                        observer->osc_header_done = true;
+                        } else if (byte >= 0x20U || byte == 0x07U || byte == 0x18U ||
+                                   byte == 0x1aU || byte == 0x1bU) {
+                                /* libghostty ignores the other C0 bytes inside
+                                 * OSC, including while collecting its selector. */
+                                observer->osc_header_done = true;
+                                if (observer->osc_selector_present && effects != NULL &&
+                                    effects->osc_header != NULL)
+                                        effects->osc_header(observer->osc_selector, item,
+                                                            effects->closure);
+                                observer->osc_item_start = byte == ';';
+                        }
+                } else if (observer->state == XTP_CURSOR_CONTROL_STRING &&
+                           observer->string_kind == XTP_CURSOR_STRING_OSC &&
+                           observer->osc_selector_present && byte >= 0x20U) {
+                        if (observer->osc_item_start && byte != ';' && effects != NULL &&
+                            effects->osc_payload != NULL)
+                                effects->osc_payload(observer->osc_selector, byte == '?', item,
+                                                     effects->closure);
+                        if (byte == ';' && effects != NULL && effects->osc_item_end != NULL)
+                                effects->osc_item_end(item, effects->closure);
+                        observer->osc_item_start = byte == ';';
+                }
                 if (observer->state == XTP_CURSOR_CONTROL_GROUND ||
                     observer->state == XTP_CURSOR_CONTROL_STRING) {
                         if (observer->utf8_remaining != 0U) {
@@ -281,7 +335,7 @@ XtpCursorBlinkObserverFeed(XtpCursorBlinkObserver *observer, const uint8_t *byte
                                 continue;
                         }
                 }
-                if (HandleAnywhere(observer, byte))
+                if (HandleAnywhere(observer, byte, effects, item))
                         continue;
                 switch (observer->state) {
                 case XTP_CURSOR_CONTROL_GROUND:
@@ -325,8 +379,10 @@ XtpCursorBlinkObserverFeed(XtpCursorBlinkObserver *observer, const uint8_t *byte
                         }
                         break;
                 case XTP_CURSOR_CONTROL_STRING:
-                        if (byte == 0x07U && observer->string_kind == XTP_CURSOR_STRING_OSC)
+                        if (byte == 0x07U && observer->string_kind == XTP_CURSOR_STRING_OSC) {
+                                EndOsc(observer, effects, item);
                                 observer->state = XTP_CURSOR_CONTROL_GROUND;
+                        }
                         break;
                 }
         }

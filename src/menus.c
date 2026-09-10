@@ -130,7 +130,7 @@ static const MenuSpec font_specs[] = {
     INERT("utf8-fonts"),
     INERT("utf8-title"),
     LINE("line3"),
-    INERT("allow-color-ops"),
+    ACTIVE("allow-color-ops", XTP_MENU_ITEM_ALLOW_COLOR_OPS),
     INERT("allow-font-ops"),
     INERT("allow-mouse-ops"),
     INERT("allow-tcap-ops"),

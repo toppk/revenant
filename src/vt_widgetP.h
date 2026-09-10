@@ -5,6 +5,7 @@
 
 #include "cursor_blink.h"
 #include "window_ops.h"
+#include "color_ops.h"
 #include "terminal.h"
 #include "emoji_presentation.h"
 #include "font_chain.h"
@@ -194,6 +195,13 @@ typedef struct
         Boolean disowning_selections;
         Boolean allow_window_ops;
         Boolean allow_title_ops;
+        Boolean allow_color_ops;
+        String disallowed_color_ops;
+        XtpColorOps color_ops;
+        Pixel effective_foreground;
+        Pixel effective_opaque_background;
+        Pixel effective_background_pixel;
+        Pixel effective_cursor_color;
         String disallowed_window_ops;
         int max_string_parse;
         XtpWindowOps window_ops;
@@ -294,6 +302,7 @@ void VtUpdateScrollbar(Vt100Rec *vt);
 Boolean VtScrollViewportBy(Vt100Rec *vt, intptr_t rows);
 Boolean VtDeferSynchronizedRedraw(Vt100Rec *vt);
 void VtFreeOwnedSelections(Vt100Rec *vt);
+void VtResetEffectiveColors(Vt100Rec *vt);
 Boolean VtAcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action);
 Boolean VtLocalKeyActionOwnsEvent(Vt100Rec *vt, const XKeyEvent *event, Boolean release);
 

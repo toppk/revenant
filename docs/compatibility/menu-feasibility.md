@@ -117,7 +117,7 @@ configured and forced policy.
 | utf8-mode | UTF-8 vs Latin-1 | Ghostty is UTF-8 only | iconv possible; recommend permanently on (DRIFT) | BLOCKED |
 | utf8-fonts | `utf8Fonts` slot set | None | Only meaningful with utf8-mode | ROADMAP |
 | utf8-title | UTF-8 `_NET_WM_NAME` | Title callback | Set EWMH property | READY |
-| allow-color-ops | Gate OSC 4/10–19 | Ghostty applies internally; `DATA_COLOR_*_DEFAULT` available | Render from defaults when denied; queries still drift | ROADMAP |
+| allow-color-ops | Gate dynamic-color OSC 10–19 and 110–119 | Selector observer enforces the live backend permission | Sets, queries, and resets gated; deny-list exceptions and palette-query policy remain open | PARTIAL |
 | allow-font-ops | Gate OSC 50 | Not routed | Moot until fontescape | BLOCKED |
 | allow-mouse-ops | Gate mouse reports | Mouse encoder (Roadmap #3) | Skip emitting | ROADMAP |
 | allow-tcap-ops | Gate XTGETTCAP | Ghostty answers itself (`OPT_TERMINFO_NAME`) | Needs option | BLOCKED |

@@ -99,6 +99,9 @@ Boolean XtpVtAllowWindowOps(Widget widget);
 void XtpVtSetAllowWindowOps(Widget widget, Boolean enabled);
 Boolean XtpVtAllowTitleOps(Widget widget);
 void XtpVtSetAllowTitleOps(Widget widget, Boolean enabled);
+Boolean XtpVtAllowColorOps(Widget widget);
+const XtpColorOps *XtpVtColorOps(Widget widget);
+void XtpVtSetAllowColorOps(Widget widget, Boolean enabled);
 int XtpVtMaxStringParse(Widget widget);
 XtpClipboardResult XtpVtClipboardWrite(Widget widget, XtpClipboardTarget target,
                                        const uint8_t *bytes, size_t length, Boolean clear);

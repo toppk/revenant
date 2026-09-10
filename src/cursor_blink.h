@@ -44,14 +44,25 @@ typedef struct
         XtpCursorBlinkBeforeChangeFn before_change;
         XtpCursorBlinkResetFn reset;
         XtpWindowOpFn window_op;
+        /* OSC selector boundary; payload interpretation stays in libghostty. */
+        void (*osc_header)(unsigned int selector, size_t offset, void *closure);
+        /* First byte of each ';'-separated OSC payload item; query is "?". */
+        void (*osc_payload)(unsigned int selector, bool query, size_t offset, void *closure);
+        /* The ';' that ends an OSC payload item. */
+        void (*osc_item_end)(size_t offset, void *closure);
+        /* First byte of an OSC terminator (BEL, ESC, ST) or the byte aborting
+         * the OSC; libghostty dispatches the command at that byte. */
+        void (*osc_end)(size_t offset, void *closure);
         void *closure;
 } XtpCursorBlinkObserverEffects;
 
 /*
  * libghostty exposes the resolved cursor blink value, but xterm's resource
  * policy needs the application's uncombined operand.  This narrowly scoped
- * observer records that operand, and the XTWINOPS title operations that
- * libghostty accepts without exposing; libghostty remains authoritative for
+ * observer records that operand, the XTWINOPS title operations that
+ * libghostty accepts without exposing, and OSC selectors for dynamic-color
+ * permission checks. Remove these when equivalent public hooks exist.
+ * libghostty remains authoritative for color payload parsing,
  * cursor shape and all other terminal state.  Keep its accepted control syntax
  * covered by differential tests when either parser changes.
  */
@@ -71,6 +82,10 @@ typedef struct
         bool dcs_parameter_seen;
         uint8_t utf8_remaining;
         XtpCursorControlString string_kind;
+        bool osc_header_done;
+        bool osc_selector_present;
+        bool osc_item_start;
+        unsigned int osc_selector;
         uint8_t csi_intermediate;
         uint8_t csi_intermediate_count;
         unsigned int csi_parameter;

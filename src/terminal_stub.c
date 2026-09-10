@@ -179,6 +179,28 @@ XtpTerminalSetDefaultColors(XtpTerminal *terminal, XtpRgbColor foreground, XtpRg
         return terminal != NULL ? 0 : -1;
 }
 
+void
+XtpTerminalSetColorOpsPolicy(XtpTerminal *terminal, bool allow_color_ops, const XtpColorOps *ops)
+{
+        (void)terminal;
+        (void)allow_color_ops;
+        (void)ops;
+}
+
+void
+XtpTerminalSetAllowColorOps(XtpTerminal *terminal, bool enabled)
+{
+        (void)terminal;
+        (void)enabled;
+}
+
+bool
+XtpTerminalBackgroundIsLight(XtpTerminal *terminal)
+{
+        (void)terminal;
+        return true;
+}
+
 int
 XtpTerminalSetAnsiPalette(XtpTerminal *terminal, const XtpRgbColor palette[XTP_ANSI_PALETTE_SIZE])
 {

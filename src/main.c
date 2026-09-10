@@ -716,6 +716,8 @@ ApplyTerminalEffects(App *app)
                 XtpLog(XTP_LOG_INFO, "selection",
                        "OSC 52 GetSelection denied; queries stay unanswered");
         XtpTerminalSetEffects(app->terminal, &effects);
+        XtpTerminalSetColorOpsPolicy(app->terminal, XtpVtAllowColorOps(app->vt),
+                                     XtpVtColorOps(app->vt));
 }
 
 static void
@@ -785,6 +787,7 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS, XtpVtAllowTitleOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_COLOR_OPS, XtpVtAllowColorOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_KEY, XtpVtScrollKey(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_TTY_OUTPUT,
                            XtpVtScrollTtyOutput(app->vt));
@@ -909,6 +912,12 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
         case XTP_MENU_ITEM_ALLOW_TITLE_OPS:
                 XtpVtSetAllowTitleOps(app->vt, !XtpVtAllowTitleOps(app->vt));
                 XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowTitleOps(app->vt));
+                return;
+        case XTP_MENU_ITEM_ALLOW_COLOR_OPS:
+                XtpVtSetAllowColorOps(app->vt, !XtpVtAllowColorOps(app->vt));
+                XtpTerminalSetColorOpsPolicy(app->terminal, XtpVtAllowColorOps(app->vt),
+                                             XtpVtColorOps(app->vt));
+                XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowColorOps(app->vt));
                 return;
         case XTP_MENU_ITEM_RENDER_FONT:
                 if (!XtpVtSetRenderFont(app->vt, !XtpVtUsingXft(app->vt)))
@@ -1192,6 +1201,7 @@ WireApplication(App *app, const AppResources *resources)
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS, XtpVtAllowTitleOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_COLOR_OPS, XtpVtAllowColorOps(app->vt));
         XtpMenusSetScrollbar(&app->menus, XtpVtScrollbarVisible(app->vt));
         XtpMenusSetRenderFont(&app->menus, XtpVtUsingXft(app->vt), XtpVtXftAvailable(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SELECT_TO_CLIPBOARD,

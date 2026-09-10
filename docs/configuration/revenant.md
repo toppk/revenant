@@ -190,8 +190,12 @@ Programs that emit 256-colour and 24-bit colour sequences are rendered
 directly. The sixteen `color0` … `color15` resources configure the ANSI
 palette, using xterm's compiled defaults when no override is present. OSC 4
 can still override individual entries at runtime, and OSC 104 restores the
-configured resource value. `colorBD`, `colorUL`, `pointerColor`, and related
-resources remain accepted but not yet applied.
+configured resource value. Applications may also change the default
+foreground, background, and cursor colors with OSC 10, 11, and 12; the window
+repaints at once, OSC 110, 111, and 112 restore the resources above, and
+`allowColorOps` with `disallowedColorOps` decide what is permitted. `colorBD`,
+`colorUL`, `pointerColor`, and related resources remain accepted but not yet
+applied.
 
 Reverse video is available through the `reverseVideo` resource, the `-rv` and
 `+rv` command-line forms, and the runtime toggle in the VT Options menu. It

@@ -10,6 +10,20 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Render dynamic colors. OSC 10, 11, and 12 now repaint the default
+  foreground, background, and cursor immediately, OSC 110, 111, and 112
+  restore the configured X resources, and queries report the displayed
+  colors. Explicit SGR colors, reverse video, and opacity keep their rules.
+- Report the color scheme: `CSI ? 996 n` answers light or dark from the
+  displayed background, and mode 2031 sends `CSI ? 997 ; Ps n` whenever a
+  color change flips the scheme.
+- Activate **Allow Color Ops** in the Ctrl+right-click menu, with
+  `allowColorOps` defaulting to true, and honor xterm's `disallowedColorOps`
+  list when it is off: `SetColor` gates OSC 10-19 sets and 110-119 resets,
+  `GetColor` their queries, and `GetAnsiColor` OSC 4/5 queries, while
+  ordinary palette writes stay ungated. Add `tools/probe-dynamic-colors.py`
+  for manual foreground, background, cursor, and scheme checks.
+
 - Activate **Allow Title Ops** in the Ctrl+right-click menu, with the
   `allowTitleOps` resource defaulting to true. Turning it off blocks
   application title changes and applying saved labels on pop; title reports

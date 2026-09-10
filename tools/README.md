@@ -12,6 +12,7 @@ Human-run terminal verification programs are named
 - `probe-sync.py`
 - `probe-clipboard.py`
 - `probe-titles.py`
+- `probe-dynamic-colors.py`
 
 See [`docs/reference/probes.md`](../docs/reference/probes.md) for their scope
 and usage. Other files in this directory are build, import, or profiling

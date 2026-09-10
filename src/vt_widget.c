@@ -260,6 +260,10 @@ static XtResource resources[] = {
      XtRImmediate, (XtPointer)False},
     {"allowTitleOps", "AllowTitleOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_title_ops),
      XtRImmediate, (XtPointer)True},
+    {"allowColorOps", "AllowColorOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_color_ops),
+     XtRImmediate, (XtPointer)True},
+    {"disallowedColorOps", "DisallowedColorOps", XtRString, sizeof(String),
+     OFFSET(disallowed_color_ops), XtRString, (XtPointer) "SetColor,GetColor,GetAnsiColor"},
     {"disallowedWindowOps", "DisallowedWindowOps", XtRString, sizeof(String),
      OFFSET(disallowed_window_ops), XtRString,
      (XtPointer) "GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop"},
@@ -798,6 +802,17 @@ NormalizeConfiguredColors(Vt100Rec *vt)
             vt->vt.background_alpha);
 }
 
+/* The painted defaults follow libghostty's effective colors; the configured
+ * pixels stay the OSC 110/111/112 reset targets. */
+void
+VtResetEffectiveColors(Vt100Rec *vt)
+{
+        vt->vt.effective_foreground = vt->vt.foreground;
+        vt->vt.effective_opaque_background = vt->vt.opaque_background_pixel;
+        vt->vt.effective_background_pixel = vt->core.background_pixel;
+        vt->vt.effective_cursor_color = vt->vt.cursor_color;
+}
+
 static void
 SwapDefaultColors(Vt100Rec *vt)
 {
@@ -912,6 +927,13 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
 
         vt->vt.fonts[0] = vt->vt.initial_font;
         vt->vt.selection_time = CurrentTime;
+        VtResetEffectiveColors(vt);
+        XtpColorOpsParse(vt->vt.disallowed_color_ops, &vt->vt.color_ops);
+        XtpLog(XTP_LOG_INFO, "terminal",
+               "color-ops resources allowColorOps=%s disallowedColorOps=%s unconsulted-entries=%u",
+               vt->vt.allow_color_ops ? "true" : "false",
+               vt->vt.disallowed_color_ops != NULL ? vt->vt.disallowed_color_ops : "(unset)",
+               vt->vt.color_ops.ignored_entries);
         XtpWindowOpsParse(vt->vt.disallowed_window_ops, &vt->vt.window_ops);
         XtpLog(XTP_LOG_INFO, "selection",
                "window-ops policy allowWindowOps=%s GetSelection=%s SetSelection=%s "
@@ -1129,6 +1151,7 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
         if (old_vt->vt.reverse_video != new_vt->vt.reverse_video)
                 SwapDefaultColors(new_vt);
         NormalizeConfiguredColors(new_vt);
+        VtResetEffectiveColors(new_vt);
         if (old_vt->vt.save_lines != new_vt->vt.save_lines && new_vt->vt.terminal != NULL &&
             XtpTerminalSetScrollbackLines(new_vt->vt.terminal, (size_t)new_vt->vt.save_lines) != 0)
                 XtpLog(XTP_LOG_ERROR, "scrollback", "cannot set history limit=%d",
@@ -1562,13 +1585,19 @@ XtpVtSetBackgroundOpacityPercent(Widget widget, unsigned int percent)
         if (percent > 100U)
                 percent = 100U;
         vt->vt.background_alpha = (uint16_t)((percent * (unsigned int)UINT16_MAX + 50U) / 100U);
-        background = XtpX11PixelWithAlpha(vt->vt.opaque_background_pixel, &vt->vt.alpha_format,
+        /* The surfaces follow the effective background, which OSC 11 may have moved. */
+        background = XtpX11PixelWithAlpha(vt->vt.effective_opaque_background, &vt->vt.alpha_format,
                                           vt->vt.background_alpha);
-        if (background == vt->core.background_pixel)
+        vt->core.background_pixel = XtpX11PixelWithAlpha(
+            vt->vt.opaque_background_pixel, &vt->vt.alpha_format, vt->vt.background_alpha);
+        if (background == vt->vt.effective_background_pixel)
                 return True;
-        vt->core.background_pixel = background;
-        if (XtIsRealized(widget))
+        vt->vt.effective_background_pixel = background;
+        if (XtIsRealized(widget)) {
                 XSetWindowBackground(XtDisplay(widget), XtWindow(widget), background);
+                /* The border only follows the attribute once it is cleared. */
+                XClearArea(XtDisplay(widget), XtWindow(widget), 0, 0, 0, 0, False);
+        }
         if (vt->vt.scrollbar != NULL)
                 XtVaSetValues(vt->vt.scrollbar, XtNbackground, background, NULL);
         VtInvalidateFrame(vt);
@@ -1702,6 +1731,25 @@ Boolean
 XtpVtAllowTitleOps(Widget widget)
 {
         return VtAsRecord(widget)->vt.allow_title_ops;
+}
+
+const XtpColorOps *
+XtpVtColorOps(Widget widget)
+{
+        return &VtAsRecord(widget)->vt.color_ops;
+}
+
+Boolean
+XtpVtAllowColorOps(Widget widget)
+{
+        return VtAsRecord(widget)->vt.allow_color_ops;
+}
+
+void
+XtpVtSetAllowColorOps(Widget widget, Boolean enabled)
+{
+        VtAsRecord(widget)->vt.allow_color_ops = enabled ? True : False;
+        XtpLog(XTP_LOG_INFO, "terminal", "allowColorOps=%s", enabled ? "true" : "false");
 }
 
 void

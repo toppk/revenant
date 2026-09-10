@@ -9,6 +9,8 @@
 #include "emoji_presentation.h"
 #include "unicode_script.h"
 
+#include <X11/StringDefs.h>
+
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,7 +96,7 @@ VtDoubleUnderlineRows(int center, int area_top, int area_bottom, int *top, int *
 static Pixel
 RenderOpaqueColor(Vt100Rec *vt, XtpColor color, Boolean foreground)
 {
-        Pixel pixel = foreground ? vt->vt.foreground : vt->core.background_pixel;
+        Pixel pixel = foreground ? vt->vt.effective_foreground : vt->vt.effective_background_pixel;
 
         switch (color.kind) {
         case XTP_COLOR_DEFAULT:
@@ -121,8 +123,50 @@ RenderFrameColor(Vt100Rec *vt, XtpColor color, Boolean foreground)
         if (color.kind != XTP_COLOR_DEFAULT)
                 return RenderOpaqueColor(vt, color, foreground);
         if (vt->vt.render_reverse_colors)
-                return foreground ? vt->vt.opaque_background_pixel : vt->vt.foreground;
-        return foreground ? vt->vt.foreground : vt->vt.opaque_background_pixel;
+                return foreground ? vt->vt.effective_opaque_background
+                                  : vt->vt.effective_foreground;
+        return foreground ? vt->vt.effective_foreground : vt->vt.effective_opaque_background;
+}
+
+/* Apply the frame's effective default colors before any cell is painted. */
+static void
+ApplyFrameColors(Vt100Rec *vt, const XtpRenderFrame *frame)
+{
+        Pixel foreground;
+        Pixel background;
+        Pixel cursor;
+        Pixel translucent;
+
+        if (!frame->colors_valid)
+                return;
+        foreground =
+            RgbPixel(vt, frame->foreground.red, frame->foreground.green, frame->foreground.blue);
+        background =
+            RgbPixel(vt, frame->background.red, frame->background.green, frame->background.blue);
+        cursor = RgbPixel(vt, frame->cursor.red, frame->cursor.green, frame->cursor.blue);
+        if (foreground == vt->vt.effective_foreground &&
+            background == vt->vt.effective_opaque_background &&
+            cursor == vt->vt.effective_cursor_color)
+                return;
+        translucent = RenderBackgroundSurface(vt, background);
+        vt->vt.effective_foreground = foreground;
+        vt->vt.effective_opaque_background = background;
+        vt->vt.effective_background_pixel = translucent;
+        vt->vt.effective_cursor_color = cursor;
+        if (XtIsRealized((Widget)vt)) {
+                XSetWindowBackground(XtDisplay((Widget)vt), XtWindow((Widget)vt), translucent);
+                /* The border is never repainted by cells, so clear it now. */
+                XClearArea(XtDisplay((Widget)vt), XtWindow((Widget)vt), 0, 0, 0, 0, False);
+        }
+        if (vt->vt.scrollbar != NULL)
+                XtVaSetValues(vt->vt.scrollbar, XtNbackground, translucent, XtNforeground,
+                              foreground, NULL);
+        XtpLog(XTP_LOG_INFO, "render",
+               "effective colors applied foreground=#%02x%02x%02x background=#%02x%02x%02x "
+               "cursor=#%02x%02x%02x",
+               frame->foreground.red, frame->foreground.green, frame->foreground.blue,
+               frame->background.red, frame->background.green, frame->background.blue,
+               frame->cursor.red, frame->cursor.green, frame->cursor.blue);
 }
 
 static XftColor CachedXftColor(Vt100Rec *vt, Pixel pixel);
@@ -154,9 +198,9 @@ ResetVisualCells(Vt100Rec *vt, VisualCell *cells, size_t count)
 
         memset(cells, 0, count * sizeof(*cells));
         for (index = 0; index < count; ++index) {
-                cells[index].foreground = vt->vt.foreground;
-                cells[index].background = vt->core.background_pixel;
-                cells[index].opaque_background = vt->vt.opaque_background_pixel;
+                cells[index].foreground = vt->vt.effective_foreground;
+                cells[index].background = vt->vt.effective_background_pixel;
+                cells[index].opaque_background = vt->vt.effective_opaque_background;
                 cells[index].width = 1;
         }
 }
@@ -970,8 +1014,9 @@ SetCursorCell(Vt100Rec *vt, const VisualCell *cell)
         vt->vt.cursor_width = cell->width;
         if (cell->text_length != 0)
                 memcpy(vt->vt.cursor_text, cell->text, cell->text_length);
-        vt->vt.cursor_fill =
-            vt->vt.cursor_color != cell->background ? vt->vt.cursor_color : cell->foreground;
+        vt->vt.cursor_fill = vt->vt.effective_cursor_color != cell->background
+                                 ? vt->vt.effective_cursor_color
+                                 : cell->foreground;
         vt->vt.cursor_text_color = cell->opaque_background;
         vt->vt.cursor_bold = cell->bold;
         vt->vt.cursor_italic = cell->italic;
@@ -1049,8 +1094,8 @@ VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int ro
                         unsigned int dimension =
                             shape == XTP_CURSOR_SHAPE_UNDERLINE ? height : width;
                         unsigned int thickness = dimension > 1 ? (dimension - 1U) / 8U : dimension;
-                        Pixel cursor =
-                            vt->vt.cursor_cell_seen ? vt->vt.cursor_fill : vt->vt.cursor_color;
+                        Pixel cursor = vt->vt.cursor_cell_seen ? vt->vt.cursor_fill
+                                                               : vt->vt.effective_cursor_color;
 
                         if (thickness < 2U && dimension >= 2U)
                                 thickness = 2U;
@@ -1064,8 +1109,8 @@ VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int ro
                                 XFillRectangle(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x, y,
                                                thickness, height);
                 } else {
-                        Pixel outline =
-                            vt->vt.cursor_cell_seen ? vt->vt.cursor_fill : vt->vt.cursor_color;
+                        Pixel outline = vt->vt.cursor_cell_seen ? vt->vt.cursor_fill
+                                                                : vt->vt.effective_cursor_color;
 
                         XSetForeground(XtDisplay(widget), vt->vt.gc, outline);
                         XDrawRectangle(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x, y,
@@ -1176,6 +1221,7 @@ RenderBegin(const XtpRenderFrame *frame, void *closure)
         vt->vt.render_reverse_colors = frame->reverse_colors ? True : False;
         vt->vt.render_cursor_column = frame->cursor_column;
         vt->vt.render_cursor_row = frame->cursor_row;
+        ApplyFrameColors(vt, frame);
         VtForgetCursorCell(vt);
         vt->vt.capture_full_frame =
             frame->full_repaint && EnsureFrameStorage(vt, frame->columns, frame->rows);

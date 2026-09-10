@@ -2166,6 +2166,472 @@ done:
         return result;
 }
 
+static void
+SelfTestFeedText(XtpTerminal *terminal, const char *text)
+{
+        XtpTerminalFeed(terminal, (const uint8_t *)text, strlen(text));
+}
+
+static bool
+SelfTestPtyEqualsText(const SelfTestPtyCapture *capture, const char *expected)
+{
+        return SelfTestPtyEquals(capture, (const uint8_t *)expected, strlen(expected));
+}
+
+static bool
+SelfTestRgbEquals(XtpRgbColor color, uint8_t red, uint8_t green, uint8_t blue)
+{
+        return color.red == red && color.green == green && color.blue == blue;
+}
+
+static int
+SelfTestDynamicColors(void)
+{
+        static const XtpRenderer renderer = {
+            .begin = SelfTestBegin,
+            .cell = SelfTestCell,
+            .end = SelfTestEnd,
+            .abort = NULL,
+        };
+        XtpTerminal *terminal;
+        SelfTestRender render = {0};
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {.write_pty = SelfTestCapturePty, .closure = &capture};
+        XtpRgbColor foreground = {0x10, 0x20, 0x30};
+        XtpRgbColor background = {0x30, 0x40, 0x50};
+        XtpRgbColor cursor = {0x50, 0x60, 0x70};
+        const char *stage = "setup";
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(20, 4, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        if (XtpTerminalSetDefaultColors(terminal, foreground, background, cursor) != 0)
+                goto done;
+        stage = "configured frame colors";
+        if (XtpTerminalRender(terminal, &renderer, &render, true) != 0 ||
+            !render.frame.colors_valid ||
+            !SelfTestRgbEquals(render.frame.foreground, 0x10, 0x20, 0x30) ||
+            !SelfTestRgbEquals(render.frame.background, 0x30, 0x40, 0x50) ||
+            !SelfTestRgbEquals(render.frame.cursor, 0x50, 0x60, 0x70))
+                goto done;
+        stage = "OSC 11 set repaints";
+        SelfTestFeedText(terminal, "\033]11;#aabbcc\a");
+        if (XtpTerminalRender(terminal, &renderer, &render, false) != 0 ||
+            !render.frame.full_repaint ||
+            !SelfTestRgbEquals(render.frame.background, 0xaa, 0xbb, 0xcc) ||
+            !SelfTestRgbEquals(render.frame.foreground, 0x10, 0x20, 0x30))
+                goto done;
+        stage = "unchanged colors keep partial frames";
+        SelfTestFeedText(terminal, "x");
+        if (XtpTerminalRender(terminal, &renderer, &render, false) != 0 ||
+            render.frame.full_repaint)
+                goto done;
+        stage = "OSC 10 and 12 set";
+        SelfTestFeedText(terminal, "\033]10;#010203\033\\\033]12;#040506\a");
+        if (XtpTerminalRender(terminal, &renderer, &render, false) != 0 ||
+            !render.frame.full_repaint ||
+            !SelfTestRgbEquals(render.frame.foreground, 0x01, 0x02, 0x03) ||
+            !SelfTestRgbEquals(render.frame.cursor, 0x04, 0x05, 0x06))
+                goto done;
+        stage = "queries report displayed colors";
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]10;?\a\033]11;?\033\\\033]12;?\a");
+        if (!SelfTestPtyEqualsText(&capture, "\033]10;rgb:0101/0202/0303\a"
+                                             "\033]11;rgb:aaaa/bbbb/cccc\033\\"
+                                             "\033]12;rgb:0404/0505/0606\a"))
+                goto done;
+        stage = "resets restore configured colors";
+        SelfTestFeedText(terminal, "\033]110\a\033]111\033\\\033]112\a");
+        if (XtpTerminalRender(terminal, &renderer, &render, false) != 0 ||
+            !render.frame.full_repaint ||
+            !SelfTestRgbEquals(render.frame.foreground, 0x10, 0x20, 0x30) ||
+            !SelfTestRgbEquals(render.frame.background, 0x30, 0x40, 0x50) ||
+            !SelfTestRgbEquals(render.frame.cursor, 0x50, 0x60, 0x70))
+                goto done;
+        stage = "resource change while overridden";
+        SelfTestFeedText(terminal, "\033]11;#aabbcc\a");
+        background = (XtpRgbColor){0x70, 0x80, 0x90};
+        if (XtpTerminalSetDefaultColors(terminal, foreground, background, cursor) != 0 ||
+            XtpTerminalRender(terminal, &renderer, &render, false) != 0 ||
+            !SelfTestRgbEquals(render.frame.background, 0xaa, 0xbb, 0xcc))
+                goto done;
+        SelfTestFeedText(terminal, "\033]111\a");
+        if (XtpTerminalRender(terminal, &renderer, &render, false) != 0 ||
+            !SelfTestRgbEquals(render.frame.background, 0x70, 0x80, 0x90))
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test", "dynamic colors mismatch stage=%s", stage);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static bool
+SelfTestForegroundIs(XtpTerminal *terminal, uint8_t red, uint8_t green, uint8_t blue)
+{
+        static const XtpRenderer renderer = {
+            .begin = SelfTestBegin,
+            .cell = SelfTestCell,
+            .end = SelfTestEnd,
+            .abort = NULL,
+        };
+        SelfTestRender render = {0};
+
+        return XtpTerminalRender(terminal, &renderer, &render, true) == 0 &&
+               SelfTestRgbEquals(render.frame.foreground, red, green, blue);
+}
+
+static bool
+SelfTestBackgroundIs(XtpTerminal *terminal, uint8_t red, uint8_t green, uint8_t blue)
+{
+        static const XtpRenderer renderer = {
+            .begin = SelfTestBegin,
+            .cell = SelfTestCell,
+            .end = SelfTestEnd,
+            .abort = NULL,
+        };
+        SelfTestRender render = {0};
+
+        return XtpTerminalRender(terminal, &renderer, &render, true) == 0 &&
+               SelfTestRgbEquals(render.frame.background, red, green, blue);
+}
+
+static int
+SelfTestColorOpsPolicy(void)
+{
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {.write_pty = SelfTestCapturePty, .closure = &capture};
+        XtpRgbColor foreground = {0x10, 0x20, 0x30};
+        XtpRgbColor background = {0x30, 0x40, 0x50};
+        XtpRgbColor cursor = {0x50, 0x60, 0x70};
+        XtpColorOps ops;
+        const char *stage = "setup";
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(20, 4, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        if (XtpTerminalSetDefaultColors(terminal, foreground, background, cursor) != 0)
+                goto done;
+
+        stage = "GetColor denied: sets apply, queries stay silent";
+        XtpColorOpsParse("GetColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]11;#aabbcc\a\033]11;?\a\033]4;1;?\a");
+        if (!SelfTestBackgroundIs(terminal, 0xaa, 0xbb, 0xcc) || capture.used != 25U ||
+            memcmp(capture.bytes, "\033]4;1;rgb:", 10) != 0)
+                goto done;
+
+        stage = "SetColor denied: sets and resets ignored, queries answered";
+        XtpColorOpsParse("SetColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]11;#ddeeff\a\033]111\a\033]11;?\a");
+        if (!SelfTestBackgroundIs(terminal, 0xaa, 0xbb, 0xcc) ||
+            !SelfTestPtyEqualsText(&capture, "\033]11;rgb:aaaa/bbbb/cccc\a"))
+                goto done;
+
+        stage = "GetAnsiColor denied: palette writes apply, palette queries stay silent";
+        XtpColorOpsParse("GetAnsiColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]4;1;#ff0000;2;?\a\033]4;3;?\a\033]11;?\a");
+        if (!SelfTestPtyEqualsText(&capture, "\033]11;rgb:aaaa/bbbb/cccc\a"))
+                goto done;
+        XtpColorOpsParse("", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]4;1;?\a");
+        if (!SelfTestPtyEqualsText(&capture, "\033]4;1;rgb:ffff/0000/0000\a"))
+                goto done;
+
+        stage = "SetColor denied: permitted queries in a mixed list still answer";
+        XtpColorOpsParse("SetColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033]111\a", 6);
+        XtpColorOpsParse("SetColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]10;#aabbcc;?\a");
+        if (!SelfTestForegroundIs(terminal, 0x10, 0x20, 0x30) ||
+            !SelfTestPtyEqualsText(&capture, "\033]11;rgb:aaaa/bbbb/cccc\a"))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]10;?;#112233\033\\");
+        if (!SelfTestBackgroundIs(terminal, 0xaa, 0xbb, 0xcc) ||
+            !SelfTestPtyEqualsText(&capture, "\033]10;rgb:1010/2020/3030\033\\"))
+                goto done;
+
+        stage = "GetColor denied: permitted sets in a mixed list still apply";
+        XtpColorOpsParse("GetColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]10;#445566;?\a");
+        if (!SelfTestForegroundIs(terminal, 0x44, 0x55, 0x66) || capture.used != 0)
+                goto done;
+        SelfTestFeedText(terminal, "\033]10;?;#778899\033\\");
+        if (!SelfTestBackgroundIs(terminal, 0x77, 0x88, 0x99) || capture.used != 0)
+                goto done;
+
+        stage = "denied set split across feeds is still undone";
+        XtpColorOpsParse("SetColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        {
+                static const char split_case[] = "\033]11;#000000;?\033\\";
+                size_t split;
+
+                for (split = 0; split <= strlen(split_case); ++split) {
+                        capture = (SelfTestPtyCapture){0};
+                        XtpTerminalFeed(terminal, (const uint8_t *)split_case, split);
+                        XtpTerminalFeed(terminal, (const uint8_t *)split_case + split,
+                                        strlen(split_case) - split);
+                        if (!SelfTestBackgroundIs(terminal, 0x77, 0x88, 0x99) ||
+                            !SelfTestPtyEqualsText(&capture, "\033]12;rgb:5050/6060/7070\033\\"))
+                                goto done;
+                }
+        }
+        XtpTerminalSetColorOpsPolicy(terminal, true, &ops);
+        SelfTestFeedText(terminal, "\033]110\a\033]111\a");
+
+        stage = "split terminator never exposes a denied color";
+        XtpColorOpsParse("SetColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]11;#ffffff\033");
+        if (!SelfTestBackgroundIs(terminal, 0x30, 0x40, 0x50))
+                goto done;
+        SelfTestFeedText(terminal, "\\");
+        if (!SelfTestBackgroundIs(terminal, 0x30, 0x40, 0x50) || capture.used != 0)
+                goto done;
+
+        stage = "a denied list leaves the parser ready for the next control";
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]11;#ffffff\033\\\033[6n");
+        if (!SelfTestBackgroundIs(terminal, 0x30, 0x40, 0x50) ||
+            !SelfTestPtyEqualsText(&capture, "\033[1;1R"))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]11;#ffffff\033[6n");
+        if (!SelfTestBackgroundIs(terminal, 0x30, 0x40, 0x50) ||
+            !SelfTestPtyEqualsText(&capture, "\033[1;1R"))
+                goto done;
+
+        stage = "a denied set equal to the default installs no override";
+        XtpTerminalSetColorOpsPolicy(terminal, true, &ops);
+        SelfTestFeedText(terminal, "\033]111\a");
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        SelfTestFeedText(terminal, "\033]11;#304050\a");
+        background = (XtpRgbColor){0x80, 0x90, 0xa0};
+        if (XtpTerminalSetDefaultColors(terminal, foreground, background, cursor) != 0 ||
+            !SelfTestBackgroundIs(terminal, 0x80, 0x90, 0xa0))
+                goto done;
+        background = (XtpRgbColor){0x30, 0x40, 0x50};
+        if (XtpTerminalSetDefaultColors(terminal, foreground, background, cursor) != 0)
+                goto done;
+
+        stage = "decisions are per item across a policy change";
+        SelfTestFeedText(terminal, "\033]10;#111111;");
+        XtpTerminalSetColorOpsPolicy(terminal, true, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "#222222\a");
+        if (!SelfTestForegroundIs(terminal, 0x10, 0x20, 0x30) ||
+            !SelfTestBackgroundIs(terminal, 0x22, 0x22, 0x22) || capture.used != 0)
+                goto done;
+        XtpColorOpsParse("GetColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        SelfTestFeedText(terminal, "\033]10;?;");
+        XtpTerminalSetColorOpsPolicy(terminal, true, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "?\a");
+        if (!SelfTestPtyEqualsText(&capture, "\033]11;rgb:2222/2222/2222\a"))
+                goto done;
+        SelfTestFeedText(terminal, "\033]110\a\033]111\a");
+
+        stage = "palette denial covers every query in a long list";
+        XtpColorOpsParse("GetAnsiColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        {
+                unsigned int pair;
+
+                SelfTestFeedText(terminal, "\033]4");
+                for (pair = 0; pair < 70U; ++pair)
+                        SelfTestFeedText(terminal, ";1;?");
+                SelfTestFeedText(terminal, "\a");
+        }
+        if (capture.used != 0)
+                goto done;
+
+        stage = "palette decisions follow the reply index, not the query order";
+        XtpTerminalSetColorOpsPolicy(terminal, true, &ops);
+        SelfTestFeedText(terminal, "\033]4;256;?;");
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "1;?\a");
+        if (capture.used != 0)
+                goto done;
+        SelfTestFeedText(terminal, "\033]4;1;?;");
+        XtpTerminalSetColorOpsPolicy(terminal, true, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "2;?\a");
+        if (capture.used != 25U || memcmp(capture.bytes, "\033]4;2;rgb:", 10) != 0)
+                goto done;
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]4;3;#ff0000;3;?;4;?\a");
+        if (capture.used != 0)
+                goto done;
+
+        stage = "index spellings libghostty accepts stay denied";
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]4;+1;?\a\033]4;000000000001;?\a");
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033]4;\0001;?\a", 10);
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033]4;1\000;?\a", 10);
+        if (capture.used != 0)
+                goto done;
+
+        stage = "repeated indices keep each occurrence's decision";
+        SelfTestFeedText(terminal, "\033]4;1;?;");
+        XtpTerminalSetColorOpsPolicy(terminal, true, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "1;?\a");
+        if (capture.used != 25U || memcmp(capture.bytes, "\033]4;1;rgb:", 10) != 0)
+                goto done;
+        SelfTestFeedText(terminal, "\033]4;1;?;");
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "1;?\a");
+        if (capture.used != 25U || memcmp(capture.bytes, "\033]4;1;rgb:", 10) != 0)
+                goto done;
+
+        stage = "earlier replies in the same feed are not filtered";
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033[6n\033]4;1;?\a");
+        if (!SelfTestPtyEqualsText(&capture, "\033[1;1R"))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033[6n");
+        SelfTestFeedText(terminal, "\033]4;1;?\a");
+        if (!SelfTestPtyEqualsText(&capture, "\033[1;1R"))
+                goto done;
+        XtpColorOpsParse("GetColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, false, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033[6n\033]11;?\a\033[6n");
+        if (!SelfTestPtyEqualsText(&capture, "\033[1;1R\033[1;1R"))
+                goto done;
+        XtpColorOpsParse("GetAnsiColor", &ops);
+
+        stage = "allowColorOps overrides the list";
+        XtpColorOpsParse("SetColor,GetColor,GetAnsiColor", &ops);
+        XtpTerminalSetColorOpsPolicy(terminal, true, &ops);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]111\a\033]11;?\a");
+        if (!SelfTestBackgroundIs(terminal, 0x30, 0x40, 0x50) ||
+            !SelfTestPtyEqualsText(&capture, "\033]11;rgb:3030/4040/5050\a"))
+                goto done;
+
+        stage = "wildcards and negation";
+        XtpColorOpsParse("*,~get*", &ops);
+        if (!ops.disallowed[XTP_COLOR_OP_SET_COLOR] || ops.disallowed[XTP_COLOR_OP_GET_COLOR] ||
+            ops.disallowed[XTP_COLOR_OP_GET_ANSI_COLOR] || ops.ignored_entries != 0)
+                goto done;
+        XtpColorOpsParse("Get?olor,SetXprop", &ops);
+        if (!ops.disallowed[XTP_COLOR_OP_GET_COLOR] || ops.disallowed[XTP_COLOR_OP_SET_COLOR] ||
+            ops.ignored_entries != 1)
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test", "color-ops policy mismatch stage=%s bytes=%zu",
+                       stage, capture.used);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestColorScheme(void)
+{
+        static const XtpRenderer renderer = {
+            .begin = SelfTestBegin,
+            .cell = SelfTestCell,
+            .end = SelfTestEnd,
+            .abort = NULL,
+        };
+        XtpTerminal *terminal;
+        SelfTestRender render = {0};
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {.write_pty = SelfTestCapturePty, .closure = &capture};
+        XtpRgbColor foreground = {0x00, 0x00, 0x00};
+        XtpRgbColor background = {0xff, 0xff, 0xff};
+        const char *stage = "setup";
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(20, 4, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        if (XtpTerminalSetDefaultColors(terminal, foreground, background, foreground) != 0)
+                goto done;
+        stage = "light query";
+        SelfTestFeedText(terminal, "\033[?996n");
+        if (!XtpTerminalBackgroundIsLight(terminal) ||
+            !SelfTestPtyEqualsText(&capture, "\033[?997;2n"))
+                goto done;
+        stage = "dark after OSC 11";
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033]11;#101010\a\033[?996n");
+        if (XtpTerminalBackgroundIsLight(terminal) ||
+            !SelfTestPtyEqualsText(&capture, "\033[?997;1n"))
+                goto done;
+        stage = "DECSCNM swaps the displayed background";
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033[?5h\033[?996n\033[?5l");
+        if (!SelfTestPtyEqualsText(&capture, "\033[?997;1n"))
+                goto done;
+        stage = "no unsolicited report without mode 2031";
+        capture = (SelfTestPtyCapture){0};
+        if (XtpTerminalRender(terminal, &renderer, &render, true) != 0)
+                goto done;
+        SelfTestFeedText(terminal, "\033]111\a");
+        if (XtpTerminalRender(terminal, &renderer, &render, false) != 0 || capture.used != 0)
+                goto done;
+        stage = "mode 2031 reports scheme changes at render";
+        SelfTestFeedText(terminal, "\033[?2031h\033]11;#101010\a");
+        if (XtpTerminalRender(terminal, &renderer, &render, false) != 0 ||
+            !SelfTestPtyEqualsText(&capture, "\033[?997;1n"))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "x");
+        if (XtpTerminalRender(terminal, &renderer, &render, false) != 0 || capture.used != 0)
+                goto done;
+        SelfTestFeedText(terminal, "\033]111\a");
+        if (XtpTerminalRender(terminal, &renderer, &render, false) != 0 ||
+            !SelfTestPtyEqualsText(&capture, "\033[?997;2n"))
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test", "color scheme mismatch stage=%s bytes=%zu",
+                       stage, capture.used);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
 static int
 SelfTestWindowOps(void)
 {
@@ -2346,6 +2812,61 @@ SelfTestDefaultColors(void)
                 goto done;
         }
         result = 0;
+done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestColorOps(void)
+{
+        static const char *const denied[] = {
+            "\033]10;#123456\033\\", "\033]11;#123456\a", "\033]12;#123456\033\\",
+            "\033]110\033\\",        "\033]111\a",        "\033]112\033\\",
+            "\033]110;\a",           "\033]110\030",      "\033]111\032",
+            "\033]1\0010;#123456\a", "\033]11\0112\a",    "\033]10;?\033\\",
+            "\033]11;?\a",           "\033]12;?\033\\",   "\033]10;#123456;#234567;#345678\a",
+        };
+        static const uint8_t baseline[] = "\033]10;#aabbcc\a\033]11;#aabbcc\a\033]12;#aabbcc\a";
+        static const uint8_t query[] = "\033]10;?\033\\\033]11;?\033\\\033]12;?\033\\";
+        static const uint8_t expected[] = "\033]10;rgb:aaaa/bbbb/cccc\033\\"
+                                          "\033]11;rgb:aaaa/bbbb/cccc\033\\"
+                                          "\033]12;rgb:aaaa/bbbb/cccc\033\\";
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {.write_pty = SelfTestCapturePty, .closure = &capture};
+        XtpTerminal *terminal;
+        size_t item, split;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        XtpTerminalFeed(terminal, baseline, sizeof(baseline) - 1U);
+        for (item = 0; item < sizeof(denied) / sizeof(denied[0]); ++item) {
+                size_t length = strlen(denied[item]);
+                for (split = 0; split <= length; ++split) {
+                        capture = (SelfTestPtyCapture){0};
+                        XtpTerminalSetAllowColorOps(terminal, false);
+                        XtpTerminalFeed(terminal, (const uint8_t *)denied[item], split);
+                        XtpTerminalFeed(terminal, (const uint8_t *)denied[item] + split,
+                                        length - split);
+                        if (capture.used != 0U || capture.overflow)
+                                goto failed;
+                        XtpTerminalSetAllowColorOps(terminal, true);
+                        XtpTerminalFeed(terminal, query, sizeof(query) - 1U);
+                        if (capture.overflow || capture.used != sizeof(expected) - 1U ||
+                            memcmp(capture.bytes, expected, sizeof(expected) - 1U) != 0)
+                                goto failed;
+                }
+        }
+        result = 0;
+        goto done;
+failed:
+        XtpLog(XTP_LOG_ERROR, "self-test", "color policy failed case=%zu split=%zu length=%zu",
+               item, split, capture.used);
 done:
         XtpTerminalFree(terminal);
         return result;
@@ -2639,6 +3160,10 @@ XtpSelfTest(void)
             {"cursor-blink policy", SelfTestCursorBlinkPolicy},
             {"cursor-blink report", SelfTestCursorBlinkReports},
             {"default-color", SelfTestDefaultColors},
+            {"color-ops", SelfTestColorOps},
+            {"dynamic colors", SelfTestDynamicColors},
+            {"color-ops policy", SelfTestColorOpsPolicy},
+            {"color scheme", SelfTestColorScheme},
             {"ANSI-palette", SelfTestAnsiPalette},
             {"scrollback-limit", SelfTestScrollbackLimit},
             {"scrollback-selection", SelfTestSelectionScrollback},

@@ -927,6 +927,46 @@ it does not require resolving every finding before v0.5 ships.
   matrix expansion after each underlying path has one adversarial acceptance
   fixture.
 
+### Runtime dynamic colors and Color Ops — mostly closed
+
+OSC 10/11/12 now reach pixels: `XtpTerminalRender` reads libghostty's
+effective default colors into the frame and forces a full repaint when they
+change (libghostty sets no dirty flag for them), and the widget keeps separate
+effective pixels that `ApplyFrameColors` updates before painting, including
+the window and scrollbar background. The configured resource pixels remain
+the defaults pushed to libghostty, so OSC 110/111/112 restore them, and the
+widget-level `-rv` swap still re-pushes swapped defaults. DECSCNM continues to
+swap only default colors at paint time. `CSI ? 996 n` answers from the
+displayed background's perceived luminance and mode 2031 sends unsolicited
+reports when a render observes the scheme flipping.
+
+The Color Ops policy follows xterm: `allowColorOps` overrides the list;
+`disallowedColorOps` (default `SetColor,GetColor,GetAnsiColor`) applies when
+it is false. Enforcement happens before libghostty parses a denied request:
+a denied reset is spoiled at its selector, a denied set item in an OSC 10-19
+list is withheld and forwarded as a query so successive selectors stay
+aligned, and the PTY write effect drops replies to denied queries and to those
+substitutes by the selector and palette index each reply carries, one decision
+per query occurrence in order, with the index read as libghostty reads it
+(ignored C0 bytes, a leading plus, leading zeros) and any unreadable denied
+index blocking the whole list's palette replies; permitted items in the same
+list still apply and no denied color is ever applied, painted, or reported. The filter forwards kept replies one at a time without
+allocating, and drops unrecognized output while a denial is pending, so it
+cannot fail open. The observer reports the selector, each item's start and end, and
+the first terminator byte, where libghostty dispatches the command; never
+roll a color back after the fact, since that races the render and disturbs
+the parser state of whatever control follows. The observer remains
+a temporary seam; seek a public libghostty permission callback and remove
+the extension when available. `xvfb-dynamic-colors` samples pixels for the
+three colors and the border across set, reset, an opacity change, and each
+policy shape, checks exact replies and scheme reports; `xvfb-color-ops`
+covers the live toggle.
+
+Remaining: `allowSendEvents` interaction, policy for libghostty's Kitty
+OSC 21 colors, and xterm's DECSCNM-relative OSC 10/11 addressing (libghostty
+addresses the normal colors, so under DECSCNM OSC 10 changes what is shown as
+the background).
+
 ### Complete xterm Window Ops support — open
 
 Complete the full patch-411 Window Ops permission category, not only OSC 52
@@ -1185,7 +1225,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 36 tests for each libghostty build
+The normal full matrix currently contains 38 tests for each libghostty build
 and 7 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

@@ -54,8 +54,9 @@ main(int argc, char **argv)
         XEvent event = {0};
         int attempt;
 
-        if (argc < 2 || argc > 3 || (argc == 3 && strcmp(argv[2], "title") != 0)) {
-                fprintf(stderr, "usage: %s SHELL-WINDOW [title]\n", argv[0]);
+        if (argc < 2 || argc > 3 ||
+            (argc == 3 && strcmp(argv[2], "title") != 0 && strcmp(argv[2], "color") != 0)) {
+                fprintf(stderr, "usage: %s SHELL-WINDOW [title|color]\n", argv[0]);
                 return EXIT_FAILURE;
         }
         errno = 0;
@@ -108,14 +109,15 @@ main(int argc, char **argv)
         event.xmotion.window = menu;
         event.xmotion.x = attrs.width / 2;
         event.xmotion.y = attrs.height - 5;
-        /* The title-policy fixture pins the menu to fixed with vertSpace=0.
-         * Allow Title Ops is one text row above Allow Window Ops. */
+        /* The policy fixtures pin the menu to fixed with vertSpace=0.
+         * Title Ops is one row and Color Ops five rows above Window Ops. */
         if (argc == 3) {
                 XFontStruct *font = XLoadQueryFont(display, "fixed");
 
                 if (font == NULL)
                         return EXIT_FAILURE;
-                event.xmotion.y -= font->ascent + font->descent;
+                event.xmotion.y -=
+                    (font->ascent + font->descent) * (strcmp(argv[2], "color") == 0 ? 5 : 1);
                 XFreeFont(display, font);
         }
         event.xmotion.x_root = attrs.x + event.xmotion.x;

@@ -27,6 +27,7 @@ with any result.
 | `tools/probe-sync.py` | Slow redraw comparison with DEC mode 2026 off/on, with an optional mid-frame hold for timeout and resize checks. |
 | `tools/probe-clipboard.py` | OSC 52 selection set, clear, invalid-payload, and query with decoded replies, for comparing `allowWindowOps` policy across emulators. |
 | `tools/probe-titles.py` | Title/icon reports (XTWINOPS 20/21), nested push/pop (22/23), and visible title restoration. |
+| `tools/probe-dynamic-colors.py` | OSC 10/11/12 sets and queries, OSC 110/111/112 resets, comparison of reported RGB values with visible default colors, and the `CSI ? 996 n` light/dark query. |
 
 Examples:
 
@@ -51,11 +52,16 @@ python3 tools/probe-clipboard.py --query --st
 python3 tools/probe-titles.py
 python3 tools/probe-titles.py --query
 python3 tools/probe-titles.py --target title --delay 2
+python3 tools/probe-dynamic-colors.py
+python3 tools/probe-dynamic-colors.py --query
+python3 tools/probe-dynamic-colors.py --scheme
+python3 tools/probe-dynamic-colors.py --background '#142850' --foreground '#ffe080'
+python3 tools/probe-dynamic-colors.py --reset all
 ```
 
 The equivalent `just` recipes are `probe-color`, `probe-colors`, `probe-reverse-video`,
-`probe-osc8`, `probe-emoji`, `probe-fonts`, `probe-keymodes`, `probe-sync`, and
-`probe-clipboard`, and `probe-titles`.
+`probe-osc8`, `probe-emoji`, `probe-fonts`, `probe-keymodes`, `probe-sync`,
+`probe-clipboard`, `probe-titles`, and `probe-dynamic-colors`.
 
 The synchronized-output probe draws alternating colored frames one row at a
 time. By default it runs eight frames with synchronization off, then eight
@@ -143,3 +149,33 @@ compare those builds with implementations of title reporting.
 Keep permissions unchanged during a stack demo, then
 rerun to compare configurations. Run directly outside tmux/screen to observe
 the emulator's own behavior.
+
+The dynamic-color probe queries the current foreground, background, and cursor
+colors, then demonstrates yellow text on a dark blue background with a pink
+cursor. Press Enter through each stage, or use `--delay 2`. It resets the
+three colors individually to their configured defaults. An explicit RGB sample
+provides a reference that should stay unchanged while default-colored text,
+including text already printed, changes. Query replies alone do not prove that
+the window repainted correctly.
+
+Normal exit and Ctrl+C request restoration of the original queried colors.
+This restores RGB values by installing overrides; it cannot recover whether an
+original value was itself an override. If a query was refused or unsupported,
+cleanup requests the configured default for that target instead. Keep color
+permissions unchanged through cleanup, then rerun with another policy.
+`--foreground`, `--background`, and `--cursor` send persistent set requests;
+`--reset foreground|background|cursor|all` sends persistent reset requests.
+`--query` changes nothing and distinguishes a decoded RGB reply from silence.
+`--bel` tests BEL termination instead of the default ST.
+
+Use **Ctrl+right-click → Allow Color Ops** to compare the dynamic-color probe
+with permission checked and unchecked. It defaults to checked; no `-xrm`
+option is needed to change it. Start with
+`python3 tools/probe-dynamic-colors.py --query`, then run without arguments
+for the Enter-paced visual demo.
+Keep the permission unchanged during a demo so cleanup can restore colors;
+toggle it between runs. With permission off, queries should time out and
+sets/resets should leave dynamic colors unchanged. The current menu gates
+OSC 10–19 and 110–119; palette-query permissions and `disallowedColorOps`
+exceptions remain open. Changed RGB replies with unchanged painted colors
+expose the pending runtime-color rendering work.

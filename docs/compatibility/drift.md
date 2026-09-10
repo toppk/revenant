@@ -116,22 +116,35 @@ delimiters are excluded. Explicit OSC 8 state takes precedence. This is an
 intentional extension to the patch-411 interaction contract, including when
 Shift overrides application mouse reporting.
 
-### OSC 4 palette operations enabled by default
+### Color Ops policy and dynamic colors
 
-Stock xterm patch 411 includes `SetColor`, `GetColor`, and `GetAnsiColor` in
-its default `disallowedColorOps` list. It therefore neither accepts OSC 4
-palette changes nor answers OSC 4 palette queries without an explicit policy
-override. Revenant's libghostty terminal core accepts OSC 4 changes and queries
-by default, and OSC 104 restores the configured `color0` through `color15`
-resource values.
+`allowColorOps` defaults to true, as in xterm patch 411, so dynamic-color
+requests are permitted out of the box. The live **Allow Color Ops** entry in
+the Ctrl+right-click menu turns the master permission off and on. When it is
+off, `disallowedColorOps` (default `SetColor,GetColor,GetAnsiColor`) selects
+what is refused, with xterm's names, wildcards, and `~` negation: `SetColor`
+covers OSC 10-19 sets and OSC 110-119 resets, `GetColor` their queries, and
+`GetAnsiColor` OSC 4/5 palette queries. Ordinary OSC 4 palette writes and
+OSC 104 resets are never gated, as in xterm. Denied queries stay silent and
+denied sets leave the display unchanged.
 
-This is an intentional modern-terminal compatibility choice and a difference
-from xterm's secure default. Query replies are written into the application's
-input stream, so an untrusted process which can write terminal control
-sequences may be able to inject a terminal response. Revenant does not yet
-provide xterm's fine-grained `allowColorOps`/`disallowedColorOps` policy
-surface; users who require that boundary should treat OSC color-operation
-gating as an open compatibility and hardening gap.
+OSC 10/11/12 sets repaint immediately, resets restore the configured
+`foreground`, `background`, and `cursorColor` resources, and queries report
+the displayed colors. `CSI ? 996 n` and mode 2031 report light or dark from
+the displayed background, a modern extension xterm does not implement.
+
+Permission is sampled as each request item begins, so toggling the menu
+cannot revoke an item already accepted. The backend enforces the policy before
+libghostty sees a denied request: a denied reset is spoiled at its selector, a
+denied set in an OSC 10-19 list is withheld and forwarded as a query so the
+list's successive selectors stay aligned, and replies to denied queries and to
+those substitutes are dropped, so permitted items in the same list still take
+effect as in xterm and nothing denied is ever painted or reported. A public
+libghostty color-policy hook is an upstream API ask, and the observer
+extension should be removed when one exists. Remaining differences: `allowSendEvents` does not
+override the permission, libghostty's Kitty OSC 21 colors are not covered,
+and under DECSCNM libghostty addresses the normal colors, so OSC 10 changes
+what is shown as the background where xterm changes the visible foreground.
 
 ### Major default keyboard-input drift
 

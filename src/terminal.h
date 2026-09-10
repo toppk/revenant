@@ -3,6 +3,8 @@
 
 #include "ansi_palette.h"
 
+#include "color_ops.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -61,6 +63,11 @@ typedef struct
         uint16_t cursor_row;
         XtpCursorShape cursor_shape;
         bool cursor_blink_requested;
+        /* Effective default colors, with OSC 10/11/12 overrides applied. */
+        XtpRgbColor foreground;
+        XtpRgbColor background;
+        XtpRgbColor cursor;
+        bool colors_valid;
 } XtpRenderFrame;
 
 typedef struct
@@ -335,6 +342,15 @@ typedef struct
 } XtpTerminalEffects;
 
 const char *XtpClipboardTargetName(XtpClipboardTarget target);
+
+/* xterm's Color Ops policy: allow overrides the list; the list names SetColor
+ * (OSC 10-19 sets, 110-119 resets), GetColor (their queries), and
+ * GetAnsiColor (OSC 4/5 queries). Ordinary palette writes stay ungated. */
+void XtpTerminalSetColorOpsPolicy(XtpTerminal *terminal, bool allow_color_ops,
+                                  const XtpColorOps *ops);
+void XtpTerminalSetAllowColorOps(XtpTerminal *terminal, bool enabled);
+/* Light or dark, from the displayed default background's perceived luminance. */
+bool XtpTerminalBackgroundIsLight(XtpTerminal *terminal);
 
 typedef struct
 {

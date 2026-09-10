@@ -235,6 +235,8 @@ RewriteCursorBlinkReport(const XtpTerminal *terminal, const uint8_t *bytes, size
         return bytes;
 }
 
+static bool FilterColorReplies(XtpTerminal *terminal, const uint8_t *bytes, size_t length);
+
 static void
 WritePtyEffect(GhosttyTerminal handle, void *userdata, const uint8_t *bytes, size_t length)
 {
@@ -243,6 +245,8 @@ WritePtyEffect(GhosttyTerminal handle, void *userdata, const uint8_t *bytes, siz
         const uint8_t *output;
 
         (void)handle;
+        if (FilterColorReplies(terminal, bytes, length))
+                return;
         output = RewriteCursorBlinkReport(terminal, bytes, length, rewritten);
         if (terminal->effects.write_pty != NULL) {
                 XtpLog(XTP_LOG_DEBUG, "terminal", "generated PTY response bytes=%zu", length);
@@ -572,6 +576,400 @@ CursorBlinkWindowOp(unsigned int op, unsigned int parameter_count, const unsigne
                     parameter_count >= 3U ? parameters[2] : 0U, terminal->effects.closure);
 }
 
+static bool
+ColorOpAllowed(const XtpTerminal *terminal, XtpColorOp op)
+{
+        return XtpColorOpAllowed(terminal->allow_color_ops, &terminal->color_ops, op);
+}
+
+static bool
+SameRgb(GhosttyColorRgb left, GhosttyColorRgb right)
+{
+        return left.r == right.r && left.g == right.g && left.b == right.b;
+}
+
+/* TODO(libghostty): replace this filter with a public color-policy hook.
+ * A denied reset is spoiled before libghostty parses it. A denied set item of
+ * an OSC 10-19 list is withheld and forwarded as a query instead, which keeps
+ * the list's successive selectors aligned without ever applying the color;
+ * the reply it provokes, and replies to denied queries, are dropped in the
+ * PTY write effect. Decisions are made as each item begins. */
+static void
+SpoilOsc(CursorBlinkFeed *feed, size_t offset, unsigned int selector, XtpColorOp op)
+{
+        static const uint8_t spoiler[] = "x";
+
+        CursorBlinkBeforeChange(offset, feed);
+        ghostty_terminal_vt_write(feed->terminal->handle, spoiler, sizeof(spoiler) - 1U);
+        XtpLog(XTP_LOG_INFO, "terminal", "OSC %u denied by Color Ops policy (%s)", selector,
+               XtpColorOpName(op));
+}
+
+static void
+ColorOscHeader(unsigned int selector, size_t offset, void *closure)
+{
+        CursorBlinkFeed *feed = closure;
+        XtpTerminal *terminal = feed->terminal;
+
+        terminal->color_list_active = false;
+        terminal->color_list_skipping = false;
+        terminal->color_list_capturing = false;
+        if (selector >= 110U && selector <= 119U) {
+                if (!ColorOpAllowed(terminal, XTP_COLOR_OP_SET_COLOR))
+                        SpoilOsc(feed, offset, selector, XTP_COLOR_OP_SET_COLOR);
+                return;
+        }
+        if (!((selector >= 10U && selector <= 19U) || selector == 4U || selector == 5U))
+                return;
+        /* Earlier controls in this feed must answer before the filter is armed. */
+        CursorBlinkBeforeChange(offset, feed);
+        terminal->color_list_active = true;
+        terminal->color_list_any_denied = false;
+        terminal->color_list_deny_unknown_index = false;
+        terminal->color_list_selector = selector;
+        terminal->color_list_items = 0;
+        terminal->color_list_drop_selectors = 0;
+        terminal->color_list_query_count = 0;
+        terminal->color_list_queries_overflow = false;
+        terminal->color_list_index_invalid = true;
+}
+
+/* Accumulate the palette index item that precedes a query the way libghostty
+ * reads it: ignored C0 bytes, an optional leading plus, any number of leading
+ * zeros. Anything else leaves the index unknown. */
+static void
+CaptureIndexText(XtpTerminal *terminal, const uint8_t *bytes, size_t end)
+{
+        size_t position = terminal->color_list_capture_start;
+
+        for (; position < end; ++position) {
+                uint8_t byte = bytes[position];
+
+                if (byte < 0x20U)
+                        continue;
+                if (byte == '+' && !terminal->color_list_index_digits &&
+                    !terminal->color_list_index_invalid &&
+                    position == terminal->color_list_capture_start)
+                        continue;
+                if (byte < '0' || byte > '9' || terminal->color_list_index_value > 100000U) {
+                        terminal->color_list_index_invalid = true;
+                        continue;
+                }
+                terminal->color_list_index_digits = true;
+                terminal->color_list_index_value =
+                    terminal->color_list_index_value * 10U + (unsigned int)(byte - '0');
+        }
+        terminal->color_list_capture_start = end;
+}
+
+static void
+RecordPaletteDecision(XtpTerminal *terminal, bool denied)
+{
+        XtpPaletteQuery *entry;
+
+        if (terminal->color_list_index_invalid || !terminal->color_list_index_digits) {
+                if (denied)
+                        terminal->color_list_deny_unknown_index = true;
+                return;
+        }
+        if (terminal->color_list_query_count >= XTP_PALETTE_QUERY_LIMIT) {
+                terminal->color_list_queries_overflow = true;
+                return;
+        }
+        entry = &terminal->color_list_queries[terminal->color_list_query_count++];
+        entry->index = terminal->color_list_index_value;
+        entry->denied = denied;
+        entry->consumed = false;
+}
+
+static void
+ColorOscPayload(unsigned int selector, bool query, size_t offset, void *closure)
+{
+        static const uint8_t as_query[] = "?";
+        CursorBlinkFeed *feed = closure;
+        XtpTerminal *terminal = feed->terminal;
+        unsigned int item = terminal->color_list_items++;
+        XtpColorOp op;
+        bool denied;
+
+        if (!terminal->color_list_active)
+                return;
+        if (selector >= 10U && selector <= 19U) {
+                unsigned int target = selector + item;
+
+                if (target > 19U)
+                        return;
+                op = query ? XTP_COLOR_OP_GET_COLOR : XTP_COLOR_OP_SET_COLOR;
+                denied = !ColorOpAllowed(terminal, op);
+                if (!denied)
+                        return;
+                terminal->color_list_any_denied = true;
+                terminal->color_list_drop_selectors |= 1U << (target - 10U);
+                if (!query) {
+                        CursorBlinkBeforeChange(offset, feed);
+                        ghostty_terminal_vt_write(terminal->handle, as_query,
+                                                  sizeof(as_query) - 1U);
+                        terminal->color_list_skipping = true;
+                }
+                XtpLog(XTP_LOG_INFO, "terminal", "OSC %u denied by Color Ops policy (%s)", target,
+                       XtpColorOpName(op));
+                return;
+        }
+        if (!query) {
+                /* An index item: read it for the query that may follow. */
+                terminal->color_list_capturing = true;
+                terminal->color_list_capture_start = offset;
+                terminal->color_list_index_value = 0;
+                terminal->color_list_index_digits = false;
+                terminal->color_list_index_invalid = false;
+                return;
+        }
+        denied = !ColorOpAllowed(terminal, XTP_COLOR_OP_GET_ANSI_COLOR);
+        if (denied)
+                terminal->color_list_any_denied = true;
+        RecordPaletteDecision(terminal, denied);
+        terminal->color_list_index_invalid = true;
+        if (denied)
+                XtpLog(XTP_LOG_INFO, "terminal", "OSC %u denied by Color Ops policy (%s)", selector,
+                       XtpColorOpName(XTP_COLOR_OP_GET_ANSI_COLOR));
+}
+
+static void
+ColorOscItemEnd(size_t offset, void *closure)
+{
+        CursorBlinkFeed *feed = closure;
+        XtpTerminal *terminal = feed->terminal;
+
+        if (terminal->color_list_skipping) {
+                feed->written = offset;
+                terminal->color_list_skipping = false;
+        }
+        if (terminal->color_list_capturing) {
+                CaptureIndexText(terminal, feed->bytes, offset);
+                terminal->color_list_capturing = false;
+        }
+}
+
+static void
+ColorOscEnd(size_t offset, void *closure)
+{
+        CursorBlinkFeed *feed = closure;
+        XtpTerminal *terminal = feed->terminal;
+
+        if (!terminal->color_list_active)
+                return;
+        if (terminal->color_list_skipping) {
+                feed->written = offset;
+                terminal->color_list_skipping = false;
+        }
+        terminal->color_list_capturing = false;
+        /* libghostty dispatches the list at this byte, so its replies arrive
+         * while the per-item decisions are still known. */
+        CursorBlinkBeforeChange(offset + 1U, feed);
+        terminal->color_list_active = false;
+}
+
+static size_t
+ReplyLength(const uint8_t *bytes, size_t length)
+{
+        size_t index;
+
+        for (index = 2; index < length; ++index) {
+                if (bytes[index] == 0x07)
+                        return index + 1U;
+                if (bytes[index] == 0x1b)
+                        return index + 1U < length && bytes[index + 1U] == '\\' ? index + 2U : 0U;
+        }
+        return 0;
+}
+
+static bool
+ParseReplyNumber(const uint8_t *reply, size_t length, size_t *index, unsigned int *value)
+{
+        unsigned int number = 0;
+        size_t start = *index;
+
+        while (*index < length && reply[*index] >= '0' && reply[*index] <= '9' && number < 100000U)
+                number = number * 10U + (unsigned int)(reply[(*index)++] - '0');
+        if (*index == start || *index >= length || reply[*index] != ';')
+                return false;
+        ++*index;
+        *value = number;
+        return true;
+}
+
+/* Replies carry their selector and palette index, so match decisions there;
+ * a denied query whose index could not be read blocks every palette reply. */
+static bool
+DropColorReply(XtpTerminal *terminal, const uint8_t *reply, size_t length)
+{
+        unsigned int selector;
+        unsigned int index;
+        size_t position = 2;
+
+        if (!ParseReplyNumber(reply, length, &position, &selector))
+                return terminal->color_list_any_denied;
+        if (selector >= 10U && selector <= 19U)
+                return (terminal->color_list_drop_selectors & (1U << (selector - 10U))) != 0;
+        if (selector != 4U && selector != 5U)
+                return false;
+        if (!ParseReplyNumber(reply, length, &position, &index) ||
+            terminal->color_list_deny_unknown_index ||
+            (terminal->color_list_queries_overflow && terminal->color_list_any_denied))
+                return true;
+        {
+                /* Replies for an index come in the order of its queries. */
+                unsigned int slot;
+
+                for (slot = 0; slot < terminal->color_list_query_count; ++slot) {
+                        XtpPaletteQuery *entry = &terminal->color_list_queries[slot];
+
+                        if (entry->consumed || entry->index != index)
+                                continue;
+                        entry->consumed = true;
+                        return entry->denied;
+                }
+        }
+        return terminal->color_list_any_denied;
+}
+
+/* Replies for one OSC list arrive as one write. Forward the permitted ones
+ * individually; nothing here allocates, so a denied reply can never slip
+ * through on failure. Unparseable output is dropped while a denial is
+ * pending. */
+static bool
+FilterColorReplies(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
+{
+        size_t offset = 0;
+        size_t dropped = 0;
+
+        if (!terminal->color_list_active || !terminal->color_list_any_denied)
+                return false;
+        while (offset < length) {
+                size_t reply =
+                    length - offset >= 2 && bytes[offset] == 0x1b && bytes[offset + 1U] == ']'
+                        ? ReplyLength(bytes + offset, length - offset)
+                        : 0U;
+
+                if (reply == 0) {
+                        XtpLog(XTP_LOG_WARNING, "terminal",
+                               "dropped unrecognized output while a color denial is pending "
+                               "bytes=%zu",
+                               length - offset);
+                        ++dropped;
+                        break;
+                }
+                if (DropColorReply(terminal, bytes + offset, reply))
+                        ++dropped;
+                else if (terminal->effects.write_pty != NULL)
+                        terminal->effects.write_pty(bytes + offset, reply,
+                                                    terminal->effects.closure);
+                offset += reply;
+        }
+        XtpLog(XTP_LOG_INFO, "terminal", "dropped color replies denied by policy count=%zu",
+               dropped);
+        return true;
+}
+
+void
+XtpTerminalSetColorOpsPolicy(XtpTerminal *terminal, bool allow_color_ops, const XtpColorOps *ops)
+{
+        if (terminal == NULL)
+                return;
+        terminal->allow_color_ops = allow_color_ops;
+        if (ops != NULL)
+                terminal->color_ops = *ops;
+        XtpLog(XTP_LOG_INFO, "terminal",
+               "color-ops policy allow=%s SetColor=%s GetColor=%s GetAnsiColor=%s",
+               allow_color_ops ? "true" : "false",
+               ColorOpAllowed(terminal, XTP_COLOR_OP_SET_COLOR) ? "allowed" : "denied",
+               ColorOpAllowed(terminal, XTP_COLOR_OP_GET_COLOR) ? "allowed" : "denied",
+               ColorOpAllowed(terminal, XTP_COLOR_OP_GET_ANSI_COLOR) ? "allowed" : "denied");
+}
+
+void
+XtpTerminalSetAllowColorOps(XtpTerminal *terminal, bool enabled)
+{
+        XtpTerminalSetColorOpsPolicy(terminal, enabled, NULL);
+}
+
+/* The displayed default background: libghostty's effective color, swapped
+ * with the foreground while DECSCNM is active. */
+static bool
+DisplayedBackground(XtpTerminal *terminal, GhosttyColorRgb *background)
+{
+        GhosttyTerminalModeConfig reverse = {GHOSTTY_MODE_REVERSE_COLORS, false};
+        GhosttyTerminalData source;
+
+        if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_MODE, &reverse) !=
+            GHOSTTY_SUCCESS)
+                reverse.value = false;
+        source = reverse.value ? GHOSTTY_TERMINAL_DATA_COLOR_FOREGROUND
+                               : GHOSTTY_TERMINAL_DATA_COLOR_BACKGROUND;
+        return ghostty_terminal_get(terminal->handle, source, background) == GHOSTTY_SUCCESS;
+}
+
+bool
+XtpTerminalBackgroundIsLight(XtpTerminal *terminal)
+{
+        GhosttyColorRgb background;
+
+        if (terminal == NULL || !DisplayedBackground(terminal, &background))
+                return false;
+        return ghostty_color_perceived_luminance(&background) > 0.5;
+}
+
+static bool
+ColorSchemeEffect(GhosttyTerminal handle, void *userdata, GhosttyColorScheme *out_scheme)
+{
+        XtpTerminal *terminal = userdata;
+
+        (void)handle;
+        *out_scheme = XtpTerminalBackgroundIsLight(terminal) ? GHOSTTY_COLOR_SCHEME_LIGHT
+                                                             : GHOSTTY_COLOR_SCHEME_DARK;
+        XtpLog(XTP_LOG_INFO, "terminal", "color scheme query answered scheme=%s",
+               *out_scheme == GHOSTTY_COLOR_SCHEME_LIGHT ? "light" : "dark");
+        return true;
+}
+
+static const void *
+ColorSchemeEffectPointer(void)
+{
+        GhosttyTerminalColorSchemeFn function = ColorSchemeEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
+/* Mode 2031 asks for unsolicited reports whenever the scheme flips. */
+static void
+ReportColorSchemeChange(XtpTerminal *terminal)
+{
+        GhosttyTerminalModeConfig mode = {GHOSTTY_MODE_COLOR_SCHEME_REPORT, false};
+        bool light = XtpTerminalBackgroundIsLight(terminal);
+        char report[16];
+        size_t written = 0;
+
+        if (terminal->scheme_initialized && light == terminal->scheme_light)
+                return;
+        terminal->scheme_initialized = true;
+        terminal->scheme_light = light;
+        if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_MODE, &mode) !=
+                GHOSTTY_SUCCESS ||
+            !mode.value || terminal->effects.write_pty == NULL)
+                return;
+        if (ghostty_color_scheme_report_encode(light ? GHOSTTY_COLOR_SCHEME_LIGHT
+                                                     : GHOSTTY_COLOR_SCHEME_DARK,
+                                               report, sizeof(report), &written) != GHOSTTY_SUCCESS)
+                return;
+        terminal->effects.write_pty((const uint8_t *)report, written, terminal->effects.closure);
+        XtpLog(XTP_LOG_INFO, "terminal", "color scheme report sent scheme=%s",
+               light ? "light" : "dark");
+}
+
 static void
 CursorBlinkResetEffect(void *closure)
 {
@@ -592,6 +990,8 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
         if (terminal == NULL)
                 return NULL;
         terminal->bold_colors = true;
+        terminal->allow_color_ops = true;
+        XtpColorOpsParse(XTP_COLOR_OPS_DEFAULT_DISALLOWED, &terminal->color_ops);
         terminal->geometry_columns = columns;
         terminal->geometry_rows = rows;
         terminal->geometry_cell_width = cell_width;
@@ -639,7 +1039,9 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_XTVERSION,
                                  XtversionEffectPointer()) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_CLIPBOARD_WRITE,
-                                 ClipboardWriteEffectPointer()) != GHOSTTY_SUCCESS) {
+                                 ClipboardWriteEffectPointer()) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_COLOR_SCHEME,
+                                 ColorSchemeEffectPointer()) != GHOSTTY_SUCCESS) {
                 FreeHandles(terminal);
                 free(terminal);
                 return NULL;
@@ -670,11 +1072,22 @@ XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
                     .before_change = CursorBlinkBeforeChange,
                     .reset = CursorBlinkResetEffect,
                     .window_op = CursorBlinkWindowOp,
+                    .osc_header = ColorOscHeader,
+                    .osc_payload = ColorOscPayload,
+                    .osc_item_end = ColorOscItemEnd,
+                    .osc_end = ColorOscEnd,
                     .closure = &feed,
                 };
 
                 XtpLog(XTP_LOG_DEBUG, "terminal", "feed bytes=%zu", length);
                 XtpCursorBlinkObserverFeed(&terminal->cursor_blink, bytes, length, &effects);
+                /* A withheld or captured item continues in the next feed. */
+                if (terminal->color_list_capturing) {
+                        CaptureIndexText(terminal, bytes, length);
+                        terminal->color_list_capture_start = 0;
+                }
+                if (terminal->color_list_skipping)
+                        feed.written = length;
                 if (feed.written < length)
                         ghostty_terminal_vt_write(terminal->handle, bytes + feed.written,
                                                   length - feed.written);
@@ -1105,6 +1518,52 @@ ConvertRgbColor(GhosttyColorRgb color)
         return result;
 }
 
+static XtpRgbColor
+RgbFromGhostty(GhosttyColorRgb color)
+{
+        return (XtpRgbColor){color.r, color.g, color.b};
+}
+
+/* Effective defaults, unswapped: the widget applies DECSCNM itself. Returns
+ * true when any of them changed since the last frame, which forces a full
+ * repaint because libghostty sets no dirty flag for OSC 10/11/12. */
+static bool
+ReadEffectiveColors(XtpTerminal *terminal, XtpRenderFrame *frame)
+{
+        GhosttyColorRgb foreground;
+        GhosttyColorRgb background;
+        GhosttyColorRgb cursor;
+        bool changed;
+
+        if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_COLOR_FOREGROUND,
+                                 &foreground) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_COLOR_BACKGROUND,
+                                 &background) != GHOSTTY_SUCCESS)
+                return false;
+        if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_COLOR_CURSOR, &cursor) !=
+            GHOSTTY_SUCCESS)
+                cursor = foreground;
+        frame->foreground = RgbFromGhostty(foreground);
+        frame->background = RgbFromGhostty(background);
+        frame->cursor = RgbFromGhostty(cursor);
+        frame->colors_valid = true;
+        changed =
+            terminal->colors_initialized && (!SameRgb(foreground, terminal->last_foreground) ||
+                                             !SameRgb(background, terminal->last_background) ||
+                                             !SameRgb(cursor, terminal->last_cursor));
+        if (changed)
+                XtpLog(XTP_LOG_INFO, "render",
+                       "effective colors changed foreground=#%02x%02x%02x "
+                       "background=#%02x%02x%02x cursor=#%02x%02x%02x",
+                       foreground.r, foreground.g, foreground.b, background.r, background.g,
+                       background.b, cursor.r, cursor.g, cursor.b);
+        terminal->colors_initialized = true;
+        terminal->last_foreground = foreground;
+        terminal->last_background = background;
+        terminal->last_cursor = cursor;
+        return changed;
+}
+
 int
 XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *closure,
                   bool force_full)
@@ -1115,6 +1574,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
         GhosttyRenderStateDirty dirty;
         GhosttyRenderStateCursorVisualStyle cursor_style;
         bool reverse_colors_changed;
+        bool colors_changed;
         uint16_t row = 0;
         bool cursor_in_viewport = false;
         bool cursor_wide_tail = false;
@@ -1161,8 +1621,9 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
         frame.reverse_colors = reverse_colors.value;
         reverse_colors_changed = terminal->reverse_colors_initialized &&
                                  terminal->reverse_colors != frame.reverse_colors;
-        frame.full_repaint =
-            force_full || dirty == GHOSTTY_RENDER_STATE_DIRTY_FULL || reverse_colors_changed;
+        colors_changed = ReadEffectiveColors(terminal, &frame);
+        frame.full_repaint = force_full || dirty == GHOSTTY_RENDER_STATE_DIRTY_FULL ||
+                             reverse_colors_changed || colors_changed;
         if (reverse_colors_changed)
                 XtpLog(XTP_LOG_INFO, "render", "screen reverse changed enabled=%s",
                        frame.reverse_colors ? "true" : "false");
@@ -1327,6 +1788,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
         }
         terminal->reverse_colors_initialized = true;
         terminal->reverse_colors = frame.reverse_colors;
+        ReportColorSchemeChange(terminal);
         return 0;
 
 render_failed:

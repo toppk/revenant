@@ -74,6 +74,10 @@ probe-clipboard *args:
 probe-titles *args:
     python3 tools/probe-titles.py {{args}}
 
+# Exercise OSC 10/11/12 colors and their individual resets
+probe-dynamic-colors *args:
+    python3 tools/probe-dynamic-colors.py {{args}}
+
 # Display the SGR attribute and color sampler
 probe-color:
     tools/probe-color.sh

@@ -50,10 +50,12 @@ main(int argc, char **argv)
         long sample_x = -1;
         long sample_y = -1;
         int print_argb;
+        int expose;
 
         print_argb = (argc == 4 || argc == 6) && strcmp(argv[3], "--argb") == 0;
-        if ((argc != 3 && !print_argb) || strcmp(argv[2], "--expose") != 0) {
-                fprintf(stderr, "usage: %s WINDOW --expose [--argb [X Y]]\n", argv[0]);
+        expose = argc >= 3 && strcmp(argv[2], "--expose") == 0;
+        if ((argc != 3 && !print_argb) || (!expose && strcmp(argv[2], "--sample") != 0)) {
+                fprintf(stderr, "usage: %s WINDOW --expose|--sample [--argb [X Y]]\n", argv[0]);
                 return EXIT_FAILURE;
         }
         errno = 0;
@@ -104,7 +106,9 @@ main(int argc, char **argv)
                 return EXIT_FAILURE;
         }
 
-        XClearArea(display, window, 0, 0, 0, 0, True);
+        /* --sample reads what is on screen now; --expose forces a repaint first. */
+        if (expose)
+                XClearArea(display, window, 0, 0, 0, 0, True);
         XSync(display, False);
         {
                 const struct timespec delay = {0, 200000000L};
