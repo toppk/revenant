@@ -131,9 +131,9 @@ static const MenuSpec font_specs[] = {
     INERT("utf8-title"),
     LINE("line3"),
     ACTIVE("allow-color-ops", XTP_MENU_ITEM_ALLOW_COLOR_OPS),
-    INERT("allow-font-ops"),
-    INERT("allow-mouse-ops"),
-    INERT("allow-tcap-ops"),
+    ITEM("allow-font-ops", XTP_MENU_ITEM_ALLOW_FONT_OPS, False),
+    ACTIVE("allow-mouse-ops", XTP_MENU_ITEM_ALLOW_MOUSE_OPS),
+    ACTIVE("allow-tcap-ops", XTP_MENU_ITEM_ALLOW_TCAP_OPS),
     ACTIVE("allow-title-ops", XTP_MENU_ITEM_ALLOW_TITLE_OPS),
     ACTIVE("allow-window-ops", XTP_MENU_ITEM_ALLOW_WINDOW_OPS),
 };

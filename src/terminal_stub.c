@@ -453,3 +453,17 @@ XtpTerminalBackendIsStub(void)
 {
         return true;
 }
+
+void
+XtpTerminalSetAllowMouseOps(XtpTerminal *terminal, bool enabled)
+{
+        (void)terminal;
+        (void)enabled;
+}
+void
+XtpTerminalSetTcapOpsPolicy(XtpTerminal *terminal, bool allow, const XtpTcapOps *ops)
+{
+        (void)terminal;
+        (void)allow;
+        (void)ops;
+}

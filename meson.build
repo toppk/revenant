@@ -136,6 +136,7 @@ widget_sources = files(
     'src/window_ops.c',
     'src/ops_list.c',
     'src/color_ops.c',
+    'src/request_ops.c',
     'src/utf8.c',
     'src/vt_font.c',
     'src/vt_draw.c',
@@ -458,6 +459,8 @@ test(
     python3,
     args: [files('tools/probe-keymodes.py'), '--self-test'],
 )
+
+test('probe-features', python3, args: [files('tests/probe-features.py')], timeout: 45)
 
 test(
     'probe-colors-parser',
@@ -858,6 +861,15 @@ if build_with_ghostty and xvfb.found()
             files('tests/color-ops.py'),
             window_ops_test_tool.full_path(),
         ],
+        timeout: 90,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-request-ops',
+        find_program('sh'),
+        args: [files('tests/xvfb-request-ops.sh'), xvfb.full_path(),
+               xterm_plus.full_path(), python3.full_path(),
+               window_ops_test_tool.full_path(), selection_test_tool.full_path()],
         timeout: 90,
         is_parallel: false,
     )

@@ -4,6 +4,7 @@
 #include "ansi_palette.h"
 
 #include "color_ops.h"
+#include "request_ops.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -351,6 +352,10 @@ const char *XtpClipboardTargetName(XtpClipboardTarget target);
 void XtpTerminalSetColorOpsPolicy(XtpTerminal *terminal, bool allow_color_ops,
                                   const XtpColorOps *ops);
 void XtpTerminalSetAllowColorOps(XtpTerminal *terminal, bool enabled);
+/* Input-report permission; named disallowedMouseOps exceptions remain pending. */
+void XtpTerminalSetAllowMouseOps(XtpTerminal *terminal, bool enabled);
+/* XTGETTCAP is already answered by the core; XTSETTCAP is not implemented. */
+void XtpTerminalSetTcapOpsPolicy(XtpTerminal *terminal, bool allow, const XtpTcapOps *ops);
 /* Light or dark, from the displayed default background's perceived luminance. */
 bool XtpTerminalBackgroundIsLight(XtpTerminal *terminal);
 

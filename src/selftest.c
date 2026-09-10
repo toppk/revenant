@@ -2305,6 +2305,88 @@ SelfTestBackgroundIs(XtpTerminal *terminal, uint8_t red, uint8_t green, uint8_t 
 }
 
 static int
+SelfTestRequestOps(void)
+{
+        XtpFontOps font;
+        XtpTcapOps tcap;
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {.write_pty = SelfTestCapturePty, .closure = &capture};
+        XtpMouseEvent event = {.action = XTP_MOUSE_ACTION_PRESS,
+                               .button = XTP_MOUSE_BUTTON_LEFT,
+                               .x = 8,
+                               .y = 8,
+                               .screen_width = 160,
+                               .screen_height = 96,
+                               .cell_width = 8,
+                               .cell_height = 16};
+        char encoded[128];
+        size_t written = 0;
+        const char *stage = "policy";
+        int result = -1;
+
+        XtpFontOpsParse("*,~Get*", &font);
+        if (XtpFontOpAllowed(false, &font, XTP_FONT_OP_SET) ||
+            !XtpFontOpAllowed(false, &font, XTP_FONT_OP_GET) ||
+            !XtpFontOpAllowed(true, &font, XTP_FONT_OP_SET))
+                return -1;
+        XtpTcapOpsParse("gEtTcAp,unknown", &tcap);
+        if (tcap.ignored_entries != 1 || XtpTcapOpAllowed(false, &tcap, XTP_TCAP_OP_GET) ||
+            !XtpTcapOpAllowed(false, &tcap, XTP_TCAP_OP_SET))
+                return -1;
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(20, 6, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        stage = "denied Tcap with unrelated replies";
+        XtpTerminalSetTcapOpsPolicy(terminal, false, &tcap);
+        SelfTestFeedText(terminal, "\033[6n\033P+q436f\033\\\033[6n");
+        if (!SelfTestPtyEqualsText(&capture, "\033[1;1R\033[1;1R"))
+                goto done;
+        stage = "live Tcap enable";
+        XtpTerminalSetTcapOpsPolicy(terminal, true, &tcap);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033P+q436f\033\\");
+        if (capture.used < 8 || memcmp(capture.bytes, "\033P1+r", 5) != 0)
+                goto done;
+        stage = "Tcap deny list exceptions";
+        XtpTcapOpsParse("*,~GetTcap", &tcap);
+        XtpTerminalSetTcapOpsPolicy(terminal, false, &tcap);
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033P+q436f\033\\");
+        if (capture.used == 0)
+                goto done;
+        stage = "mouse reports";
+        SelfTestFeedText(terminal, "\033[?1000h\033[?1006h\033[?1004h");
+        if (!XtpTerminalMouseTracking(terminal) ||
+            XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written == 0)
+                goto done;
+        XtpTerminalSetAllowMouseOps(terminal, false);
+        if (XtpTerminalMouseTracking(terminal) ||
+            XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written != 0 ||
+            XtpTerminalEncodeFocus(terminal, true, encoded, sizeof(encoded), &written) != 0 ||
+            written != 0)
+                goto done;
+        XtpTerminalSetAllowMouseOps(terminal, true);
+        if (!XtpTerminalMouseTracking(terminal) ||
+            XtpTerminalEncodeMouse(terminal, &event, encoded, sizeof(encoded), &written) != 0 ||
+            written == 0 ||
+            XtpTerminalEncodeFocus(terminal, true, encoded, sizeof(encoded), &written) != 0 ||
+            written == 0)
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test", "request Ops mismatch stage=%s", stage);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 SelfTestColorOpsPolicy(void)
 {
         XtpTerminal *terminal;
@@ -3207,6 +3289,7 @@ XtpSelfTest(void)
             {"dynamic colors", SelfTestDynamicColors},
             {"underline color", SelfTestUnderlineColor},
             {"color-ops policy", SelfTestColorOpsPolicy},
+            {"request Ops", SelfTestRequestOps},
             {"color scheme", SelfTestColorScheme},
             {"ANSI-palette", SelfTestAnsiPalette},
             {"scrollback-limit", SelfTestScrollbackLimit},

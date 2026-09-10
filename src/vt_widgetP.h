@@ -197,6 +197,13 @@ typedef struct
         Boolean allow_window_ops;
         Boolean allow_title_ops;
         Boolean allow_color_ops;
+        Boolean allow_font_ops;
+        String disallowed_font_ops;
+        XtpFontOps font_ops;
+        Boolean allow_tcap_ops;
+        String disallowed_tcap_ops;
+        XtpTcapOps tcap_ops;
+        Boolean allow_mouse_ops;
         String disallowed_color_ops;
         XtpColorOps color_ops;
         Pixel effective_foreground;

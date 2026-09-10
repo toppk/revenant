@@ -260,6 +260,16 @@ static XtResource resources[] = {
      XtRImmediate, (XtPointer)False},
     {"allowTitleOps", "AllowTitleOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_title_ops),
      XtRImmediate, (XtPointer)True},
+    {"allowMouseOps", "AllowMouseOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_mouse_ops),
+     XtRImmediate, (XtPointer)True},
+    {"allowTcapOps", "AllowTcapOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_tcap_ops),
+     XtRImmediate, (XtPointer)True},
+    {"disallowedTcapOps", "DisallowedTcapOps", XtRString, sizeof(String),
+     OFFSET(disallowed_tcap_ops), XtRString, (XtPointer)XTP_TCAP_OPS_DEFAULT_DISALLOWED},
+    {"allowFontOps", "AllowFontOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_font_ops),
+     XtRImmediate, (XtPointer)True},
+    {"disallowedFontOps", "DisallowedFontOps", XtRString, sizeof(String),
+     OFFSET(disallowed_font_ops), XtRString, (XtPointer)XTP_FONT_OPS_DEFAULT_DISALLOWED},
     {"allowColorOps", "AllowColorOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_color_ops),
      XtRImmediate, (XtPointer)True},
     {"disallowedColorOps", "DisallowedColorOps", XtRString, sizeof(String),
@@ -928,6 +938,8 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
         vt->vt.fonts[0] = vt->vt.initial_font;
         vt->vt.selection_time = CurrentTime;
         VtResetEffectiveColors(vt);
+        XtpTcapOpsParse(vt->vt.disallowed_tcap_ops, &vt->vt.tcap_ops);
+        XtpFontOpsParse(vt->vt.disallowed_font_ops, &vt->vt.font_ops);
         XtpColorOpsParse(vt->vt.disallowed_color_ops, &vt->vt.color_ops);
         XtpLog(XTP_LOG_INFO, "terminal",
                "color-ops resources allowColorOps=%s disallowedColorOps=%s unconsulted-entries=%u",
@@ -1997,4 +2009,51 @@ XtpVtRedraw(Widget widget)
                 VtRepaintCached(vt, NULL);
         else if (VtRenderTerminal(vt, True) != 0)
                 VtPlaceholder(vt);
+}
+
+Boolean
+XtpVtAllowMouseOps(Widget widget)
+{
+        return VtAsRecord(widget)->vt.allow_mouse_ops;
+}
+void
+XtpVtSetAllowMouseOps(Widget widget, Boolean enabled)
+{
+        VtAsRecord(widget)->vt.allow_mouse_ops = enabled ? True : False;
+        VtAsRecord(widget)->vt.reported_mouse_buttons = 0;
+        XtpLog(XTP_LOG_INFO, "terminal", "allowMouseOps=%s", enabled ? "true" : "false");
+}
+
+Boolean
+XtpVtAllowTcapOps(Widget widget)
+{
+        return VtAsRecord(widget)->vt.allow_tcap_ops;
+}
+void
+XtpVtSetAllowTcapOps(Widget widget, Boolean enabled)
+{
+        VtAsRecord(widget)->vt.allow_tcap_ops = enabled ? True : False;
+        XtpLog(XTP_LOG_INFO, "terminal", "allowTcapOps=%s", enabled ? "true" : "false");
+}
+const XtpTcapOps *
+XtpVtTcapOps(Widget widget)
+{
+        return &VtAsRecord(widget)->vt.tcap_ops;
+}
+
+Boolean
+XtpVtAllowFontOps(Widget widget)
+{
+        return VtAsRecord(widget)->vt.allow_font_ops;
+}
+void
+XtpVtSetAllowFontOps(Widget widget, Boolean enabled)
+{
+        VtAsRecord(widget)->vt.allow_font_ops = enabled ? True : False;
+        XtpLog(XTP_LOG_INFO, "terminal", "allowFontOps=%s", enabled ? "true" : "false");
+}
+const XtpFontOps *
+XtpVtFontOps(Widget widget)
+{
+        return &VtAsRecord(widget)->vt.font_ops;
 }

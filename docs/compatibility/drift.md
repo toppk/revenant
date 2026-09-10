@@ -125,6 +125,29 @@ delimiters are excluded. Explicit OSC 8 state takes precedence. This is an
 intentional extension to the patch-411 interaction contract, including when
 Shift overrides application mouse reporting.
 
+### Mouse, Tcap and prepared Font Ops
+
+The live **Allow Mouse Ops** switch defaults true. Turning it off suppresses
+mouse and focus reporting and restores local selection, while retaining the
+application's requested modes for re-enabling. This implements the master
+gate with xterm's default deny-all outcome; `disallowedMouseOps` named
+exceptions, Locator and alternate-scroll policy remain unimplemented. The
+encoder's effective tracking state needs a public API before named exceptions
+can be implemented reliably.
+
+**Allow Tcap Ops** defaults true and overrides `disallowedTcapOps` (default
+`SetTcap,GetTcap`). Names, wildcards and tilde negation share the other Ops
+list parser. GetTcap suppresses generated XTGETTCAP replies; it does not
+change the capability database. Configuring TN and the child's TERM together
+remains pending, as does XTSETTCAP. `allowSendEvents` does not override these
+permissions.
+
+`allowFontOps` (true) and `disallowedFontOps` (`SetFont,GetFont`) are accepted
+preparation with no font-changing effect. The menu remains disabled until an
+OSC 50 callback and behavior exist. The pinned unknown-sequence callback is
+APC-only, so it does not close this gap. No claim of full Mouse/Tcap/Font Ops
+compatibility follows from the prepared names or switches.
+
 ### Color Ops policy and dynamic colors
 
 `allowColorOps` defaults to true, as in xterm patch 411, so dynamic-color

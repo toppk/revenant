@@ -716,6 +716,9 @@ ApplyTerminalEffects(App *app)
                 XtpLog(XTP_LOG_INFO, "selection",
                        "OSC 52 GetSelection denied; queries stay unanswered");
         XtpTerminalSetEffects(app->terminal, &effects);
+        XtpTerminalSetAllowMouseOps(app->terminal, XtpVtAllowMouseOps(app->vt));
+        XtpTerminalSetTcapOpsPolicy(app->terminal, XtpVtAllowTcapOps(app->vt),
+                                    XtpVtTcapOps(app->vt));
         XtpTerminalSetColorOpsPolicy(app->terminal, XtpVtAllowColorOps(app->vt),
                                      XtpVtColorOps(app->vt));
 }
@@ -788,6 +791,9 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
                            XtpVtAllowWindowOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS, XtpVtAllowTitleOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_COLOR_OPS, XtpVtAllowColorOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_FONT_OPS, XtpVtAllowFontOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TCAP_OPS, XtpVtAllowTcapOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_MOUSE_OPS, XtpVtAllowMouseOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_KEY, XtpVtScrollKey(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_TTY_OUTPUT,
                            XtpVtScrollTtyOutput(app->vt));
@@ -912,6 +918,22 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
         case XTP_MENU_ITEM_ALLOW_TITLE_OPS:
                 XtpVtSetAllowTitleOps(app->vt, !XtpVtAllowTitleOps(app->vt));
                 XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowTitleOps(app->vt));
+                return;
+        case XTP_MENU_ITEM_ALLOW_MOUSE_OPS:
+                XtpVtSetAllowMouseOps(app->vt, !XtpVtAllowMouseOps(app->vt));
+                XtpTerminalSetAllowMouseOps(app->terminal, XtpVtAllowMouseOps(app->vt));
+                XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowMouseOps(app->vt));
+                return;
+        case XTP_MENU_ITEM_ALLOW_TCAP_OPS:
+                XtpVtSetAllowTcapOps(app->vt, !XtpVtAllowTcapOps(app->vt));
+                XtpTerminalSetTcapOpsPolicy(app->terminal, XtpVtAllowTcapOps(app->vt),
+                                            XtpVtTcapOps(app->vt));
+                XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowTcapOps(app->vt));
+                return;
+        case XTP_MENU_ITEM_ALLOW_FONT_OPS:
+                XtpVtSetAllowFontOps(app->vt, !XtpVtAllowFontOps(app->vt));
+                /* OSC 50 is not surfaced by libghostty; this entry remains insensitive. */
+                XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowFontOps(app->vt));
                 return;
         case XTP_MENU_ITEM_ALLOW_COLOR_OPS:
                 XtpVtSetAllowColorOps(app->vt, !XtpVtAllowColorOps(app->vt));
@@ -1202,6 +1224,9 @@ WireApplication(App *app, const AppResources *resources)
                            XtpVtAllowWindowOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS, XtpVtAllowTitleOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_COLOR_OPS, XtpVtAllowColorOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_FONT_OPS, XtpVtAllowFontOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TCAP_OPS, XtpVtAllowTcapOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_MOUSE_OPS, XtpVtAllowMouseOps(app->vt));
         XtpMenusSetScrollbar(&app->menus, XtpVtScrollbarVisible(app->vt));
         XtpMenusSetRenderFont(&app->menus, XtpVtUsingXft(app->vt), XtpVtXftAvailable(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SELECT_TO_CLIPBOARD,

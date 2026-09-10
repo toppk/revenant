@@ -106,6 +106,10 @@ probe-emoji *args:
 probe-fonts *args:
     python3 tools/probe-fonts.py {{args}}
 
+# List dispatch probes, or run e.g. just probe-features tcap
+probe-features *args:
+    python3 tools/probe-features.py {{args}}
+
 # Build and test all supported compiler/backend and sanitizer combinations
 test: test-gcc test-clang test-asan test-stub
 

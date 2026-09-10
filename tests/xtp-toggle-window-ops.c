@@ -55,8 +55,9 @@ main(int argc, char **argv)
         int attempt;
 
         if (argc < 2 || argc > 3 ||
-            (argc == 3 && strcmp(argv[2], "title") != 0 && strcmp(argv[2], "color") != 0)) {
-                fprintf(stderr, "usage: %s SHELL-WINDOW [title|color]\n", argv[0]);
+            (argc == 3 && strcmp(argv[2], "title") != 0 && strcmp(argv[2], "color") != 0 &&
+             strcmp(argv[2], "mouse") != 0 && strcmp(argv[2], "tcap") != 0)) {
+                fprintf(stderr, "usage: %s SHELL-WINDOW [title|color|mouse|tcap]\n", argv[0]);
                 return EXIT_FAILURE;
         }
         errno = 0;
@@ -110,14 +111,17 @@ main(int argc, char **argv)
         event.xmotion.x = attrs.width / 2;
         event.xmotion.y = attrs.height - 5;
         /* The policy fixtures pin the menu to fixed with vertSpace=0.
-         * Title Ops is one row and Color Ops five rows above Window Ops. */
+         * Title/Tcap/Mouse/Color Ops sit 1/2/3/5 rows above Window Ops. */
         if (argc == 3) {
                 XFontStruct *font = XLoadQueryFont(display, "fixed");
 
                 if (font == NULL)
                         return EXIT_FAILURE;
                 event.xmotion.y -=
-                    (font->ascent + font->descent) * (strcmp(argv[2], "color") == 0 ? 5 : 1);
+                    (font->ascent + font->descent) * (strcmp(argv[2], "color") == 0   ? 5
+                                                      : strcmp(argv[2], "mouse") == 0 ? 3
+                                                      : strcmp(argv[2], "tcap") == 0  ? 2
+                                                                                      : 1);
                 XFreeFont(display, font);
         }
         event.xmotion.x_root = attrs.x + event.xmotion.x;

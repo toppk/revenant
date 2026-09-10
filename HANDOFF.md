@@ -6,6 +6,37 @@ priorities and the Ghostling capability comparison live in the
 [upstream reference guide](docs/maintainers/upstream.md). Avoid recording an uncommitted
 file list or a single transient commit as project state here.
 
+## Dispatch plumbing and remaining features
+
+Use the [dispatch guide](docs/maintainers/dispatch.md) and the local untracked
+`todo.md` IDs for bounded assignments. `tools/probe-features.py --list` lists
+18 manual fixtures. These fixtures do not imply that the corresponding
+features are implemented. Extend the graphics fixture as media, placeholders
+and animation land; it currently covers only static inline RGBA placement.
+
+**Allow Mouse Ops** and **Allow Tcap Ops** are live Ctrl+right-click menu
+controls, both defaulting true. Mouse Ops suppresses encoded mouse/focus
+reports without clearing requested modes; `disallowedMouseOps` named
+exceptions remain open. Obtain the encoder's effective tracking mode before
+adding those exceptions: simultaneous requested mode bits are not a reliable
+substitute. Tcap Ops honors `disallowedTcapOps` (`SetTcap,GetTcap`) through the
+shared wildcard/negation parser and gates complete backend-generated
+XTGETTCAP replies. Unrelated replies must survive mixed feeds. Configured TN,
+child TERM integration and XTSETTCAP are not supplied by this permission gate.
+
+Font Ops has Xt resources (`allowFontOps`, `disallowedFontOps`), SetFont/GetFont
+policy helpers and checked menu identity, but its menu remains insensitive and
+resources have no operational effect until OSC 50 is implemented. The pinned
+unknown-sequence callback is APC-only; it cannot supply OSC 50, OSC 22 or
+arbitrary CSI passthrough. Obtain a public hook rather than another escape
+parser. ENQ, underline attributes, startup cursor style and shell integration
+have no new xterm Ops family. Full Window Ops and Title Ops completion
+checklists below still apply independently.
+
+`probe-features` checks the runner through a fake PTY, including interruption
+cleanup; `xvfb-request-ops` checks startup/live mouse and capability policy,
+GetTcap exceptions, and preservation of unrelated replies.
+
 ## Maintainer transition — 2026-09-02
 
 The cursor-blink, ANSI-palette, and internal-naming rounds are complete. There
@@ -1234,8 +1265,8 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 39 tests for each libghostty build
-and 7 for the stub build. One of those is `internal-branding`, which scans
+The normal full matrix currently contains 41 tests for each libghostty build
+and 8 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build
 options. The generated font fixture staging tree now contains

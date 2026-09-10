@@ -12,13 +12,14 @@ Every entry from xterm patch-411's `mainMenu` (Ctrl-Button1), `vtMenu`
 how much of that lives in libghostty-vt, and how approachable it is for
 Revenant. Reviewed against the then-selected libghostty headers on 2026-08-25.
 
-Status key: **DONE** implemented; **READY** can be wired now with no new
+Status key: **DONE** implemented; **PARTIAL** usable subset with documented gaps; **READY** can be wired now with no new
 subsystem; **ROADMAP** waits on a planned
 [roadmap](../maintainers/roadmap.md) slice; **BLOCKED** needs a libghostty
 change; **SKIP** recommend not planning (record in the
 [xterm differences ledger](drift.md)).
 
-Totals over 86 entries: 23 done, 21 ready, 17 roadmap, 13 blocked, 12 skip.
+The tables are maintained per entry; grouped entries do not imply a current
+aggregate count.
 
 ## The big pattern
 
@@ -117,12 +118,12 @@ configured and forced policy.
 | utf8-mode | UTF-8 vs Latin-1 | Ghostty is UTF-8 only | iconv possible; recommend permanently on (DRIFT) | BLOCKED |
 | utf8-fonts | `utf8Fonts` slot set | None | Only meaningful with utf8-mode | ROADMAP |
 | utf8-title | UTF-8 `_NET_WM_NAME` | Title callback | Set EWMH property | READY |
-| allow-color-ops | Gate dynamic-color OSC 10–19 and 110–119 | Selector observer enforces the live backend permission | Sets, queries, and resets gated; deny-list exceptions and palette-query policy remain open | PARTIAL |
-| allow-font-ops | Gate OSC 50 | Not routed | Moot until fontescape | BLOCKED |
-| allow-mouse-ops | Gate mouse reports | Mouse encoder (Roadmap #3) | Skip emitting | ROADMAP |
-| allow-tcap-ops | Gate XTGETTCAP | Ghostty answers itself (`OPT_TERMINFO_NAME`) | Needs option | BLOCKED |
+| allow-color-ops | Gate dynamic-color OSC 10–19 and 110–119 | Selector observer enforces the live backend permission | Sets, queries, resets, deny-list exceptions and palette queries gated; remaining differences in drift ledger | PARTIAL |
+| allow-font-ops | Gate OSC 50 | No public OSC 50 callback | Policy/resources and menu identity prepared; entry stays insensitive until fontescape | BLOCKED |
+| allow-mouse-ops | Gate mouse and focus reports | Encoder master gate | Live toggle; requested modes preserved; named deny-list exceptions pending | PARTIAL |
+| allow-tcap-ops | Gate XTGETTCAP | Complete generated replies gated at PTY effect | Live toggle and GetTcap deny-list exceptions; TN integration and XTSETTCAP pending | PARTIAL |
 | allow-title-ops | Gate displayed title changes and applying saved labels | Title callback and pop path | Live toggle; OSC 1/icon changes still lack a backend callback; reports use Window Ops | PARTIAL |
-| allow-window-ops | Toggle window-operation permissions | OSC 52 clipboard callbacks | Live OSC 52 read/write policy; other window operations remain pending | PARTIAL |
+| allow-window-ops | Toggle window-operation permissions | OSC 52 callbacks and title observer | Live selection and title stack/report policy; full Window Ops still pending | PARTIAL |
 
 <!-- markdownlint-enable MD013 -->
 
@@ -152,12 +153,12 @@ record "Tek 4014 not planned" in the [xterm differences ledger](drift.md).
    Continue with signals ×6; allowsends; visualbell/bellIsUrgent/
    poponbell; utf8-title; delete-is-del; and logging.
 2. Slice B, ride the roadmap: scrollbar family with #2; selection policies
-   and fontsel with #4; allow-mouse-ops with #3; allow-color-ops,
+   and fontsel with #4; named Mouse Ops exceptions;
    allow-bold-fonts, font-linedrawing, font-packed with #5.
 3. Slice C, screen-dump family: one styled-text walker unlocks print,
    print-immediate, print-on-error, dump-html, dump-svg.
 4. Upstream asks, by value: unknown OSC/CSI passthrough (fontescape,
    print-redir, full XTWINOPS); permanently-reset mode (titeInhibit);
-   XTGETTCAP toggle. Not worth asking: DECDHL, sixel, DECDLD, S8C1T.
+   effective mouse tracking and OSC 50 hooks. Not worth asking: DECDHL, sixel, DECDLD, S8C1T.
 5. Drift-ledger entries: Tek 4014, toolbar, activeicon, copy_area, legacy
    keyboard tables/sunKeyboard, UTF-8-only, 8-bit controls, soft fonts.

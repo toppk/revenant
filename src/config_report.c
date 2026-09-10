@@ -992,9 +992,12 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
                 return "supported";
         if (strcmp(name, "allowColorOps") == 0 || strcmp(name, "disallowedColorOps") == 0 ||
             strcmp(name, "allowTitleOps") == 0 || strcmp(name, "allowWindowOps") == 0 ||
-            strcmp(name, "disallowedWindowOps") == 0 || strcmp(name, "maxStringParse") == 0)
+            strcmp(name, "allowMouseOps") == 0 || strcmp(name, "allowTcapOps") == 0 ||
+            strcmp(name, "disallowedTcapOps") == 0 || strcmp(name, "disallowedWindowOps") == 0 ||
+            strcmp(name, "maxStringParse") == 0)
                 return "partially supported";
-        if (strncmp(name, "color", 5) == 0 || strcmp(name, "pointerColor") == 0 ||
+        if (strcmp(name, "allowFontOps") == 0 || strcmp(name, "disallowedFontOps") == 0 ||
+            strncmp(name, "color", 5) == 0 || strcmp(name, "pointerColor") == 0 ||
             strcmp(name, "pointerColorBackground") == 0 || strcmp(name, "pointerShape") == 0)
                 return "accepted but ignored";
         return "unsupported";
@@ -1413,16 +1416,34 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             {"xterm.vt100.allowColorOps", "XTerm.VT100.AllowColorOps", "true"},
             {"xterm.vt100.disallowedColorOps", "XTerm.VT100.DisallowedColorOps",
              "SetColor,GetColor,GetAnsiColor"},
+            {"xterm.vt100.allowMouseOps", "XTerm.VT100.AllowMouseOps", "true"},
+            {"xterm.vt100.allowTcapOps", "XTerm.VT100.AllowTcapOps", "true"},
+            {"xterm.vt100.disallowedTcapOps", "XTerm.VT100.DisallowedTcapOps", "SetTcap,GetTcap"},
+            {"xterm.vt100.allowFontOps", "XTerm.VT100.AllowFontOps", "true"},
+            {"xterm.vt100.disallowedFontOps", "XTerm.VT100.DisallowedFontOps", "SetFont,GetFont"},
         };
         static const char *const behavior_names[] = {
-            "XTerm*saveLines",       "XTerm*scrollBar",
-            "XTerm*rightScrollBar",  "XTerm*scrollKey",
-            "XTerm*scrollTtyOutput", "XTerm*selectToClipboard",
-            "XTerm*multiClickTime",  "XTerm*charClass",
-            "XTerm*allowWindowOps",  "XTerm*disallowedWindowOps",
-            "XTerm*maxStringParse",  "XTerm*logLevel",
-            "XTerm*debug",           "XTerm*allowTitleOps",
-            "XTerm*allowColorOps",   "XTerm*disallowedColorOps",
+            "XTerm*saveLines",
+            "XTerm*scrollBar",
+            "XTerm*rightScrollBar",
+            "XTerm*scrollKey",
+            "XTerm*scrollTtyOutput",
+            "XTerm*selectToClipboard",
+            "XTerm*multiClickTime",
+            "XTerm*charClass",
+            "XTerm*allowWindowOps",
+            "XTerm*disallowedWindowOps",
+            "XTerm*maxStringParse",
+            "XTerm*logLevel",
+            "XTerm*debug",
+            "XTerm*allowTitleOps",
+            "XTerm*allowColorOps",
+            "XTerm*disallowedColorOps",
+            "XTerm*allowMouseOps",
+            "XTerm*allowTcapOps",
+            "XTerm*disallowedTcapOps",
+            "XTerm*allowFontOps",
+            "XTerm*disallowedFontOps",
         };
         static const char *const behavior_help[] = {
             "Maximum saved-history lines retained by libghostty.",
@@ -1441,14 +1462,34 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "Permit application title changes and applying saved labels on pop; live menu toggle.",
             "Permit every color operation; live toggle. False applies disallowedColorOps.",
             "Color operations refused unless allowColorOps is true.",
+            "Permit mouse and focus reports; live toggle. Named deny-list exceptions pending.",
+            "Permit capability operations; live toggle currently gates XTGETTCAP replies only.",
+            "GetTcap gates capability replies when allowTcapOps is false; SetTcap pending.",
+            "Prepared OSC 50 permission; no callback yet and menu entry remains disabled.",
+            "Prepared SetFont/GetFont policy; no operational effect until OSC 50 is connected.",
         };
         static const char *const behavior_support[] = {
-            "supported",           "supported",           "supported",
-            "supported",           "supported",           "supported",
-            "supported",           "supported",           "partially supported",
-            "partially supported", "partially supported", "supported",
-            "supported",           "partially supported", "partially supported",
+            "supported",
+            "supported",
+            "supported",
+            "supported",
+            "supported",
+            "supported",
+            "supported",
+            "supported",
             "partially supported",
+            "partially supported",
+            "partially supported",
+            "supported",
+            "supported",
+            "partially supported",
+            "partially supported",
+            "partially supported",
+            "partially supported",
+            "partially supported",
+            "partially supported",
+            "accepted but ignored",
+            "accepted but ignored",
         };
         XrmDatabase merged = XtDatabase(display);
         XrmDatabase server = NULL;

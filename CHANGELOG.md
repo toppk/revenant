@@ -10,6 +10,12 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Activate **Allow Mouse Ops** and **Allow Tcap Ops** in the Ctrl+right-click
+  menu. Mouse Ops gates mouse/focus reporting; Tcap Ops gates XTGETTCAP
+  replies with `disallowedTcapOps` exceptions. Prepare Font Ops resources and
+  policy helpers while keeping its menu entry disabled until OSC 50 exists.
+  Add `probe-features.py` with 18 manual fixtures and a maintainer dispatch
+  guide for the remaining feature work.
 - Paint colored underlines. SGR 58 selects an indexed or 24-bit underline
   color for every underline style, SGR 59 returns to the text color, and the
   color survives inverse video, selection, and translucent backgrounds in

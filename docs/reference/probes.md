@@ -28,6 +28,7 @@ with any result.
 | `tools/probe-clipboard.py` | OSC 52 selection set, clear, invalid-payload, and query with decoded replies, for comparing `allowWindowOps` policy across emulators. |
 | `tools/probe-titles.py` | Title/icon reports (XTWINOPS 20/21), nested push/pop (22/23), and visible title restoration. |
 | `tools/probe-dynamic-colors.py` | OSC 10/11/12 sets and queries, OSC 110/111/112 resets, comparison of reported RGB values with visible default colors, and the `CSI ? 996 n` light/dark query. |
+| `tools/probe-features.py` | Named dispatch fixtures for remaining features, plus live Mouse/Tcap Ops checks; use `--list`. |
 
 Examples:
 
@@ -61,7 +62,7 @@ python3 tools/probe-dynamic-colors.py --reset all
 
 The equivalent `just` recipes are `probe-color`, `probe-colors`, `probe-reverse-video`,
 `probe-osc8`, `probe-emoji`, `probe-fonts`, `probe-keymodes`, `probe-sync`,
-`probe-clipboard`, `probe-titles`, and `probe-dynamic-colors`.
+`probe-clipboard`, `probe-titles`, `probe-dynamic-colors`, and `probe-features`.
 
 The synchronized-output probe draws alternating colored frames one row at a
 time. By default it runs eight frames with synchronization off, then eight
@@ -179,3 +180,76 @@ sets/resets should leave dynamic colors unchanged. The current menu gates
 OSC 10–19 and 110–119; palette-query permissions and `disallowedColorOps`
 exceptions remain open. Changed RGB replies with unchanged painted colors
 expose the pending runtime-color rendering work.
+
+## Dispatch fixtures
+
+`tools/probe-features.py` supplies one named fixture per remaining work area.
+Most of those features are still pending; a sent request or an unanswered
+query is not evidence of implementation. Start with:
+
+```sh
+python3 tools/probe-features.py --list
+python3 tools/probe-features.py mouse --help
+python3 tools/probe-features.py tcap --cap Co
+python3 tools/probe-features.py mouse --seconds 60
+```
+
+Run in a newly built Revenant window. Ctrl+right-click opens the menu: switch
+**Allow Tcap Ops** off and rerun the `tcap --cap Co` query; it should become
+silent under the default restrictions. Switch it on and it should reply
+again. During `mouse`, uncheck **Allow Mouse Ops** to stop mouse/focus bytes
+and restore ordinary selection, then check it to resume. Both permissions
+start true. A configured GetTcap exception can keep queries allowed while
+the Tcap master override is unchecked:
+
+```sh
+revenant -xrm 'XTerm*allowTcapOps: false' \
+  -xrm 'XTerm*disallowedTcapOps: *,~GetTcap'
+```
+
+**Allow Font Ops** remains disabled: its policy/resource plumbing is prepared,
+but OSC 50 has no connected callback. The font probe cannot make font changes
+work. `TN` may also be unanswered until the configured terminal-name task is
+implemented; use `Co` for the existing Tcap permission check.
+
+| Subcommand | Manual check |
+| --- | --- |
+| `answerback` | Send ENQ and show raw answerback bytes. A default empty answer is silent. |
+| `tcap` | Decode XTGETTCAP replies; repeat `--cap NAME` to select capabilities. |
+| `mouse` | Observe mouse/focus bytes; `--mode 9/1000/1002/1003`, `--seconds N`; q exits. |
+| `font` | Query OSC 50; `--font NAME` explicitly requests a persistent font change. |
+| `underline` | Compare colored underline styles, indexed/RGB colors, and SGR 59 reset. |
+| `cursor` | Inspect startup cursor before a DECSCUSR request; `--styles` also cycles application styles. |
+| `pointer` | Move over the grid to compare requested OSC 22 pointer shapes. |
+| `identity` | Show DA1, DA2 and XTVERSION reply bytes. |
+| `unknown` | Send an unsupported APC for future diagnostic logging; no reply is expected. |
+| `cwd --cwd /tmp` | Report an OSC 7 directory for a future consumer/debug check. |
+| `prompts` | Emit synthetic OSC 133 prompts for future previous/next actions. |
+| `pipe` | Emit three synthetic command outputs; a future pipe action should capture only COMMAND-3-BEGIN through COMMAND-3-END. |
+| `notify` | After three seconds to change focus, send OSC 9 and OSC 777 notifications. |
+| `progress` | Cycle OSC 9;4 normal, error, indeterminate, paused and cleared states. |
+| `glyphs` | Inspect joined boxes/blocks, braille and Powerline at different fonts/sizes. |
+| `copy` | Select sample text and check a future copy-highlight flash and paste contents. |
+| `search` | Seed scrollback with repeated, Unicode, missing and wrapped search cases. |
+| `graphics` | Place red/green over blue/yellow using an inline Kitty RGBA image; inspect resize/scroll. |
+
+Visual stages wait for Enter; `--delay SECONDS` advances them automatically.
+`--timeout SECONDS` bounds each reply wait. These options follow the
+subcommand. `just probe-features SUBCOMMAND ...` invokes the same runner.
+Shell fixtures display commands and shell-looking text as data; they never
+execute those commands. The graphics fixture covers static inline placement
+only; later graphics tasks must add their own media/animation cases.
+
+Ctrl+C restores termios and requests cleanup for temporary state. Mouse
+modes are queried before the probe and known settings restored; modes whose
+state cannot be queried are reset. Underline styling is reset; pointer shape
+returns to default; progress is cleared; only the probe's image is deleted.
+`cursor --styles` restores the configured default, not an earlier application
+cursor override. An explicit `font --font` request is persistent: restore it
+through the font menu. Shell fixtures restore the probe process's cwd URI and
+close synthetic command markers; they cannot reconstruct a shell's prior
+semantic state. Run in a disposable test window for comparisons requiring
+pristine state.
+
+See the [dispatch guide](../maintainers/dispatch.md) for the existing policy
+APIs, feature boundaries and test expectations.
