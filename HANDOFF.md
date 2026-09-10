@@ -330,6 +330,14 @@ function-pointer helper would lose the useful type check.
   autolinefeed, application cursor keys, and application keypad mode.
 - Progressive output rendering, a last-painted cell cache, and cursor-only
   repaint support when libghostty reports no cell damage.
+- Synchronized output (DEC private mode 2026): the widget holds dirty updates
+  while the mode is set and paints once on release. A one-second timeout
+  releases a stuck batch and resets the mode so DECRQM reports the reset. An
+  ordinary expose repaints the cached frame and keeps holding; a resize paints
+  the current state at the new grid, and the backend restores the mode that
+  libghostty clears on resize. Hover repaints during a hold are deferred to a
+  full repaint at release. `xvfb-sync-output` covers release, timeout, resize
+  with DECRQM confirmation, and hover.
 - Primary-screen resize reflow, synchronized terminal/kernel PTY geometry,
   and pre-Expose invalidation of frames captured at the previous grid size.
 - `saveLines` controls libghostty's line limit and clears its independent
@@ -1046,15 +1054,16 @@ without byte loss, but it remains one in-process harness. When Xvfb is
 available, Meson also runs integration suites for the reproducible font
 baseline; emoji routing, shaping, width regimes, and color-font formats;
 opacity/reverse-video pixel policy and logging thresholds; named selections,
-cut buffers, and OSC 8 launch policy; legacy/fixterms keyboard delivery; and
-Kitty keyboard press, repeat, and release. Release package configurations use
+cut buffers, and OSC 8 launch policy; legacy/fixterms keyboard delivery;
+Kitty keyboard press, repeat, and release; and synchronized-output hold,
+timeout, and resize behavior. Release package configurations use
 `-Dxvfb-tests=enabled`, which makes missing Xvfb or libghostty an immediate
 configuration error, and `tools/check-release-tests` rejects skipped suites.
 The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 29 tests for each libghostty build
+The normal full matrix currently contains 32 tests for each libghostty build
 and 7 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

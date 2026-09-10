@@ -938,6 +938,8 @@ Destroy(Widget widget)
 
         if (vt->vt.viewport_update_timer != (XtIntervalId)0)
                 XtRemoveTimeOut(vt->vt.viewport_update_timer);
+        if (vt->vt.sync_output_timer != (XtIntervalId)0)
+                XtRemoveTimeOut(vt->vt.sync_output_timer);
         if (vt->vt.selection_autoscroll_timer != (XtIntervalId)0)
                 XtRemoveTimeOut(vt->vt.selection_autoscroll_timer);
         if (vt->vt.cursor_blink_timer != (XtIntervalId)0)
@@ -1711,12 +1713,97 @@ XtpVtScrollOnKeypress(Widget widget)
                 XtpVtUpdate(widget);
 }
 
+static void
+CancelSynchronizedOutputTimer(Vt100Rec *vt)
+{
+        if (vt->vt.sync_output_timer != (XtIntervalId)0) {
+                XtRemoveTimeOut(vt->vt.sync_output_timer);
+                vt->vt.sync_output_timer = (XtIntervalId)0;
+        }
+}
+
+static void
+SynchronizedOutputTimeout(XtPointer closure, XtIntervalId *timer)
+{
+        Vt100Rec *vt = closure;
+
+        (void)timer;
+        vt->vt.sync_output_timer = (XtIntervalId)0;
+        XtpLog(XTP_LOG_INFO, "render",
+               "synchronized output timeout after %u ms; releasing held updates=%u",
+               (unsigned int)XTP_SYNC_OUTPUT_TIMEOUT_MS, vt->vt.sync_output_held);
+        if (vt->vt.terminal != NULL &&
+            XtpTerminalSetMode(vt->vt.terminal, XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT, false) != 0)
+                XtpLog(XTP_LOG_ERROR, "render", "cannot reset synchronized output mode");
+        XtpVtUpdate((Widget)vt);
+}
+
+static Boolean
+SynchronizedOutputEnabled(Vt100Rec *vt)
+{
+        bool enabled = false;
+
+        if (vt->vt.terminal == NULL ||
+            XtpTerminalGetMode(vt->vt.terminal, XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT, &enabled) !=
+                0)
+                return False;
+        return enabled ? True : False;
+}
+
+static void
+ArmSynchronizedOutputTimer(Vt100Rec *vt)
+{
+        if (vt->vt.sync_output_timer == (XtIntervalId)0)
+                vt->vt.sync_output_timer =
+                    XtAppAddTimeOut(XtWidgetToApplicationContext((Widget)vt),
+                                    XTP_SYNC_OUTPUT_TIMEOUT_MS, SynchronizedOutputTimeout, vt);
+}
+
+/* DEC private mode 2026: keep the last complete frame until the batch ends. */
+static Boolean
+HoldSynchronizedOutput(Vt100Rec *vt, Boolean *force_full)
+{
+        if (SynchronizedOutputEnabled(vt)) {
+                ++vt->vt.sync_output_held;
+                ArmSynchronizedOutputTimer(vt);
+                XtpLog(XTP_LOG_DEBUG, "render", "synchronized output hold updates=%u",
+                       vt->vt.sync_output_held);
+                return True;
+        }
+        *force_full = vt->vt.sync_output_full_redraw;
+        if (vt->vt.sync_output_held != 0 || vt->vt.sync_output_timer != (XtIntervalId)0 ||
+            vt->vt.sync_output_full_redraw) {
+                XtpLog(XTP_LOG_DEBUG, "render",
+                       "synchronized output released updates=%u full-redraw=%s",
+                       vt->vt.sync_output_held, *force_full ? "true" : "false");
+                CancelSynchronizedOutputTimer(vt);
+                vt->vt.sync_output_held = 0;
+                vt->vt.sync_output_full_redraw = False;
+        }
+        return False;
+}
+
+/* Overlay-only repaints (hover hints) wait for release, which then redraws fully. */
+Boolean
+VtDeferSynchronizedRedraw(Vt100Rec *vt)
+{
+        if (!SynchronizedOutputEnabled(vt))
+                return False;
+        vt->vt.sync_output_full_redraw = True;
+        ArmSynchronizedOutputTimer(vt);
+        XtpLog(XTP_LOG_DEBUG, "render", "synchronized output deferred full redraw");
+        return True;
+}
+
 void
 XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
 {
         Vt100Rec *vt = VtAsRecord(widget);
 
         vt->vt.terminal = terminal;
+        CancelSynchronizedOutputTimer(vt);
+        vt->vt.sync_output_held = 0;
+        vt->vt.sync_output_full_redraw = False;
         if (terminal == NULL) {
                 XtpLog(XTP_LOG_INFO, "terminal", "bound terminal=no");
                 return;
@@ -1766,6 +1853,7 @@ void
 XtpVtUpdate(Widget widget)
 {
         Vt100Rec *vt = VtAsRecord(widget);
+        Boolean force_full = False;
 
         if (vt->vt.viewport_update_timer != (XtIntervalId)0) {
                 XtRemoveTimeOut(vt->vt.viewport_update_timer);
@@ -1774,8 +1862,10 @@ XtpVtUpdate(Widget widget)
         }
         if (!XtIsRealized(widget) || vt->vt.terminal == NULL)
                 return;
+        if (HoldSynchronizedOutput(vt, &force_full))
+                return;
         XtpLog(XTP_LOG_DEBUG, "render", "dirty update requested");
-        if (VtRenderTerminal(vt, False) != 0)
+        if (VtRenderTerminal(vt, force_full) != 0)
                 XtpLog(XTP_LOG_ERROR, "render", "dirty update failed");
 }
 

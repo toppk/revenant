@@ -111,8 +111,8 @@ libghostty grid through Xlib bitmap fonts or Xft, handles resize with reflow,
 scrollback with the real Athena scrollbar, font switching from the font menu
 or Shift+keypad, [named X11 selection with middle-button
 paste](usage/copy-paste.md), [hyperlinks](usage/hyperlinks.md),
-application mouse and focus reporting, and the mode toggles in the main and VT
-menus. Startup cursor-shape resources and the sixteen-color ANSI palette are
+application mouse and focus reporting, synchronized output (DEC private mode
+2026), and the mode toggles in the main and VT menus. Startup cursor-shape resources and the sixteen-color ANSI palette are
 implemented; Kitty graphics are on the roadmap. Application-selected block, underline, and bar
 cursors and blink requests work now. Menu entries and options that are not
 implemented yet stay visible but insensitive, so the UI never claims more than

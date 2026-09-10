@@ -51,6 +51,7 @@ typedef struct
 
 #define XTP_RECENT_KEY_ACTIONS 16
 #define XTP_SCROLL_RENDER_DELAY_MS 8
+#define XTP_SYNC_OUTPUT_TIMEOUT_MS 1000
 #define XTP_SELECTION_AUTOSCROLL_MS 15
 
 typedef enum
@@ -234,6 +235,9 @@ typedef struct
         XtIntervalId cursor_blink_timer;
         XtIntervalId viewport_update_timer;
         unsigned int viewport_updates_coalesced;
+        XtIntervalId sync_output_timer;
+        unsigned int sync_output_held;
+        Boolean sync_output_full_redraw;
         Boolean suppress_grid_resize;
         XIM input_method;
         XIC input_context;
@@ -273,6 +277,7 @@ void VtFontReloadApplied(Vt100Rec *vt);
 Dimension VtScrollbarTotalWidth(Vt100Rec *vt);
 void VtUpdateScrollbar(Vt100Rec *vt);
 Boolean VtScrollViewportBy(Vt100Rec *vt, intptr_t rows);
+Boolean VtDeferSynchronizedRedraw(Vt100Rec *vt);
 Boolean VtAcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action);
 Boolean VtLocalKeyActionOwnsEvent(Vt100Rec *vt, const XKeyEvent *event, Boolean release);
 

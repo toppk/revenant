@@ -530,7 +530,7 @@ SetHoveredHyperlink(Vt100Rec *vt, int x, int y, unsigned int state)
                                   target.length);
         else
                 XtpLog(XTP_LOG_DEBUG, "hyperlink", "hover cleared");
-        if (XtIsRealized((Widget)vt) && vt->vt.terminal != NULL) {
+        if (XtIsRealized((Widget)vt) && vt->vt.terminal != NULL && !VtDeferSynchronizedRedraw(vt)) {
                 if (VtRenderTerminal(vt, True) != 0)
                         XtpLog(XTP_LOG_ERROR, "hyperlink", "hover repaint failed");
                 XFlush(XtDisplay((Widget)vt));

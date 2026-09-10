@@ -172,6 +172,27 @@ protocol surface. Except for the default fixterms distinctions described
 above, those extra event forms are emitted only after an application requests
 the corresponding Kitty flags.
 
+### Synchronized output (DEC private mode 2026)
+
+Stock xterm patch 411 ignores DEC private mode 2026. Revenant honors it:
+while an application has the mode set, output still reaches the terminal core
+but the window keeps its last complete frame, and the batch is painted once
+when the application resets the mode, unless a resize or the timeout below
+intervenes. This removes the tearing that full-screen
+programs such as editors and TUI dashboards otherwise show while they redraw.
+
+A one-second timeout guards against an application that never resets the
+mode. When it fires, Revenant paints the pending output and resets mode 2026
+itself, so a later `DECRQM` query reports the mode as reset.
+
+An ordinary expose during a hold repaints the cached last complete frame and
+keeps holding. Events that invalidate that cache, such as a window resize or a
+font change, paint the current terminal state at the new geometry instead,
+since a stale frame at the old geometry is worse than a partial one; the mode
+stays set across a host resize and the pending update is still painted when
+the application releases the batch. Hyperlink hover feedback requested during
+a hold is deferred and applied by a full repaint at release.
+
 ### Compositor-backed background opacity
 
 Revenant adds a `backgroundOpacity` resource, expressed as a number from `0.0`

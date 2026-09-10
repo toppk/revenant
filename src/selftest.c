@@ -1792,6 +1792,60 @@ done:
 }
 
 static int
+SelfTestSynchronizedOutput(void)
+{
+        static const uint8_t enable[] = "\033[?2026h\033[?2026$p";
+        static const uint8_t disable[] = "\033[?2026l\033[?2026$p";
+        static const uint8_t query[] = "\033[?2026$p";
+        static const uint8_t set_report[] = "\033[?2026;1$y";
+        static const uint8_t reset_report[] = "\033[?2026;2$y";
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestCapturePty,
+            .closure = &capture,
+        };
+        bool enabled = true;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        if (XtpTerminalGetMode(terminal, XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT, &enabled) != 0 ||
+            enabled)
+                goto done;
+        XtpTerminalFeed(terminal, enable, sizeof(enable) - 1U);
+        if (XtpTerminalGetMode(terminal, XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT, &enabled) != 0 ||
+            !enabled || !SelfTestPtyEquals(&capture, set_report, sizeof(set_report) - 1U))
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        XtpTerminalFeed(terminal, disable, sizeof(disable) - 1U);
+        if (XtpTerminalGetMode(terminal, XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT, &enabled) != 0 ||
+            enabled || !SelfTestPtyEquals(&capture, reset_report, sizeof(reset_report) - 1U))
+                goto done;
+        /* The widget's timeout resets the mode; DECRQM must report that. */
+        XtpTerminalFeed(terminal, enable, sizeof(enable) - 1U);
+        capture = (SelfTestPtyCapture){0};
+        if (XtpTerminalSetMode(terminal, XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT, false) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, query, sizeof(query) - 1U);
+        if (XtpTerminalGetMode(terminal, XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT, &enabled) != 0 ||
+            enabled || !SelfTestPtyEquals(&capture, reset_report, sizeof(reset_report) - 1U))
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "synchronized output mismatch enabled=%s report length=%zu",
+                       enabled ? "true" : "false", capture.used);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 SelfTestCursorBlinkReports(void)
 {
         static const uint8_t coalesced_query_reset[] = "\033[?12$p\033[?12l";
@@ -2193,6 +2247,7 @@ XtpSelfTest(void)
             {"scrollback-selection", SelfTestSelectionScrollback},
             {"tty-output scroll", SelfTestScrollTtyOutput},
             {"focus", SelfTestFocus},
+            {"synchronized output", SelfTestSynchronizedOutput},
             {"Kitty keyboard", SelfTestKittyKeyboardState},
             {"mouse", SelfTestMouse},
         };

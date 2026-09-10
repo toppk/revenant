@@ -24,6 +24,7 @@ with any result.
 | `tools/probe-emoji.py` | CPR-measured legacy-versus-mode-2027 widths for emoji presentation, modifiers, ZWJ sequences, flags, cluster boundaries, right-margin wrapping, and over-capacity clusters. |
 | `tools/probe-fonts.py` | CPR-measured widths plus visual diagnostics for combining marks, conjuncts, enclosing and spanning marks, and Zalgo-style stacking. |
 | `tools/probe-keymodes.py` | Cooked input, raw bytes, fixterms drift, Kitty flags, associated text, event types, and flag-stack restoration. |
+| `tools/probe-sync.py` | Slow redraw comparison with DEC mode 2026 off/on, with an optional mid-frame hold for timeout and resize checks. |
 
 Examples:
 
@@ -38,10 +39,31 @@ python3 tools/probe-emoji.py --regime legacy
 python3 tools/probe-emoji.py --regime cluster
 python3 tools/probe-fonts.py --no-pause
 python3 tools/probe-keymodes.py --kitty-only
+python3 tools/probe-sync.py
+python3 tools/probe-sync.py --mode off
+python3 tools/probe-sync.py --mode on
+python3 tools/probe-sync.py --mode on --frames 3 --hold-ms 1500
 ```
 
 The equivalent `just` recipes are `probe-color`, `probe-colors`, `probe-reverse-video`,
-`probe-osc8`, `probe-emoji`, `probe-fonts`, and `probe-keymodes`.
+`probe-osc8`, `probe-emoji`, `probe-fonts`, `probe-keymodes`, and `probe-sync`.
+
+The synchronized-output probe draws alternating colored frames one row at a
+time. By default it runs eight frames with synchronization off, then eight
+with it on. Off should show a moving boundary between old and new rows; on
+should show complete frames swapping together. The label reports the requested
+mode, not detected support: terminals that ignore mode 2026 may show the sweep
+in both phases. Run directly in the terminal when comparing emulators;
+multiplexers can affect the result.
+
+`--frame-ms` controls the total row-drawing delay (default 400 ms), and
+`--pause-ms` controls the pause between frames (default 150 ms). Keep
+`--frame-ms` plus `--hold-ms` comfortably below Revenant's one-second timeout
+for the normal comparison. With `--mode on --hold-ms 1500`, the probe pauses
+halfway through each frame: the timeout should reveal a partial frame before
+the remaining rows arrive. Resize during a hold to observe the geometry
+repaint exception; the next frame adapts to the new size. Ctrl+C exits, resets
+mode 2026, restores cursor visibility, and leaves the alternate screen.
 
 For a sequence that differs between terminals, render it directly from the
 suspected font with `hb-shape` and `hb-view`; the

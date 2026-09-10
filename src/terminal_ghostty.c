@@ -197,6 +197,8 @@ ConvertMode(XtpTerminalMode mode)
                 return GHOSTTY_MODE_KEYPAD_KEYS;
         case XTP_TERMINAL_MODE_ALLOW_132:
                 return GHOSTTY_MODE_ENABLE_MODE_3;
+        case XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT:
+                return GHOSTTY_MODE_SYNC_OUTPUT;
         case XTP_TERMINAL_MODE_COUNT:
                 break;
         }
@@ -525,6 +527,7 @@ XtpTerminalResize(XtpTerminal *terminal, uint16_t columns, uint16_t rows, uint32
                   uint32_t cell_height)
 {
         GhosttyResult result;
+        bool synchronized = false;
 
         if (terminal == NULL)
                 return -1;
@@ -532,9 +535,16 @@ XtpTerminalResize(XtpTerminal *terminal, uint16_t columns, uint16_t rows, uint32
         XtpLog(XTP_LOG_INFO, "terminal", "resize grid=%ux%u cell=%ux%u", columns, rows, cell_width,
                cell_height);
 
+        /* libghostty clears DEC mode 2026 on resize; a host resize must not end the batch. */
+        if (XtpTerminalGetMode(terminal, XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT, &synchronized) != 0)
+                synchronized = false;
         result = ghostty_terminal_resize(terminal->handle, columns, rows, cell_width, cell_height);
         if (result != GHOSTTY_SUCCESS)
                 return -1;
+        if (synchronized &&
+            XtpTerminalSetMode(terminal, XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT, true) != 0)
+                XtpLog(XTP_LOG_ERROR, "terminal",
+                       "cannot preserve synchronized output across resize");
         terminal->geometry_columns = columns;
         terminal->geometry_rows = rows;
         terminal->geometry_cell_width = cell_width;

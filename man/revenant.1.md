@@ -23,8 +23,8 @@ widget, the Ctrl+button popup menus, the bitmap and TrueType font slots, and
 the translation vocabulary. An existing xterm configuration in
 *~/.Xresources* applies to **revenant** unchanged. Underneath that interface
 the terminal engine is **libghostty-vt**, which supplies resize reflow, 24-bit
-colour, current mouse and focus reporting, grapheme-aware cell width, and the
-kitty keyboard protocol.
+colour, current mouse and focus reporting, synchronized output (DEC private
+mode 2026), grapheme-aware cell width, and the kitty keyboard protocol.
 
 Without arguments **revenant** runs the shell named by **SHELL**, or */bin/sh*
 if that is unset, and sets **TERM** to **xterm-256color**. Everything after

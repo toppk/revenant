@@ -472,6 +472,21 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-sync-output',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-sync-output.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            python3.full_path(),
+            files('tests/sync-output.py'),
+            resize_test_tool.full_path(),
+            hover_test_tool.full_path(),
+        ],
+        timeout: 60,
+        is_parallel: false,
+    )
+    test(
         'xvfb-report-config',
         find_program('sh'),
         args: [

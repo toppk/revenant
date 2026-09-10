@@ -9,6 +9,7 @@ Human-run terminal verification programs are named
 - `probe-emoji.py`
 - `probe-fonts.py`
 - `probe-keymodes.py`
+- `probe-sync.py`
 
 See [`docs/reference/probes.md`](../docs/reference/probes.md) for their scope
 and usage. Other files in this directory are build, import, or profiling

@@ -45,7 +45,8 @@ For an xterm user, the goal is a familiar window: the `XTerm` resource class,
 the `vt100` widget, Ctrl+mouse-button menus, configured bitmap and Xft font
 slots, and the same `.Xresources` vocabulary. Under that interface, Revenant
 adds a modern terminal engine with resize reflow, 24-bit color, current mouse
-and focus protocols, robust grapheme state, and the Kitty keyboard protocol.
+and focus protocols, synchronized output, robust grapheme state, and the Kitty
+keyboard protocol.
 
 > **Project status:** Revenant is early and not yet a complete xterm replacement.
 > Unsupported menu entries remain visible but insensitive, and accepted but

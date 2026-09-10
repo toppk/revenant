@@ -62,6 +62,10 @@ reflow-resize window: build-gcc
 probe-keymodes *args:
     python3 tools/probe-keymodes.py {{args}}
 
+# Compare slow redraws with synchronized output off and on.
+probe-sync *args:
+    python3 tools/probe-sync.py {{args}}
+
 # Display the SGR attribute and color sampler
 probe-color:
     tools/probe-color.sh

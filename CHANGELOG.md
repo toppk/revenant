@@ -8,9 +8,14 @@ artifacts take their version from the tag, not from the development version in
 
 ## 0.7.0 — Unreleased
 
-### Other
+### Features
 
-- Development changes will be recorded here.
+- Honor synchronized output (DEC private mode 2026): dirty updates are held
+  while an application batches a redraw and painted once it releases the mode,
+  so batched redraws no longer tear. A one-second timeout releases and resets
+  a batch the application never closes. An expose during a hold repaints the
+  last complete frame; a resize repaints the current state at the new grid
+  while keeping the mode set and the pending update intact.
 
 ## 0.6.1 — 2026-09-06
 
