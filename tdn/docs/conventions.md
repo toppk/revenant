@@ -69,7 +69,12 @@ tags:
 policy](policies/window-ops.md). On a page covering other controls too, name
 the affected sequences beside their descriptions. In particular, title
 reports and title stacks belong to this category, while OSC 0/1/2 title
-setting uses a separate policy. Labels link to the [feature index](tags.md).
+setting uses **Title Ops**. That label identifies [xterm's title-changing
+policy](policies/title-ops.md), including applying saved labels on pop. Pages
+can carry both labels; explain their scope beside each affected feature.
+Reports and pushes are Window Ops, while a pop checks Window Ops for the
+stack operation and Title Ops for applying its labels. Labels link to the
+[feature index](tags.md).
 
 ## Compatibility tables
 

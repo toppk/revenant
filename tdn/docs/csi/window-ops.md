@@ -1,6 +1,7 @@
 ---
 tags:
   - Window Ops
+  - Title Ops
 ---
 
 # XTWINOPS: window operations
@@ -71,6 +72,11 @@ was there without reading it, which `21` allows only when the user has
 opted in. The stack depth is small (xterm: 10). See
 [OSC titles](../osc/title.md).
 
+**Title Ops:** applying saved labels after a permitted `23` also checks
+[Title Ops](../policies/title-ops.md). With that permission disabled, a normal
+pop consumes the entry but leaves the labels unchanged. This label applies
+to that restoration step, not the other window operations on this page.
+
 ## Compatibility
 
 <!-- markdownlint-disable MD013 -->
@@ -80,8 +86,8 @@ opted in. The stack depth is small (xterm: 10). See
 | `18` size in cells | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | Yes | Yes |
 | `14`/`16` pixel sizes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | Yes (3.4+ relays) |
 | `22`/`23` title stack | Yes | Yes | ? | ? | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | ? |
-| `21` title report | Allowed | ? | ? | ? | ? | ? | ? | ? | ? | Allowed | ? | ? | ? | ? | ? |
-| Move/resize (`3`,`4`,`8`) | Allowed | ? | ? | ? | Partial | ? | ? | ? | ? | Allowed | ? | ? | Yes | ? | ? |
+| `21` title report | Gated | ? | ? | ? | ? | ? | ? | ? | ? | Gated | ? | ? | ? | ? | ? |
+| Move/resize (`3`,`4`,`8`) | Gated | ? | ? | ? | Partial | ? | ? | ? | ? | Gated | ? | ? | Yes | ? | ? |
 | `?2048` in-band resize | ? | ? | ? | Yes | Yes | Yes | Yes | ? | Yes | ? | ? | ? | ? | ? | ? |
 
 <!-- markdownlint-enable MD013 -->

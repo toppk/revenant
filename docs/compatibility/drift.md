@@ -213,6 +213,44 @@ reply formatter and recorded as upstream asks:
   immediately; turning it off restores the configured `disallowedWindowOps`
   restrictions.
 
+### XTWINOPS title stack and title reports
+
+Revenant implements xterm's title stack (`CSI 22 ; Ps t` saves, `CSI 23 ; Ps t`
+restores) and title reports (`CSI 20 t` icon name, `CSI 21 t` window title),
+under the same Window Ops policy as OSC 52. With xterm's defaults the stack is
+available and both reports are refused silently; `allowWindowOps: true`, the
+**Allow Window Ops** menu toggle, or removing `GetIconTitle`/`GetWinTitle`
+from `disallowedWindowOps` enables them. `PushTitle`, `PopTitle`, and xterm's
+numeric codes 20-23 are accepted in the list.
+
+The stack copies xterm patch 411: ten entries in a ring whose oldest entry is
+dropped on overflow, `Ps` 0/1/2 for both labels, icon name, or title with an
+omitted or out-of-range value behaving like xterm (an out-of-range push saves
+an empty entry), a third parameter addressing a slot directly, a missing label
+taken from the nearest older entry, and a pop of an empty stack ignored.
+Reports are always 7-bit `ESC ] l text ESC \` and `ESC ] L text ESC \` with
+the label taken from the shell's current title and icon name.
+
+libghostty parses these sequences but discards them without a callback, and
+does not implement `CSI 20 t` at all. Rather than a second escape parser,
+Revenant's existing cursor-blink control observer reports the four operations
+and flushes preceding output to libghostty first so the saved title is the one
+the application just set. This is recorded as an upstream API ask alongside
+the observer's own removal note. Remaining differences from xterm:
+
+- OSC 1 icon-name changes are not surfaced by libghostty, so the icon name
+  stays the `iconName` resource value and an icon report or icon push sees
+  that value; OSC 0 updates only the title.
+- `titleModes` (hex-encoded reports, `CSI > Ps t`) is not implemented.
+- `allowSendEvents` does not disable `allowWindowOps` or `allowTitleOps`.
+
+`allowTitleOps` defaults to true and the **Allow Title Ops** menu entry
+changes it immediately. False blocks the displayed title changes exposed by
+libghostty and applying saved labels on pop. A permitted pop still consumes
+its stack entry, matching xterm. Reports and pushes remain governed by Window
+Ops, independently of this setting. The OSC 1/OSC 0 icon limitation above
+also applies when Title Ops is enabled.
+
 ### Synchronized output (DEC private mode 2026)
 
 Stock xterm patch 411 ignores DEC private mode 2026. Revenant honors it:

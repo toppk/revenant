@@ -26,6 +26,7 @@ with any result.
 | `tools/probe-keymodes.py` | Cooked input, raw bytes, fixterms drift, Kitty flags, associated text, event types, and flag-stack restoration. |
 | `tools/probe-sync.py` | Slow redraw comparison with DEC mode 2026 off/on, with an optional mid-frame hold for timeout and resize checks. |
 | `tools/probe-clipboard.py` | OSC 52 selection set, clear, invalid-payload, and query with decoded replies, for comparing `allowWindowOps` policy across emulators. |
+| `tools/probe-titles.py` | Title/icon reports (XTWINOPS 20/21), nested push/pop (22/23), and visible title restoration. |
 
 Examples:
 
@@ -47,11 +48,14 @@ python3 tools/probe-sync.py --mode on --frames 3 --hold-ms 1500
 python3 tools/probe-clipboard.py
 python3 tools/probe-clipboard.py --target p --set "from OSC 52"
 python3 tools/probe-clipboard.py --query --st
+python3 tools/probe-titles.py
+python3 tools/probe-titles.py --query
+python3 tools/probe-titles.py --target title --delay 2
 ```
 
 The equivalent `just` recipes are `probe-color`, `probe-colors`, `probe-reverse-video`,
 `probe-osc8`, `probe-emoji`, `probe-fonts`, `probe-keymodes`, `probe-sync`, and
-`probe-clipboard`.
+`probe-clipboard`, and `probe-titles`.
 
 The synchronized-output probe draws alternating colored frames one row at a
 time. By default it runs eight frames with synchronization off, then eight
@@ -115,3 +119,27 @@ Ctrl+right-click menu, or start the terminal with
 that receives no reply within the timeout reports the denial. `--invalid`
 sends a payload that is not base64 to show whether the emulator clears the
 selection, as xterm does, or ignores the request.
+
+The title probe runs an Enter-paced **original → A → B → A → original**
+demo, using two nested pushes and matching pops. It requests distinct title
+and icon labels and prints decoded reports at each stage; `--target title`
+or `--target icon` isolates one label. `--query` only reads current labels.
+`--delay 2` displays each stage for two seconds after its queries instead of
+waiting for Enter. Ctrl+C requests any outstanding pops and restores terminal
+input settings. Restoring the original labels depends on the terminal
+supporting and permitting the stack operations; requests are not proof of
+support. Shell prompt hooks may replace the title when the probe exits.
+
+In xterm, compare `--query` with **Allow Window Ops** unchecked and checked:
+the default deny list blocks `GetIconTitle` and `GetWinTitle`, while permitting
+`PushTitle` and `PopTitle`. OSC 0/1/2 title setting uses the separate
+`allowTitleOps` permission, controlled by **Allow Title Ops** in the same
+Ctrl+right-click menu. Disable it before starting the demo to confirm that
+title changes and restoration are blocked while permitted reports still work.
+Older Revenant builds that apply Window Ops only
+to clipboard access do not enable title reports when the toggle is checked.
+The probe distinguishes an empty reported title from no reply, so it can
+compare those builds with implementations of title reporting.
+Keep permissions unchanged during a stack demo, then
+rerun to compare configurations. Run directly outside tmux/screen to observe
+the emulator's own behavior.

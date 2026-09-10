@@ -1,6 +1,7 @@
 ---
 tags:
   - Window Ops
+  - Title Ops
 ---
 
 # Window title
@@ -11,9 +12,10 @@ OSC 0, 1, and 2 set the text an emulator shows in its window title bar, tab,
 or icon. They are the oldest OSCs in wide use and the one most shells emit by
 default.
 
-**Window Ops:** the title reports and title stack below belong to
-[xterm's Window Ops policy](../policies/window-ops.md). Setting a title with
-OSC 0/1/2 is controlled separately by `allowTitleOps`.
+**Title Ops:** OSC 0/1/2 label changes and applying saved labels on pop use
+[xterm's Title Ops policy](../policies/title-ops.md).
+**Window Ops:** reports and stack operations use the separate
+[Window Ops policy](../policies/window-ops.md). A pop involves both checks.
 
 ## Syntax
 
@@ -56,6 +58,10 @@ CSI 23 ; 2 t    pop title
 The stack is bounded (10 entries in xterm). See
 [Window operations](../csi/window-ops.md) for the rest of XTWINOPS.
 
+`PushTitle` and `PopTitle` govern the stack operations. Applying labels after
+a permitted pop also requires Title Ops: with `allowTitleOps` false, a normal
+pop consumes its entry but leaves the visible labels unchanged.
+
 ### Title reports: XTWINOPS 20 and 21
 
 `CSI 20 t` and `CSI 21 t` ask the terminal to report the icon name and title
@@ -64,6 +70,28 @@ as `OSC L Pt ST` and `OSC l Pt ST`. xterm disables both by default
 sets the title to a shell command and then requests it back has typed that
 command. Most emulators either do not implement the reports or answer with an
 empty title. Do not depend on them.
+
+### Title encoding modes
+
+```text
+CSI > Pm t    XTSMTITLE: enable title encoding features
+CSI > Pm T    XTRMTITLE: reset title encoding features
+```
+
+Each parameter selects one feature. The `titleModes` resource supplies a
+bitmask, with bit `n` corresponding to parameter `n` below.
+
+| Parameter | Feature |
+| --- | --- |
+| `0` | Set window/icon labels using hexadecimal |
+| `1` | Report window/icon labels using hexadecimal |
+| `2` | Set window/icon labels using UTF-8 |
+| `3` | Report window/icon labels using UTF-8 |
+
+Without parameters, both sequences restore the compiled-in title-mode defaults.
+These settings select encoding; they do not grant permission to change or
+report labels. `utf8Title` also enables UTF-8 title input and EWMH label
+properties. See [Title Ops policy](../policies/title-ops.md) for the distinction.
 
 ## Compatibility
 

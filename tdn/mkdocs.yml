@@ -62,6 +62,7 @@ nav:
       - Standards and specifications: standards.md
       - Feature labels: tags.md
       - Window Ops policy: policies/window-ops.md
+      - Title Ops policy: policies/title-ops.md
   - Terminals:
       - Landscape: terminals/index.md
       - xterm: terminals/xterm.md

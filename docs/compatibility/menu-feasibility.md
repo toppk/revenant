@@ -121,7 +121,7 @@ configured and forced policy.
 | allow-font-ops | Gate OSC 50 | Not routed | Moot until fontescape | BLOCKED |
 | allow-mouse-ops | Gate mouse reports | Mouse encoder (Roadmap #3) | Skip emitting | ROADMAP |
 | allow-tcap-ops | Gate XTGETTCAP | Ghostty answers itself (`OPT_TERMINFO_NAME`) | Needs option | BLOCKED |
-| allow-title-ops | Gate OSC 0/1/2 + reports | Title callback, `OPT_TITLE_REPORT` | Trivial | READY |
+| allow-title-ops | Gate displayed title changes and applying saved labels | Title callback and pop path | Live toggle; OSC 1/icon changes still lack a backend callback; reports use Window Ops | PARTIAL |
 | allow-window-ops | Toggle window-operation permissions | OSC 52 clipboard callbacks | Live OSC 52 read/write policy; other window operations remain pending | PARTIAL |
 
 <!-- markdownlint-enable MD013 -->
@@ -150,7 +150,7 @@ record "Tek 4014 not planned" in the [xterm differences ledger](drift.md).
 
 1. Slice A: the generic mode helper and eight mode-backed items are complete.
    Continue with signals ×6; allowsends; visualbell/bellIsUrgent/
-   poponbell; utf8-title; allow-title-ops; delete-is-del; and logging.
+   poponbell; utf8-title; delete-is-del; and logging.
 2. Slice B, ride the roadmap: scrollbar family with #2; selection policies
    and fontsel with #4; allow-mouse-ops with #3; allow-color-ops,
    allow-bold-fonts, font-linedrawing, font-packed with #5.

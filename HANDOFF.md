@@ -330,6 +330,19 @@ function-pointer helper would lose the useful type check.
   autolinefeed, application cursor keys, and application keypad mode.
 - Progressive output rendering, a last-painted cell cache, and cursor-only
   repaint support when libghostty reports no cell damage.
+- XTWINOPS title stack and reports: libghostty parses `CSI 20-23 t` but
+  exposes no hook, so the cursor-blink control observer also reports those
+  four operations (flushing preceding output first so titles are current);
+  `main.c` applies the Window Ops policy per operation, answers 20/21 with
+  xterm's 7-bit `OSC L`/`OSC l` replies read from the shell's WM properties,
+  and drives `title_stack.c`, a copy of xterm's ten-entry ring with direct
+  slot access, empty-entry quirks, and unclamped `used` counting. Pop applies
+  the saved labels to the shell and to libghostty's title when `allowTitleOps`
+  is enabled. The **Allow Title Ops** menu toggles that resource live (default
+  true), gating application title changes and applying saved labels while
+  leaving reports and stack permissions under Window Ops. A permitted pop
+  consumes its entry even when title changes are disabled. `xvfb-title-ops`
+  checks startup policy, actual menu clicks, live changes, and visible labels.
 - OSC 52 selection access: libghostty decodes the request and calls the
   clipboard write/read effects; `main.c` applies `allowWindowOps` and
   `disallowedWindowOps` (parsed by `window_ops.c`) plus `maxStringParse`, and
@@ -340,9 +353,9 @@ function-pointer helper would lose the useful type check.
   **Allow Window Ops** menu toggle updates that effect and the write policy
   at runtime; `xvfb-window-ops` covers enable/disable and restoration of a
   configured set-only policy.
-  This is partial Window Ops support: only `GetSelection` and `SetSelection`
-  currently consult the policy. Existing XTWINOPS size reports are not yet
-  gated by it. See the completion plan below before claiming full support.
+  This is partial Window Ops support: `GetSelection`, `SetSelection`, and the
+  four title operations consult the policy. Existing XTWINOPS size reports
+  are not yet gated by it. See the completion plan below before claiming full support.
   libghostty's parser accepts one selection letter; `q`, cut-buffer digits,
   lists, and the `s0` default are recorded in the drift ledger.
 - Synchronized output (DEC private mode 2026): the widget holds dirty updates
@@ -955,6 +968,57 @@ cannot establish those behaviors alone. Keep unsupported operations and
 upstream blockers explicitly partial until they work end to end, and run the
 maintained compiler/backend, sanitizer, formatting, and documentation matrix.
 
+### Complete xterm Title Ops compatibility — open
+
+The live **Allow Title Ops** toggle and `allowTitleOps` resource are
+implemented, defaulting to true. They gate the displayed title changes
+exposed by libghostty and applying saved labels on pop. Title reports,
+pushes, and pops separately consult Window Ops; a permitted normal pop
+consumes its entry even when Title Ops blocks applying the labels. Preserve
+that tested separation. TDN's [Title Ops inventory](tdn/docs/policies/title-ops.md)
+records the policy scope and its overlap with Window Ops.
+
+The patch-411 source audit leaves these gaps:
+
+- **Independent icon-name changes.** Surface OSC 1 and the icon half of OSC 0
+  through a backend effect, so OSC 0 updates both labels and OSC 1 changes
+  only the icon. Both must obey the live Title Ops permission. Preserve OSC 2
+  as a window-title-only update. Seek a libghostty callback carrying the
+  selector rather than adding another OSC parser.
+- **Title encoding modes.** Implement the `titleModes` resource and
+  XTSMTITLE/XTRMTITLE (`CSI > Pm t` / `CSI > Pm T`), including hexadecimal
+  input/output, UTF-8 input/output, and default/reset semantics. Input decoding
+  belongs to the Title Ops path; report encoding is companion work under the
+  Window Ops report permission, not another Title Ops authorization check.
+- **UTF-8 title resources and properties.** Implement `utf8Title` and the
+  `utf8-title` menu/action, with the patch-411 locale and `allowC1Printable`
+  interactions. Synchronize ICCCM `WM_NAME`/`WM_ICON_NAME` and EWMH
+  `_NET_WM_NAME`/`_NET_WM_ICON_NAME`, including deleting stale EWMH labels
+  when the encoding policy requires it. The current setter only calls Xt's
+  title/icon resources; reading UTF-8 WM properties does not complete this.
+- **Title normalization and limits.** Match `ChangeGroup`'s title-path
+  control-character normalization, hex validation, and 1000-byte rejection
+  before decoding. The pop path has the 1000-byte check, but ordinary OSC
+  title changes currently use libghostty's 1024-byte truncation and no matching
+  frontend rejection. Cover non-ASCII labels, invalid input, and boundary
+  lengths rather than claiming parity from ASCII examples.
+- **Resource/action parity.** Register `allow-title-ops(on/off/toggle)` in the
+  translation action table, using the same live state and checkmark as the
+  menu. Honor xterm's `allowSendEvents` interaction: it disables effective
+  Title Ops and makes the permission toggle insensitive. Audit and implement
+  the `sameName` resource's suppression of redundant title/icon property
+  updates. These remain missing despite the working menu toggle.
+
+Use `misc.c` (`ChangeGroup` and label setters), `charproc.c` (OSC dispatch,
+title modes, and reports), `ptyx.h` (`AllowTitleOps`/`AllowXtermOps`), and
+`menu.c` in the pinned xterm checkout as the source oracle. Acceptance must
+compare actual ICCCM/EWMH properties and exact report bytes against xterm,
+with an isolated HOME and relevant locales, and cover menu and translation
+actions plus permitted/denied operations. Preserve the completed external-WM
+property and stack regressions. Keep unresolved backend hooks and deliberate
+differences explicit; neither a working toggle nor title reports alone means
+full Title Ops compatibility.
+
 ### Preserve for future releases
 
 The broader ideas remain project direction rather than v0.5 promises:
@@ -1112,15 +1176,16 @@ baseline; emoji routing, shaping, width regimes, and color-font formats;
 opacity/reverse-video pixel policy and logging thresholds; named selections,
 cut buffers, and OSC 8 launch policy; legacy/fixterms keyboard delivery;
 Kitty keyboard press, repeat, and release; synchronized-output hold,
-timeout, and resize behavior; and OSC 52 policy, selection ownership, and
-exact query replies. Release package configurations use
+timeout, and resize behavior; OSC 52 policy, selection ownership, and exact
+query replies; and XTWINOPS title stack restoration, exact title reports,
+and the live Allow Window Ops toggle. Release package configurations use
 `-Dxvfb-tests=enabled`, which makes missing Xvfb or libghostty an immediate
 configuration error, and `tools/check-release-tests` rejects skipped suites.
 The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 34 tests for each libghostty build
+The normal full matrix currently contains 36 tests for each libghostty build
 and 7 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

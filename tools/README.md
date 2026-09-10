@@ -11,6 +11,7 @@ Human-run terminal verification programs are named
 - `probe-keymodes.py`
 - `probe-sync.py`
 - `probe-clipboard.py`
+- `probe-titles.py`
 
 See [`docs/reference/probes.md`](../docs/reference/probes.md) for their scope
 and usage. Other files in this directory are build, import, or profiling

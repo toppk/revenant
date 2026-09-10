@@ -52,7 +52,9 @@ with `~pattern` re-allowing matching names, in list order. For example,
 Some operations depend on xterm build options or the emulated VT level.
 The policy names and checks above follow the repository's patch 411 source.
 
-Setting titles with OSC 0/1/2 instead uses `allowTitleOps`. Font operations
+Setting titles with OSC 0/1/2 uses [Title Ops](title-ops.md). Applying saved
+labels after a permitted pop also checks Title Ops; consuming a normal stack
+entry and applying its labels are separate steps. Font operations
 have `allowFontOps`; color and terminal-capability operations have their
 own policies. A control affecting a window does not automatically belong
 to Window Ops.
