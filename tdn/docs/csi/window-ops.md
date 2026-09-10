@@ -1,3 +1,8 @@
+---
+tags:
+  - Window Ops
+---
+
 # XTWINOPS: window operations
 
 Status: xterm, derived from dtterm; most reports are widely implemented,
@@ -7,30 +12,31 @@ most manipulations are not.
 CSI Ps ; Ps ; Ps t
 ```
 
-XTWINOPS covers window manipulation, size reports, and the title stack. It
-is the most frequently disabled sequence family because moving, resizing,
-and reading titles are attack surface; xterm's `allowWindowOps` resource
-defaults to false and gates everything except the report of size in
-characters and pixels.
+XTWINOPS covers window manipulation, size reports, and the title stack.
+These controls belong to [xterm's Window Ops policy](../policies/window-ops.md),
+which also covers features outside XTWINOPS, including OSC 52 clipboard access.
+With `allowWindowOps` false, xterm consults `disallowedWindowOps` per operation.
+Its default list denies title and icon-label reports but permits the other
+XTWINOPS operations listed below, subject to build options and other settings.
 
 ## Operations
 
 <!-- markdownlint-disable MD013 -->
 
-| `Ps` | Operation | Report | Typical policy |
+| `Ps` | Operation | Report | xterm default policy |
 | --- | --- | --- | --- |
-| `1` | De-iconify | | Gated |
-| `2` | Iconify | | Gated |
-| `3 ; x ; y` | Move window | | Gated |
-| `4 ; h ; w` | Resize window in pixels | | Gated |
-| `5` | Raise | | Gated |
-| `6` | Lower | | Gated |
-| `7` | Refresh | | Gated |
-| `8 ; rows ; cols` | Resize text area in cells | | Gated |
-| `9 ; 0/1/2/3` | Restore / maximize / vertical / horizontal | | Gated |
-| `10 ; 0/1/2` | Fullscreen off / on / toggle | | Gated |
+| `1` | De-iconify | | Allowed |
+| `2` | Iconify | | Allowed |
+| `3 ; x ; y` | Move window | | Allowed |
+| `4 ; h ; w` | Resize window in pixels | | Allowed |
+| `5` | Raise | | Allowed |
+| `6` | Lower | | Allowed |
+| `7` | Refresh | | Allowed |
+| `8 ; rows ; cols` | Resize text area in cells | | Allowed |
+| `9 ; 0/1/2/3` | Restore / maximize / vertical / horizontal | | Allowed |
+| `10 ; 0/1/2` | Fullscreen off / on / toggle | | Allowed |
 | `11` | Report window state | `CSI 1 t` open, `CSI 2 t` iconified | Allowed |
-| `13` / `13 ; 2` | Report position (window / text area) | `CSI 3 ; x ; y t` | Gated |
+| `13` / `13 ; 2` | Report position (window / text area) | `CSI 3 ; x ; y t` | Allowed |
 | `14` / `14 ; 2` | Report text-area / window size in pixels | `CSI 4 ; h ; w t` | Allowed |
 | `15` | Report screen size in pixels | `CSI 5 ; h ; w t` | Allowed |
 | `16` | Report cell size in pixels | `CSI 6 ; h ; w t` | Allowed |
@@ -40,7 +46,7 @@ characters and pixels.
 | `21` | Report title | `OSC l title ST` | Disabled by default |
 | `22 ; 0/1/2` | Push icon and title / icon / title | | Allowed |
 | `23 ; 0/1/2` | Pop | | Allowed |
-| `≥ 24` | Resize to `Ps` rows (DECSLPP) | | Gated |
+| `≥ 24` | Resize to `Ps` rows (DECSLPP) | | Allowed |
 
 <!-- markdownlint-enable MD013 -->
 
@@ -74,8 +80,8 @@ opted in. The stack depth is small (xterm: 10). See
 | `18` size in cells | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | Yes | Yes |
 | `14`/`16` pixel sizes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | Yes (3.4+ relays) |
 | `22`/`23` title stack | Yes | Yes | ? | ? | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | ? |
-| `21` title report | Gated | ? | ? | ? | ? | ? | ? | ? | ? | Gated | ? | ? | ? | ? | ? |
-| Move/resize (`3`,`4`,`8`) | Gated | ? | ? | ? | Partial | ? | ? | ? | ? | Gated | ? | ? | Yes | ? | ? |
+| `21` title report | Allowed | ? | ? | ? | ? | ? | ? | ? | ? | Allowed | ? | ? | ? | ? | ? |
+| Move/resize (`3`,`4`,`8`) | Allowed | ? | ? | ? | Partial | ? | ? | ? | ? | Allowed | ? | ? | Yes | ? | ? |
 | `?2048` in-band resize | ? | ? | ? | Yes | Yes | Yes | Yes | ? | Yes | ? | ? | ? | ? | ? | ? |
 
 <!-- markdownlint-enable MD013 -->

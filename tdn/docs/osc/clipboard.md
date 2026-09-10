@@ -1,3 +1,8 @@
+---
+tags:
+  - Window Ops
+---
+
 # Clipboard
 
 Status: xterm.
@@ -6,6 +11,10 @@ OSC 52 lets an application write to, and in principle read from, the system
 clipboard or selection through the PTY. It is the only clipboard mechanism
 that works over SSH without a forwarded display, which makes it both widely
 used and widely restricted.
+
+**Window Ops:** xterm gates OSC 52 reads with `GetSelection` and writes
+(including clears) with `SetSelection`. Both are denied by default. See the
+[Window Ops policy](../policies/window-ops.md) for the permission rules.
 
 ## Syntax
 
@@ -69,7 +78,7 @@ use DCS passthrough.
 
 | Emulator | Write | Read | Default policy and control |
 | --- | --- | --- | --- |
-| xterm | Yes | Yes | Both disabled unless `allowWindowOps` is true; `disallowedWindowOps` can re-disable 52 |
+| xterm | Yes | Yes | Both denied by the default `disallowedWindowOps` list when `allowWindowOps` is false; true overrides that list |
 | VTE | Yes (0.72) | ? | Writes allowed; reads unimplemented. Older VTE ignores OSC 52 entirely |
 | Konsole | Yes | ? | Off by default; profile option "Allow escape sequences to modify clipboard" |
 | kitty | Yes | Yes | `clipboard_control` (default `write-clipboard write-primary read-clipboard-ask read-primary-ask`); reads prompt the user |

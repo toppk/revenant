@@ -1,3 +1,8 @@
+---
+tags:
+  - Window Ops
+---
+
 # CSI queries and reports
 
 Status: Standard (DSR, DA), DEC (DECRQM, DA2, DA3), xterm (XTVERSION and
@@ -6,6 +11,10 @@ window reports).
 Some controls produce bytes in the reverse direction. The application writes
 a query to terminal output; the terminal writes its report to PTY input,
 where it is interleaved with keyboard and mouse events.
+
+**Window Ops:** the `CSI … t` geometry reports below belong to
+[xterm's Window Ops policy](../policies/window-ops.md) and are allowed by
+default. This label does not apply to every query on this page.
 
 ## Common exchanges
 

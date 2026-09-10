@@ -340,6 +340,9 @@ function-pointer helper would lose the useful type check.
   **Allow Window Ops** menu toggle updates that effect and the write policy
   at runtime; `xvfb-window-ops` covers enable/disable and restoration of a
   configured set-only policy.
+  This is partial Window Ops support: only `GetSelection` and `SetSelection`
+  currently consult the policy. Existing XTWINOPS size reports are not yet
+  gated by it. See the completion plan below before claiming full support.
   libghostty's parser accepts one selection letter; `q`, cut-buffer digits,
   lists, and the `s0` default are recorded in the drift ledger.
 - Synchronized output (DEC private mode 2026): the widget holds dirty updates
@@ -910,6 +913,47 @@ it does not require resolving every finding before v0.5 ships.
 - Additional shaping scripts, XIM layouts, and color-font versions are valuable
   matrix expansion after each underlying path has one adversarial acceptance
   fixture.
+
+### Complete xterm Window Ops support — open
+
+Complete the full patch-411 Window Ops permission category, not only OSC 52
+or the `CSI ... t` XTWINOPS family. The live menu toggle and clipboard checks
+are the starting point, not completion of this work. The
+[roadmap](docs/maintainers/roadmap.md#6-broader-xterm-compatibility-and-packaging)
+tracks the feature; TDN's [policy inventory](tdn/docs/policies/window-ops.md)
+maps the controls across sequence families.
+
+Deliver this in reviewable slices:
+
+1. Inventory every operation in xterm's `tblWindowOps` and every
+   `AllowWindowOps` call site against the pinned source. Record whether the
+   selected libghostty exposes its effect or query, whether Revenant already
+   implements it, and which policy check is missing. Preserve parser ownership
+   in libghostty; missing public hooks are upstream API asks, not a reason to
+   add a second escape parser.
+2. Complete XTWINOPS window manipulation and reports: restore/minimize,
+   move/resize in pixels or cells, raise/lower/refresh, maximize/fullscreen,
+   window state and position, window/screen/cell geometry, title/icon reports,
+   and title push/pop. Apply policy to the existing `CSI 14 t`, `CSI 16 t`,
+   and `CSI 18 t` replies as well as newly implemented operations.
+3. Complete the cross-family controls: `ColumnMode`, `SetWinLines`,
+   `GetChecksum`/`SetChecksum`, `SetXprop`, and `StatusLine`. Retain OSC 52
+   regression coverage and resolve or explicitly track its upstream parser
+   differences. Keep OSC 0/1/2 title setting under its separate `allowTitleOps`
+   policy rather than treating every window-related control as Window Ops.
+4. Make resources, the live menu, actions, configuration reporting, and support
+   classifications agree. Preserve xterm's rule that `allowWindowOps: true`
+   overrides the deny list, while false applies per-operation restrictions;
+   cover names, numeric aliases where supported by xterm, wildcards, negation,
+   and restoration of the configured restrictions when toggled off.
+
+Acceptance requires exact request/reply and denied-operation tests, observable
+X11 effects, live enable/disable coverage beyond the clipboard, and
+differential checks against patch 411 with an isolated HOME. Use a window
+manager for stacking, minimize, maximize, and fullscreen checks; bare Xvfb
+cannot establish those behaviors alone. Keep unsupported operations and
+upstream blockers explicitly partial until they work end to end, and run the
+maintained compiler/backend, sanitizer, formatting, and documentation matrix.
 
 ### Preserve for future releases
 

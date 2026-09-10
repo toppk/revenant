@@ -1,3 +1,8 @@
+---
+tags:
+  - Window Ops
+---
+
 # Miscellaneous OSCs
 
 Selectors that do not fit another page. Each is documented by one emulator
@@ -12,8 +17,10 @@ OSC 3 ; prop=value ST    set an X11 window property
 OSC 3 ; prop ST          delete it
 ```
 
-Sets an arbitrary property on the xterm window. Disabled unless
-`allowWindowOps` is true. No non-X11 emulator implements it.
+Sets an arbitrary property on the xterm window. **Window Ops:** this
+operation uses `SetXprop` under [xterm's Window Ops
+policy](../policies/window-ops.md) and is denied by default. The label applies
+to OSC 3 on this page, not the other OSCs below. No non-X11 emulator implements it.
 
 ## OSC 50: font
 

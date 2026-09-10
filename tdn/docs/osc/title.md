@@ -1,3 +1,8 @@
+---
+tags:
+  - Window Ops
+---
+
 # Window title
 
 Status: xterm.
@@ -5,6 +10,10 @@ Status: xterm.
 OSC 0, 1, and 2 set the text an emulator shows in its window title bar, tab,
 or icon. They are the oldest OSCs in wide use and the one most shells emit by
 default.
+
+**Window Ops:** the title reports and title stack below belong to
+[xterm's Window Ops policy](../policies/window-ops.md). Setting a title with
+OSC 0/1/2 is controlled separately by `allowTitleOps`.
 
 ## Syntax
 
@@ -73,8 +82,9 @@ empty title. Do not depend on them.
     stored as the pane title visible in the status line.
 [^icon]: Accepted and parsed; no distinct icon name exists on the platform,
     so it is ignored or aliased to the title.
-[^xtreport]: Off unless `allowWindowOps` is true; `disallowedWindowOps`
-    can keep individual operations disabled.
+[^xtreport]: Denied by the default `disallowedWindowOps` list when
+    `allowWindowOps` is false. Removing `GetIconTitle` or `GetWinTitle` from
+    that list permits the corresponding report; true overrides the list.
 
 ## Probe
 

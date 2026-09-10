@@ -1,3 +1,8 @@
+---
+tags:
+  - Window Ops
+---
+
 # CSI modes
 
 Status: Standard (ANSI modes), DEC (private modes), xterm and Extension for
@@ -94,6 +99,11 @@ required. See [Queries](queries.md).
 | `?1049` | | Save cursor, switch to alternate screen, clear it; reverse on reset | xterm |
 
 <!-- markdownlint-enable MD013 -->
+
+**Window Ops:** xterm applies its `ColumnMode` permission to the
+80/132-column switching controls (`?3` and `?40`), in addition to `c132`.
+This label applies to those controls, not every mode on this page. See
+[Window Ops policy](../policies/window-ops.md).
 
 `?1049` is what full-screen programs use. The alternate screen has no
 scrollback, and emulators that enable `?1007` translate wheel events to

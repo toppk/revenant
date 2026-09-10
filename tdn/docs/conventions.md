@@ -52,6 +52,25 @@ Every feature carries exactly one status:
 "Extension" is not a value judgment. The Kitty keyboard protocol and OSC 8
 hyperlinks are extensions that many emulators now treat as baseline.
 
+## Feature labels
+
+Use labels for properties shared across sequence families. They supplement
+the status vocabulary; they do not assert emulator support or default policy.
+Add labels as YAML front matter before the page heading:
+
+```yaml
+---
+tags:
+  - Window Ops
+---
+```
+
+**Window Ops** identifies controls subject to [xterm's Window Ops
+policy](policies/window-ops.md). On a page covering other controls too, name
+the affected sequences beside their descriptions. In particular, title
+reports and title stacks belong to this category, while OSC 0/1/2 title
+setting uses a separate policy. Labels link to the [feature index](tags.md).
+
 ## Compatibility tables
 
 A compatibility cell records what a source says, not what is fashionable.

@@ -182,6 +182,14 @@ semantics and describes the implemented named-selection path.
 
 ### 6. Broader xterm compatibility and packaging
 
+- Complete xterm's full Window Ops category. OSC 52 and the live menu toggle
+  are implemented, but only `GetSelection` and `SetSelection` currently
+  consult the permission policy. Inventory and finish XTWINOPS manipulation,
+  geometry and title reports/stacks, then column/line resizing, checksums,
+  X properties, and status-line controls. Gate existing size reports too;
+  preserve libghostty parser ownership and track missing public hooks upstream.
+  Require per-operation policy tests, live toggle coverage, and differential
+  X11/window-manager checks before marking the category complete.
 - Continue converting insensitive menu entries and unsupported actions into
   tested implementations.
 - Extend the now-honest command-line parser with the remaining process and
