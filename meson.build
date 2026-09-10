@@ -821,6 +821,17 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-answerback',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-answerback.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+        ],
+        timeout: 60,
+        is_parallel: false,
+    )
+    test(
         'xvfb-cursor-shape',
         find_program('sh'),
         args: [

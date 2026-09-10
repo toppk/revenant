@@ -976,20 +976,20 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "internalBorder") == 0 || strcmp(name, "alwaysHighlight") == 0 ||
             strcmp(name, "cursorBlink") == 0 || strcmp(name, "cursorOnTime") == 0 ||
             strcmp(name, "cursorUnderLine") == 0 || strcmp(name, "cursorBar") == 0 ||
-            strcmp(name, "cursorOffTime") == 0 || strcmp(name, "cursorBlinkXOR") == 0 ||
-            strcmp(name, "saveLines") == 0 || strcmp(name, "scrollBar") == 0 ||
-            strcmp(name, "scrollBarBorder") == 0 || strcmp(name, "rightScrollBar") == 0 ||
-            strcmp(name, "scrollKey") == 0 || strcmp(name, "scrollTtyOutput") == 0 ||
-            strcmp(name, "selectToClipboard") == 0 || strcmp(name, "multiClickTime") == 0 ||
-            strcmp(name, "charClass") == 0 || strcmp(name, "renderFont") == 0 ||
-            strcmp(name, "faceName") == 0 || strcmp(name, "faceNameDoublesize") == 0 ||
-            strcmp(name, "faceNameEmoji") == 0 || strcmp(name, "faceNameHan") == 0 ||
-            strcmp(name, "boldFont") == 0 || strcmp(name, "wideBoldFont") == 0 ||
-            strcmp(name, "boldColors") == 0 || strcmp(name, "emojiPresentation") == 0 ||
-            strcmp(name, "graphemeWidth") == 0 || strcmp(name, "colorGlyphs") == 0 ||
-            strcmp(name, "limitFontsets") == 0 || strcmp(name, "limitFontHeight") == 0 ||
-            strcmp(name, "limitFontWidth") == 0 || strncmp(name, "faceSize", 8) == 0 ||
-            ansi_palette)
+            strcmp(name, "answerbackString") == 0 || strcmp(name, "cursorOffTime") == 0 ||
+            strcmp(name, "cursorBlinkXOR") == 0 || strcmp(name, "saveLines") == 0 ||
+            strcmp(name, "scrollBar") == 0 || strcmp(name, "scrollBarBorder") == 0 ||
+            strcmp(name, "rightScrollBar") == 0 || strcmp(name, "scrollKey") == 0 ||
+            strcmp(name, "scrollTtyOutput") == 0 || strcmp(name, "selectToClipboard") == 0 ||
+            strcmp(name, "multiClickTime") == 0 || strcmp(name, "charClass") == 0 ||
+            strcmp(name, "renderFont") == 0 || strcmp(name, "faceName") == 0 ||
+            strcmp(name, "faceNameDoublesize") == 0 || strcmp(name, "faceNameEmoji") == 0 ||
+            strcmp(name, "faceNameHan") == 0 || strcmp(name, "boldFont") == 0 ||
+            strcmp(name, "wideBoldFont") == 0 || strcmp(name, "boldColors") == 0 ||
+            strcmp(name, "emojiPresentation") == 0 || strcmp(name, "graphemeWidth") == 0 ||
+            strcmp(name, "colorGlyphs") == 0 || strcmp(name, "limitFontsets") == 0 ||
+            strcmp(name, "limitFontHeight") == 0 || strcmp(name, "limitFontWidth") == 0 ||
+            strncmp(name, "faceSize", 8) == 0 || ansi_palette)
                 return "supported";
         if (strcmp(name, "allowColorOps") == 0 || strcmp(name, "disallowedColorOps") == 0 ||
             strcmp(name, "allowTitleOps") == 0 || strcmp(name, "allowWindowOps") == 0 ||
@@ -1371,6 +1371,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             {"xterm.vt100.cursorOffTime", "XTerm.VT100.CursorOffTime", "300"},
             {"xterm.vt100.cursorUnderLine", "XTerm.VT100.CursorUnderLine", "false"},
             {"xterm.vt100.cursorBar", "XTerm.VT100.CursorBar", "false"},
+            {"xterm.vt100.answerbackString", "XTerm.VT100.AnswerbackString", ""},
             {"xterm.vt100.internalBorder", "XTerm.VT100.BorderWidth", "2"},
         };
         static const char *const appearance_names[] = {
@@ -1378,7 +1379,8 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "XTerm*foreground",      "XTerm*background",      "XTerm*backgroundOpacity",
             "XTerm*cursorColor",     "XTerm*alwaysHighlight", "XTerm*cursorBlink",
             "XTerm*cursorBlinkXOR",  "XTerm*cursorOnTime",    "XTerm*cursorOffTime",
-            "XTerm*cursorUnderLine", "XTerm*cursorBar",       "XTerm*internalBorder",
+            "XTerm*cursorUnderLine", "XTerm*cursorBar",       "XTerm*answerbackString",
+            "XTerm*internalBorder",
         };
         static const char *const appearance_help[] = {
             "Initial columns/rows and optional window position.",
@@ -1395,12 +1397,13 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "Milliseconds a blinking cursor remains hidden.",
             "Start with an underline cursor; DECSCUSR 0 and a full reset return to it.",
             "Start with a bar cursor unless cursorUnderLine is also set.",
+            "Bytes sent verbatim in reply to ENQ; empty sends nothing.",
             "Pixels between the terminal grid and window edge.",
         };
         static const char *const appearance_support[] = {
-            "supported", "supported", "supported", "supported", "supported",
-            "supported", "supported", "supported", "supported", "supported",
-            "supported", "supported", "supported", "supported", "supported",
+            "supported", "supported", "supported", "supported", "supported", "supported",
+            "supported", "supported", "supported", "supported", "supported", "supported",
+            "supported", "supported", "supported", "supported",
         };
         static const ResourceSpec behavior[] = {
             {"xterm.vt100.saveLines", "XTerm.VT100.SaveLines", "1024"},

@@ -410,6 +410,10 @@ even if a program changed the mode with an escape sequence. Their resource
 forms (`backarrowKey`, `altSendsEscape`, `autoWrap`, …) are inventoried but
 not yet applied at startup.
 
+Applications that send ENQ (Ctrl-E, 0x05) receive `answerbackString`
+verbatim. It is empty by default, so nothing is sent; set it only for software
+that identifies terminals this way, and avoid control characters in it.
+
 ## Translations
 
 Key and button bindings are Xt translations on the `vt100` widget, exactly

@@ -2718,6 +2718,97 @@ done:
 }
 
 static int
+SelfTestAnswerback(void)
+{
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {.write_pty = SelfTestCapturePty, .closure = &capture};
+        const char *stage = "setup";
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(20, 4, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        stage = "default is silent";
+        SelfTestFeedText(terminal, "\005");
+        if (capture.used != 0)
+                goto done;
+        stage = "configured string is sent verbatim";
+        if (XtpTerminalSetAnswerback(terminal, "xterm+ ok\033") != 0)
+                goto done;
+        SelfTestFeedText(terminal, "\005");
+        if (!SelfTestPtyEqualsText(&capture, "xterm+ ok\033"))
+                goto done;
+        stage = "every request is answered";
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\005a\005");
+        if (!SelfTestPtyEqualsText(&capture, "xterm+ ok\033xterm+ ok\033"))
+                goto done;
+        stage = "reply filters do not rewrite or block the answerback";
+        capture = (SelfTestPtyCapture){0};
+        if (XtpTerminalSetAnswerback(terminal, "\033[?12;1$y") != 0)
+                goto done;
+        SelfTestFeedText(terminal, "\005");
+        if (!SelfTestPtyEqualsText(&capture, "\033[?12;1$y"))
+                goto done;
+        {
+                XtpTcapOps tcap;
+
+                XtpTcapOpsParse(XTP_TCAP_OPS_DEFAULT_DISALLOWED, &tcap);
+                XtpTerminalSetTcapOpsPolicy(terminal, false, &tcap);
+        }
+        capture = (SelfTestPtyCapture){0};
+        if (XtpTerminalSetAnswerback(terminal, "\033P1+rHELLO\033\\") != 0)
+                goto done;
+        SelfTestFeedText(terminal, "\005");
+        if (!SelfTestPtyEqualsText(&capture, "\033P1+rHELLO\033\\"))
+                goto done;
+        XtpTerminalSetTcapOpsPolicy(terminal, true, NULL);
+        stage = "long strings are delivered whole";
+        {
+                char *text = malloc(301);
+                size_t index;
+
+                if (text == NULL)
+                        goto done;
+                for (index = 0; index < 300; ++index)
+                        text[index] = (char)('a' + (index % 26));
+                text[300] = '\0';
+                capture = (SelfTestPtyCapture){0};
+                if (XtpTerminalSetAnswerback(terminal, text) != 0) {
+                        free(text);
+                        goto done;
+                }
+                SelfTestFeedText(terminal, "\005");
+                if (!SelfTestPtyEqualsText(&capture, text)) {
+                        free(text);
+                        goto done;
+                }
+                free(text);
+        }
+        stage = "empty and NULL return to silence";
+        capture = (SelfTestPtyCapture){0};
+        if (XtpTerminalSetAnswerback(terminal, "") != 0)
+                goto done;
+        SelfTestFeedText(terminal, "\005");
+        if (XtpTerminalSetAnswerback(terminal, NULL) != 0)
+                goto done;
+        SelfTestFeedText(terminal, "\005");
+        if (capture.used != 0)
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test", "answerback mismatch stage=%s bytes=%zu", stage,
+                       capture.used);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 SelfTestStartupCursorShape(void)
 {
         static const XtpRenderer renderer = {
@@ -3383,6 +3474,7 @@ XtpSelfTest(void)
             {"dynamic colors", SelfTestDynamicColors},
             {"underline color", SelfTestUnderlineColor},
             {"startup cursor shape", SelfTestStartupCursorShape},
+            {"answerback", SelfTestAnswerback},
             {"color-ops policy", SelfTestColorOpsPolicy},
             {"request Ops", SelfTestRequestOps},
             {"color scheme", SelfTestColorScheme},

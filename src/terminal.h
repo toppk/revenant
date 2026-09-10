@@ -436,6 +436,8 @@ int XtpTerminalSetAnsiPalette(XtpTerminal *terminal,
 int XtpTerminalSetBoldColors(XtpTerminal *terminal, bool enabled);
 int XtpTerminalSetCharClass(XtpTerminal *terminal, const char *specification);
 int XtpTerminalSetTitle(XtpTerminal *terminal, const char *title, size_t length);
+/* xterm's answerbackString, sent verbatim for ENQ; empty or NULL stays silent. */
+int XtpTerminalSetAnswerback(XtpTerminal *terminal, const char *answerback);
 int XtpTerminalGetScrollbar(XtpTerminal *terminal, XtpTerminalScrollbar *scrollbar);
 int XtpTerminalScrollBy(XtpTerminal *terminal, intptr_t rows);
 int XtpTerminalScrollTo(XtpTerminal *terminal, uint64_t row);

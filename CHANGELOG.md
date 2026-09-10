@@ -10,6 +10,9 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Answer ENQ with xterm's `answerbackString` resource. The string is sent
+  verbatim for every ENQ (0x05) the application writes; the default is empty
+  and sends nothing.
 - Honor the startup cursor shape resources. `cursorUnderLine` (`-uc`) starts
   with an underline cursor and `cursorBar` (`-barc`) with a bar, underline
   winning when both are set. An application's DECSCUSR request overrides the

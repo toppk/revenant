@@ -246,6 +246,8 @@ static XtResource resources[] = {
      XtRImmediate, (XtPointer)False},
     {"cursorBar", "CursorBar", XtRBoolean, sizeof(Boolean), OFFSET(cursor_bar), XtRImmediate,
      (XtPointer)False},
+    {"answerbackString", "AnswerbackString", XtRString, sizeof(String), OFFSET(answerback_string),
+     XtRString, (XtPointer) ""},
     {"cursorOnTime", "CursorOnTime", XtRInt, sizeof(int), OFFSET(cursor_on_time), XtRImmediate,
      (XtPointer)600},
     {"cursorOffTime", "CursorOffTime", XtRInt, sizeof(int), OFFSET(cursor_off_time), XtRImmediate,
@@ -1199,6 +1201,10 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                        new_vt->vt.cursor_blink_name, effective ? "true" : "false");
                 changed = True;
         }
+        if (StringChanged(old_vt->vt.answerback_string, new_vt->vt.answerback_string) &&
+            new_vt->vt.terminal != NULL &&
+            XtpTerminalSetAnswerback(new_vt->vt.terminal, new_vt->vt.answerback_string) != 0)
+                XtpLog(XTP_LOG_ERROR, "terminal", "cannot apply answerbackString");
         if (old_vt->vt.cursor_underline != new_vt->vt.cursor_underline ||
             old_vt->vt.cursor_bar != new_vt->vt.cursor_bar) {
                 if (new_vt->vt.terminal != NULL &&
@@ -1953,6 +1959,8 @@ XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
                 terminal, XtpTerminalStartupCursorShape(vt->vt.cursor_underline != False,
                                                         vt->vt.cursor_bar != False)) != 0)
                 XtpLog(XTP_LOG_ERROR, "render", "cannot apply cursorUnderLine/cursorBar");
+        if (XtpTerminalSetAnswerback(terminal, vt->vt.answerback_string) != 0)
+                XtpLog(XTP_LOG_ERROR, "terminal", "cannot apply answerbackString");
         if (ApplyTerminalCursorBlinkPolicy(terminal, vt->vt.cursor_blink_policy) != 0)
                 XtpLog(XTP_LOG_ERROR, "render", "cannot apply cursorBlink=%s",
                        vt->vt.cursor_blink_name);

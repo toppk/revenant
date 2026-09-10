@@ -410,6 +410,13 @@ function-pointer helper would lose the useful type check.
   including Xft DPI; `-report-config` uses the identical font-matching path.
 - Shift+keypad font selection, proportional window resizing, WM resize
   increments, and grid-preserving renderer switches.
+- Answerback: `answerbackString` is copied into the backend and, on
+  libghostty's ENQ effect, written straight through the host PTY effect with
+  an empty result returned to the core, so the reply filters (mode-12
+  rewrite, Color Ops, Tcap Ops) never touch it and its length is not bounded
+  by libghostty's reply buffer; an empty or unset value sends nothing.
+  `xvfb-answerback` reads the exact bytes for two ENQs through the real PTY
+  and confirms the silent default.
 - Startup cursor shape: `cursorUnderLine`/`-uc` and `cursorBar`/`-barc`
   resolve through `XtpTerminalStartupCursorShape` (underline beats bar) into
   libghostty's default cursor style, which DECSCUSR 0, an omitted parameter,
@@ -1271,7 +1278,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 42 tests for each libghostty build
+The normal full matrix currently contains 43 tests for each libghostty build
 and 8 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

@@ -315,6 +315,56 @@ XtversionEffect(GhosttyTerminal handle, void *userdata)
         return (GhosttyString){.ptr = version, .len = sizeof(version) - 1U};
 }
 
+/* The answerback is user-configured text, not a terminal reply: send it
+ * straight through the host PTY effect so the reply filters (mode-12 rewrite,
+ * Color Ops, Tcap Ops) leave it alone and libghostty's reply buffer does not
+ * bound its length. The empty result keeps libghostty from sending anything. */
+static GhosttyString
+EnquiryEffect(GhosttyTerminal handle, void *userdata)
+{
+        XtpTerminal *terminal = userdata;
+
+        (void)handle;
+        if (terminal->answerback_length != 0 && terminal->effects.write_pty != NULL) {
+                XtpLog(XTP_LOG_INFO, "terminal", "ENQ answered bytes=%zu",
+                       terminal->answerback_length);
+                terminal->effects.write_pty((const uint8_t *)terminal->answerback,
+                                            terminal->answerback_length, terminal->effects.closure);
+        }
+        return (GhosttyString){.ptr = NULL, .len = 0};
+}
+
+static const void *
+EnquiryEffectPointer(void)
+{
+        GhosttyTerminalEnquiryFn function = EnquiryEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
+int
+XtpTerminalSetAnswerback(XtpTerminal *terminal, const char *answerback)
+{
+        char *copy = NULL;
+
+        if (terminal == NULL)
+                return -1;
+        if (answerback != NULL && *answerback != '\0') {
+                copy = strdup(answerback);
+                if (copy == NULL)
+                        return -1;
+        }
+        free(terminal->answerback);
+        terminal->answerback = copy;
+        terminal->answerback_length = copy != NULL ? strlen(copy) : 0U;
+        XtpLog(XTP_LOG_INFO, "terminal", "answerbackString bytes=%zu", terminal->answerback_length);
+        return 0;
+}
+
 static XtpClipboardTarget
 ConvertClipboardLocation(GhosttyClipboardLocation location)
 {
@@ -528,6 +578,8 @@ XtversionEffectPointer(void)
 static void
 FreeHandles(XtpTerminal *terminal)
 {
+        free(terminal->answerback);
+        terminal->answerback = NULL;
         ghostty_tracked_grid_ref_free(terminal->selection_extend_end);
         ghostty_tracked_grid_ref_free(terminal->selection_extend_start);
         ghostty_selection_gesture_event_free(terminal->selection_release);
@@ -1054,7 +1106,9 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_CLIPBOARD_WRITE,
                                  ClipboardWriteEffectPointer()) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_COLOR_SCHEME,
-                                 ColorSchemeEffectPointer()) != GHOSTTY_SUCCESS) {
+                                 ColorSchemeEffectPointer()) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_ENQUIRY,
+                                 EnquiryEffectPointer()) != GHOSTTY_SUCCESS) {
                 FreeHandles(terminal);
                 free(terminal);
                 return NULL;

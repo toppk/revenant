@@ -163,6 +163,7 @@ typedef struct
         Boolean cursor_blink_xor;
         Boolean cursor_underline;
         Boolean cursor_bar;
+        String answerback_string;
         int cursor_on_time;
         int cursor_off_time;
         Boolean scroll_bar;

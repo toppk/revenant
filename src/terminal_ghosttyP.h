@@ -72,6 +72,8 @@ struct XtpTerminal
         XtpCursorBlinkObserver cursor_blink;
         XtpCharClassTable *char_classes;
         XtpTerminalEffects effects;
+        char *answerback;
+        size_t answerback_length;
 };
 
 #endif
