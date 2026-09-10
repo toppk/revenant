@@ -356,6 +356,17 @@ for servers where that operation is broken. Revenant does not use xterm's
 not change its rendering. The resource remains classified unsupported and the
 new menu entry is present but insensitive.
 
+### Startup cursor shape and DECSCUSR 0
+
+`cursorUnderLine` and `cursorBar` select the startup cursor shape with
+xterm's precedence (underline over bar). In xterm patch 411, `CSI 0 SP q` and
+`CSI SP q` both select a blinking block regardless of the resources, and the
+xterm-specific `CSI 7 SP q` returns to the configured initial cursor. Revenant
+follows libghostty here: `CSI 0 SP q` and `CSI SP q` return to the configured
+startup shape, as does a full reset, and `CSI 7 SP q` is not a recognized
+style and leaves the shape unchanged. Blink handling is unchanged; the shape
+resources never set or clear the application blink state.
+
 ### Cursor-blink policy
 
 Revenant follows xterm's cursor-blink policy. `false` and `true` provide the

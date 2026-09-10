@@ -83,6 +83,8 @@ parsed by the X Toolkit itself and work in every Xt program.
 | Option | Resource | Meaning |
 | --- | --- | --- |
 | `-ah` / `+ah` | `vt100.alwaysHighlight` true / false | Filled cursor even when unfocused |
+| `-uc` / `+uc` | `vt100.cursorUnderLine` true / false | Start with an underline cursor; wins over `-barc` |
+| `-barc` / `+barc` | `vt100.cursorBar` true / false | Start with a bar cursor |
 | `-bc` / `+bc` | `vt100.cursorBlink` true / false | Configured blink operand; combined with application state by `cursorBlinkXOR` |
 | `-bcn milliseconds` | `vt100.cursorOnTime` | Time the blinking cursor remains visible |
 | `-bcf milliseconds` | `vt100.cursorOffTime` | Time the blinking cursor remains hidden |

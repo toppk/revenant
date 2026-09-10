@@ -2718,6 +2718,100 @@ done:
 }
 
 static int
+SelfTestStartupCursorShape(void)
+{
+        static const XtpRenderer renderer = {
+            .begin = SelfTestBegin,
+            .cell = SelfTestCell,
+            .end = SelfTestEnd,
+            .abort = NULL,
+        };
+        XtpTerminal *terminal;
+        SelfTestRender render = {0};
+        const char *stage = "precedence";
+        int result = -1;
+
+        if (XtpTerminalStartupCursorShape(false, false) != XTP_CURSOR_SHAPE_BLOCK ||
+            XtpTerminalStartupCursorShape(true, false) != XTP_CURSOR_SHAPE_UNDERLINE ||
+            XtpTerminalStartupCursorShape(false, true) != XTP_CURSOR_SHAPE_BAR ||
+            XtpTerminalStartupCursorShape(true, true) != XTP_CURSOR_SHAPE_UNDERLINE)
+                return -1;
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(20, 4, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        stage = "configured underline";
+        if (XtpTerminalSetDefaultCursorShape(terminal, XTP_CURSOR_SHAPE_UNDERLINE) != 0 ||
+            XtpTerminalRender(terminal, &renderer, &render, true) != 0 ||
+            render.frame.cursor_shape != XTP_CURSOR_SHAPE_UNDERLINE ||
+            render.frame.cursor_blink_requested)
+                goto done;
+        stage = "application override";
+        SelfTestFeedText(terminal, "\033[5 q");
+        if (XtpTerminalRender(terminal, &renderer, &render, true) != 0 ||
+            render.frame.cursor_shape != XTP_CURSOR_SHAPE_BAR ||
+            !render.frame.cursor_blink_requested)
+                goto done;
+        stage = "DECSCUSR 0 restores the configured shape";
+        SelfTestFeedText(terminal, "\033[0 q");
+        if (XtpTerminalRender(terminal, &renderer, &render, true) != 0 ||
+            render.frame.cursor_shape != XTP_CURSOR_SHAPE_UNDERLINE)
+                goto done;
+        stage = "full reset restores the configured shape";
+        SelfTestFeedText(terminal, "\033[6 q\033c");
+        if (XtpTerminalRender(terminal, &renderer, &render, true) != 0 ||
+            render.frame.cursor_shape != XTP_CURSOR_SHAPE_UNDERLINE)
+                goto done;
+        stage = "changing the default shape keeps the application blink mode";
+        {
+                bool blinking = false;
+
+                SelfTestFeedText(terminal, "\033[?12h");
+                if (XtpTerminalGetMode(terminal, XTP_TERMINAL_MODE_CURSOR_BLINKING, &blinking) !=
+                        0 ||
+                    !blinking ||
+                    XtpTerminalSetDefaultCursorShape(terminal, XTP_CURSOR_SHAPE_BAR) != 0 ||
+                    XtpTerminalGetMode(terminal, XTP_TERMINAL_MODE_CURSOR_BLINKING, &blinking) !=
+                        0 ||
+                    !blinking)
+                        goto done;
+                SelfTestFeedText(terminal, "\033[?12l");
+                if (XtpTerminalGetMode(terminal, XTP_TERMINAL_MODE_CURSOR_BLINKING, &blinking) !=
+                        0 ||
+                    blinking ||
+                    XtpTerminalSetDefaultCursorShape(terminal, XTP_CURSOR_SHAPE_UNDERLINE) != 0 ||
+                    XtpTerminalGetMode(terminal, XTP_TERMINAL_MODE_CURSOR_BLINKING, &blinking) !=
+                        0 ||
+                    blinking)
+                        goto done;
+        }
+        stage = "xterm's CSI 7 SP q is not a libghostty style";
+        SelfTestFeedText(terminal, "\033[6 q\033[7 q");
+        if (XtpTerminalRender(terminal, &renderer, &render, true) != 0 ||
+            render.frame.cursor_shape != XTP_CURSOR_SHAPE_BAR)
+                goto done;
+        stage = "configured bar replaces the default under an application shape";
+        SelfTestFeedText(terminal, "\033[2 q");
+        if (XtpTerminalSetDefaultCursorShape(terminal, XTP_CURSOR_SHAPE_BAR) != 0 ||
+            XtpTerminalRender(terminal, &renderer, &render, true) != 0 ||
+            render.frame.cursor_shape != XTP_CURSOR_SHAPE_BLOCK)
+                goto done;
+        SelfTestFeedText(terminal, "\033[ q");
+        if (XtpTerminalRender(terminal, &renderer, &render, true) != 0 ||
+            render.frame.cursor_shape != XTP_CURSOR_SHAPE_BAR)
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "startup cursor shape mismatch stage=%s shape=%d", stage,
+                       (int)render.frame.cursor_shape);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 SelfTestUnderlineColor(void)
 {
         static const XtpRenderer renderer = {
@@ -3288,6 +3382,7 @@ XtpSelfTest(void)
             {"color-ops", SelfTestColorOps},
             {"dynamic colors", SelfTestDynamicColors},
             {"underline color", SelfTestUnderlineColor},
+            {"startup cursor shape", SelfTestStartupCursorShape},
             {"color-ops policy", SelfTestColorOpsPolicy},
             {"request Ops", SelfTestRequestOps},
             {"color scheme", SelfTestColorScheme},

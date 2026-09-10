@@ -69,3 +69,11 @@ XtpClipboardTargetName(XtpClipboardTarget target)
         }
         return "?";
 }
+
+XtpCursorShape
+XtpTerminalStartupCursorShape(bool underline, bool bar)
+{
+        if (underline)
+                return XTP_CURSOR_SHAPE_UNDERLINE;
+        return bar ? XTP_CURSOR_SHAPE_BAR : XTP_CURSOR_SHAPE_BLOCK;
+}

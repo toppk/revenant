@@ -975,6 +975,7 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "font7") == 0 || strcmp(name, "geometry") == 0 ||
             strcmp(name, "internalBorder") == 0 || strcmp(name, "alwaysHighlight") == 0 ||
             strcmp(name, "cursorBlink") == 0 || strcmp(name, "cursorOnTime") == 0 ||
+            strcmp(name, "cursorUnderLine") == 0 || strcmp(name, "cursorBar") == 0 ||
             strcmp(name, "cursorOffTime") == 0 || strcmp(name, "cursorBlinkXOR") == 0 ||
             strcmp(name, "saveLines") == 0 || strcmp(name, "scrollBar") == 0 ||
             strcmp(name, "scrollBarBorder") == 0 || strcmp(name, "rightScrollBar") == 0 ||
@@ -1368,14 +1369,16 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             {"xterm.vt100.cursorBlinkXOR", "XTerm.VT100.CursorBlinkXOR", "true"},
             {"xterm.vt100.cursorOnTime", "XTerm.VT100.CursorOnTime", "600"},
             {"xterm.vt100.cursorOffTime", "XTerm.VT100.CursorOffTime", "300"},
+            {"xterm.vt100.cursorUnderLine", "XTerm.VT100.CursorUnderLine", "false"},
+            {"xterm.vt100.cursorBar", "XTerm.VT100.CursorBar", "false"},
             {"xterm.vt100.internalBorder", "XTerm.VT100.BorderWidth", "2"},
         };
         static const char *const appearance_names[] = {
-            "XTerm*geometry",       "XTerm*columns",         "XTerm*rows",
-            "XTerm*foreground",     "XTerm*background",      "XTerm*backgroundOpacity",
-            "XTerm*cursorColor",    "XTerm*alwaysHighlight", "XTerm*cursorBlink",
-            "XTerm*cursorBlinkXOR", "XTerm*cursorOnTime",    "XTerm*cursorOffTime",
-            "XTerm*internalBorder",
+            "XTerm*geometry",        "XTerm*columns",         "XTerm*rows",
+            "XTerm*foreground",      "XTerm*background",      "XTerm*backgroundOpacity",
+            "XTerm*cursorColor",     "XTerm*alwaysHighlight", "XTerm*cursorBlink",
+            "XTerm*cursorBlinkXOR",  "XTerm*cursorOnTime",    "XTerm*cursorOffTime",
+            "XTerm*cursorUnderLine", "XTerm*cursorBar",       "XTerm*internalBorder",
         };
         static const char *const appearance_help[] = {
             "Initial columns/rows and optional window position.",
@@ -1390,12 +1393,14 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "Combine configured and application cursor blink state using XOR instead of OR.",
             "Milliseconds a blinking cursor remains visible.",
             "Milliseconds a blinking cursor remains hidden.",
+            "Start with an underline cursor; DECSCUSR 0 and a full reset return to it.",
+            "Start with a bar cursor unless cursorUnderLine is also set.",
             "Pixels between the terminal grid and window edge.",
         };
         static const char *const appearance_support[] = {
             "supported", "supported", "supported", "supported", "supported",
             "supported", "supported", "supported", "supported", "supported",
-            "supported", "supported", "supported",
+            "supported", "supported", "supported", "supported", "supported",
         };
         static const ResourceSpec behavior[] = {
             {"xterm.vt100.saveLines", "XTerm.VT100.SaveLines", "1024"},

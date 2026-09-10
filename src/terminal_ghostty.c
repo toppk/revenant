@@ -199,6 +199,8 @@ ConvertMode(XtpTerminalMode mode)
                 return GHOSTTY_MODE_ENABLE_MODE_3;
         case XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT:
                 return GHOSTTY_MODE_SYNC_OUTPUT;
+        case XTP_TERMINAL_MODE_CURSOR_BLINKING:
+                return GHOSTTY_MODE_CURSOR_BLINKING;
         case XTP_TERMINAL_MODE_COUNT:
                 break;
         }
@@ -1175,6 +1177,38 @@ XtpTerminalSetScrollbackLines(XtpTerminal *terminal, size_t lines)
                                     &lines) == GHOSTTY_SUCCESS
                    ? 0
                    : -1;
+}
+
+int
+XtpTerminalSetDefaultCursorShape(XtpTerminal *terminal, XtpCursorShape shape)
+{
+        GhosttyTerminalCursorStyle style;
+
+        if (terminal == NULL)
+                return -1;
+        switch (shape) {
+        case XTP_CURSOR_SHAPE_UNDERLINE:
+                style = GHOSTTY_TERMINAL_CURSOR_STYLE_UNDERLINE;
+                break;
+        case XTP_CURSOR_SHAPE_BAR:
+                style = GHOSTTY_TERMINAL_CURSOR_STYLE_BAR;
+                break;
+        case XTP_CURSOR_SHAPE_BLOCK:
+        case XTP_CURSOR_SHAPE_BLOCK_HOLLOW:
+        default:
+                style = GHOSTTY_TERMINAL_CURSOR_STYLE_BLOCK;
+                break;
+        }
+        XtpLog(XTP_LOG_INFO, "terminal", "default cursor shape=%s",
+               shape == XTP_CURSOR_SHAPE_UNDERLINE ? "underline"
+               : shape == XTP_CURSOR_SHAPE_BAR     ? "bar"
+                                                   : "block");
+        /* libghostty reapplies its default blink with the style; keep the
+         * application's mode 12 state authoritative, as the blink default does. */
+        if (ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_DEFAULT_CURSOR_STYLE,
+                                 &style) != GHOSTTY_SUCCESS)
+                return -1;
+        return SyncCursorBlinkMode(terminal);
 }
 
 int

@@ -410,6 +410,12 @@ function-pointer helper would lose the useful type check.
   including Xft DPI; `-report-config` uses the identical font-matching path.
 - Shift+keypad font selection, proportional window resizing, WM resize
   increments, and grid-preserving renderer switches.
+- Startup cursor shape: `cursorUnderLine`/`-uc` and `cursorBar`/`-barc`
+  resolve through `XtpTerminalStartupCursorShape` (underline beats bar) into
+  libghostty's default cursor style, which DECSCUSR 0, an omitted parameter,
+  and a full reset return to; application DECSCUSR shapes override it and the
+  blink observer is untouched. `xvfb-cursor-shape` samples the cursor cell for
+  each shape and for override and restoration.
 - SGR 58/59 underline colors: the render cell carries libghostty's underline
   color, the visual cell resolves an explicit color to opaque ink of its own
   while the default follows the text color through faint, inverse, and
@@ -1265,7 +1271,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 41 tests for each libghostty build
+The normal full matrix currently contains 42 tests for each libghostty build
 and 8 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

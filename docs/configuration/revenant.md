@@ -378,8 +378,11 @@ The command-line forms are `-bc`, `+bc`, `-bcn milliseconds`, and `-bcf
 milliseconds`. A focused block is filled and an unfocused block is an outline.
 See the [TDN cursor-controls
 reference](https://toppk.github.io/revenant/tdn/csi/cursor/) for the wire
-protocol and compatibility notes. Wiring `cursorUnderLine` and `cursorBar` as
-startup shape resources remains roadmap work.
+protocol and compatibility notes. `cursorUnderLine` (`-uc`) starts with an
+underline cursor and `cursorBar` (`-barc`) with a bar; underline wins when
+both are set. An application's DECSCUSR request overrides the startup shape,
+and `CSI 0 SP q` or a full reset returns to it. The shape resources never
+touch the blink policy above.
 
 In table form, ordinary `cursorBlink` values are the configured operand;
 `always` and `never` bypass the expression:

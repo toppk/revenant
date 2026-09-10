@@ -156,6 +156,13 @@ XtpTerminalSetScrollbackLines(XtpTerminal *terminal, size_t lines)
 }
 
 int
+XtpTerminalSetDefaultCursorShape(XtpTerminal *terminal, XtpCursorShape shape)
+{
+        (void)shape;
+        return terminal != NULL ? 0 : -1;
+}
+
+int
 XtpTerminalSetCursorBlinkDefault(XtpTerminal *terminal, bool blinking)
 {
         (void)blinking;

@@ -821,6 +821,18 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-cursor-shape',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-cursor-shape.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            window_alpha_test_tool.full_path(),
+        ],
+        timeout: 60,
+        is_parallel: false,
+    )
+    test(
         'xvfb-underline-color',
         find_program('sh'),
         args: [

@@ -171,9 +171,9 @@ semantics and describes the implemented named-selection path.
   fixed cell placement while preserving display-aware Xft point sizing.
 - Retain application-selected block, underline, and bar cursor and blink
   coverage, the four-value `cursorBlink` policy, and xterm's `cursorBlinkXOR`
-  composition. In v0.5, wire `cursorUnderLine`/`-uc` and `cursorBar`/`-barc`
-  through the existing default cursor-style option, with underline taking
-  precedence over bar as it does in xterm; leave the remaining menu policy for
+  composition. `cursorUnderLine`/`-uc` and `cursorBar`/`-barc` now set libghostty's
+  default cursor style, with underline taking precedence over bar as it does
+  in xterm; leave the remaining menu policy for
   its owning slice.
 - Expose Kitty graphics placement and image lifecycle through a
   backend-neutral renderer interface, then implement safe X11 composition.

@@ -379,6 +379,8 @@ typedef enum
         XTP_TERMINAL_MODE_APPLICATION_KEYPAD,
         XTP_TERMINAL_MODE_ALLOW_132,
         XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT,
+        /* libghostty's own mode 12; the observer holds the application operand. */
+        XTP_TERMINAL_MODE_CURSOR_BLINKING,
         XTP_TERMINAL_MODE_COUNT,
 } XtpTerminalMode;
 
@@ -422,6 +424,10 @@ int XtpTerminalEncodeMouse(XtpTerminal *terminal, const XtpMouseEvent *event, ch
                            size_t capacity, size_t *written);
 int XtpTerminalSetScrollbackLines(XtpTerminal *terminal, size_t lines);
 int XtpTerminalSetCursorBlinkDefault(XtpTerminal *terminal, bool blinking);
+/* The shape DECSCUSR 0 and a full reset return to; blink stays separate. */
+int XtpTerminalSetDefaultCursorShape(XtpTerminal *terminal, XtpCursorShape shape);
+/* xterm's startup rule: cursorUnderLine beats cursorBar beats the block. */
+XtpCursorShape XtpTerminalStartupCursorShape(bool underline, bool bar);
 int XtpTerminalSetCursorBlinkRequestsEnabled(XtpTerminal *terminal, bool enabled);
 int XtpTerminalSetDefaultColors(XtpTerminal *terminal, XtpRgbColor foreground,
                                 XtpRgbColor background, XtpRgbColor cursor);

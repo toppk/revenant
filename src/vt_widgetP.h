@@ -161,6 +161,8 @@ typedef struct
         XtpCursorBlinkPolicy cursor_blink_policy;
         XtpCursorBlinkPolicy initial_cursor_blink_policy;
         Boolean cursor_blink_xor;
+        Boolean cursor_underline;
+        Boolean cursor_bar;
         int cursor_on_time;
         int cursor_off_time;
         Boolean scroll_bar;

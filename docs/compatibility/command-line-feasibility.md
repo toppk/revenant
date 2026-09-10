@@ -150,7 +150,7 @@ The two original structural gaps are complete:
 | --- | --- | --- | --- | --- |
 | `-/+ah` | `alwaysHighlight` | — | — | DONE |
 | `-/+bc`, `-bcf`, `-bcn ms` | Cursor blink and its on/off durations | Xt timer and `cursorBlink`/`cursorOnTime`/`cursorOffTime` resources | Four-value policy; aliases select `true`/`false` and the timing resources | DONE |
-| `-/+uc`, `-/+barc` | `cursorUnderLine`, `cursorBar` | Renderer cursor shape; `OPT_DEFAULT_CURSOR_STYLE` | Wire the startup default with underline taking precedence over bar, as in xterm | READY |
+| `-/+uc`, `-/+barc` | `cursorUnderLine`, `cursorBar` | `OPT_DEFAULT_CURSOR_STYLE` sets the shape DECSCUSR 0 and a full reset return to | Startup default with underline taking precedence over bar, as in xterm; blink stays with `cursorBlink` | DONE |
 
 ## Keyboard and input
 

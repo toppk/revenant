@@ -10,6 +10,11 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Honor the startup cursor shape resources. `cursorUnderLine` (`-uc`) starts
+  with an underline cursor and `cursorBar` (`-barc`) with a bar, underline
+  winning when both are set. An application's DECSCUSR request overrides the
+  startup shape, and `CSI 0 SP q` or a full reset returns to it; the blink
+  policy is untouched.
 - Activate **Allow Mouse Ops** and **Allow Tcap Ops** in the Ctrl+right-click
   menu. Mouse Ops gates mouse/focus reporting; Tcap Ops gates XTGETTCAP
   replies with `disallowedTcapOps` exceptions. Prepare Font Ops resources and
