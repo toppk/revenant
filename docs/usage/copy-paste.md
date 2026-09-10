@@ -196,6 +196,41 @@ mode, the terminal wraps pasted text in begin/end markers so the application
 can distinguish a paste from typing. This is independent of whether the X11
 source was `PRIMARY` or `CLIPBOARD`.
 
+## OSC 52: applications reading and writing selections
+
+`OSC 52 ; Pc ; Pd ST` lets a program set, clear, or query a selection. `Pc`
+names the target: `c` is `CLIPBOARD`, `p` is `PRIMARY`, and `s` is the
+`SELECT` name, which follows `selectToClipboard`. `Pd` is base64 text to set,
+empty to clear, or `?` to query; the reply repeats the form with the current
+text encoded, terminated the way the request was.
+
+xterm refuses both directions by default: `allowWindowOps` is `false` and
+`disallowedWindowOps` lists `SetSelection` and `GetSelection`. Revenant keeps
+those defaults. To enable selection access in the current window, hold Ctrl,
+right-click, and check **Allow Window Ops** at the bottom of the menu. Uncheck
+it to restore the configured restrictions; with the defaults, both sets and
+queries are denied again. The toggle takes effect immediately.
+
+To enable it at startup instead, set:
+
+```text
+XTerm*allowWindowOps: true
+```
+
+or, to permit sets while keeping the local clipboard unreadable:
+
+```text
+XTerm*disallowedWindowOps: GetIconTitle,GetWinTitle,GetChecksum,GetSelection,SetXprop
+```
+
+A permitted set makes Revenant the X11 owner of that selection with the
+decoded text, and other clients read it like any mouse selection. A permitted
+query asks the current owner for `UTF8_STRING`, then `STRING`. A denied query
+is not answered, so programs must not wait for one. `tools/probe-clipboard.py`
+exercises each operation from inside a terminal. The
+[drift ledger](../compatibility/drift.md) lists the parser-level differences
+from xterm.
+
 ## What Revenant supports today
 
 Revenant deliberately exposes the traditional workflow first:
@@ -213,6 +248,8 @@ Revenant deliberately exposes the traditional workflow first:
 | Send paste through libghostty's control filtering and bracketed-paste encoder | Supported |
 | Publish new selections to `CUT_BUFFER0` through `CUT_BUFFER7` | Supported |
 | Honor arbitrary selection names in Xt action parameters | Supported |
+| OSC 52 set, clear, and query of `CLIPBOARD`, `PRIMARY`, and `SELECT`, gated by `allowWindowOps` and `disallowedWindowOps` | Supported |
+| OSC 52 selection lists, `SECONDARY`, and cut-buffer targets | Not yet (libghostty parser) |
 | `TEXT` and `COMPOUND_TEXT` requests | Not yet |
 | `copy-selection` and keyboard-driven Shift+Select | Not yet |
 | Remaining xterm selection and paste-policy resources | Not yet |

@@ -172,6 +172,47 @@ protocol surface. Except for the default fixterms distinctions described
 above, those extra event forms are emitted only after an application requests
 the corresponding Kitty flags.
 
+### OSC 52 selection access follows xterm's default deny
+
+Revenant implements OSC 52 on top of libghostty's clipboard callbacks and
+gates it with xterm's resources: `allowWindowOps` (default `false`) and
+`disallowedWindowOps`, whose patch-411 default lists both `SetSelection` and
+`GetSelection`. Out of the box an OSC 52 set is refused and an OSC 52 query
+receives no reply at all, exactly as in stock xterm. Setting
+`XTerm*allowWindowOps: true`, or removing the two names from
+`disallowedWindowOps`, enables each direction independently; the list accepts
+xterm's case-insensitive names, `*` and `?` wildcards, and `~` negation. `maxStringParse`
+(default `600000`) refuses a set whose encoded control string would exceed the
+limit; libghostty separately caps every OSC at 8 MiB.
+
+Permitted operations use the same X11 selection machinery as the mouse: `c`
+owns `CLIPBOARD`, `p` owns `PRIMARY`, and `s` resolves through
+`selectToClipboard` like the `SELECT` action name. A set never disturbs other
+selections Revenant owns, an empty payload clears only the named selection,
+and a query answers from Revenant's own copy when it owns the selection or
+from a synchronous `UTF8_STRING`/`STRING` conversion request otherwise. Query
+replies mirror the request's `BEL` or `ST` terminator and carry padded
+base64.
+
+Known differences from xterm patch 411, all rooted in libghostty's parser or
+reply formatter and recorded as upstream asks:
+
+- Only one selection letter is accepted. xterm accepts a list such as `cp`
+  and sets or tries each; libghostty discards such requests.
+- An empty selection parameter means `CLIPBOARD`. xterm treats it as `s0`,
+  the `SELECT` name plus `CUT_BUFFER0`.
+- `q` (`SECONDARY`) and the cut-buffer digits `0` through `7` are folded into
+  `CLIPBOARD` instead of reaching their xterm targets.
+- A payload that is not valid base64 is ignored. xterm clears the selection.
+- The query reply echoes the letter derived from the target, not the request
+  text, and the clipboard text is not filtered through `allowPasteControls`.
+- A query that Revenant cannot serve within one second, or whose owner uses an
+  `INCR` transfer, is answered with an empty payload rather than waiting.
+- Denied queries are silent because the read callback is withheld. The
+  **Allow Window Ops** toggle in the Ctrl+right-click menu updates the policy
+  immediately; turning it off restores the configured `disallowedWindowOps`
+  restrictions.
+
 ### Synchronized output (DEC private mode 2026)
 
 Stock xterm patch 411 ignores DEC private mode 2026. Revenant honors it:

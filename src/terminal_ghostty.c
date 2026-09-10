@@ -301,6 +301,151 @@ XtversionEffect(GhosttyTerminal handle, void *userdata)
         return (GhosttyString){.ptr = version, .len = sizeof(version) - 1U};
 }
 
+static XtpClipboardTarget
+ConvertClipboardLocation(GhosttyClipboardLocation location)
+{
+        switch (location) {
+        case GHOSTTY_CLIPBOARD_LOCATION_SELECTION:
+                return XTP_CLIPBOARD_TARGET_SELECT;
+        case GHOSTTY_CLIPBOARD_LOCATION_PRIMARY:
+                return XTP_CLIPBOARD_TARGET_PRIMARY;
+        case GHOSTTY_CLIPBOARD_LOCATION_STANDARD:
+        case GHOSTTY_CLIPBOARD_LOCATION_MAX_VALUE:
+        default:
+                break;
+        }
+        return XTP_CLIPBOARD_TARGET_CLIPBOARD;
+}
+
+static bool
+TextMime(GhosttyString mime)
+{
+        static const char *const exact[] = {"UTF8_STRING", "TEXT", "STRING"};
+        size_t index;
+
+        if (mime.len >= 10 && memcmp(mime.ptr, "text/plain", 10) == 0)
+                return true;
+        for (index = 0; index < sizeof(exact) / sizeof(exact[0]); ++index) {
+                if (mime.len == strlen(exact[index]) &&
+                    memcmp(mime.ptr, exact[index], mime.len) == 0)
+                        return true;
+        }
+        return false;
+}
+
+static void
+ClipboardWriteEffect(GhosttyTerminal handle, void *userdata, const GhosttyClipboardWrite *write)
+{
+        XtpTerminal *terminal = userdata;
+        GhosttyClipboardWriteReply reply = {
+            .size = sizeof(reply),
+            .result = GHOSTTY_CLIPBOARD_WRITE_RESULT_DENIED,
+        };
+        XtpClipboardResult result = XTP_CLIPBOARD_DENIED;
+
+        (void)handle;
+        if (terminal->effects.clipboard_write != NULL) {
+                XtpClipboardTarget target = ConvertClipboardLocation(write->location);
+                size_t index;
+
+                if (write->contents_len == 0) {
+                        result = terminal->effects.clipboard_write(target, NULL, 0, true,
+                                                                   terminal->effects.closure);
+                } else {
+                        result = XTP_CLIPBOARD_UNSUPPORTED;
+                        for (index = 0; index < write->contents_len; ++index) {
+                                const GhosttyClipboardContent *content = &write->contents[index];
+
+                                if (!TextMime(content->mime))
+                                        continue;
+                                result = terminal->effects.clipboard_write(
+                                    target, content->data.ptr, content->data.len, false,
+                                    terminal->effects.closure);
+                                break;
+                        }
+                }
+        }
+        switch (result) {
+        case XTP_CLIPBOARD_SUCCESS:
+                reply.result = GHOSTTY_CLIPBOARD_WRITE_RESULT_SUCCESS;
+                break;
+        case XTP_CLIPBOARD_UNSUPPORTED:
+                reply.result = GHOSTTY_CLIPBOARD_WRITE_RESULT_UNSUPPORTED;
+                break;
+        case XTP_CLIPBOARD_UNAVAILABLE:
+                reply.result = GHOSTTY_CLIPBOARD_WRITE_RESULT_BUSY;
+                break;
+        case XTP_CLIPBOARD_DENIED:
+                break;
+        }
+        write->reply(write, &reply);
+}
+
+static void
+ClipboardReadEffect(GhosttyTerminal handle, void *userdata, const GhosttyClipboardRead *read)
+{
+        XtpTerminal *terminal = userdata;
+        GhosttyClipboardReadReply reply = {
+            .size = sizeof(reply),
+            .result = GHOSTTY_CLIPBOARD_READ_RESULT_UNSUPPORTED,
+        };
+        GhosttyClipboardContent content;
+        uint8_t *bytes = NULL;
+        size_t length = 0;
+
+        (void)handle;
+        if (terminal->effects.clipboard_read != NULL) {
+                XtpClipboardResult result =
+                    terminal->effects.clipboard_read(ConvertClipboardLocation(read->location),
+                                                     &bytes, &length, terminal->effects.closure);
+
+                switch (result) {
+                case XTP_CLIPBOARD_SUCCESS:
+                        content.mime =
+                            (GhosttyString){.ptr = (const uint8_t *)"text/plain", .len = 10};
+                        content.data = (GhosttyString){.ptr = bytes, .len = length};
+                        reply.contents = &content;
+                        reply.contents_len = 1;
+                        reply.result = GHOSTTY_CLIPBOARD_READ_RESULT_SUCCESS;
+                        break;
+                case XTP_CLIPBOARD_DENIED:
+                        reply.result = GHOSTTY_CLIPBOARD_READ_RESULT_DENIED;
+                        break;
+                case XTP_CLIPBOARD_UNAVAILABLE:
+                        reply.result = GHOSTTY_CLIPBOARD_READ_RESULT_BUSY;
+                        break;
+                case XTP_CLIPBOARD_UNSUPPORTED:
+                        break;
+                }
+        }
+        read->reply(read, &reply);
+        free(bytes);
+}
+
+static const void *
+ClipboardWriteEffectPointer(void)
+{
+        GhosttyTerminalClipboardWriteFn function = ClipboardWriteEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
+static const void *
+ClipboardReadEffectPointer(void)
+{
+        GhosttyTerminalClipboardReadFn function = ClipboardReadEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
 static const void *
 WritePtyEffectPointer(void)
 {
@@ -478,7 +623,9 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_SIZE,
                                  SizeEffectPointer()) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_XTVERSION,
-                                 XtversionEffectPointer()) != GHOSTTY_SUCCESS) {
+                                 XtversionEffectPointer()) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_CLIPBOARD_WRITE,
+                                 ClipboardWriteEffectPointer()) != GHOSTTY_SUCCESS) {
                 FreeHandles(terminal);
                 free(terminal);
                 return NULL;
@@ -1294,10 +1441,20 @@ XtpTerminalSetEffects(XtpTerminal *terminal, const XtpTerminalEffects *effects)
                 memset(&terminal->effects, 0, sizeof(terminal->effects));
         else
                 terminal->effects = *effects;
-        XtpLog(XTP_LOG_INFO, "terminal", "effects write-pty=%s bell=%s title=%s",
+        /* xterm answers a denied OSC 52 query with silence, so the read
+         * callback is only installed when a reply is permitted. */
+        if (ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_CLIPBOARD_READ,
+                                 terminal->effects.clipboard_read != NULL
+                                     ? ClipboardReadEffectPointer()
+                                     : NULL) != GHOSTTY_SUCCESS)
+                XtpLog(XTP_LOG_ERROR, "terminal", "cannot configure clipboard read effect");
+        XtpLog(XTP_LOG_INFO, "terminal",
+               "effects write-pty=%s bell=%s title=%s clipboard-write=%s clipboard-read=%s",
                terminal->effects.write_pty != NULL ? "on" : "off",
                terminal->effects.bell != NULL ? "on" : "off",
-               terminal->effects.title_changed != NULL ? "on" : "off");
+               terminal->effects.title_changed != NULL ? "on" : "off",
+               terminal->effects.clipboard_write != NULL ? "on" : "off",
+               terminal->effects.clipboard_read != NULL ? "on" : "off");
 }
 
 const char *

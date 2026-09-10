@@ -132,6 +132,7 @@ widget_sources = files(
     'src/terminal.c',
     'src/unicode_script.c',
     'src/url_match.c',
+    'src/window_ops.c',
     'src/utf8.c',
     'src/vt_font.c',
     'src/vt_draw.c',
@@ -340,6 +341,20 @@ shift_click_test_tool = executable(
 hover_test_tool = executable(
     'xtp-send-hover',
     'tests/xtp-send-hover.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
+selection_owner_tool = executable(
+    'xtp-own-selection',
+    'tests/xtp-own-selection.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
+window_ops_test_tool = executable(
+    'xtp-toggle-window-ops',
+    'tests/xtp-toggle-window-ops.c',
     dependencies: x11_dep,
     install: false,
 )
@@ -736,6 +751,37 @@ if build_with_ghostty and xvfb.found()
             shift_click_test_tool.full_path(),
         ],
         timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-clipboard',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-clipboard.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            python3.full_path(),
+            files('tests/clipboard-osc52.py'),
+            selection_reader_tool.full_path(),
+            selection_owner_tool.full_path(),
+            selection_test_tool.full_path(),
+        ],
+        timeout: 120,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-window-ops',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-window-ops.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            python3.full_path(),
+            files('tests/window-ops.py'),
+            window_ops_test_tool.full_path(),
+            selection_reader_tool.full_path(),
+        ],
+        timeout: 45,
         is_parallel: false,
     )
     test(

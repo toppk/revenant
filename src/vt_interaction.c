@@ -8,9 +8,13 @@
 #include <X11/cursorfont.h>
 
 #include <errno.h>
+#include <limits.h>
+#include <poll.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -18,16 +22,57 @@
 #define XTP_URL_SCAN_MAX_BYTES 65536U
 #define XTP_URL_SCAN_MAX_CELLS 4096U
 
-static Boolean
-OwnsSelection(const Vt100Rec *vt, Atom selection)
+static OwnedSelection *
+FindOwnedSelection(const Vt100Rec *vt, Atom selection)
 {
         Cardinal index;
 
         for (index = 0; index < vt->vt.owned_selection_count; ++index) {
-                if (vt->vt.owned_selections[index] == selection)
+                if (vt->vt.owned_selections[index].atom == selection)
+                        return &vt->vt.owned_selections[index];
+        }
+        return NULL;
+}
+
+static Boolean
+AnyHighlightedSelection(const Vt100Rec *vt)
+{
+        Cardinal index;
+
+        for (index = 0; index < vt->vt.owned_selection_count; ++index) {
+                if (vt->vt.owned_selections[index].highlight)
                         return True;
         }
         return False;
+}
+
+static void
+RemoveOwnedSelection(Vt100Rec *vt, OwnedSelection *entry)
+{
+        Cardinal index = (Cardinal)(entry - vt->vt.owned_selections);
+        Boolean highlighted = entry->highlight;
+
+        free(entry->text);
+        memmove(entry, entry + 1,
+                (vt->vt.owned_selection_count - index - 1U) * sizeof(*vt->vt.owned_selections));
+        --vt->vt.owned_selection_count;
+        if (highlighted && !AnyHighlightedSelection(vt)) {
+                if (vt->vt.terminal != NULL)
+                        XtpTerminalSelectionClear(vt->vt.terminal);
+                XtpVtUpdate((Widget)vt);
+        }
+}
+
+void
+VtFreeOwnedSelections(Vt100Rec *vt)
+{
+        Cardinal index;
+
+        for (index = 0; index < vt->vt.owned_selection_count; ++index)
+                free(vt->vt.owned_selections[index].text);
+        free(vt->vt.owned_selections);
+        vt->vt.owned_selections = NULL;
+        vt->vt.owned_selection_count = 0;
 }
 
 static SelectionSource
@@ -125,7 +170,9 @@ ConvertSelection(Widget widget, Atom *selection, Atom *target, Atom *type_return
         Atom utf8 = XInternAtom(display, "UTF8_STRING", False);
         Atom text = XInternAtom(display, "TEXT", False);
 
-        if (!OwnsSelection(vt, *selection) || vt->vt.selection_text == NULL)
+        OwnedSelection *entry = FindOwnedSelection(vt, *selection);
+
+        if (entry == NULL || entry->text == NULL)
                 return False;
         if (*target == targets) {
                 Atom *available = (Atom *)XtMalloc(5U * sizeof(*available));
@@ -153,8 +200,7 @@ ConvertSelection(Widget widget, Atom *selection, Atom *target, Atom *type_return
         }
         if (*target == XA_STRING) {
                 size_t converted_length;
-                uint8_t *converted = Utf8ToLatin1(vt->vt.selection_text,
-                                                  vt->vt.selection_text_length, &converted_length);
+                uint8_t *converted = Utf8ToLatin1(entry->text, entry->length, &converted_length);
                 uint8_t *value;
 
                 if (converted == NULL)
@@ -169,14 +215,14 @@ ConvertSelection(Widget widget, Atom *selection, Atom *target, Atom *type_return
                 return True;
         }
         if (*target == utf8 || *target == text) {
-                uint8_t *value = (uint8_t *)XtMalloc(vt->vt.selection_text_length + 1U);
+                uint8_t *value = (uint8_t *)XtMalloc(entry->length + 1U);
 
-                if (vt->vt.selection_text_length != 0)
-                        memcpy(value, vt->vt.selection_text, vt->vt.selection_text_length);
-                value[vt->vt.selection_text_length] = '\0';
+                if (entry->length != 0)
+                        memcpy(value, entry->text, entry->length);
+                value[entry->length] = '\0';
                 *type_return = utf8;
                 *value_return = value;
-                *length_return = (unsigned long)vt->vt.selection_text_length;
+                *length_return = (unsigned long)entry->length;
                 *format_return = 8;
                 return True;
         }
@@ -187,49 +233,48 @@ static void
 LoseSelection(Widget widget, Atom *selection)
 {
         Vt100Rec *vt = VtAsRecord(widget);
-        Cardinal index;
+        OwnedSelection *entry;
         char *name;
 
         if (vt->vt.disowning_selections)
                 return;
-        for (index = 0; index < vt->vt.owned_selection_count; ++index) {
-                if (vt->vt.owned_selections[index] == *selection) {
-                        memmove(&vt->vt.owned_selections[index],
-                                &vt->vt.owned_selections[index + 1U],
-                                (vt->vt.owned_selection_count - index - 1U) * sizeof(Atom));
-                        --vt->vt.owned_selection_count;
-                        break;
-                }
-        }
+        entry = FindOwnedSelection(vt, *selection);
+        if (entry != NULL)
+                RemoveOwnedSelection(vt, entry);
         name = XGetAtomName(XtDisplay(widget), *selection);
         XtpLog(XTP_LOG_INFO, "selection", "lost %s ownership remaining=%u",
                name != NULL ? name : "(unknown)", (unsigned int)vt->vt.owned_selection_count);
         if (name != NULL)
                 XFree(name);
-        if (vt->vt.owned_selection_count != 0)
-                return;
-        free(vt->vt.selection_text);
-        vt->vt.selection_text = NULL;
-        vt->vt.selection_text_length = 0;
-        if (vt->vt.terminal != NULL)
-                XtpTerminalSelectionClear(vt->vt.terminal);
-        XtpVtUpdate(widget);
 }
 
 static void
-DisownSelections(Vt100Rec *vt, Time time)
+DisownOwnedSelection(Vt100Rec *vt, OwnedSelection *entry, Time time)
 {
-        Atom *owned = vt->vt.owned_selections;
-        Cardinal count = vt->vt.owned_selection_count;
+        vt->vt.disowning_selections = True;
+        XtDisownSelection((Widget)vt, entry->atom, time);
+        vt->vt.disowning_selections = False;
+        RemoveOwnedSelection(vt, entry);
+}
+
+/* A new gesture replaces only the atoms it names; OSC 52 and other owned atoms stay. */
+static void
+DisownNamedSelections(Vt100Rec *vt, String *params, Cardinal num_params, Time time)
+{
         Cardinal index;
 
-        vt->vt.owned_selections = NULL;
-        vt->vt.owned_selection_count = 0;
-        vt->vt.disowning_selections = True;
-        for (index = 0; index < count; ++index)
-                XtDisownSelection((Widget)vt, owned[index], time);
-        vt->vt.disowning_selections = False;
-        free(owned);
+        for (index = 0; index < vt->vt.owned_selection_count; ++index)
+                vt->vt.owned_selections[index].highlight = False;
+        for (index = 0; index < num_params; ++index) {
+                SelectionSource source = ResolveSelectionSource(vt, params[index]);
+                OwnedSelection *entry;
+
+                if (source.kind != XTP_SELECTION_SOURCE_ATOM || source.atom == None)
+                        continue;
+                entry = FindOwnedSelection(vt, source.atom);
+                if (entry != NULL)
+                        DisownOwnedSelection(vt, entry, time);
+        }
 }
 
 static Boolean
@@ -1072,11 +1117,10 @@ VtStartExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_
 }
 
 static void
-StoreCutBuffer(Vt100Rec *vt, int cut_buffer)
+StoreCutBuffer(Vt100Rec *vt, const uint8_t *text, size_t length, int cut_buffer)
 {
         size_t converted_length;
-        uint8_t *converted =
-            Utf8ToLatin1(vt->vt.selection_text, vt->vt.selection_text_length, &converted_length);
+        uint8_t *converted = Utf8ToLatin1(text, length, &converted_length);
         unsigned long request_words = XMaxRequestSize(XtDisplay((Widget)vt));
         unsigned long request_limit = request_words > 8U ? request_words * 4U - 32U : 0U;
         int stored_length;
@@ -1099,55 +1143,90 @@ StoreCutBuffer(Vt100Rec *vt, int cut_buffer)
         free(converted);
 }
 
+/* Own one atom with a private copy of TEXT; an existing entry is replaced. */
+static Boolean
+OwnSelectionText(Vt100Rec *vt, const char *source_name, Atom atom, const uint8_t *text,
+                 size_t length, Boolean highlight, Time time)
+{
+        OwnedSelection *entry = FindOwnedSelection(vt, atom);
+        uint8_t *copy = malloc(length + 1U);
+        Boolean owned_now;
+        char *atom_name;
+
+        if (copy == NULL) {
+                XtpLog(XTP_LOG_ERROR, "selection", "cannot copy selection text bytes=%zu", length);
+                return False;
+        }
+        if (length != 0)
+                memcpy(copy, text, length);
+        copy[length] = '\0';
+        if (entry == NULL) {
+                OwnedSelection *grown = realloc(
+                    vt->vt.owned_selections, (vt->vt.owned_selection_count + 1U) * sizeof(*grown));
+
+                if (grown == NULL) {
+                        XtpLog(XTP_LOG_ERROR, "selection", "cannot allocate selection owner list");
+                        free(copy);
+                        return False;
+                }
+                vt->vt.owned_selections = grown;
+        }
+        owned_now = XtOwnSelection((Widget)vt, atom, time, ConvertSelection, LoseSelection, NULL);
+        atom_name = XGetAtomName(XtDisplay((Widget)vt), atom);
+        XtpLog(owned_now ? XTP_LOG_INFO : XTP_LOG_WARNING, "selection",
+               "publish source=%s selection=%s bytes=%zu owned=%s", source_name,
+               atom_name != NULL ? atom_name : "(unknown)", length, owned_now ? "true" : "false");
+        if (atom_name != NULL)
+                XFree(atom_name);
+        if (!owned_now) {
+                free(copy);
+                if (entry != NULL)
+                        RemoveOwnedSelection(vt, entry);
+                return False;
+        }
+        if (entry == NULL) {
+                entry = &vt->vt.owned_selections[vt->vt.owned_selection_count++];
+                entry->atom = atom;
+                entry->highlight = highlight;
+        } else {
+                Boolean was_highlighted = entry->highlight;
+
+                free(entry->text);
+                entry->highlight = highlight;
+                if (was_highlighted && !AnyHighlightedSelection(vt)) {
+                        if (vt->vt.terminal != NULL)
+                                XtpTerminalSelectionClear(vt->vt.terminal);
+                        XtpVtUpdate((Widget)vt);
+                }
+        }
+        entry->text = copy;
+        entry->length = length;
+        return True;
+}
+
 static void
-PublishSelection(Vt100Rec *vt, String *params, Cardinal num_params)
+PublishSelection(Vt100Rec *vt, String *params, Cardinal num_params, const uint8_t *text,
+                 size_t length)
 {
         Cardinal index;
+        Cardinal owned = 0;
 
-        vt->vt.owned_selections = calloc(num_params, sizeof(*vt->vt.owned_selections));
-        if (num_params != 0 && vt->vt.owned_selections == NULL) {
-                XtpLog(XTP_LOG_ERROR, "selection", "cannot allocate selection owner list");
-                return;
-        }
         for (index = 0; index < num_params; ++index) {
                 SelectionSource source = ResolveSelectionSource(vt, params[index]);
-                Boolean duplicate = False;
-                Cardinal owned;
 
                 if (source.kind == XTP_SELECTION_SOURCE_CUT_BUFFER) {
-                        StoreCutBuffer(vt, source.cut_buffer);
+                        StoreCutBuffer(vt, text, length, source.cut_buffer);
                         continue;
                 }
                 if (source.atom == None) {
                         XtpLog(XTP_LOG_WARNING, "selection", "ignored empty selection name");
                         continue;
                 }
-                for (owned = 0; owned < vt->vt.owned_selection_count; ++owned) {
-                        if (vt->vt.owned_selections[owned] == source.atom) {
-                                duplicate = True;
-                                break;
-                        }
-                }
-                if (duplicate)
-                        continue;
-                {
-                        Boolean owned_now =
-                            XtOwnSelection((Widget)vt, source.atom, vt->vt.selection_time,
-                                           ConvertSelection, LoseSelection, NULL);
-                        char *atom_name = XGetAtomName(XtDisplay((Widget)vt), source.atom);
-
-                        XtpLog(owned_now ? XTP_LOG_INFO : XTP_LOG_WARNING, "selection",
-                               "publish source=%s selection=%s bytes=%zu owned=%s", params[index],
-                               atom_name != NULL ? atom_name : "(unknown)",
-                               vt->vt.selection_text_length, owned_now ? "true" : "false");
-                        if (atom_name != NULL)
-                                XFree(atom_name);
-                        if (owned_now)
-                                vt->vt.owned_selections[vt->vt.owned_selection_count++] =
-                                    source.atom;
-                }
+                if (OwnSelectionText(vt, params[index], source.atom, text, length, True,
+                                     vt->vt.selection_time))
+                        ++owned;
         }
-        if (num_params != 0 && vt->vt.owned_selection_count == 0) {
+        if (num_params != 0 && owned == 0) {
                 XtpTerminalSelectionClear(vt->vt.terminal);
                 XtpVtUpdate((Widget)vt);
         }
@@ -1186,18 +1265,11 @@ VtSelectEndAction(Widget widget, XEvent *event, String *params, Cardinal *num_pa
         vt->vt.selection_extending = False;
         vt->vt.last_button_up_time = event->xbutton.time;
         vt->vt.last_button = event->xbutton.button;
+        DisownNamedSelections(vt, params, *num_params, event->xbutton.time);
         if (XtpTerminalSelectionText(vt->vt.terminal, &text, &length) == 0) {
-                DisownSelections(vt, event->xbutton.time);
-                free(vt->vt.selection_text);
-                vt->vt.selection_text = text;
-                vt->vt.selection_text_length = length;
                 vt->vt.selection_time = event->xbutton.time;
-                PublishSelection(vt, params, *num_params);
-        } else {
-                DisownSelections(vt, event->xbutton.time);
-                free(vt->vt.selection_text);
-                vt->vt.selection_text = NULL;
-                vt->vt.selection_text_length = 0;
+                PublishSelection(vt, params, *num_params, text, length);
+                free(text);
         }
 }
 
@@ -1438,4 +1510,219 @@ VtScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *nu
                 return;
         }
         (void)VtScrollViewportBy(vt, rows);
+}
+
+#define XTP_CLIPBOARD_READ_TIMEOUT_MS 1000
+
+static Time
+SelectionRequestTime(Vt100Rec *vt)
+{
+        Time time = XtLastTimestampProcessed(XtDisplay((Widget)vt));
+
+        return time != 0 ? time : CurrentTime;
+}
+
+XtpClipboardResult
+XtpVtClipboardWrite(Widget widget, XtpClipboardTarget target, const uint8_t *bytes, size_t length,
+                    Boolean clear)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+        const char *name = XtpClipboardTargetName(target);
+        SelectionSource source = ResolveSelectionSource(vt, name);
+        Time time = SelectionRequestTime(vt);
+
+        if (source.kind == XTP_SELECTION_SOURCE_CUT_BUFFER) {
+                if (!clear)
+                        StoreCutBuffer(vt, bytes, length, source.cut_buffer);
+                return XTP_CLIPBOARD_SUCCESS;
+        }
+        if (source.atom == None)
+                return XTP_CLIPBOARD_UNSUPPORTED;
+        if (clear) {
+                OwnedSelection *entry = FindOwnedSelection(vt, source.atom);
+
+                if (entry != NULL)
+                        DisownOwnedSelection(vt, entry, time);
+                XtpLog(XTP_LOG_INFO, "selection", "clear source=%s owned-before=%s", name,
+                       entry != NULL ? "true" : "false");
+                return XTP_CLIPBOARD_SUCCESS;
+        }
+        return OwnSelectionText(vt, name, source.atom, bytes, length, False, time)
+                   ? XTP_CLIPBOARD_SUCCESS
+                   : XTP_CLIPBOARD_UNAVAILABLE;
+}
+
+static Boolean
+CopyBytes(const uint8_t *bytes, size_t length, uint8_t **copy, size_t *copy_length)
+{
+        *copy = malloc(length + 1U);
+        if (*copy == NULL)
+                return False;
+        if (length != 0)
+                memcpy(*copy, bytes, length);
+        (*copy)[length] = '\0';
+        *copy_length = length;
+        return True;
+}
+
+static Window
+ClipboardRequestWindow(Vt100Rec *vt)
+{
+        Display *display = XtDisplay((Widget)vt);
+
+        if (vt->vt.clipboard_window == None)
+                vt->vt.clipboard_window = XCreateSimpleWindow(
+                    display, RootWindowOfScreen(XtScreen((Widget)vt)), 0, 0, 1, 1, 0, 0, 0);
+        return vt->vt.clipboard_window;
+}
+
+/* Wait for the SelectionNotify matching REQUEST; other events stay queued for
+ * Xt, and notifies for abandoned requests are dropped. Returns False on timeout. */
+static Boolean
+WaitForSelectionNotify(Display *display, Window window, const XSelectionRequestEvent *request,
+                       int budget_ms, XEvent *event)
+{
+        struct pollfd descriptor = {ConnectionNumber(display), POLLIN, 0};
+        struct timespec start;
+        int elapsed = 0;
+
+        (void)clock_gettime(CLOCK_MONOTONIC, &start);
+        for (;;) {
+                struct timespec now;
+
+                while (XCheckTypedWindowEvent(display, window, SelectionNotify, event)) {
+                        if (event->xselection.selection == request->selection &&
+                            event->xselection.target == request->target &&
+                            (event->xselection.property == None ||
+                             event->xselection.property == request->property))
+                                return True;
+                        XtpLog(XTP_LOG_DEBUG, "selection", "dropped stale selection reply");
+                        if (event->xselection.property != None)
+                                XDeleteProperty(display, window, event->xselection.property);
+                }
+                if (elapsed >= budget_ms)
+                        return False;
+                (void)poll(&descriptor, 1, budget_ms - elapsed);
+                (void)clock_gettime(CLOCK_MONOTONIC, &now);
+                elapsed = (int)((now.tv_sec - start.tv_sec) * 1000L +
+                                (now.tv_nsec - start.tv_nsec) / 1000000L);
+        }
+}
+
+/* libghostty answers OSC 52 queries inside its callback, so the X selection
+ * round trip is completed synchronously against a private request window.
+ * Every request uses a fresh property so a late reply can never satisfy a
+ * later query. */
+static XtpClipboardResult
+FetchSelectionSync(Vt100Rec *vt, Atom selection, uint8_t **bytes, size_t *length)
+{
+        Display *display = XtDisplay((Widget)vt);
+        Window window = ClipboardRequestWindow(vt);
+        Atom incr = XInternAtom(display, "INCR", False);
+        Atom targets[2];
+        size_t attempt;
+
+        targets[0] = XInternAtom(display, "UTF8_STRING", False);
+        targets[1] = XA_STRING;
+        if (vt->vt.stale_clipboard_property != None) {
+                XDeleteProperty(display, window, vt->vt.stale_clipboard_property);
+                vt->vt.stale_clipboard_property = None;
+        }
+        if (XGetSelectionOwner(display, selection) == None)
+                return XTP_CLIPBOARD_UNAVAILABLE;
+        for (attempt = 0; attempt < XtNumber(targets); ++attempt) {
+                XSelectionRequestEvent request;
+                XEvent event;
+                char property_name[32];
+                Atom actual_type = None;
+                int actual_format = 0;
+                unsigned long items = 0;
+                unsigned long after = 0;
+                unsigned char *value = NULL;
+                XtpClipboardResult result;
+
+                (void)snprintf(property_name, sizeof(property_name), "XTP_OSC52_RESULT_%u",
+                               ++vt->vt.clipboard_request_serial);
+                request.selection = selection;
+                request.target = targets[attempt];
+                request.property = XInternAtom(display, property_name, False);
+                XConvertSelection(display, selection, request.target, request.property, window,
+                                  SelectionRequestTime(vt));
+                XFlush(display);
+                if (!WaitForSelectionNotify(display, window, &request,
+                                            XTP_CLIPBOARD_READ_TIMEOUT_MS, &event)) {
+                        XtpLog(XTP_LOG_WARNING, "selection",
+                               "OSC 52 read timed out after %d ms; request abandoned",
+                               XTP_CLIPBOARD_READ_TIMEOUT_MS);
+                        vt->vt.stale_clipboard_property = request.property;
+                        return XTP_CLIPBOARD_UNAVAILABLE;
+                }
+                if (event.xselection.property == None)
+                        continue;
+                if (XGetWindowProperty(display, window, request.property, 0, 1L << 24, True,
+                                       AnyPropertyType, &actual_type, &actual_format, &items,
+                                       &after, &value) != Success)
+                        return XTP_CLIPBOARD_UNAVAILABLE;
+                if (actual_type == incr) {
+                        XtpLog(XTP_LOG_WARNING, "selection",
+                               "OSC 52 read of an INCR transfer is unsupported");
+                        if (value != NULL)
+                                XFree(value);
+                        XDeleteProperty(display, window, request.property);
+                        return XTP_CLIPBOARD_UNAVAILABLE;
+                }
+                if (actual_format != 8 || after != 0) {
+                        if (value != NULL)
+                                XFree(value);
+                        return XTP_CLIPBOARD_UNAVAILABLE;
+                }
+                if (actual_type == XA_STRING) {
+                        *bytes = Latin1ToUtf8(value != NULL ? value : (const unsigned char *)"",
+                                              items, length);
+                        result = *bytes != NULL ? XTP_CLIPBOARD_SUCCESS : XTP_CLIPBOARD_UNAVAILABLE;
+                } else {
+                        result = CopyBytes(value != NULL ? value : (const unsigned char *)"", items,
+                                           bytes, length)
+                                     ? XTP_CLIPBOARD_SUCCESS
+                                     : XTP_CLIPBOARD_UNAVAILABLE;
+                }
+                if (value != NULL)
+                        XFree(value);
+                return result;
+        }
+        return XTP_CLIPBOARD_UNAVAILABLE;
+}
+
+XtpClipboardResult
+XtpVtClipboardRead(Widget widget, XtpClipboardTarget target, uint8_t **bytes, size_t *length)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+        const char *name = XtpClipboardTargetName(target);
+        SelectionSource source = ResolveSelectionSource(vt, name);
+        OwnedSelection *entry;
+
+        *bytes = NULL;
+        *length = 0;
+        if (source.kind == XTP_SELECTION_SOURCE_CUT_BUFFER) {
+                int fetched = 0;
+                char *buffer = XFetchBuffer(XtDisplay(widget), &fetched, source.cut_buffer);
+                XtpClipboardResult result = XTP_CLIPBOARD_UNAVAILABLE;
+
+                if (buffer != NULL) {
+                        *bytes = Latin1ToUtf8((const uint8_t *)buffer,
+                                              fetched > 0 ? (size_t)fetched : 0U, length);
+                        if (*bytes != NULL)
+                                result = XTP_CLIPBOARD_SUCCESS;
+                        XFree(buffer);
+                }
+                return result;
+        }
+        if (source.atom == None)
+                return XTP_CLIPBOARD_UNSUPPORTED;
+        entry = FindOwnedSelection(vt, source.atom);
+        if (entry != NULL)
+                return CopyBytes(entry->text, entry->length, bytes, length)
+                           ? XTP_CLIPBOARD_SUCCESS
+                           : XTP_CLIPBOARD_UNAVAILABLE;
+        return FetchSelectionSync(vt, source.atom, bytes, length);
 }

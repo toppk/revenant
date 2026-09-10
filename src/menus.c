@@ -135,7 +135,7 @@ static const MenuSpec font_specs[] = {
     INERT("allow-mouse-ops"),
     INERT("allow-tcap-ops"),
     INERT("allow-title-ops"),
-    INERT("allow-window-ops"),
+    ACTIVE("allow-window-ops", XTP_MENU_ITEM_ALLOW_WINDOW_OPS),
 };
 
 #undef ITEM

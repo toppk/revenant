@@ -55,3 +55,17 @@ XtpTerminalFeedOutput(XtpTerminal *terminal, const uint8_t *bytes, size_t length
                (unsigned long long)after.total);
         return 0;
 }
+
+const char *
+XtpClipboardTargetName(XtpClipboardTarget target)
+{
+        switch (target) {
+        case XTP_CLIPBOARD_TARGET_CLIPBOARD:
+                return "CLIPBOARD";
+        case XTP_CLIPBOARD_TARGET_SELECT:
+                return "SELECT";
+        case XTP_CLIPBOARD_TARGET_PRIMARY:
+                return "PRIMARY";
+        }
+        return "?";
+}

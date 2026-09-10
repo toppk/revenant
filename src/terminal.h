@@ -286,14 +286,38 @@ typedef struct
         bool any_button_pressed;
 } XtpMouseEvent;
 
+typedef enum
+{
+        XTP_CLIPBOARD_TARGET_CLIPBOARD,
+        XTP_CLIPBOARD_TARGET_SELECT,
+        XTP_CLIPBOARD_TARGET_PRIMARY,
+} XtpClipboardTarget;
+
+typedef enum
+{
+        XTP_CLIPBOARD_SUCCESS,
+        XTP_CLIPBOARD_DENIED,
+        XTP_CLIPBOARD_UNSUPPORTED,
+        XTP_CLIPBOARD_UNAVAILABLE,
+} XtpClipboardResult;
+
 typedef struct
 {
         void (*write_pty)(const uint8_t *bytes, size_t length, void *closure);
         void (*bell)(void *closure);
         void (*title_changed)(const char *title, size_t length, void *closure);
         void (*cursor_blink_reset)(void *closure);
+        /* OSC 52 set; clear=true carries no text. */
+        XtpClipboardResult (*clipboard_write)(XtpClipboardTarget target, const uint8_t *bytes,
+                                              size_t length, bool clear, void *closure);
+        /* OSC 52 query; a NULL effect leaves the query unanswered. On success the
+         * caller frees *bytes. */
+        XtpClipboardResult (*clipboard_read)(XtpClipboardTarget target, uint8_t **bytes,
+                                             size_t *length, void *closure);
         void *closure;
 } XtpTerminalEffects;
+
+const char *XtpClipboardTargetName(XtpClipboardTarget target);
 
 typedef struct
 {

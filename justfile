@@ -66,6 +66,10 @@ probe-keymodes *args:
 probe-sync *args:
     python3 tools/probe-sync.py {{args}}
 
+# Set, clear, or query a selection through OSC 52
+probe-clipboard *args:
+    python3 tools/probe-clipboard.py {{args}}
+
 # Display the SGR attribute and color sampler
 probe-color:
     tools/probe-color.sh

@@ -330,6 +330,18 @@ function-pointer helper would lose the useful type check.
   autolinefeed, application cursor keys, and application keypad mode.
 - Progressive output rendering, a last-painted cell cache, and cursor-only
   repaint support when libghostty reports no cell damage.
+- OSC 52 selection access: libghostty decodes the request and calls the
+  clipboard write/read effects; `main.c` applies `allowWindowOps` and
+  `disallowedWindowOps` (parsed by `window_ops.c`) plus `maxStringParse`, and
+  the widget owns or clears the named X selection with a private per-atom text
+  copy, or answers a query from an owned entry or a synchronous X round trip
+  against a private request window. The read effect is installed only when
+  `GetSelection` is allowed so a denied query stays silent like xterm. The
+  **Allow Window Ops** menu toggle updates that effect and the write policy
+  at runtime; `xvfb-window-ops` covers enable/disable and restoration of a
+  configured set-only policy.
+  libghostty's parser accepts one selection letter; `q`, cut-buffer digits,
+  lists, and the `s0` default are recorded in the drift ledger.
 - Synchronized output (DEC private mode 2026): the widget holds dirty updates
   while the mode is set and paints once on release. A one-second timeout
   releases a stuck batch and resets the mode so DECRQM reports the reset. An
@@ -1055,15 +1067,16 @@ available, Meson also runs integration suites for the reproducible font
 baseline; emoji routing, shaping, width regimes, and color-font formats;
 opacity/reverse-video pixel policy and logging thresholds; named selections,
 cut buffers, and OSC 8 launch policy; legacy/fixterms keyboard delivery;
-Kitty keyboard press, repeat, and release; and synchronized-output hold,
-timeout, and resize behavior. Release package configurations use
+Kitty keyboard press, repeat, and release; synchronized-output hold,
+timeout, and resize behavior; and OSC 52 policy, selection ownership, and
+exact query replies. Release package configurations use
 `-Dxvfb-tests=enabled`, which makes missing Xvfb or libghostty an immediate
 configuration error, and `tools/check-release-tests` rejects skipped suites.
 The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 32 tests for each libghostty build
+The normal full matrix currently contains 34 tests for each libghostty build
 and 7 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

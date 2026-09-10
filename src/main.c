@@ -437,6 +437,65 @@ TerminalBell(void *closure)
         XtpLog(XTP_LOG_INFO, "shell", "bell requested");
 }
 
+static const char *
+ClipboardResultName(XtpClipboardResult result)
+{
+        switch (result) {
+        case XTP_CLIPBOARD_SUCCESS:
+                return "success";
+        case XTP_CLIPBOARD_DENIED:
+                return "denied";
+        case XTP_CLIPBOARD_UNSUPPORTED:
+                return "unsupported";
+        case XTP_CLIPBOARD_UNAVAILABLE:
+                return "unavailable";
+        }
+        return "?";
+}
+
+static XtpClipboardResult
+TerminalClipboardWrite(XtpClipboardTarget target, const uint8_t *bytes, size_t length, bool clear,
+                       void *closure)
+{
+        App *app = closure;
+        const char *name = XtpClipboardTargetName(target);
+        XtpClipboardResult result;
+
+        if (!XtpVtWindowOpAllowed(app->vt, XTP_WINDOW_OP_SET_SELECTION)) {
+                XtpLog(XTP_LOG_INFO, "selection", "OSC 52 SetSelection denied target=%s bytes=%zu",
+                       name, length);
+                return XTP_CLIPBOARD_DENIED;
+        }
+        if (!clear) {
+                /* xterm bounds the encoded control string: "52;c;" plus base64. */
+                int limit = XtpVtMaxStringParse(app->vt);
+                size_t encoded = 5U + 4U * ((length + 2U) / 3U);
+
+                if (limit > 0 && encoded >= (size_t)limit) {
+                        XtpLog(XTP_LOG_WARNING, "selection",
+                               "OSC 52 SetSelection target=%s bytes=%zu exceeds maxStringParse=%d",
+                               name, length, limit);
+                        return XTP_CLIPBOARD_DENIED;
+                }
+        }
+        result = XtpVtClipboardWrite(app->vt, target, bytes, length, clear ? True : False);
+        XtpLog(XTP_LOG_INFO, "selection",
+               "OSC 52 SetSelection target=%s bytes=%zu clear=%s result=%s", name, length,
+               clear ? "true" : "false", ClipboardResultName(result));
+        return result;
+}
+
+static XtpClipboardResult
+TerminalClipboardRead(XtpClipboardTarget target, uint8_t **bytes, size_t *length, void *closure)
+{
+        App *app = closure;
+        XtpClipboardResult result = XtpVtClipboardRead(app->vt, target, bytes, length);
+
+        XtpLog(XTP_LOG_INFO, "selection", "OSC 52 GetSelection target=%s result=%s bytes=%zu",
+               XtpClipboardTargetName(target), ClipboardResultName(result), *length);
+        return result;
+}
+
 static void
 TerminalTitle(const char *title, size_t length, void *closure)
 {
@@ -458,6 +517,26 @@ TerminalCursorBlinkReset(void *closure)
         App *app = closure;
 
         XtpVtResetCursorBlinkPolicy(app->vt);
+}
+
+static void
+ApplyTerminalEffects(App *app)
+{
+        XtpTerminalEffects effects = {
+            .write_pty = TerminalWritePty,
+            .bell = TerminalBell,
+            .title_changed = TerminalTitle,
+            .cursor_blink_reset = TerminalCursorBlinkReset,
+            .clipboard_write = TerminalClipboardWrite,
+            .closure = app,
+        };
+
+        if (XtpVtWindowOpAllowed(app->vt, XTP_WINDOW_OP_GET_SELECTION))
+                effects.clipboard_read = TerminalClipboardRead;
+        else
+                XtpLog(XTP_LOG_INFO, "selection",
+                       "OSC 52 GetSelection denied; queries stay unanswered");
+        XtpTerminalSetEffects(app->terminal, &effects);
 }
 
 static void
@@ -524,6 +603,8 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
 
         (void)widget;
         SyncTerminalModeChecks(app);
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
+                           XtpVtAllowWindowOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_KEY, XtpVtScrollKey(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_TTY_OUTPUT,
                            XtpVtScrollTtyOutput(app->vt));
@@ -639,6 +720,11 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
         case XTP_MENU_ITEM_SELECT_TO_CLIPBOARD:
                 XtpVtSetSelectToClipboard(app->vt, !XtpVtSelectToClipboard(app->vt));
                 XtpMenusSetChecked(&app->menus, menu_item, XtpVtSelectToClipboard(app->vt));
+                return;
+        case XTP_MENU_ITEM_ALLOW_WINDOW_OPS:
+                XtpVtSetAllowWindowOps(app->vt, !XtpVtAllowWindowOps(app->vt));
+                ApplyTerminalEffects(app);
+                XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowWindowOps(app->vt));
                 return;
         case XTP_MENU_ITEM_RENDER_FONT:
                 if (!XtpVtSetRenderFont(app->vt, !XtpVtUsingXft(app->vt)))
@@ -919,6 +1005,8 @@ WireApplication(App *app, const AppResources *resources)
         XtAddCallback(app->vt, XtNpasteCallback, PasteReceived, app);
         XtAddCallback(app->vt, XtNinputCallback, EncodedInputReceived, app);
         XtpMenusCreate(&app->menus, app->shell, resources->menu_locale, MenuDispatch, app);
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
+                           XtpVtAllowWindowOps(app->vt));
         XtpMenusSetScrollbar(&app->menus, XtpVtScrollbarVisible(app->vt));
         XtpMenusSetRenderFont(&app->menus, XtpVtUsingXft(app->vt), XtpVtXftAvailable(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SELECT_TO_CLIPBOARD,
@@ -931,14 +1019,6 @@ WireApplication(App *app, const AppResources *resources)
 static int
 CreateTerminal(App *app)
 {
-        XtpTerminalEffects effects = {
-            .write_pty = TerminalWritePty,
-            .bell = TerminalBell,
-            .title_changed = TerminalTitle,
-            .cursor_blink_reset = TerminalCursorBlinkReset,
-            .closure = app,
-        };
-
         app->terminal = XtpTerminalNewWithGraphemeWidth(
             (uint16_t)XtpVtColumns(app->vt), (uint16_t)XtpVtRows(app->vt), XtpVtCellWidth(app->vt),
             XtpVtCellHeight(app->vt), XtpVtGraphemeWidthUnicode(app->vt));
@@ -948,7 +1028,7 @@ CreateTerminal(App *app)
                 return -1;
         }
         XtpLog(XTP_LOG_INFO, "config", "terminal backend=%s", XtpTerminalBackend());
-        XtpTerminalSetEffects(app->terminal, &effects);
+        ApplyTerminalEffects(app);
         XtpVtSetTerminal(app->vt, app->terminal);
         return 0;
 }

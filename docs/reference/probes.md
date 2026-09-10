@@ -25,6 +25,7 @@ with any result.
 | `tools/probe-fonts.py` | CPR-measured widths plus visual diagnostics for combining marks, conjuncts, enclosing and spanning marks, and Zalgo-style stacking. |
 | `tools/probe-keymodes.py` | Cooked input, raw bytes, fixterms drift, Kitty flags, associated text, event types, and flag-stack restoration. |
 | `tools/probe-sync.py` | Slow redraw comparison with DEC mode 2026 off/on, with an optional mid-frame hold for timeout and resize checks. |
+| `tools/probe-clipboard.py` | OSC 52 selection set, clear, invalid-payload, and query with decoded replies, for comparing `allowWindowOps` policy across emulators. |
 
 Examples:
 
@@ -43,10 +44,14 @@ python3 tools/probe-sync.py
 python3 tools/probe-sync.py --mode off
 python3 tools/probe-sync.py --mode on
 python3 tools/probe-sync.py --mode on --frames 3 --hold-ms 1500
+python3 tools/probe-clipboard.py
+python3 tools/probe-clipboard.py --target p --set "from OSC 52"
+python3 tools/probe-clipboard.py --query --st
 ```
 
 The equivalent `just` recipes are `probe-color`, `probe-colors`, `probe-reverse-video`,
-`probe-osc8`, `probe-emoji`, `probe-fonts`, `probe-keymodes`, and `probe-sync`.
+`probe-osc8`, `probe-emoji`, `probe-fonts`, `probe-keymodes`, `probe-sync`, and
+`probe-clipboard`.
 
 The synchronized-output probe draws alternating colored frames one row at a
 time. By default it runs eight frames with synchronization off, then eight
@@ -102,3 +107,11 @@ Machine acceptance for keyboard delivery lives separately in
 exact press, repeat, release, alternate-key, associated-text, and modifier
 bytes through a real X server and PTY; it is not a replacement for testing a
 human keyboard layout or input method with `probe-keymodes.py`.
+
+The clipboard probe writes, clears, or queries one OSC 52 target. Revenant and
+xterm refuse both directions by default. Enable **Allow Window Ops** in the
+Ctrl+right-click menu, or start the terminal with
+`-xrm 'XTerm*allowWindowOps: true'`, to compare the permitted behavior; a query
+that receives no reply within the timeout reports the denial. `--invalid`
+sends a payload that is not base64 to show whether the emulator clears the
+selection, as xterm does, or ignores the request.

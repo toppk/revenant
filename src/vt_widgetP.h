@@ -4,6 +4,7 @@
 #include "vt_widget.h"
 
 #include "cursor_blink.h"
+#include "window_ops.h"
 #include "terminal.h"
 #include "emoji_presentation.h"
 #include "font_chain.h"
@@ -66,6 +67,14 @@ typedef struct
         Atom atom;
         int cut_buffer;
 } SelectionSource;
+
+typedef struct
+{
+        Atom atom;
+        uint8_t *text;
+        size_t length;
+        Boolean highlight;
+} OwnedSelection;
 
 typedef enum
 {
@@ -179,12 +188,17 @@ typedef struct
         XtpFontRoutingReport *font_routing_report;
         int current_font;
         XtpTerminal *terminal;
-        uint8_t *selection_text;
-        size_t selection_text_length;
         Time selection_time;
-        Atom *owned_selections;
+        OwnedSelection *owned_selections;
         Cardinal owned_selection_count;
         Boolean disowning_selections;
+        Boolean allow_window_ops;
+        String disallowed_window_ops;
+        int max_string_parse;
+        XtpWindowOps window_ops;
+        Window clipboard_window;
+        unsigned int clipboard_request_serial;
+        Atom stale_clipboard_property;
         Boolean selection_dragging;
         Boolean selection_extending;
         XtIntervalId selection_autoscroll_timer;
@@ -278,6 +292,7 @@ Dimension VtScrollbarTotalWidth(Vt100Rec *vt);
 void VtUpdateScrollbar(Vt100Rec *vt);
 Boolean VtScrollViewportBy(Vt100Rec *vt, intptr_t rows);
 Boolean VtDeferSynchronizedRedraw(Vt100Rec *vt);
+void VtFreeOwnedSelections(Vt100Rec *vt);
 Boolean VtAcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action);
 Boolean VtLocalKeyActionOwnsEvent(Vt100Rec *vt, const XKeyEvent *event, Boolean release);
 

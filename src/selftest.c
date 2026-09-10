@@ -13,6 +13,7 @@
 #include "terminal.h"
 #include "unicode_script.h"
 #include "url_match.h"
+#include "window_ops.h"
 #include "version.h"
 #include "welcome.h"
 #include "x11_opacity.h"
@@ -1845,6 +1846,205 @@ done:
         return result;
 }
 
+typedef struct
+{
+        SelfTestPtyCapture pty;
+        XtpClipboardTarget target;
+        uint8_t bytes[64];
+        size_t length;
+        bool clear;
+        unsigned int writes;
+        unsigned int reads;
+        XtpClipboardResult read_result;
+        const char *read_text;
+} SelfTestClipboard;
+
+static void
+SelfTestClipboardPty(const uint8_t *bytes, size_t length, void *closure)
+{
+        SelfTestClipboard *harness = closure;
+
+        SelfTestCapturePty(bytes, length, &harness->pty);
+}
+
+static XtpClipboardResult
+SelfTestClipboardWrite(XtpClipboardTarget target, const uint8_t *bytes, size_t length, bool clear,
+                       void *closure)
+{
+        SelfTestClipboard *harness = closure;
+
+        ++harness->writes;
+        harness->target = target;
+        harness->clear = clear;
+        harness->length = length < sizeof(harness->bytes) ? length : sizeof(harness->bytes);
+        if (harness->length != 0)
+                memcpy(harness->bytes, bytes, harness->length);
+        return XTP_CLIPBOARD_SUCCESS;
+}
+
+static XtpClipboardResult
+SelfTestClipboardRead(XtpClipboardTarget target, uint8_t **bytes, size_t *length, void *closure)
+{
+        SelfTestClipboard *harness = closure;
+
+        ++harness->reads;
+        harness->target = target;
+        *bytes = NULL;
+        *length = 0;
+        if (harness->read_result != XTP_CLIPBOARD_SUCCESS)
+                return harness->read_result;
+        *length = strlen(harness->read_text);
+        *bytes = malloc(*length + 1U);
+        if (*bytes == NULL)
+                return XTP_CLIPBOARD_UNAVAILABLE;
+        memcpy(*bytes, harness->read_text, *length + 1U);
+        return XTP_CLIPBOARD_SUCCESS;
+}
+
+static bool
+SelfTestClipboardWritten(const SelfTestClipboard *harness, unsigned int writes,
+                         XtpClipboardTarget target, const char *text, bool clear)
+{
+        size_t length = strlen(text);
+
+        return harness->writes == writes && harness->target == target && harness->clear == clear &&
+               harness->length == length && memcmp(harness->bytes, text, length) == 0;
+}
+
+static int
+SelfTestOsc52(void)
+{
+        static const struct
+        {
+                const char *sequence;
+                XtpClipboardTarget target;
+                const char *text;
+                bool clear;
+        } writes[] = {
+            {"\033]52;c;aGVsbG8=\a", XTP_CLIPBOARD_TARGET_CLIPBOARD, "hello", false},
+            {"\033]52;p;d29ybGQ=\033\\", XTP_CLIPBOARD_TARGET_PRIMARY, "world", false},
+            {"\033]52;s;eA==\a", XTP_CLIPBOARD_TARGET_SELECT, "x", false},
+            {"\033]52;;eQ\a", XTP_CLIPBOARD_TARGET_CLIPBOARD, "y", false},
+            {"\033]52;c;\a", XTP_CLIPBOARD_TARGET_CLIPBOARD, "", true},
+        };
+        /* libghostty drops these before any callback: bad base64 and multi-target lists. */
+        static const char *const ignored[] = {"\033]52;c;!!!!\a", "\033]52;cp;eA==\a"};
+        XtpTerminal *terminal;
+        SelfTestClipboard harness = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestClipboardPty,
+            .clipboard_write = SelfTestClipboardWrite,
+            .clipboard_read = SelfTestClipboardRead,
+            .closure = &harness,
+        };
+        size_t index;
+        const char *stage = "setup";
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        for (index = 0; index < XtNumber(writes); ++index) {
+                stage = writes[index].sequence;
+                XtpTerminalFeed(terminal, (const uint8_t *)writes[index].sequence,
+                                strlen(writes[index].sequence));
+                if (!SelfTestClipboardWritten(&harness, (unsigned int)index + 1U,
+                                              writes[index].target, writes[index].text,
+                                              writes[index].clear))
+                        goto done;
+        }
+        for (index = 0; index < XtNumber(ignored); ++index) {
+                stage = ignored[index];
+                XtpTerminalFeed(terminal, (const uint8_t *)ignored[index], strlen(ignored[index]));
+                if (harness.writes != XtNumber(writes))
+                        goto done;
+        }
+        stage = "query BEL";
+        harness.read_result = XTP_CLIPBOARD_SUCCESS;
+        harness.read_text = "hi";
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033]52;c;?\a", 9);
+        if (harness.reads != 1 || harness.target != XTP_CLIPBOARD_TARGET_CLIPBOARD ||
+            !SelfTestPtyEquals(&harness.pty, (const uint8_t *)"\033]52;c;aGk=\a", 12))
+                goto done;
+        stage = "query ST";
+        harness.pty = (SelfTestPtyCapture){0};
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033]52;p;?\033\\", 10);
+        if (harness.reads != 2 || harness.target != XTP_CLIPBOARD_TARGET_PRIMARY ||
+            !SelfTestPtyEquals(&harness.pty, (const uint8_t *)"\033]52;p;aGk=\033\\", 13))
+                goto done;
+        stage = "query denied";
+        harness.pty = (SelfTestPtyCapture){0};
+        harness.read_result = XTP_CLIPBOARD_DENIED;
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033]52;s;?\a", 9);
+        if (harness.reads != 3 || harness.target != XTP_CLIPBOARD_TARGET_SELECT ||
+            !SelfTestPtyEquals(&harness.pty, (const uint8_t *)"\033]52;s;\a", 8))
+                goto done;
+        stage = "query without read effect";
+        effects.clipboard_read = NULL;
+        XtpTerminalSetEffects(terminal, &effects);
+        harness.pty = (SelfTestPtyCapture){0};
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033]52;c;?\a", 9);
+        if (harness.reads != 3 || harness.pty.used != 0)
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "OSC 52 mismatch stage=%s writes=%u reads=%u target=%d reply-bytes=%zu",
+                       stage, harness.writes, harness.reads, (int)harness.target, harness.pty.used);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
+SelfTestWindowOps(void)
+{
+        static const struct
+        {
+                const char *list;
+                bool allow_all;
+                bool get_allowed;
+                bool set_allowed;
+                unsigned int ignored;
+        } cases[] = {
+            {"GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop", false,
+             false, false, 4},
+            {"GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop", true, true,
+             true, 4},
+            {"GetIconTitle,GetWinTitle,GetSelection", false, false, true, 2},
+            {"getselection setselection, ~GetSelection", false, true, false, 0},
+            {"*", false, false, false, 0},
+            {"Get*", false, false, true, 0},
+            {"*Selection", false, false, false, 0},
+            {"?etSelection", false, false, false, 0},
+            {"*,~SetSelection", false, false, true, 0},
+            {"*,~*Selection,GetSel*", false, false, true, 0},
+            {"Get?election?", false, true, true, 1},
+            {"", false, true, true, 0},
+            {NULL, false, true, true, 0},
+        };
+        size_t index;
+
+        for (index = 0; index < XtNumber(cases); ++index) {
+                XtpWindowOps ops;
+
+                XtpWindowOpsParse(cases[index].list, &ops);
+                if (XtpWindowOpAllowed(cases[index].allow_all, &ops, XTP_WINDOW_OP_GET_SELECTION) !=
+                        cases[index].get_allowed ||
+                    XtpWindowOpAllowed(cases[index].allow_all, &ops, XTP_WINDOW_OP_SET_SELECTION) !=
+                        cases[index].set_allowed ||
+                    ops.ignored_entries != cases[index].ignored) {
+                        XtpLog(XTP_LOG_ERROR, "self-test", "window-ops mismatch list=%s",
+                               cases[index].list != NULL ? cases[index].list : "(null)");
+                        return -1;
+                }
+        }
+        return 0;
+}
+
 static int
 SelfTestCursorBlinkReports(void)
 {
@@ -2229,6 +2429,7 @@ XtpSelfTest(void)
             {"os-release", SelfTestOsRelease},
             {"welcome readability", SelfTestWelcomeReadability},
             {"URL matching", SelfTestUrlMatch},
+            {"window-ops policy", SelfTestWindowOps},
             {"emoji-presentation", SelfTestEmojiPresentation},
             {"Unicode Script=Han", SelfTestUnicodeScript},
             {"font-chain", SelfTestFontChain},
@@ -2248,6 +2449,7 @@ XtpSelfTest(void)
             {"tty-output scroll", SelfTestScrollTtyOutput},
             {"focus", SelfTestFocus},
             {"synchronized output", SelfTestSynchronizedOutput},
+            {"OSC 52 clipboard", SelfTestOsc52},
             {"Kitty keyboard", SelfTestKittyKeyboardState},
             {"mouse", SelfTestMouse},
         };

@@ -1,2 +1,4 @@
 # Fontconfig 2.15 on Ubuntu 24.04 retains substitution-parser allocations.
 leak:FcConfigSubstituteWithPat
+# libXt keeps one selection context per atom for the display's lifetime.
+leak:XtOwnSelection

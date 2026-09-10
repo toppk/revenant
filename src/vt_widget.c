@@ -256,6 +256,13 @@ static XtResource resources[] = {
      XtRImmediate, (XtPointer)True},
     {"selectToClipboard", "SelectToClipboard", XtRBoolean, sizeof(Boolean),
      OFFSET(select_to_clipboard), XtRImmediate, (XtPointer)False},
+    {"allowWindowOps", "AllowWindowOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_window_ops),
+     XtRImmediate, (XtPointer)False},
+    {"disallowedWindowOps", "DisallowedWindowOps", XtRString, sizeof(String),
+     OFFSET(disallowed_window_ops), XtRString,
+     (XtPointer) "GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop"},
+    {"maxStringParse", "MaxStringParse", XtRInt, sizeof(int), OFFSET(max_string_parse),
+     XtRImmediate, (XtPointer)600000},
     {XtNreverseVideo, XtCReverseVideo, XtRBoolean, sizeof(Boolean), OFFSET(reverse_video),
      XtRImmediate, (XtPointer)False},
     {"scrollBarBorder", "ScrollBarBorder", XtRDimension, sizeof(Dimension),
@@ -903,6 +910,14 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
 
         vt->vt.fonts[0] = vt->vt.initial_font;
         vt->vt.selection_time = CurrentTime;
+        XtpWindowOpsParse(vt->vt.disallowed_window_ops, &vt->vt.window_ops);
+        XtpLog(XTP_LOG_INFO, "selection",
+               "window-ops policy allowWindowOps=%s GetSelection=%s SetSelection=%s "
+               "maxStringParse=%d unconsulted-entries=%u",
+               vt->vt.allow_window_ops ? "true" : "false",
+               XtpVtWindowOpAllowed(new_widget, XTP_WINDOW_OP_GET_SELECTION) ? "allowed" : "denied",
+               XtpVtWindowOpAllowed(new_widget, XTP_WINDOW_OP_SET_SELECTION) ? "allowed" : "denied",
+               vt->vt.max_string_parse, vt->vt.window_ops.ignored_entries);
         vt->vt.select_unit = XTP_SELECTION_CELL;
         vt->vt.cursor_fill = vt->vt.foreground;
         vt->vt.cursor_text_color = vt->core.background_pixel;
@@ -952,8 +967,9 @@ Destroy(Widget widget)
         free(vt->vt.pending_cells);
         free(vt->vt.dirty_first_columns);
         free(vt->vt.dirty_end_columns);
-        free(vt->vt.selection_text);
-        free(vt->vt.owned_selections);
+        VtFreeOwnedSelections(vt);
+        if (vt->vt.clipboard_window != None)
+                XDestroyWindow(XtDisplay(widget), vt->vt.clipboard_window);
         free(vt->vt.hovered_hyperlink.uri);
         free(vt->vt.pressed_hyperlink.uri);
         if (vt->vt.hyperlink_cursor != None)
@@ -1663,6 +1679,39 @@ Boolean
 XtpVtScrollTtyOutput(Widget widget)
 {
         return VtAsRecord(widget)->vt.scroll_tty_output;
+}
+
+Boolean
+XtpVtWindowOpAllowed(Widget widget, XtpWindowOp op)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        return XtpWindowOpAllowed(vt->vt.allow_window_ops != False, &vt->vt.window_ops, op) ? True
+                                                                                            : False;
+}
+
+Boolean
+XtpVtAllowWindowOps(Widget widget)
+{
+        return VtAsRecord(widget)->vt.allow_window_ops;
+}
+
+void
+XtpVtSetAllowWindowOps(Widget widget, Boolean enabled)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        vt->vt.allow_window_ops = enabled ? True : False;
+        XtpLog(XTP_LOG_INFO, "selection", "allowWindowOps=%s GetSelection=%s SetSelection=%s",
+               vt->vt.allow_window_ops ? "true" : "false",
+               XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_GET_SELECTION) ? "allowed" : "denied",
+               XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_SET_SELECTION) ? "allowed" : "denied");
+}
+
+int
+XtpVtMaxStringParse(Widget widget)
+{
+        return VtAsRecord(widget)->vt.max_string_parse;
 }
 
 Boolean

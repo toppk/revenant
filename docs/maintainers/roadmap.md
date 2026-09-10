@@ -157,8 +157,11 @@ semantics and describes the implemented named-selection path.
   ICCCM text targets.
 - Extend the implemented bracketed-paste/control-byte encoding with the
   remaining xterm paste controls.
-- Define OSC clipboard policy explicitly; protocol requests must not bypass
-  the X11/user permission model.
+- OSC 52 follows xterm's `allowWindowOps`/`disallowedWindowOps` policy and
+  reuses the X11 selection machinery. Remaining asks are upstream parser
+  limits recorded in the drift ledger (selection lists, `SECONDARY`, cut
+  buffers, invalid-payload clearing). The `allow-window-ops` menu toggle
+  applies the policy at runtime.
 
 ### 5. Renderer parity and Kitty graphics
 

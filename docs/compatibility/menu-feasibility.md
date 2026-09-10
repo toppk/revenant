@@ -122,7 +122,7 @@ configured and forced policy.
 | allow-mouse-ops | Gate mouse reports | Mouse encoder (Roadmap #3) | Skip emitting | ROADMAP |
 | allow-tcap-ops | Gate XTGETTCAP | Ghostty answers itself (`OPT_TERMINFO_NAME`) | Needs option | BLOCKED |
 | allow-title-ops | Gate OSC 0/1/2 + reports | Title callback, `OPT_TITLE_REPORT` | Trivial | READY |
-| allow-window-ops | Gate XTWINOPS | `OPT_SIZE` covers 14/16/18 t only | Gate reports now; other `t` ops need a callback | ROADMAP |
+| allow-window-ops | Toggle window-operation permissions | OSC 52 clipboard callbacks | Live OSC 52 read/write policy; other window operations remain pending | PARTIAL |
 
 <!-- markdownlint-enable MD013 -->
 

@@ -1,6 +1,9 @@
 #ifndef XTERM_PLUS_VT_WIDGET_H
 #define XTERM_PLUS_VT_WIDGET_H
 
+#include "terminal.h"
+#include "window_ops.h"
+
 #include <X11/Intrinsic.h>
 
 #include <stddef.h>
@@ -91,6 +94,14 @@ Boolean XtpVtReverseVideo(Widget widget);
 void XtpVtSetReverseVideo(Widget widget, Boolean enabled);
 void XtpVtScrollOnKeypress(Widget widget);
 void XtpVtSetTerminal(Widget widget, XtpTerminal *terminal);
+Boolean XtpVtWindowOpAllowed(Widget widget, XtpWindowOp op);
+Boolean XtpVtAllowWindowOps(Widget widget);
+void XtpVtSetAllowWindowOps(Widget widget, Boolean enabled);
+int XtpVtMaxStringParse(Widget widget);
+XtpClipboardResult XtpVtClipboardWrite(Widget widget, XtpClipboardTarget target,
+                                       const uint8_t *bytes, size_t length, Boolean clear);
+XtpClipboardResult XtpVtClipboardRead(Widget widget, XtpClipboardTarget target, uint8_t **bytes,
+                                      size_t *length);
 void XtpVtResetCursorBlinkPolicy(Widget widget);
 void XtpVtUpdate(Widget widget);
 void XtpVtRedraw(Widget widget);

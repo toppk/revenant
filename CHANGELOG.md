@@ -10,6 +10,14 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Support OSC 52 selection access with xterm's permission model. Applications
+  can set or clear `CLIPBOARD`, `PRIMARY`, or the `SELECT` name, and query them,
+  through the existing X11 selection machinery. The new `allowWindowOps` and
+  `disallowedWindowOps` resources gate `SetSelection` and `GetSelection` with
+  xterm's defaults, which leave OSC 52 disabled; `maxStringParse` bounds the
+  encoded payload. A denied query stays unanswered, as in xterm. The
+  Ctrl+right-click **Allow Window Ops** toggle changes selection permissions
+  immediately and restores the configured restrictions when turned off.
 - Honor synchronized output (DEC private mode 2026): dirty updates are held
   while an application batches a redraw and painted once it releases the mode,
   so batched redraws no longer tear. A one-second timeout releases and resets

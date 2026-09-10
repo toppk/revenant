@@ -39,6 +39,9 @@ vt100	scrollKey	ScrollCond	boolean	false		Jump to the live bottom when a key is 
 vt100	multiClickTime	MultiClickTime	integer	250		Maximum interval in milliseconds between clicks of a double or triple click.
 vt100	charClass	CharClass	string	(unset)		Character classes for double-click word selection, in xterm's low[-high]:class form separated by commas. Letters, digits, and underscore share class 48 by default; punctuation characters each form their own class.
 vt100	selectToClipboard	SelectToClipboard	boolean	false		Make the symbolic SELECT selection name mean CLIPBOARD instead of PRIMARY, for both copying and pasting.
+vt100	allowWindowOps	AllowWindowOps	boolean	false		Permit window operations that disallowedWindowOps would otherwise refuse. Revenant consults it only for OSC 52 selection access (GetSelection and SetSelection); other xterm window operations are not implemented.
+vt100	disallowedWindowOps	DisallowedWindowOps	string	GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop		Comma-separated xterm window-operation names refused unless allowWindowOps is true; names are case-insensitive, accept shell-style * and ? wildcards, and a ~ prefix re-allows matches. Revenant consults only GetSelection (OSC 52 query) and SetSelection (OSC 52 set), so the xterm default leaves OSC 52 disabled in both directions.
+vt100	maxStringParse	MaxStringParse	integer	600000		Largest control string, in bytes, that the parser accepts. Revenant enforces it only for OSC 52 selection writes, measuring the base64 payload as xterm would; libghostty bounds every other control string itself.
 vt100	internalBorder	BorderWidth	dimension	2		Padding in pixels between the text and the window edge.
 vt100	columns	Columns	integer	80		Initial number of columns when no geometry is given.
 vt100	rows	Rows	integer	24		Initial number of rows when no geometry is given.
