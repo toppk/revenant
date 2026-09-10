@@ -990,8 +990,8 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "limitFontWidth") == 0 || strncmp(name, "faceSize", 8) == 0 ||
             ansi_palette)
                 return "supported";
-        if (strcmp(name, "allowWindowOps") == 0 || strcmp(name, "disallowedWindowOps") == 0 ||
-            strcmp(name, "maxStringParse") == 0)
+        if (strcmp(name, "allowTitleOps") == 0 || strcmp(name, "allowWindowOps") == 0 ||
+            strcmp(name, "disallowedWindowOps") == 0 || strcmp(name, "maxStringParse") == 0)
                 return "partially supported";
         if (strncmp(name, "color", 5) == 0 || strcmp(name, "pointerColor") == 0 ||
             strcmp(name, "pointerColorBackground") == 0 || strcmp(name, "pointerShape") == 0)
@@ -1408,6 +1408,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             {"xterm.vt100.maxStringParse", "XTerm.VT100.MaxStringParse", "600000"},
             {"xterm.logLevel", "XTerm.LogLevel", "warning"},
             {"xterm.debug", "XTerm.Debug", "false"},
+            {"xterm.vt100.allowTitleOps", "XTerm.VT100.AllowTitleOps", "true"},
         };
         static const char *const behavior_names[] = {
             "XTerm*saveLines",       "XTerm*scrollBar",
@@ -1416,7 +1417,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "XTerm*multiClickTime",  "XTerm*charClass",
             "XTerm*allowWindowOps",  "XTerm*disallowedWindowOps",
             "XTerm*maxStringParse",  "XTerm*logLevel",
-            "XTerm*debug",
+            "XTerm*debug",           "XTerm*allowTitleOps",
         };
         static const char *const behavior_help[] = {
             "Maximum saved-history lines retained by libghostty.",
@@ -1427,17 +1428,18 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "Resolve the SELECT action token to CLIPBOARD rather than PRIMARY.",
             "Milliseconds allowed between clicks in a multi-click selection gesture.",
             "Override character classes used for double-click word selection.",
-            "Permit every window operation; only OSC 52 selection access is consulted.",
-            "Window operations refused unless allowWindowOps is true; only selection access.",
+            "Permit every window operation; consulted for OSC 52 and XTWINOPS title ops.",
+            "Window operations refused unless allowWindowOps is true; selection and title ops.",
             "Largest control string accepted; only enforced for OSC 52 selection writes.",
             "Minimum diagnostic severity: debug, info, warning, or error.",
             "Legacy Boolean alias used only when logLevel is unset.",
+            "Permit application title changes and applying saved labels on pop; live menu toggle.",
         };
         static const char *const behavior_support[] = {
             "supported",           "supported",           "supported",           "supported",
             "supported",           "supported",           "supported",           "supported",
             "partially supported", "partially supported", "partially supported", "supported",
-            "supported",
+            "supported",           "partially supported",
         };
         XrmDatabase merged = XtDatabase(display);
         XrmDatabase server = NULL;

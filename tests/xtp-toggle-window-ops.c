@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 static void
@@ -53,8 +54,8 @@ main(int argc, char **argv)
         XEvent event = {0};
         int attempt;
 
-        if (argc != 2) {
-                fprintf(stderr, "usage: %s SHELL-WINDOW\n", argv[0]);
+        if (argc < 2 || argc > 3 || (argc == 3 && strcmp(argv[2], "title") != 0)) {
+                fprintf(stderr, "usage: %s SHELL-WINDOW [title]\n", argv[0]);
                 return EXIT_FAILURE;
         }
         errno = 0;
@@ -87,11 +88,36 @@ main(int argc, char **argv)
                 fprintf(stderr, "cannot find the font menu\n");
                 return EXIT_FAILURE;
         }
+        /* The menu can become viewable before Xaw finishes laying it out. */
+        for (attempt = 0; attempt < 30; ++attempt) {
+                XWindowAttributes settled;
+
+                Pause();
+                if (!XGetWindowAttributes(display, menu, &settled))
+                        return EXIT_FAILURE;
+                if (settled.height == attrs.height && settled.width == attrs.width &&
+                    settled.y == attrs.y)
+                        break;
+                attrs = settled;
+        }
+        printf("menu 0x%lx geometry %dx%d+%d+%d\n", (unsigned long)menu, attrs.width, attrs.height,
+               attrs.x, attrs.y);
+        (void)fflush(stdout);
         /* Allow Window Ops is the last entry in xterm's font menu. */
         event.xmotion.type = MotionNotify;
         event.xmotion.window = menu;
         event.xmotion.x = attrs.width / 2;
         event.xmotion.y = attrs.height - 5;
+        /* The title-policy fixture pins the menu to fixed with vertSpace=0.
+         * Allow Title Ops is one text row above Allow Window Ops. */
+        if (argc == 3) {
+                XFontStruct *font = XLoadQueryFont(display, "fixed");
+
+                if (font == NULL)
+                        return EXIT_FAILURE;
+                event.xmotion.y -= font->ascent + font->descent;
+                XFreeFont(display, font);
+        }
         event.xmotion.x_root = attrs.x + event.xmotion.x;
         event.xmotion.y_root = attrs.y + event.xmotion.y;
         event.xmotion.state = ControlMask | Button3Mask;

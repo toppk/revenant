@@ -70,6 +70,10 @@ probe-sync *args:
 probe-clipboard *args:
     python3 tools/probe-clipboard.py {{args}}
 
+# Exercise title/icon reports and nested title stacks
+probe-titles *args:
+    python3 tools/probe-titles.py {{args}}
+
 # Display the SGR attribute and color sampler
 probe-color:
     tools/probe-color.sh

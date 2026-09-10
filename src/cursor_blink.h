@@ -33,18 +33,26 @@ typedef void (*XtpCursorBlinkResetFn)(void *closure);
 /* Called before the byte at offset changes blink_requested or resets policy. */
 typedef void (*XtpCursorBlinkBeforeChangeFn)(size_t offset, void *closure);
 
+/* Called for XTWINOPS 20-23 (CSI Ps ; ... t) that libghostty parses without
+ * a public hook; parameters holds the first XTP_CSI_OBSERVED_PARAMETERS. */
+#define XTP_CSI_OBSERVED_PARAMETERS 3U
+typedef void (*XtpWindowOpFn)(unsigned int op, unsigned int parameter_count,
+                              const unsigned int *parameters, size_t offset, void *closure);
+
 typedef struct
 {
         XtpCursorBlinkBeforeChangeFn before_change;
         XtpCursorBlinkResetFn reset;
+        XtpWindowOpFn window_op;
         void *closure;
 } XtpCursorBlinkObserverEffects;
 
 /*
  * libghostty exposes the resolved cursor blink value, but xterm's resource
  * policy needs the application's uncombined operand.  This narrowly scoped
- * observer records that operand; libghostty remains authoritative for cursor
- * shape and all other terminal state.  Keep its accepted control syntax
+ * observer records that operand, and the XTWINOPS title operations that
+ * libghostty accepts without exposing; libghostty remains authoritative for
+ * cursor shape and all other terminal state.  Keep its accepted control syntax
  * covered by differential tests when either parser changes.
  */
 typedef struct
@@ -67,6 +75,7 @@ typedef struct
         uint8_t csi_intermediate_count;
         unsigned int csi_parameter;
         unsigned int csi_first_parameter;
+        unsigned int csi_parameters[XTP_CSI_OBSERVED_PARAMETERS];
         size_t csi_parameter_count;
 } XtpCursorBlinkObserver;
 

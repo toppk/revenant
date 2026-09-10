@@ -559,6 +559,20 @@ CursorBlinkBeforeChange(size_t offset, void *closure)
 }
 
 static void
+CursorBlinkWindowOp(unsigned int op, unsigned int parameter_count, const unsigned int *parameters,
+                    size_t offset, void *closure)
+{
+        CursorBlinkFeed *feed = closure;
+        XtpTerminal *terminal = feed->terminal;
+
+        CursorBlinkBeforeChange(offset, closure);
+        if (terminal->effects.title_op != NULL)
+                terminal->effects.title_op(
+                    (XtpTitleOp)op, parameter_count >= 2U ? parameters[1] : 0U,
+                    parameter_count >= 3U ? parameters[2] : 0U, terminal->effects.closure);
+}
+
+static void
 CursorBlinkResetEffect(void *closure)
 {
         CursorBlinkFeed *feed = closure;
@@ -655,6 +669,7 @@ XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
                 XtpCursorBlinkObserverEffects effects = {
                     .before_change = CursorBlinkBeforeChange,
                     .reset = CursorBlinkResetEffect,
+                    .window_op = CursorBlinkWindowOp,
                     .closure = &feed,
                 };
 
@@ -697,6 +712,19 @@ XtpTerminalResize(XtpTerminal *terminal, uint16_t columns, uint16_t rows, uint32
         terminal->geometry_cell_width = cell_width;
         terminal->geometry_cell_height = cell_height;
         return 0;
+}
+
+int
+XtpTerminalSetTitle(XtpTerminal *terminal, const char *title, size_t length)
+{
+        GhosttyString value = {.ptr = (const uint8_t *)title, .len = length};
+
+        if (terminal == NULL)
+                return -1;
+        return ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_TITLE, &value) ==
+                       GHOSTTY_SUCCESS
+                   ? 0
+                   : -1;
 }
 
 int

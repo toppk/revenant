@@ -134,7 +134,7 @@ static const MenuSpec font_specs[] = {
     INERT("allow-font-ops"),
     INERT("allow-mouse-ops"),
     INERT("allow-tcap-ops"),
-    INERT("allow-title-ops"),
+    ACTIVE("allow-title-ops", XTP_MENU_ITEM_ALLOW_TITLE_OPS),
     ACTIVE("allow-window-ops", XTP_MENU_ITEM_ALLOW_WINDOW_OPS),
 };
 
@@ -205,7 +205,7 @@ static Widget
 CreateMenu(XtpMenus *menus, Widget parent, const char *name, const MenuSpec *specs, Cardinal count)
 {
         Screen *screen = XtScreen(parent);
-        Arg args[3];
+        Arg args[4];
         Widget menu;
         Cardinal index;
         Cardinal implemented = 0;
@@ -213,6 +213,8 @@ CreateMenu(XtpMenus *menus, Widget parent, const char *name, const MenuSpec *spe
         XtSetArg(args[0], XtNvisual, DefaultVisualOfScreen(screen));
         XtSetArg(args[1], XtNdepth, DefaultDepthOfScreen(screen));
         XtSetArg(args[2], XtNcolormap, DefaultColormapOfScreen(screen));
+        /* A loose *geometry resource must size the terminal, never a menu. */
+        XtSetArg(args[3], XtNgeometry, NULL);
         menu = XtCreatePopupShell(name, simpleMenuWidgetClass, parent, args, XtNumber(args));
 
         for (index = 0; index < count; ++index) {

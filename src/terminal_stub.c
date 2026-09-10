@@ -139,6 +139,14 @@ XtpTerminalEncodeMouse(XtpTerminal *terminal, const XtpMouseEvent *event, char *
 }
 
 int
+XtpTerminalSetTitle(XtpTerminal *terminal, const char *title, size_t length)
+{
+        (void)title;
+        (void)length;
+        return terminal != NULL ? 0 : -1;
+}
+
+int
 XtpTerminalSetScrollbackLines(XtpTerminal *terminal, size_t lines)
 {
         if (terminal == NULL)

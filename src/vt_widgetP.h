@@ -193,6 +193,7 @@ typedef struct
         Cardinal owned_selection_count;
         Boolean disowning_selections;
         Boolean allow_window_ops;
+        Boolean allow_title_ops;
         String disallowed_window_ops;
         int max_string_parse;
         XtpWindowOps window_ops;

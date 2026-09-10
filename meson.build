@@ -130,6 +130,7 @@ widget_sources = files(
     'src/menus.c',
     'src/sme_slider.c',
     'src/terminal.c',
+    'src/title_stack.c',
     'src/unicode_script.c',
     'src/url_match.c',
     'src/window_ops.c',
@@ -782,6 +783,36 @@ if build_with_ghostty and xvfb.found()
             selection_reader_tool.full_path(),
         ],
         timeout: 45,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-title-stack',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-title-stack.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            python3.full_path(),
+            files('tests/title-stack.py'),
+            xprop.full_path(),
+            window_ops_test_tool.full_path(),
+        ],
+        timeout: 90,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-title-ops',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-title-ops.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            python3.full_path(),
+            files('tests/title-ops.py'),
+            xprop.full_path(),
+            window_ops_test_tool.full_path(),
+        ],
+        timeout: 90,
         is_parallel: false,
     )
     test(

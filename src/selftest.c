@@ -12,6 +12,7 @@
 #include "pty_process.h"
 #include "terminal.h"
 #include "unicode_script.h"
+#include "title_stack.h"
 #include "url_match.h"
 #include "window_ops.h"
 #include "version.h"
@@ -2000,6 +2001,172 @@ done:
 }
 
 static int
+SelfTestTitleStack(void)
+{
+        XtpTitleStack stack = {0};
+        XtpTitleEntry entry = {NULL, NULL};
+        XtpTitleEntry both = {"icon-a", "title-a"};
+        XtpTitleEntry window_only = {NULL, "title-b"};
+        XtpTitleEntry empty = {NULL, NULL};
+        unsigned int index;
+        int result = -1;
+        const char *stage = "empty pop";
+
+        if (XtpTitleStackPop(&stack, 0, &entry))
+                goto done;
+        stage = "push and pop";
+        if (!XtpTitleStackPush(&stack, &both, 0) || !XtpTitleStackPush(&stack, &window_only, 0) ||
+            stack.used != 2 || !XtpTitleStackPop(&stack, 0, &entry) || stack.used != 1)
+                goto done;
+        /* The icon name of the window-only entry comes from the older slot. */
+        if (entry.icon_name == NULL || strcmp(entry.icon_name, "icon-a") != 0 ||
+            entry.window_name == NULL || strcmp(entry.window_name, "title-b") != 0)
+                goto done;
+        XtpTitleEntryFree(&entry);
+        stage = "direct slot";
+        if (!XtpTitleStackPush(&stack, &window_only, 5) || stack.used != 1 ||
+            !XtpTitleStackPop(&stack, 5, &entry) || stack.used != 1 || entry.window_name == NULL ||
+            strcmp(entry.window_name, "title-b") != 0)
+                goto done;
+        XtpTitleEntryFree(&entry);
+        stage = "empty entry then pop";
+        if (!XtpTitleStackPush(&stack, &empty, 0) || !XtpTitleStackPop(&stack, 0, &entry) ||
+            entry.window_name == NULL || strcmp(entry.window_name, "title-a") != 0)
+                goto done;
+        XtpTitleEntryFree(&entry);
+        stage = "overflow";
+        XtpTitleStackClear(&stack);
+        for (index = 0; index < XTP_TITLE_STACK_DEPTH + 2U; ++index) {
+                char name[16];
+                XtpTitleEntry numbered = {NULL, name};
+
+                (void)snprintf(name, sizeof(name), "t%u", index);
+                if (!XtpTitleStackPush(&stack, &numbered, 0))
+                        goto done;
+        }
+        if (stack.used != XTP_TITLE_STACK_DEPTH + 2U || !XtpTitleStackPop(&stack, 0, &entry) ||
+            strcmp(entry.window_name, "t11") != 0)
+                goto done;
+        XtpTitleEntryFree(&entry);
+        for (index = 0; index < XTP_TITLE_STACK_DEPTH - 2U; ++index) {
+                if (!XtpTitleStackPop(&stack, 0, &entry))
+                        goto done;
+                XtpTitleEntryFree(&entry);
+        }
+        /* The two oldest entries were overwritten by the wrap; xterm still
+         * counts them, so two empty pops remain before the stack is empty. */
+        if (!XtpTitleStackPop(&stack, 0, &entry) || strcmp(entry.window_name, "t2") != 0 ||
+            stack.used != 2)
+                goto done;
+        XtpTitleEntryFree(&entry);
+        if (!XtpTitleStackPop(&stack, 0, &entry) || entry.window_name != NULL ||
+            !XtpTitleStackPop(&stack, 0, &entry) || entry.window_name != NULL || stack.used != 0 ||
+            XtpTitleStackPop(&stack, 0, &entry))
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test", "title stack mismatch stage=%s", stage);
+        XtpTitleEntryFree(&entry);
+        XtpTitleStackClear(&stack);
+        return result;
+}
+
+typedef struct
+{
+        SelfTestPtyCapture pty;
+        XtpTitleOp op;
+        unsigned int target;
+        unsigned int slot;
+        unsigned int calls;
+} SelfTestTitleOpHarness;
+
+static void
+SelfTestTitleOpsPty(const uint8_t *bytes, size_t length, void *closure)
+{
+        SelfTestTitleOpHarness *harness = closure;
+
+        SelfTestCapturePty(bytes, length, &harness->pty);
+}
+
+static void
+SelfTestTitleOpEffect(XtpTitleOp op, unsigned int target, unsigned int slot, void *closure)
+{
+        SelfTestTitleOpHarness *harness = closure;
+
+        ++harness->calls;
+        harness->op = op;
+        harness->target = target;
+        harness->slot = slot;
+}
+
+static int
+SelfTestTitleOps(void)
+{
+        static const struct
+        {
+                const char *sequence;
+                unsigned int op;
+                unsigned int target;
+                unsigned int slot;
+        } cases[] = {
+            {"\033[20t", 20, 0, 0},   {"\033[21t", 21, 0, 0},     {"\033[22t", 22, 0, 0},
+            {"\033[22;2t", 22, 2, 0}, {"\033[23;1;4t", 23, 1, 4}, {"\033[22;0;10t", 22, 0, 10},
+        };
+        /* Not XTWINOPS title operations: private, intermediate, other finals. */
+        static const char *const ignored[] = {"\033[?22;2t", "\033[22 t", "\033[22;2s", "\033[1t",
+                                              "\033[24t"};
+        XtpTerminal *terminal;
+        SelfTestTitleOpHarness harness = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestTitleOpsPty,
+            .title_op = SelfTestTitleOpEffect,
+            .closure = &harness,
+        };
+        size_t index;
+        const char *stage = "setup";
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        for (index = 0; index < XtNumber(cases); ++index) {
+                stage = cases[index].sequence;
+                XtpTerminalFeed(terminal, (const uint8_t *)cases[index].sequence,
+                                strlen(cases[index].sequence));
+                if (harness.calls != index + 1U || (unsigned int)harness.op != cases[index].op ||
+                    harness.target != cases[index].target || harness.slot != cases[index].slot)
+                        goto done;
+        }
+        for (index = 0; index < XtNumber(ignored); ++index) {
+                stage = ignored[index];
+                XtpTerminalFeed(terminal, (const uint8_t *)ignored[index], strlen(ignored[index]));
+                if (harness.calls != XtNumber(cases))
+                        goto done;
+        }
+        stage = "split across feeds";
+        XtpTerminalFeed(terminal, (const uint8_t *)"\033[2", 3);
+        XtpTerminalFeed(terminal, (const uint8_t *)"3;", 2);
+        XtpTerminalFeed(terminal, (const uint8_t *)"2t", 2);
+        if (harness.calls != XtNumber(cases) + 1U || harness.op != XTP_TITLE_OP_POP ||
+            harness.target != 2)
+                goto done;
+        stage = "libghostty keeps CSI 21 t silent";
+        if (harness.pty.used != 0)
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test", "title op mismatch stage=%s calls=%u op=%u",
+                       stage, harness.calls, (unsigned int)harness.op);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 SelfTestWindowOps(void)
 {
         static const struct
@@ -2011,10 +2178,10 @@ SelfTestWindowOps(void)
                 unsigned int ignored;
         } cases[] = {
             {"GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop", false,
-             false, false, 4},
+             false, false, 2},
             {"GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop", true, true,
-             true, 4},
-            {"GetIconTitle,GetWinTitle,GetSelection", false, false, true, 2},
+             true, 2},
+            {"GetIconTitle,GetWinTitle,GetSelection", false, false, true, 0},
             {"getselection setselection, ~GetSelection", false, true, false, 0},
             {"*", false, false, false, 0},
             {"Get*", false, false, true, 0},
@@ -2023,11 +2190,39 @@ SelfTestWindowOps(void)
             {"*,~SetSelection", false, false, true, 0},
             {"*,~*Selection,GetSel*", false, false, true, 0},
             {"Get?election?", false, true, true, 1},
+            {"20,21,22,23", false, true, true, 0},
             {"", false, true, true, 0},
             {NULL, false, true, true, 0},
         };
         size_t index;
 
+        static const struct
+        {
+                const char *list;
+                bool get_win_title;
+                bool push_title;
+        } title_cases[] = {
+            {"GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop", false,
+             true},
+            {"20,21,22,23", false, false},
+            {"22", true, false},
+            {"Get*Title,~21", true, true},
+            {"PushTitle,PopTitle", true, false},
+        };
+
+        for (index = 0; index < XtNumber(title_cases); ++index) {
+                XtpWindowOps ops;
+
+                XtpWindowOpsParse(title_cases[index].list, &ops);
+                if (XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_GET_WIN_TITLE) !=
+                        title_cases[index].get_win_title ||
+                    XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_PUSH_TITLE) !=
+                        title_cases[index].push_title) {
+                        XtpLog(XTP_LOG_ERROR, "self-test", "window-ops title mismatch list=%s",
+                               title_cases[index].list);
+                        return -1;
+                }
+        }
         for (index = 0; index < XtNumber(cases); ++index) {
                 XtpWindowOps ops;
 
@@ -2430,6 +2625,7 @@ XtpSelfTest(void)
             {"welcome readability", SelfTestWelcomeReadability},
             {"URL matching", SelfTestUrlMatch},
             {"window-ops policy", SelfTestWindowOps},
+            {"title stack", SelfTestTitleStack},
             {"emoji-presentation", SelfTestEmojiPresentation},
             {"Unicode Script=Han", SelfTestUnicodeScript},
             {"font-chain", SelfTestFontChain},
@@ -2450,6 +2646,7 @@ XtpSelfTest(void)
             {"focus", SelfTestFocus},
             {"synchronized output", SelfTestSynchronizedOutput},
             {"OSC 52 clipboard", SelfTestOsc52},
+            {"XTWINOPS title ops", SelfTestTitleOps},
             {"Kitty keyboard", SelfTestKittyKeyboardState},
             {"mouse", SelfTestMouse},
         };

@@ -96,6 +96,8 @@ FinishCsiParameter(XtpCursorBlinkObserver *observer, bool include_empty, bool se
         }
         if (observer->csi_parameter_count == 0U)
                 observer->csi_first_parameter = observer->csi_parameter;
+        if (observer->csi_parameter_count < XTP_CSI_OBSERVED_PARAMETERS)
+                observer->csi_parameters[observer->csi_parameter_count] = observer->csi_parameter;
         ++observer->csi_parameter_count;
         if (observer->csi_parameter == 12U)
                 observer->csi_mode_12 = true;
@@ -153,6 +155,20 @@ CompleteCsi(XtpCursorBlinkObserver *observer, uint8_t final,
         FinishCsiParameter(observer, false, false);
         if (observer->csi_invalid)
                 return;
+        if (final == 't' && !observer->csi_private && observer->csi_intermediate_count == 0U &&
+            observer->csi_parameter_count >= 1U && observer->csi_first_parameter >= 20U &&
+            observer->csi_first_parameter <= 23U) {
+                if (effects != NULL && effects->window_op != NULL) {
+                        size_t count = observer->csi_parameter_count < XTP_CSI_OBSERVED_PARAMETERS
+                                           ? observer->csi_parameter_count
+                                           : XTP_CSI_OBSERVED_PARAMETERS;
+
+                        BeforeChange(effects, offset);
+                        effects->window_op(observer->csi_first_parameter, (unsigned int)count,
+                                           observer->csi_parameters, offset, effects->closure);
+                }
+                return;
+        }
         if (final == 'q' && !observer->csi_private && observer->csi_intermediate_count == 1U &&
             observer->csi_intermediate == ' ' && observer->csi_parameter_count <= 1U) {
                 style = observer->csi_parameter_count == 0U ? 0U : observer->csi_first_parameter;

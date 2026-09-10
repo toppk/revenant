@@ -301,6 +301,21 @@ typedef enum
         XTP_CLIPBOARD_UNAVAILABLE,
 } XtpClipboardResult;
 
+typedef enum
+{
+        XTP_TITLE_OP_REPORT_ICON = 20,
+        XTP_TITLE_OP_REPORT_WINDOW = 21,
+        XTP_TITLE_OP_PUSH = 22,
+        XTP_TITLE_OP_POP = 23,
+} XtpTitleOp;
+
+typedef enum
+{
+        XTP_TITLE_TARGET_BOTH = 0,
+        XTP_TITLE_TARGET_ICON = 1,
+        XTP_TITLE_TARGET_WINDOW = 2,
+} XtpTitleTarget;
+
 typedef struct
 {
         void (*write_pty)(const uint8_t *bytes, size_t length, void *closure);
@@ -314,6 +329,8 @@ typedef struct
          * caller frees *bytes. */
         XtpClipboardResult (*clipboard_read)(XtpClipboardTarget target, uint8_t **bytes,
                                              size_t *length, void *closure);
+        /* XTWINOPS 20-23 with the raw second and third parameters (0 when absent). */
+        void (*title_op)(XtpTitleOp op, unsigned int target, unsigned int slot, void *closure);
         void *closure;
 } XtpTerminalEffects;
 
@@ -389,6 +406,7 @@ int XtpTerminalSetAnsiPalette(XtpTerminal *terminal,
                               const XtpRgbColor palette[XTP_ANSI_PALETTE_SIZE]);
 int XtpTerminalSetBoldColors(XtpTerminal *terminal, bool enabled);
 int XtpTerminalSetCharClass(XtpTerminal *terminal, const char *specification);
+int XtpTerminalSetTitle(XtpTerminal *terminal, const char *title, size_t length);
 int XtpTerminalGetScrollbar(XtpTerminal *terminal, XtpTerminalScrollbar *scrollbar);
 int XtpTerminalScrollBy(XtpTerminal *terminal, intptr_t rows);
 int XtpTerminalScrollTo(XtpTerminal *terminal, uint64_t row);

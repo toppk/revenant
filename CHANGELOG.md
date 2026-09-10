@@ -10,6 +10,17 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Activate **Allow Title Ops** in the Ctrl+right-click menu, with the
+  `allowTitleOps` resource defaulting to true. Turning it off blocks
+  application title changes and applying saved labels on pop; title reports
+  and stack permissions remain controlled separately by Window Ops.
+- Support the XTWINOPS title stack and title reports. `CSI 22 ; Ps t` saves
+  and `CSI 23 ; Ps t` restores the window title and icon name through xterm's
+  ten-entry ring, including direct slot access; `CSI 20 t` and `CSI 21 t`
+  report the icon name and title as `OSC L` / `OSC l` replies. All four
+  consult the Window Ops policy (`PushTitle`, `PopTitle`, `GetIconTitle`,
+  `GetWinTitle`, or xterm's numbers 20-23) and the live **Allow Window Ops**
+  toggle; xterm's defaults leave the stack available and the reports silent.
 - Support OSC 52 selection access with xterm's permission model. Applications
   can set or clear `CLIPBOARD`, `PRIMARY`, or the `SELECT` name, and query them,
   through the existing X11 selection machinery. The new `allowWindowOps` and
@@ -24,6 +35,12 @@ artifacts take their version from the tag, not from the development version in
   a batch the application never closes. An expose during a hold repaints the
   last complete frame; a resize repaints the current state at the new grid
   while keeping the mode set and the pending update intact.
+
+### Bug fixes
+
+- Map `-geometry` to the application shell only, as the X Toolkit does, and
+  keep popup menus from inheriting a loose `*geometry` value; a terminal
+  started with `-geometry` no longer shows tiny, unusable menus.
 
 ## 0.6.1 — 2026-09-06
 

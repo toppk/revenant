@@ -5,6 +5,7 @@
 #include "pty_process.h"
 #include "selftest.h"
 #include "terminal.h"
+#include "title_stack.h"
 #include "version.h"
 #include "vt_widget.h"
 #include "welcome.h"
@@ -14,6 +15,7 @@
 #include <X11/Shell.h>
 #include <X11/StringDefs.h>
 #include <X11/Xlib.h>
+#include <X11/Xatom.h>
 #include <X11/Xutil.h>
 
 #include <errno.h>
@@ -42,6 +44,7 @@ typedef struct
         uint16_t background_alpha;
         Boolean argb_visual;
         Boolean running;
+        XtpTitleStack title_stack;
 } App;
 
 typedef struct
@@ -500,8 +503,13 @@ static void
 TerminalTitle(const char *title, size_t length, void *closure)
 {
         App *app = closure;
-        char *value = malloc(length + 1U);
+        char *value;
 
+        if (!XtpVtAllowTitleOps(app->vt)) {
+                XtpLog(XTP_LOG_INFO, "shell", "title change denied by allowTitleOps");
+                return;
+        }
+        value = malloc(length + 1U);
         if (value == NULL)
                 return;
         memcpy(value, title, length);
@@ -519,6 +527,176 @@ TerminalCursorBlinkReset(void *closure)
         XtpVtResetCursorBlinkPolicy(app->vt);
 }
 
+static char *
+Latin1ToUtf8Label(const unsigned char *bytes, size_t length)
+{
+        char *result = malloc(length * 2U + 1U);
+        size_t input;
+        size_t output = 0;
+
+        if (result == NULL)
+                return NULL;
+        for (input = 0; input < length; ++input) {
+                if (bytes[input] < 0x80U) {
+                        result[output++] = (char)bytes[input];
+                } else {
+                        result[output++] = (char)(0xc0U | (bytes[input] >> 6));
+                        result[output++] = (char)(0x80U | (bytes[input] & 0x3fU));
+                }
+        }
+        result[output] = '\0';
+        return result;
+}
+
+/* xterm reports and saves the live WM_NAME / WM_ICON_NAME properties, not
+ * its own last request, so external changes are honored. */
+static char *
+ShellLabel(App *app, const char *resource)
+{
+        Window window = XtWindow(app->shell);
+        Boolean icon = strcmp(resource, XtNiconName) == 0;
+        XTextProperty property = {0};
+        char **list = NULL;
+        int count = 0;
+        char *result = NULL;
+
+        if (window == None ||
+            !(icon ? XGetWMIconName(app->display, window, &property)
+                   : XGetWMName(app->display, window, &property)) ||
+            property.value == NULL) {
+                String value = NULL;
+
+                XtVaGetValues(app->shell, resource, &value, NULL);
+                return strdup(value != NULL ? value : "");
+        }
+        if (property.format == 8 &&
+            Xutf8TextPropertyToTextList(app->display, &property, &list, &count) >= Success &&
+            count > 0 && list != NULL && list[0] != NULL) {
+                result = strdup(list[0]);
+        } else if (property.format == 8 && property.encoding == XA_STRING) {
+                result = Latin1ToUtf8Label(property.value, property.nitems);
+        } else if (property.format == 8 &&
+                   property.encoding == XInternAtom(app->display, "UTF8_STRING", False)) {
+                result = strndup((const char *)property.value, property.nitems);
+        } else {
+                result = strdup("");
+        }
+        if (list != NULL)
+                XFreeStringList(list);
+        XFree(property.value);
+        return result;
+}
+
+static void
+SetShellLabel(App *app, const char *resource, const char *value)
+{
+        if (!XtpVtAllowTitleOps(app->vt)) {
+                XtpLog(XTP_LOG_INFO, "shell", "title restoration denied by allowTitleOps");
+                return;
+        }
+        XtVaSetValues(app->shell, resource, value, NULL);
+        if (strcmp(resource, XtNtitle) == 0 &&
+            XtpTerminalSetTitle(app->terminal, value, strlen(value)) != 0)
+                XtpLog(XTP_LOG_ERROR, "shell", "cannot restore backend title");
+}
+
+static void
+ReportLabel(App *app, char code, const char *label)
+{
+        size_t length = strlen(label);
+        uint8_t *reply = malloc(length + 5U);
+
+        if (reply == NULL)
+                return;
+        memcpy(reply, "\033]", 2);
+        reply[2] = (uint8_t)code;
+        memcpy(reply + 3, label, length);
+        memcpy(reply + 3 + length, "\033\\", 2);
+        WritePtyBytes(app, reply, length + 5U);
+        XtpLog(XTP_LOG_INFO, "shell", "title report code=%c bytes=%zu", code, length);
+        free(reply);
+}
+
+static Boolean
+TitleOpAllowed(App *app, XtpWindowOp op, unsigned int number)
+{
+        if (XtpVtWindowOpAllowed(app->vt, op))
+                return True;
+        XtpLog(XTP_LOG_INFO, "shell", "XTWINOPS %u denied by window-ops policy (%s)", number,
+               XtpWindowOpName(op));
+        return False;
+}
+
+/* XTWINOPS 22/23: target 0 saves both labels, 1 the icon name, 2 the title;
+ * other values behave like xterm, saving or consuming an empty entry. */
+static void
+TerminalTitleOp(XtpTitleOp op, unsigned int target, unsigned int slot, void *closure)
+{
+        App *app = closure;
+        XtpTitleEntry entry = {NULL, NULL};
+
+        switch (op) {
+        case XTP_TITLE_OP_REPORT_ICON:
+                if (TitleOpAllowed(app, XTP_WINDOW_OP_GET_ICON_TITLE, 20)) {
+                        char *label = ShellLabel(app, XtNiconName);
+
+                        if (label != NULL)
+                                ReportLabel(app, 'L', label);
+                        free(label);
+                }
+                return;
+        case XTP_TITLE_OP_REPORT_WINDOW:
+                if (TitleOpAllowed(app, XTP_WINDOW_OP_GET_WIN_TITLE, 21)) {
+                        char *label = ShellLabel(app, XtNtitle);
+
+                        if (label != NULL)
+                                ReportLabel(app, 'l', label);
+                        free(label);
+                }
+                return;
+        case XTP_TITLE_OP_PUSH:
+                if (!TitleOpAllowed(app, XTP_WINDOW_OP_PUSH_TITLE, 22))
+                        return;
+                if (target == XTP_TITLE_TARGET_BOTH || target == XTP_TITLE_TARGET_ICON)
+                        entry.icon_name = ShellLabel(app, XtNiconName);
+                if (target == XTP_TITLE_TARGET_BOTH || target == XTP_TITLE_TARGET_WINDOW)
+                        entry.window_name = ShellLabel(app, XtNtitle);
+                if (!XtpTitleStackPush(&app->title_stack, &entry, slot))
+                        XtpLog(XTP_LOG_ERROR, "shell", "cannot save title");
+                XtpLog(XTP_LOG_INFO, "shell", "title push target=%u slot=%u used=%u", target, slot,
+                       app->title_stack.used);
+                XtpTitleEntryFree(&entry);
+                return;
+        case XTP_TITLE_OP_POP:
+                if (!TitleOpAllowed(app, XTP_WINDOW_OP_POP_TITLE, 23))
+                        return;
+                if (!XtpTitleStackPop(&app->title_stack, slot, &entry)) {
+                        XtpLog(XTP_LOG_INFO, "shell", "title pop ignored: stack empty");
+                        return;
+                }
+                if (entry.icon_name == NULL && entry.window_name == NULL) {
+                        XtpLog(XTP_LOG_INFO, "shell", "title pop consumed an empty entry used=%u",
+                               app->title_stack.used);
+                        return;
+                }
+                /* xterm's ChangeGroup ignores missing labels and those over 1000 bytes. */
+                if ((target == XTP_TITLE_TARGET_BOTH || target == XTP_TITLE_TARGET_ICON) &&
+                    entry.icon_name != NULL && strlen(entry.icon_name) <= 1000U)
+                        SetShellLabel(app, XtNiconName, entry.icon_name);
+                if ((target == XTP_TITLE_TARGET_BOTH || target == XTP_TITLE_TARGET_WINDOW) &&
+                    entry.window_name != NULL && strlen(entry.window_name) <= 1000U)
+                        SetShellLabel(app, XtNtitle, entry.window_name);
+                XtpLogBytePreview(
+                    XTP_LOG_INFO, "shell", "title pop restored",
+                    (const uint8_t *)(entry.window_name != NULL ? entry.window_name : ""),
+                    entry.window_name != NULL ? strlen(entry.window_name) : 0U);
+                XtpLog(XTP_LOG_INFO, "shell", "title pop target=%u slot=%u used=%u", target, slot,
+                       app->title_stack.used);
+                XtpTitleEntryFree(&entry);
+                return;
+        }
+}
+
 static void
 ApplyTerminalEffects(App *app)
 {
@@ -528,6 +706,7 @@ ApplyTerminalEffects(App *app)
             .title_changed = TerminalTitle,
             .cursor_blink_reset = TerminalCursorBlinkReset,
             .clipboard_write = TerminalClipboardWrite,
+            .title_op = TerminalTitleOp,
             .closure = app,
         };
 
@@ -605,6 +784,7 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
         SyncTerminalModeChecks(app);
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS, XtpVtAllowTitleOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_KEY, XtpVtScrollKey(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_TTY_OUTPUT,
                            XtpVtScrollTtyOutput(app->vt));
@@ -725,6 +905,10 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
                 XtpVtSetAllowWindowOps(app->vt, !XtpVtAllowWindowOps(app->vt));
                 ApplyTerminalEffects(app);
                 XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowWindowOps(app->vt));
+                return;
+        case XTP_MENU_ITEM_ALLOW_TITLE_OPS:
+                XtpVtSetAllowTitleOps(app->vt, !XtpVtAllowTitleOps(app->vt));
+                XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowTitleOps(app->vt));
                 return;
         case XTP_MENU_ITEM_RENDER_FONT:
                 if (!XtpVtSetRenderFont(app->vt, !XtpVtUsingXft(app->vt)))
@@ -1007,6 +1191,7 @@ WireApplication(App *app, const AppResources *resources)
         XtpMenusCreate(&app->menus, app->shell, resources->menu_locale, MenuDispatch, app);
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS, XtpVtAllowTitleOps(app->vt));
         XtpMenusSetScrollbar(&app->menus, XtpVtScrollbarVisible(app->vt));
         XtpMenusSetRenderFont(&app->menus, XtpVtUsingXft(app->vt), XtpVtXftAvailable(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SELECT_TO_CLIPBOARD,
@@ -1079,6 +1264,7 @@ DestroyApplication(App *app)
         app->pty = NULL;
         if (app->vt != NULL)
                 XtpVtSetTerminal(app->vt, NULL);
+        XtpTitleStackClear(&app->title_stack);
         if (app->terminal != NULL) {
                 XtpTerminalFree(app->terminal);
                 app->terminal = NULL;

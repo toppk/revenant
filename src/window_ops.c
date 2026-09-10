@@ -4,9 +4,11 @@
 #include <string.h>
 
 static const char *const names[XTP_WINDOW_OP_COUNT] = {
-    "GetSelection",
-    "SetSelection",
+    "GetSelection", "SetSelection", "GetIconTitle", "GetWinTitle", "PushTitle", "PopTitle",
 };
+
+/* xterm's numbered XTWINOPS entries; zero means the name has no number. */
+static const unsigned int numbers[XTP_WINDOW_OP_COUNT] = {0, 0, 20, 21, 22, 23};
 
 const char *
 XtpWindowOpName(XtpWindowOp op)
@@ -48,6 +50,22 @@ PatternMatches(const char *pattern, size_t length, const char *name)
         return *name == '\0';
 }
 
+static bool
+NumberMatches(const char *entry, size_t length, unsigned int number)
+{
+        unsigned int value = 0;
+        size_t index;
+
+        if (number == 0 || length == 0 || length > 5)
+                return false;
+        for (index = 0; index < length; ++index) {
+                if (!isdigit((unsigned char)entry[index]))
+                        return false;
+                value = value * 10U + (unsigned int)(entry[index] - '0');
+        }
+        return value == number;
+}
+
 /* xterm grammar: comma/space separated patterns; "~pattern" re-allows matches. */
 void
 XtpWindowOpsParse(const char *list, XtpWindowOps *ops)
@@ -75,7 +93,8 @@ XtpWindowOpsParse(const char *list, XtpWindowOps *ops)
                         ++cursor;
                 length = (size_t)(cursor - start);
                 for (op = 0; op < XTP_WINDOW_OP_COUNT; ++op) {
-                        if (PatternMatches(start, length, names[op])) {
+                        if (PatternMatches(start, length, names[op]) ||
+                            NumberMatches(start, length, numbers[op])) {
                                 ops->disallowed[op] = !negate;
                                 matched = true;
                         }

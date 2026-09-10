@@ -258,6 +258,8 @@ static XtResource resources[] = {
      OFFSET(select_to_clipboard), XtRImmediate, (XtPointer)False},
     {"allowWindowOps", "AllowWindowOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_window_ops),
      XtRImmediate, (XtPointer)False},
+    {"allowTitleOps", "AllowTitleOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_title_ops),
+     XtRImmediate, (XtPointer)True},
     {"disallowedWindowOps", "DisallowedWindowOps", XtRString, sizeof(String),
      OFFSET(disallowed_window_ops), XtRString,
      (XtPointer) "GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop"},
@@ -1696,16 +1698,32 @@ XtpVtAllowWindowOps(Widget widget)
         return VtAsRecord(widget)->vt.allow_window_ops;
 }
 
+Boolean
+XtpVtAllowTitleOps(Widget widget)
+{
+        return VtAsRecord(widget)->vt.allow_title_ops;
+}
+
+void
+XtpVtSetAllowTitleOps(Widget widget, Boolean enabled)
+{
+        VtAsRecord(widget)->vt.allow_title_ops = enabled ? True : False;
+        XtpLog(XTP_LOG_INFO, "shell", "allowTitleOps=%s", enabled ? "true" : "false");
+}
+
 void
 XtpVtSetAllowWindowOps(Widget widget, Boolean enabled)
 {
         Vt100Rec *vt = VtAsRecord(widget);
 
         vt->vt.allow_window_ops = enabled ? True : False;
-        XtpLog(XTP_LOG_INFO, "selection", "allowWindowOps=%s GetSelection=%s SetSelection=%s",
+        XtpLog(XTP_LOG_INFO, "selection",
+               "allowWindowOps=%s GetSelection=%s SetSelection=%s GetWinTitle=%s PushTitle=%s",
                vt->vt.allow_window_ops ? "true" : "false",
                XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_GET_SELECTION) ? "allowed" : "denied",
-               XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_SET_SELECTION) ? "allowed" : "denied");
+               XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_SET_SELECTION) ? "allowed" : "denied",
+               XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_GET_WIN_TITLE) ? "allowed" : "denied",
+               XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_PUSH_TITLE) ? "allowed" : "denied");
 }
 
 int
