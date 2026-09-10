@@ -77,6 +77,15 @@ core, including preservation and reflow of text across width changes and full
 UTF-8 grapheme state, are intentional even where historical xterm behaves
 differently.
 
+Colored underlines are one such extension: SGR 58 (indexed or 24-bit) colors
+every underline style and SGR 59 restores the text color, as in kitty and
+Ghostty. xterm patch 411 has no per-cell underline color; its `colorUL`
+resource recolors underlined text as a whole and remains unimplemented. An
+explicit underline color is painted as opaque ink and is not affected by
+inverse video, selection, or faint, while the default underline follows the
+text color through all three. The faint behavior is an intentional difference
+from Ghostty, whose renderer applies faint opacity to explicit underlines too.
+
 ### Page-granular `saveLines`
 
 xterm treats `saveLines` as the exact number of historical rows to retain.

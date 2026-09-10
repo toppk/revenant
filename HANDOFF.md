@@ -379,6 +379,15 @@ function-pointer helper would lose the useful type check.
   including Xft DPI; `-report-config` uses the identical font-matching path.
 - Shift+keypad font selection, proportional window resizing, WM resize
   increments, and grid-preserving renderer switches.
+- SGR 58/59 underline colors: the render cell carries libghostty's underline
+  color, the visual cell resolves an explicit color to opaque ink of its own
+  while the default follows the text color through faint, inverse, and
+  selection, and both renderers draw every underline style with it;
+  `xvfb-underline-color` samples every style under both renderers, inverse
+  video, selection, and a translucent background; it also checks faint/reset
+  behavior, independent overline/strikethrough colors, color-only redraw and
+  palette changes to existing underlines. Explicit ink staying opaque under
+  faint is an intentional difference from Ghostty.
 - True color, palette terminal values, inverse, bold, underline, overline, and
   strikeout rendering, subject to the gaps recorded in the
   [roadmap](docs/maintainers/roadmap.md).
@@ -1225,7 +1234,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 38 tests for each libghostty build
+The normal full matrix currently contains 39 tests for each libghostty build
 and 7 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

@@ -818,6 +818,20 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-underline-color',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-underline-color.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            window_alpha_test_tool.full_path(),
+            selection_test_tool.full_path(),
+            compositor_owner_test_tool.full_path(),
+        ],
+        timeout: 90,
+        is_parallel: false,
+    )
+    test(
         'xvfb-dynamic-colors',
         find_program('sh'),
         args: [

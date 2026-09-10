@@ -109,6 +109,7 @@ typedef struct
         Boolean bold;
         Boolean italic;
         XtpUnderline underline;
+        Pixel underline_color;
         Boolean strikethrough;
         Boolean overline;
         Boolean row_wrapped;

@@ -1758,6 +1758,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                         cell.strikethrough = style.strikethrough;
                         cell.overline = style.overline;
                         cell.underline = (XtpUnderline)style.underline;
+                        cell.underline_color = ConvertColor(style.underline_color, &colors, false);
                         if (renderer->cell != NULL)
                                 renderer->cell(&cell, closure);
                         ++rendered_cells;

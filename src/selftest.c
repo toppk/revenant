@@ -731,6 +731,7 @@ typedef struct
         Boolean saw_selected_cell;
         size_t selected_cells;
         size_t underline_counts[XTP_UNDERLINE_DASHED + 1U];
+        XtpColor underline_colors[4];
         XtpRenderFrame frame;
 } SelfTestRender;
 
@@ -768,6 +769,8 @@ SelfTestCell(const XtpRenderCell *cell, void *closure)
                 ++render->selected_cells;
         if (cell->underline <= XTP_UNDERLINE_DASHED)
                 ++render->underline_counts[cell->underline];
+        if (cell->row == 0 && cell->column < 4U)
+                render->underline_colors[cell->column] = cell->underline_color;
 }
 
 static void
@@ -2633,6 +2636,46 @@ done:
 }
 
 static int
+SelfTestUnderlineColor(void)
+{
+        static const XtpRenderer renderer = {
+            .begin = SelfTestBegin,
+            .cell = SelfTestCell,
+            .end = SelfTestEnd,
+            .abort = NULL,
+        };
+        static const char text[] =
+            "\033[4;58:2::255:0:0mA\033[59mB\033[58;5;1mC\033[0m\033[58:2:0:1:2:3mD";
+        XtpTerminal *terminal;
+        SelfTestRender render = {0};
+        const XtpColor *colors = render.underline_colors;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(20, 4, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalFeed(terminal, (const uint8_t *)text, sizeof(text) - 1U);
+        if (XtpTerminalRender(terminal, &renderer, &render, true) != 0)
+                goto done;
+        if (colors[0].kind != XTP_COLOR_RGB || colors[0].red != 255 || colors[0].green != 0 ||
+            colors[0].blue != 0 || colors[1].kind != XTP_COLOR_DEFAULT ||
+            colors[2].kind != XTP_COLOR_PALETTE || colors[2].palette != 1 ||
+            colors[3].kind != XTP_COLOR_RGB || colors[3].red != 1 || colors[3].green != 2 ||
+            colors[3].blue != 3)
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test", "underline color mismatch kinds=%d,%d,%d,%d",
+                       (int)colors[0].kind, (int)colors[1].kind, (int)colors[2].kind,
+                       (int)colors[3].kind);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 SelfTestWindowOps(void)
 {
         static const struct
@@ -3162,6 +3205,7 @@ XtpSelfTest(void)
             {"default-color", SelfTestDefaultColors},
             {"color-ops", SelfTestColorOps},
             {"dynamic colors", SelfTestDynamicColors},
+            {"underline color", SelfTestUnderlineColor},
             {"color-ops policy", SelfTestColorOpsPolicy},
             {"color scheme", SelfTestColorScheme},
             {"ANSI-palette", SelfTestAnsiPalette},

@@ -201,6 +201,7 @@ ResetVisualCells(Vt100Rec *vt, VisualCell *cells, size_t count)
                 cells[index].foreground = vt->vt.effective_foreground;
                 cells[index].background = vt->vt.effective_background_pixel;
                 cells[index].opaque_background = vt->vt.effective_opaque_background;
+                cells[index].underline_color = vt->vt.effective_foreground;
                 cells[index].width = 1;
         }
 }
@@ -283,6 +284,11 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
         visual.opaque_background = visual.background;
         if (translucent_background)
                 visual.background = RenderBackgroundSurface(vt, visual.background);
+        /* An explicit SGR 58 color is ink of its own; the default tracks the
+         * text color through faint, inverse, and selection. */
+        visual.underline_color = cell->underline_color.kind == XTP_COLOR_DEFAULT
+                                     ? visual.foreground
+                                     : RenderOpaqueColor(vt, cell->underline_color, True);
         if (drawable) {
                 for (index = 0; index < cell->utf8_length; ++index) {
                         unsigned char byte = (unsigned char)cell->utf8[index];
@@ -620,7 +626,7 @@ DrawDecorations(Vt100Rec *vt, const VisualCell *cell, const XRectangle *area)
 
         if (!SetTextClip(vt, area, NULL))
                 return;
-        XSetForeground(XtDisplay(widget), vt->vt.gc, cell->foreground);
+        XSetForeground(XtDisplay(widget), vt->vt.gc, cell->underline_color);
         if (cell->underline != XTP_UNDERLINE_NONE) {
                 int max_top_offset = y - area_top;
                 int max_bottom_offset = area_bottom - y;
@@ -716,6 +722,7 @@ DrawDecorations(Vt100Rec *vt, const VisualCell *cell, const XRectangle *area)
                         break;
                 }
         }
+        XSetForeground(XtDisplay(widget), vt->vt.gc, cell->foreground);
         if (cell->strikethrough)
                 XDrawLine(XtDisplay(widget), XtWindow(widget), vt->vt.gc, area->x,
                           area->y + (int)area->height / 2, right, area->y + (int)area->height / 2);
@@ -779,8 +786,9 @@ SameVisualStyle(const VisualCell *left, const VisualCell *right)
 {
         return left->foreground == right->foreground && left->background == right->background &&
                left->bold == right->bold && left->italic == right->italic &&
-               left->underline == right->underline && left->strikethrough == right->strikethrough &&
-               left->overline == right->overline;
+               left->underline == right->underline &&
+               left->underline_color == right->underline_color &&
+               left->strikethrough == right->strikethrough && left->overline == right->overline;
 }
 
 static Boolean
@@ -1206,8 +1214,10 @@ SameVisualCell(const VisualCell *left, const VisualCell *right)
                left->opaque_background == right->opaque_background &&
                left->text_length == right->text_length && left->width == right->width &&
                left->bold == right->bold && left->italic == right->italic &&
-               left->underline == right->underline && left->strikethrough == right->strikethrough &&
-               left->overline == right->overline && left->row_wrapped == right->row_wrapped &&
+               left->underline == right->underline &&
+               left->underline_color == right->underline_color &&
+               left->strikethrough == right->strikethrough && left->overline == right->overline &&
+               left->row_wrapped == right->row_wrapped &&
                memcmp(left->text, right->text, left->text_length) == 0;
 }
 

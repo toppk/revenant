@@ -91,6 +91,8 @@ typedef struct
         bool strikethrough;
         bool overline;
         XtpUnderline underline;
+        /* SGR 58 underline color; XTP_COLOR_DEFAULT follows the text color. */
+        XtpColor underline_color;
 } XtpRenderCell;
 
 typedef struct

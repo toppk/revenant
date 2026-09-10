@@ -10,6 +10,10 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Paint colored underlines. SGR 58 selects an indexed or 24-bit underline
+  color for every underline style, SGR 59 returns to the text color, and the
+  color survives inverse video, selection, and translucent backgrounds in
+  both the bitmap and Xft renderers.
 - Render dynamic colors. OSC 10, 11, and 12 now repaint the default
   foreground, background, and cursor immediately, OSC 110, 111, and 112
   restore the configured X resources, and queries report the displayed
