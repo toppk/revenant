@@ -88,53 +88,9 @@ Sixel data for a large image is long. An emulator must parse it
 incrementally, and applications on slow links should size images with the
 raster attribute so the terminal can reserve space before data arrives.
 
-## Compatibility
 
-<!-- markdownlint-disable MD013 -->
-
-| Emulator | Sixel | Notes |
-| --- | --- | --- |
-| xterm | Yes[^ctl] | Build with `--enable-sixel-graphics`; `-ti vt340` or `decTerminalID: 340`; `sixelScrolling` resource |
-| VTE | Yes, 0.70+[^vte] | Build option and `VTE_SIXEL` / `enable-sixel` property; distributions vary |
-| Konsole | Yes, 22.04+[^konsole] | |
-| kitty | No[^kitty] | Refused by design |
-| WezTerm | Yes[^wez] | |
-| Ghostty | No[^ghostty] | Not implemented; `?` for roadmap |
-| foot | Yes[^foot] | |
-| Alacritty | No[^alac] | Declined by the maintainers |
-| Contour | Yes[^contour] | |
-| mintty | Yes[^mintty] | |
-| PuTTY | ? | |
-| Windows Terminal | Yes, 1.22[^wt] | |
-| Apple Terminal | ? | |
-| iTerm2 | Yes[^iterm] | |
-| xterm.js | Yes, addon[^xjs] | `@xterm/addon-image` |
-| tmux | Yes, 3.4[^tmux] | `--enable-sixel` build option |
-| mlterm | Yes[^mlterm] | |
-| DomTerm | Yes[^domterm] | |
-| RLogin | Yes[^rlogin] | |
-
-<!-- markdownlint-enable MD013 -->
-
-[^ctl]: [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html), "Sixel Graphics".
 [^xtermlog]: [xterm change log](https://invisible-island.net/xterm/xterm.log.html), patch 369.
-[^vte]: [VTE NEWS](https://gitlab.gnome.org/GNOME/vte/-/blob/master/NEWS).
-[^konsole]: [Konsole 22.04 announcement](https://kde.org/announcements/gear/22.04.0/).
-[^kitty]: [kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/).
-[^wez]: [WezTerm imgcat](https://wezterm.org/imgcat.html).
-[^ghostty]: [Ghostty VT reference](https://ghostty.org/docs/vt).
-[^foot]: [foot README](https://codeberg.org/dnkl/foot).
-[^contour]: [Contour](https://github.com/contour-terminal/contour).
-[^mintty]: [mintty wiki, Control Sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs).
-[^wt]: [Windows Terminal releases](https://github.com/microsoft/terminal/releases), 1.22.
-[^iterm]: [iTerm2 images](https://iterm2.com/documentation-images.html).
-[^xjs]: [@xterm/addon-image](https://github.com/jerch/xterm-addon-image).
-[^tmux]: [tmux CHANGES](https://github.com/tmux/tmux/blob/master/CHANGES).
-[^mlterm]: [mlterm](https://github.com/arakiken/mlterm).
-[^domterm]: [DomTerm](https://domterm.org/).
-[^rlogin]: [RLogin](https://kmiya-culti.github.io/RLogin/).
 
-[^alac]: [Alacritty issue #910, "Sixel/graphics support"](https://github.com/alacritty/alacritty/issues/910), closed as out of scope.
 
 ## Probe
 
@@ -171,3 +127,5 @@ sys.stdout.write(out+"\033\\\\\n")'
 - [xterm change log](https://invisible-island.net/xterm/xterm.log.html)
 - [libsixel](https://github.com/saitoha/libsixel)
 - [lsix](https://github.com/hackerb9/lsix) and its notes on emulator quirks
+
+<!-- tdn:compatibility -->

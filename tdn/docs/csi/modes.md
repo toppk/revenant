@@ -195,22 +195,6 @@ CSI ! p        DECSTR: soft reset; modes to defaults, screen preserved
 `reset(1)` sends RIS plus terminfo `rs1`–`rs3`. Emulators differ on whether
 RIS clears scrollback, the title stack, and private colors.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Mode | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| DECRQM | Yes | Yes | ? | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | Partial |
-| `?1049` | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| `?2004` | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| `?2026` | ? | Yes | ? | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | Yes (3.4+) |
-| `?2027` | ? | ? | ? | ? | ? | Yes | Yes | ? | Yes | ? | ? | ? | ? | ? | ? |
-| `?2031` | ? | ? | ? | Yes | ? | ? | ? | ? | Yes | ? | ? | ? | ? | ? | ? |
-| `?2048` | ? | ? | ? | Yes | Yes | Yes | Yes | ? | Yes | ? | ? | ? | ? | ? | ? |
-| DECSTR | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | ? |
-
-<!-- markdownlint-enable MD013 -->
 
 ## Probe
 
@@ -229,3 +213,5 @@ tools/testfocus           # click away and back when prompted
 - [Synchronized output specification](https://gist.github.com/christianparpart/d8a62cc1ab659194337d73e399004036)
 - [Grapheme cluster mode 2027](https://github.com/contour-terminal/terminal-unicode-core)
 - [Color-scheme notifications (mode 2031)](https://contour-terminal.org/vt-extensions/color-palette-update-notifications/)
+
+<!-- tdn:compatibility -->

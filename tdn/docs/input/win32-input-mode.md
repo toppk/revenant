@@ -55,23 +55,6 @@ platform key records, keyed by Windows virtual key and scan codes. The
 code points. An emulator on Windows may implement both: win32-input-mode to
 talk to ConPTY, and the Kitty protocol for applications that request it.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Terminal | Support | Notes |
-| --- | --- | --- |
-| Windows Terminal | Yes | Origin; both as ConPTY host and consumer[^wt] |
-| ConPTY (conhost) | Yes | Requests the mode from its host[^wt] |
-| WezTerm | Yes | Implements it on Windows for ConPTY[^wezterm] |
-| mintty | ? | |
-| Alacritty | ? | |
-| xterm, VTE, Konsole, kitty, Ghostty, foot, Contour, PuTTY, Apple Terminal, iTerm2, xterm.js, tmux | ? | Not a Unix protocol; not documented by any of them |
-
-<!-- markdownlint-enable MD013 -->
-
-[^wt]: [Improved keyboard handling in Conpty](https://github.com/microsoft/terminal/blob/main/doc/specs/%234999%20-%20Improved%20keyboard%20handling%20in%20Conpty.md).
-[^wezterm]: [WezTerm `allow_win32_input_mode`](https://wezterm.org/config/lua/config/allow_win32_input_mode.html).
 
 ## Probe
 
@@ -88,3 +71,5 @@ line. On other emulators nothing changes.
 
 - [Improved keyboard handling in Conpty (spec #4999)](https://github.com/microsoft/terminal/blob/main/doc/specs/%234999%20-%20Improved%20keyboard%20handling%20in%20Conpty.md)
 - [KEY_EVENT_RECORD structure](https://learn.microsoft.com/en-us/windows/console/key-event-record-str)
+
+<!-- tdn:compatibility -->

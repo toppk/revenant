@@ -91,3 +91,5 @@ printf '\005'; tools/query ''          # ENQ answerback, usually silent
 - [ECMA-35 (ISO 2022) code extension](https://ecma-international.org/publications-and-standards/standards/ecma-35/)
 - [VT510 programmer reference](https://vt100.net/docs/vt510-rm/)
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
+
+<!-- tdn:compatibility -->

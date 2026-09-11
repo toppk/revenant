@@ -74,28 +74,6 @@ U+FEFF at the start of a stream is not meaningful on a PTY. Emulators treat it
 as a zero-width character; applications should strip it from files before
 printing.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Windows Terminal | iTerm2 | xterm.js |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ESC % G` / `ESC % @` | Yes[^ctl] | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| DEC Special Graphics | Yes[^ctl] | Yes[^vte] | ? | Yes[^kitty] | Yes[^wez] | Yes[^ghostty] | Yes[^foot] | Yes[^ala] | Yes[^wt] | ? | Yes[^xjs] |
-| 8-bit C1 in UTF-8 | No[^ctl] | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| Non-UTF-8 locales | Yes[^ctl] | ? | ? | No[^kitty] | ? | ? | ? | ? | ? | ? | ? |
-
-<!-- markdownlint-enable MD013 -->
-
-[^ctl]: [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html), "Controls beginning with ESC".
-[^vte]: [VTE source](https://gitlab.gnome.org/GNOME/vte), `src/parser-charset-tables.hh`.
-[^kitty]: kitty documents UTF-8-only operation; see [kitty FAQ](https://sw.kovidgoyal.net/kitty/faq/).
-[^wez]: [WezTerm escape sequences](https://wezterm.org/escape-sequences.html).
-[^ghostty]: [Ghostty VT reference](https://ghostty.org/docs/vt).
-[^foot]: [foot](https://codeberg.org/dnkl/foot), README "Features".
-[^ala]: [Alacritty](https://github.com/alacritty/alacritty), `alacritty_terminal` charset handling.
-[^wt]: [Windows Terminal](https://github.com/microsoft/terminal), `adaptDispatch` charset support.
-[^xjs]: [xterm.js](https://xtermjs.org/), `src/common/data/Charsets.ts`.
 
 ## Probe
 
@@ -113,3 +91,5 @@ printf '\033%%G'                 # harmless in UTF-8; no visible change
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - [luit](https://invisible-island.net/luit/)
 - [Unicode Standard, chapter 3, conformance](https://www.unicode.org/versions/latest/)
+
+<!-- tdn:compatibility -->

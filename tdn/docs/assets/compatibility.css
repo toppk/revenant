@@ -1,0 +1,30 @@
+.tdn-scroll { overflow: auto; max-width: 100%; margin-block: 1em; }
+.tdn-scroll table { border-collapse: collapse; font-size: .72rem; width: 100%; }
+.tdn-scroll th, .tdn-scroll td { border-bottom: 1px solid var(--md-default-fg-color--lightest); padding: .65em; text-align: left; vertical-align: top; min-width: 8em; }
+.md-typeset .tdn-scroll th[scope="row"] { min-width: 17em; }
+.tdn-scroll caption { text-align: left; margin-bottom: 1em; }
+.tdn-scroll small { display: block; font-size: .65rem; font-weight: normal; }
+.tdn-scroll code { overflow-wrap: anywhere; }
+.tdn-scroll td p { margin-block: .5em; }
+.tdn-status { display: inline-block; border: 1px solid currentColor; border-radius: .25em; padding: .1em .35em; white-space: nowrap; }
+.tdn-supported { color: #19733e; }
+.tdn-partial { color: #8c5800; }
+.tdn-unsupported { color: #b52c36; }
+.tdn-unknown { color: var(--md-default-fg-color--light); }
+[data-md-color-scheme="slate"] .tdn-supported { color: #7bdfa1; }
+[data-md-color-scheme="slate"] .tdn-partial { color: #f1c66d; }
+[data-md-color-scheme="slate"] .tdn-unsupported { color: #ff969e; }
+.tdn-controls { padding: 1em; border: 1px solid var(--md-default-fg-color--lightest); border-radius: .3em; }
+.tdn-controls label { display: block; margin-block: .5em; }
+.tdn-controls input[type="search"], .tdn-controls select { border: 1px solid var(--md-default-fg-color--light); padding: .45em; color: inherit; background: var(--md-default-bg-color); max-width: 100%; }
+.tdn-controls input[type="search"] { width: 25em; }
+.tdn-controls fieldset { display: flex; flex-wrap: wrap; gap: .25em 1em; border: 0; }
+.tdn-controls button { border: 1px solid currentColor; padding: .4em .75em; cursor: pointer; }
+.tdn-controls [role="status"] { margin-bottom: 0; }
+.tdn-comparison [hidden] { display: none !important; }
+
+/* Give the dedicated comparison page the available desktop width. */
+.md-main__inner.md-grid:has(.tdn-comparison-page) { max-width: none; }
+.tdn-comparison-page .tdn-scroll table { width: 100%; }
+.md-typeset .tdn-comparison-page .md-typeset__scrollwrap { margin: 0; }
+.md-typeset .tdn-comparison-page .md-typeset__table { display: block; padding: 0; }

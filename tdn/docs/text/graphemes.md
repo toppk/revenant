@@ -53,37 +53,6 @@ Some emulators cluster unconditionally and report the mode as permanently set
 Libraries that already do this include `unicode-width` plus
 `unicode-segmentation` (Rust), `utf8proc`, and `libgrapheme`.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Emulator | Mode 2027 | Notes |
-| --- | --- | --- |
-| xterm | ? | Not listed in ctlseqs[^ctl] |
-| VTE | ? | |
-| Konsole | ? | |
-| kitty | No[^kitty] | Clusters unconditionally; the author rejects the mode and relies on the [text sizing protocol](sizing.md) |
-| WezTerm | Partial[^wez] | Clusters unconditionally; mode reported as `?` |
-| Ghostty | Yes[^ghostty] | Listed in the VT reference |
-| foot | Yes[^foot] | Since grapheme shaping was enabled by default |
-| Alacritty | ? | Not implemented (`?` for issue status) |
-| Contour | Yes[^contour] | Origin of the mode |
-| mintty | ? | |
-| PuTTY | ? | |
-| Windows Terminal | ? | Issue tracked upstream |
-| Apple Terminal | ? | |
-| iTerm2 | ? | |
-| xterm.js | ? | Per-code-point storage |
-| tmux | ? | Does not pass through; own width tables |
-
-<!-- markdownlint-enable MD013 -->
-
-[^ctl]: [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html).
-[^kitty]: [kitty text sizing protocol](https://sw.kovidgoyal.net/kitty/text-sizing-protocol/), introduction.
-[^wez]: [WezTerm escape sequences](https://wezterm.org/escape-sequences.html).
-[^ghostty]: [Ghostty VT reference, mode 2027](https://ghostty.org/docs/vt/csi/decset).
-[^foot]: [foot changelog](https://codeberg.org/dnkl/foot/src/branch/master/CHANGELOG.md).
-[^contour]: [Contour, unicode-core mode](https://github.com/contour-terminal/contour/blob/master/docs/vt-extensions/index.md).
 
 ## Probe
 
@@ -103,3 +72,5 @@ reports 5 or 7.
 - [terminal-wg, grapheme cluster specification](https://gitlab.freedesktop.org/terminal-wg/specifications)
 - [Unicode Standard Annex #29, Text Segmentation](https://www.unicode.org/reports/tr29/)
 - [Contour VT extensions](https://github.com/contour-terminal/contour/blob/master/docs/vt-extensions/index.md)
+
+<!-- tdn:compatibility -->

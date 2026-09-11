@@ -1,0 +1,12 @@
+schema_version: 1
+terminal: domterm
+name: DomTerm
+features:
+  dcs-sixel:
+    status: supported
+    as-of: null
+    notes: Yes ([DomTerm](https://domterm.org/).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/graphics/sixel.md#compatibility

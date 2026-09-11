@@ -52,16 +52,6 @@ For new work use [Sixel](sixel.md) for breadth, the
 [Kitty protocol](kitty.md) for lifecycle control, or the
 [iTerm2 protocol](iterm2.md) for macOS-centric tools.
 
-## Compatibility
-
-| Emulator | ReGIS | Tektronix |
-| --- | --- | --- |
-| xterm | Yes, build option[^ctl] | Yes[^ctl] |
-| All others in the standard column set | ? | ? |
-| mlterm | Yes[^mlterm] | ? |
-
-[^ctl]: [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html); [xterm manual](https://invisible-island.net/xterm/manpage/xterm.html), `-t` and Tek window.
-[^mlterm]: [mlterm](https://github.com/arakiken/mlterm).
 
 ## Probe
 
@@ -75,3 +65,5 @@ printf '\033[?38h'                               # xterm: opens the Tek window
 - [VT330/VT340 Programmer Reference, ReGIS chapters](https://vt100.net/docs/vt3xx-gp/)
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - [Xterm Tektronix emulation, xterm manual](https://invisible-island.net/xterm/manpage/xterm.html)
+
+<!-- tdn:compatibility -->

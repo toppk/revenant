@@ -65,3 +65,35 @@ to Window Ops.
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - Repository source: `upstream/xterm-snapshots/charproc.c`, `tblWindowOps`
   and its `AllowWindowOps` call sites; `ptyx.h`, `AllowWindowOps`.
+
+## Separately tracked behavior
+
+### Complete Window Ops policy
+
+Feature ID: `policy-window-ops`. Aggregate cross-family policy including geometry, columns, checksums, properties, status line and selections.
+
+### Set lines per page
+
+Feature ID: `csi-decslpp`. Set lines per page with the corresponding cross-family Window Ops permission.
+
+### Set number of lines
+
+Feature ID: `csi-decsnls`. Set number of lines with the corresponding cross-family Window Ops permission.
+
+### Request rectangular-area checksum
+
+Feature ID: `csi-decrqcra`. Request rectangular-area checksum with the corresponding cross-family Window Ops permission.
+
+### Select checksum algorithm
+
+Feature ID: `csi-xtchecksum`. Select checksum algorithm with the corresponding cross-family Window Ops permission.
+
+### Select active status display
+
+Feature ID: `csi-decsasd`. Select active status display with the corresponding cross-family Window Ops permission.
+
+### Select status-line type
+
+Feature ID: `csi-decssdt`. Select status-line type with the corresponding cross-family Window Ops permission.
+
+<!-- tdn:compatibility -->

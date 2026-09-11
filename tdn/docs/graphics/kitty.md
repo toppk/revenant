@@ -96,42 +96,6 @@ current frame, `z=` delay gap), and `a=c` composes one frame onto another.
 Support outside kitty is partial; treat these as kitty-only unless the
 emulator documents them.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Emulator | Support | Notes |
-| --- | --- | --- |
-| xterm | ? | |
-| VTE | ? | |
-| Konsole | Yes, 22.04+[^konsole] | Subset; `?` for placeholders and animation |
-| kitty | Yes[^kitty] | Reference implementation |
-| WezTerm | Yes[^wez] | Placeholders `?`; animation No |
-| Ghostty | Yes[^ghostty] | Placeholders Yes; animation No |
-| foot | ? | |
-| Alacritty | No[^alac] | Declined by the maintainers |
-| Contour | Partial[^contour] | Own "good image protocol" plus partial kitty |
-| mintty | ? | |
-| PuTTY | ? | |
-| Windows Terminal | ? | |
-| Apple Terminal | ? | |
-| iTerm2 | ? | |
-| xterm.js | ? | |
-| tmux | Partial[^tmux] | Passthrough with `allow-passthrough`; placeholders render as cells |
-| wayst | Yes[^wayst] | |
-| st | Partial | Community patch only |
-
-<!-- markdownlint-enable MD013 -->
-
-[^kitty]: [kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/).
-[^konsole]: [Konsole 22.04 announcement](https://kde.org/announcements/gear/22.04.0/).
-[^wez]: [WezTerm imgcat](https://wezterm.org/imgcat.html).
-[^ghostty]: [Ghostty VT reference](https://ghostty.org/docs/vt).
-[^contour]: [Contour VT extensions](https://github.com/contour-terminal/contour/blob/master/docs/vt-extensions/index.md).
-[^tmux]: [tmux manual, `allow-passthrough`](https://man.openbsd.org/tmux#allow-passthrough).
-[^wayst]: [wayst](https://github.com/91861/wayst).
-
-[^alac]: [Alacritty issue #910, "Sixel/graphics support"](https://github.com/alacritty/alacritty/issues/910), closed as out of scope.
 
 ## Probe
 
@@ -154,3 +118,32 @@ printf '\033_Ga=d,d=I,i=1\033\\'      # delete it and free the data
 
 - [kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/)
 - [tmux manual](https://man.openbsd.org/tmux)
+
+
+## Separately tracked behavior
+
+### Kitty static inline images
+
+Feature ID: `apc-kitty-static-images`. Transmit and render static direct-data images with placement, deletion, clipping, resize and active-screen semantics.
+
+### Kitty image file transport
+
+Feature ID: `apc-kitty-file-transfer`. Opt-in ordinary-file transport and its file ownership and access rules.
+
+### Kitty image temporary-file transport
+
+Feature ID: `apc-kitty-temp-file-transfer`. Opt-in temporary-file transport with cleanup responsibility.
+
+### Kitty image shared-memory transport
+
+Feature ID: `apc-kitty-shared-memory`. Opt-in shared-memory transfer with bounded access and lifetime.
+
+### Kitty Unicode image placeholders
+
+Feature ID: `apc-kitty-unicode-placeholders`. Resolve virtual placements encoded in cells, including diacritics, clipping and history.
+
+### Kitty graphics animation
+
+Feature ID: `apc-kitty-animation`. Frame scheduling independent of PTY activity, including pause, delete and reset.
+
+<!-- tdn:compatibility -->

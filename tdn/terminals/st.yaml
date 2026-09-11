@@ -1,0 +1,13 @@
+schema_version: 1
+terminal: st
+name: st
+page: terminals/st.md
+features:
+  apc-kitty-graphics:
+    status: partial
+    as-of: null
+    notes: Partial; Community patch only
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/graphics/kitty.md#compatibility

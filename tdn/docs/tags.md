@@ -12,4 +12,8 @@ or icon label under [xterm's Title Ops policy](policies/title-ops.md).
 A page can carry both labels: restoring a saved title involves both policies,
 while reporting a title uses Window Ops alone.
 
+Feature-level policy labels also live in the [registry](registry.md) and can
+be filtered on the [comparison page](comparison.md). Mixed pages do not confer
+a label on every feature they describe.
+
 <!-- material/tags -->

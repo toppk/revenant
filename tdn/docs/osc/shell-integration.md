@@ -103,19 +103,6 @@ the Ghostty application during resize even when both use the same terminal
 parser and reflow implementation. This is a Ghostty implementation detail,
 not a requirement of OSC 133.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | mintty | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OSC 133 A–D | ? | Yes | Yes (22.04) | Yes | Yes | Yes | Yes | ? | ? | ? | ? | Yes (1.18) | ? | Yes | ? | ? |
-| `aid=` / `cl=` | ? | Yes | ? | Partial | ? | Partial | Partial | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| Prompt redraw on resize | ? | ? | ? | Yes | ? | Yes | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| OSC 1337 SetUserVar | ? | ? | ? | ? | Yes | ? | ? | ? | ? | ? | ? | ? | ? | Yes | ? | ? |
-| Ships its own shell scripts | ? | Yes | ? | Yes | Yes | Yes | Yes | ? | ? | ? | ? | ? | ? | Yes | ? | ? |
-
-<!-- markdownlint-enable MD013 -->
 
 ## Probe
 
@@ -143,3 +130,5 @@ Ghostty and WezTerm via configurable actions) to confirm the mark landed.
 - [Windows Terminal: shell integration](https://learn.microsoft.com/en-us/windows/terminal/tutorials/shell-integration)
 - [Konsole handbook: semantic integration](https://docs.kde.org/stable5/en/konsole/konsole/)
 - [fish shell: prompt marks](https://fishshell.com/docs/current/index.html)
+
+<!-- tdn:compatibility -->

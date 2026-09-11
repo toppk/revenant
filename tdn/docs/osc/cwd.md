@@ -82,17 +82,6 @@ end
 Most emulators ship their own snippets that also emit OSC 133; prefer those
 where they exist.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | mintty | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OSC 7 | ? | Yes (0.34) | Yes | Yes | Yes | Yes | Yes | ? | ? | Yes | ? | ? | Yes | Yes | ? | ? |
-| OSC 1337 CurrentDir | ? | ? | ? | ? | Yes | ? | ? | ? | ? | ? | ? | ? | ? | Yes | ? | ? |
-| OSC 9;9 | ? | ? | ? | ? | ? | ? | ? | ? | ? | Yes | ? | Yes | ? | ? | ? | ? |
-
-<!-- markdownlint-enable MD013 -->
 
 ## Probe
 
@@ -114,3 +103,5 @@ Open a new tab or window afterwards and check its directory.
 - [WezTerm: shell integration](https://wezterm.org/shell-integration.html)
 - [Ghostty: shell integration](https://ghostty.org/docs/features/shell-integration)
 - [foot: shell integration](https://codeberg.org/dnkl/foot/src/branch/master/README.md#shell-integration)
+
+<!-- tdn:compatibility -->

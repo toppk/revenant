@@ -78,26 +78,9 @@ that render them: kitty, WezTerm, foot, Ghostty, Alacritty (via crossfont),
 Windows Terminal, iTerm2, Apple Terminal, VTE (through Pango), Konsole. xterm
 renders monochrome only. Color glyphs ignore the foreground SGR color.
 
-## Compatibility
 
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | Windows Terminal | Apple Terminal | iTerm2 | xterm.js |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Bold-is-bright option | Yes | Yes | ? | Yes[^kitty] | Yes | Yes | Yes[^foot] | Yes | ? | Yes[^wt] | Yes | Yes | Partial |
-| Italic face | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Ligatures / shaping | ? | ? | ? | Yes[^kitty] | Yes[^wez] | ? | Yes[^foot] | ? | Yes | Yes | Yes | Yes | Partial (canvas renderer) |
-| Synthesized box drawing | Yes | Yes | ? | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | ? | Yes |
-| Bidi reordering | ? | Yes[^vtebidi] | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| Color emoji | ? | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-
-<!-- markdownlint-enable MD013 -->
-
-[^kitty]: [kitty configuration](https://sw.kovidgoyal.net/kitty/conf/), `bold_is_bright`, `disable_ligatures`.
-[^foot]: [foot.ini(5)](https://codeberg.org/dnkl/foot/src/branch/master/doc/foot.ini.5.scd).
-[^wez]: [WezTerm, `harfbuzz_features`](https://wezterm.org/config/lua/config/harfbuzz_features.html).
-[^wt]: [Windows Terminal profile settings, `intenseTextStyle`](https://learn.microsoft.com/windows/terminal/customize-settings/profile-appearance).
 [^vtebidi]: [VTE bidi documentation](https://gitlab.gnome.org/GNOME/vte/-/blob/master/doc/bidi.md).
+
 
 ## Probe
 
@@ -116,3 +99,11 @@ printf '😀🎉\n'                       # color emoji
 - [terminal-wg bidi specification](https://gitlab.freedesktop.org/terminal-wg/specifications)
 - [HarfBuzz](https://harfbuzz.github.io/)
 - [xterm manual](https://invisible-island.net/xterm/manpage/xterm.html)
+
+## Background-relative faint text
+
+Feature ID: `resource-faint-is-relative`. The xterm `faintIsRelative` resource
+selects background-relative mixing for faint text. This is independent of
+recognizing SGR 2 or rendering faint text with the default foreground scaling.
+
+<!-- tdn:compatibility -->

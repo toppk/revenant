@@ -110,3 +110,8 @@ written down before it can be met. The content is about terminals in general,
 not about Revenant, and it is meant to become a community effort.
 Revenant-specific decisions stay in the
 [Revenant documentation](https://toppk.github.io/revenant/docs/).
+
+## Feature registry and comparison
+
+[Compare terminal support](comparison.md), browse [stable feature IDs](features/index.md),
+or [maintain a terminal’s YAML file](registry.md). Tables share the same database.

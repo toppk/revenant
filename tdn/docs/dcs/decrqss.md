@@ -56,30 +56,6 @@ most variation: terminals differ in whether they emit colon-separated
 extended colors, whether they include the leading `0`, and whether they
 report underline style.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Terminal | DECRQSS | Notes |
-| --- | --- | --- |
-| xterm | Yes | [ctlseqs](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Device-Control-functions); reply `1` = valid |
-| VTE | Yes | `?` which `Pt` values |
-| Konsole | `?` | |
-| kitty | Yes | `SP q`, `m`, `r` documented in source `?` |
-| WezTerm | Yes | [escape sequences](https://wezterm.org/escape-sequences.html) |
-| Ghostty | Yes | [VT reference](https://ghostty.org/docs/vt/dcs/decrqss) |
-| foot | Yes | [foot-ctlseqs](https://codeberg.org/dnkl/foot/src/branch/master/doc/foot-ctlseqs.7.scd) |
-| Alacritty | `?` | |
-| Contour | Yes | [VT extensions](https://contour-terminal.org/vt-extensions/) |
-| mintty | Yes | [CtrlSeqs](https://github.com/mintty/mintty/wiki/CtrlSeqs) |
-| PuTTY | ? | not listed in the manual |
-| Windows Terminal | Partial | [console VT sequences](https://learn.microsoft.com/windows/console/console-virtual-terminal-sequences) list `m` and `r` `?` |
-| Apple Terminal | `?` | |
-| iTerm2 | Yes | `?` which `Pt` values |
-| xterm.js | Yes | [vtfeatures](https://xtermjs.org/docs/api/vtfeatures/): `m`, `r`, `SP q` |
-| tmux | Yes | answers for the pane's state `?` |
-
-<!-- markdownlint-enable MD013 -->
 
 ## Probe
 
@@ -94,3 +70,5 @@ tools/query '\033P$qr\033\\'      # scrolling margins
 - [VT510 Video Terminal Programmer Information: DECRQSS](https://vt100.net/docs/vt510-rm/DECRQSS.html)
 - [VT510: DECRPSS](https://vt100.net/docs/vt510-rm/DECRPSS.html)
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Device-Control-functions)
+
+<!-- tdn:compatibility -->

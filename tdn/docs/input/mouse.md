@@ -92,46 +92,6 @@ convention is that holding Shift bypasses tracking and restores selection;
 some emulators use a different modifier or make it configurable. This is a
 convention, not a protocol, and the application never sees the shifted click.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Terminal | `?1000` | `?1002` | `?1003` | `?1006` | `?1015` | `?1016` | `?1004` |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| xterm | Yes | Yes | Yes | Yes | Yes | Yes | Yes[^xterm] |
-| VTE | Yes | Yes | Yes | Yes | Yes | ? | Yes[^vte] |
-| Konsole | Yes | Yes | Yes | Yes | Yes | ? | Yes[^konsole] |
-| kitty | Yes | Yes | Yes | Yes | Yes | Yes | Yes[^kitty] |
-| WezTerm | Yes | Yes | Yes | Yes | ? | Yes | Yes[^wezterm] |
-| Ghostty | Yes | Yes | Yes | Yes | Yes | Yes | Yes[^ghostty] |
-| foot | Yes | Yes | Yes | Yes | Yes | Yes | Yes[^foot] |
-| Alacritty | Yes | Yes | Yes | Yes | Yes | ? | Yes[^alacritty] |
-| Contour | Yes | Yes | Yes | Yes | Yes | Yes | Yes[^contour] |
-| mintty | Yes | Yes | Yes | Yes | Yes | Yes | Yes[^mintty] |
-| PuTTY | Yes | Yes | ? | Yes | ? | ? | ?[^putty] |
-| Windows Terminal | Yes | Yes | Yes | Yes | Yes | ? | Yes[^wt] |
-| Apple Terminal | ? | ? | ? | ? | ? | ? | ? |
-| iTerm2 | Yes | Yes | Yes | Yes | Yes | Yes | Yes[^iterm2] |
-| xterm.js | Yes | Yes | Yes | Yes | Yes | ? | Yes[^xtermjs] |
-| tmux | Yes | Yes | Yes | Yes | Yes | ? | Yes[^tmux] |
-
-<!-- markdownlint-enable MD013 -->
-
-[^xterm]: [XTerm Control Sequences, Mouse Tracking](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking).
-[^vte]: VTE has no protocol reference; support is visible in `src/vte.cc` of [gnome/vte](https://gitlab.gnome.org/GNOME/vte).
-[^konsole]: [Konsole source, `Vt102Emulation.cpp`](https://invent.kde.org/utilities/konsole).
-[^kitty]: [kitty protocol extensions](https://sw.kovidgoyal.net/kitty/protocol-extensions/).
-[^wezterm]: [WezTerm escape sequences](https://wezterm.org/escape-sequences.html).
-[^ghostty]: [Ghostty VT reference](https://ghostty.org/docs/vt).
-[^foot]: [foot README](https://codeberg.org/dnkl/foot).
-[^alacritty]: [Alacritty escape sequence support](https://github.com/alacritty/alacritty/blob/master/docs/escape_support.md).
-[^contour]: [Contour VT extensions](https://contour-terminal.org/vt-extensions/).
-[^mintty]: [mintty control sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs).
-[^putty]: [PuTTY documentation, Terminal panel](https://the.earth.li/~sgtatham/putty/latest/htmldoc/Chapter4.html).
-[^wt]: [microsoft/terminal VT support](https://github.com/microsoft/terminal/blob/main/doc/specs/%234999%20-%20Improved%20keyboard%20handling%20in%20Conpty.md) and [Windows Terminal 1.x release notes](https://github.com/microsoft/terminal/releases).
-[^iterm2]: [iTerm2 escape codes](https://iterm2.com/documentation-escape-codes.html).
-[^xtermjs]: [xterm.js supported sequences](https://xtermjs.org/docs/api/vtfeatures/).
-[^tmux]: [tmux(1), `mouse` and `terminal-features`](https://man.openbsd.org/tmux.1).
 
 ## Pitfalls
 
@@ -156,3 +116,5 @@ Click; a press prints `^[[<0;x;yM` and the release `^[[<0;x;ym`. Repeat with
 
 - [XTerm Control Sequences, Mouse Tracking](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking)
 - [rxvt-unicode(7), mouse reporting](http://pod.tst.eu/http://cvs.schmorp.de/rxvt-unicode/doc/rxvt.7.pod)
+
+<!-- tdn:compatibility -->

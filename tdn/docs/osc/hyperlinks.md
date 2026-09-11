@@ -64,20 +64,6 @@ still receive hover feedback but are inert. xterm+ invokes the opener directly
 with the URI as one argument, without a shell, and does not recognize plain
 URL-looking text as a link.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | mintty | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OSC 8 | No[^xt] | Yes (0.50) | Yes | Yes | Yes | Yes | Yes | Yes (0.11) | Yes | Yes | ? | Yes (1.4) | ? | Yes | Yes (5.0) | Yes (3.4)[^tm] |
-| `id=` grouping | — | Yes | ? | Yes | Yes | ? | Yes | ? | ? | ? | — | ? | — | ? | ? | Yes |
-
-<!-- markdownlint-enable MD013 -->
-
-[^xt]: Deliberately unimplemented; see the xterm FAQ.
-[^tm]: Requires the outer terminal to support hyperlinks; tmux forwards the
-    attribute rather than rendering it.
 
 ## Probe
 
@@ -100,3 +86,5 @@ In xterm+, hold Shift while hovering or clicking; only the first link opens.
 - [Windows Terminal 1.4 release notes](https://github.com/microsoft/terminal/releases/tag/v1.4.3141.0)
 - [xterm.js hyperlinks](https://xtermjs.org/docs/api/terminal/interfaces/ilinkprovider/)
 - [tmux 3.4 CHANGES](https://raw.githubusercontent.com/tmux/tmux/master/CHANGES)
+
+<!-- tdn:compatibility -->

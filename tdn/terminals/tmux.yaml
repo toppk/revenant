@@ -1,0 +1,372 @@
+schema_version: 1
+terminal: tmux
+name: tmux
+page: terminals/tmux.md
+features:
+  apc-kitty-graphics:
+    status: partial
+    as-of: null
+    notes: 'Passthrough only | Also recorded: Partial ([tmux manual, `allow-passthrough`](https://man.openbsd.org/tmux#allow-passthrough).);
+      Passthrough with `allow-passthrough`; placeholders render as cells'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/graphics/index.md#compatibility
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/graphics/kitty.md#compatibility
+  c0-bel-attention:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/notifications.md#compatibility
+  csi-14-16-t-pixel-sizes:
+    status: supported
+    as-of: null
+    notes: Yes (3.4+ relays)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/window-ops.md#compatibility
+  csi-18-t-text-size:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/window-ops.md#compatibility
+  csi-3-j-erase-scrollback:
+    status: supported
+    as-of: null
+    notes: Yes (`E3`)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/erase.md#compatibility
+  csi-decrqm:
+    status: partial
+    as-of: null
+    notes: Partial
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/modes.md#compatibility
+  csi-decstbm:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/scrolling.md#compatibility
+  csi-editing-operations:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/erase.md#compatibility
+  csi-modify-other-keys:
+    status: supported
+    as-of: null
+    notes: Yes; `extended-keys` option ([tmux(1), `extended-keys`](https://man.openbsd.org/tmux.1#extended-keys).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/modify-other-keys.md#compatibility
+  csi-rep:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/erase.md#compatibility
+  csi-su-sd-scroll:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/scrolling.md#compatibility
+  csi-u-kitty-keyboard:
+    status: partial
+    as-of: null
+    notes: Partial; Forwards with `extended-keys`; does not implement the stack itself ([tmux(1), `extended-keys`](https://man.openbsd.org/tmux.1#extended-keys).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/kitty-keyboard.md#compatibility
+  dcs-decrqss:
+    status: supported
+    as-of: null
+    notes: Yes; answers for the pane's state `?`
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/dcs/decrqss.md#compatibility
+  dcs-sixel:
+    status: supported
+    as-of: null
+    notes: 'Yes, 3.4 build option ([tmux CHANGES](https://github.com/tmux/tmux/blob/master/CHANGES), 3.4.) | Also
+      recorded: Yes, 3.4 ([tmux CHANGES](https://github.com/tmux/tmux/blob/master/CHANGES).); `--enable-sixel` build
+      option'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/graphics/index.md#compatibility
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/graphics/sixel.md#compatibility
+  dec-mode-1000-mouse:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1002-button-motion:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1003-all-motion:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1004-focus:
+    status: supported
+    as-of: null
+    notes: Yes ([tmux(1), `mouse` and `terminal-features`](https://man.openbsd.org/tmux.1).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1006-sgr-mouse:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1015-urxvt-mouse:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1049-alternate-screen:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/modes.md#compatibility
+  dec-mode-2004-bracketed-paste:
+    status: supported
+    as-of: null
+    notes: 'Yes | Also recorded: Yes; Requests it from the outer terminal, forwards markers to the pane ([tmux(1)](https://man.openbsd.org/tmux.1).)'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/modes.md#compatibility
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/bracketed-paste.md#compatibility
+  dec-mode-2026-synchronized-output:
+    status: supported
+    as-of: null
+    notes: Yes (3.4+)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/modes.md#compatibility
+  dec-mode-2027-grapheme-clusters:
+    status: unknown
+    as-of: null
+    notes: ?; Does not pass through; own width tables
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/text/graphemes.md#compatibility
+  dec-mode-9001-win32-input:
+    status: unknown
+    as-of: null
+    notes: ?; Not a Unix protocol; not documented by any of them
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/win32-input-mode.md#compatibility
+  osc-0-2-title:
+    status: supported
+    as-of: null
+    notes: Yes (Applied to the outer terminal only with `set-titles on`; otherwise     stored as the pane title
+      visible in the status line.)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/title.md#compatibility
+  osc-10-11-default-colors-query:
+    status: partial
+    as-of: null
+    notes: Partial (tmux forwards sets to the outer terminal and answers queries itself;     the answer may not
+      match the outer terminal until it has been refreshed.)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/colors.md#compatibility
+  osc-10-11-default-colors-set:
+    status: partial
+    as-of: null
+    notes: Partial (tmux forwards sets to the outer terminal and answers queries itself;     the answer may not
+      match the outer terminal until it has been refreshed.)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/colors.md#compatibility
+  osc-4-palette-query:
+    status: partial
+    as-of: null
+    notes: Partial (tmux forwards sets to the outer terminal and answers queries itself;     the answer may not
+      match the outer terminal until it has been refreshed.)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/colors.md#compatibility
+  osc-4-palette-set:
+    status: partial
+    as-of: null
+    notes: Partial (tmux forwards sets to the outer terminal and answers queries itself;     the answer may not
+      match the outer terminal until it has been refreshed.)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/colors.md#compatibility
+  osc-52-read:
+    status: partial
+    as-of: null
+    notes: Partial; `set-clipboard` (`on`, `external`, `off`); default `external`
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/clipboard.md#compatibility
+  osc-52-write:
+    status: supported
+    as-of: null
+    notes: Yes; `set-clipboard` (`on`, `external`, `off`); default `external`
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/clipboard.md#compatibility
+  osc-8-hyperlinks:
+    status: supported
+    as-of: null
+    notes: Yes (3.4) (Requires the outer terminal to support hyperlinks; tmux forwards the     attribute rather
+      than rendering it.)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/hyperlinks.md#compatibility
+  osc-8-link-id:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/hyperlinks.md#compatibility
+  sgr-256-colors:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-3-italic:
+    status: partial
+    as-of: null
+    notes: pass
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-38-2-colon-form:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-38-2-truecolor:
+    status: supported
+    as-of: null
+    notes: Yes (`Tc`/`RGB` feature)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-4-underline-styles:
+    status: supported
+    as-of: null
+    notes: Yes (`Smulx`)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-5-blink:
+    status: partial
+    as-of: null
+    notes: pass
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-53-overline:
+    status: partial
+    as-of: null
+    notes: pass
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-58-underline-color:
+    status: supported
+    as-of: null
+    notes: Yes (`Setulc`)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-9-strikethrough:
+    status: partial
+    as-of: null
+    notes: pass
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  terminfo-bce:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/erase.md#compatibility

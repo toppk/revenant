@@ -91,3 +91,5 @@ taken. A page is warranted when a second emulator adopts one.
 - [kitty protocol extensions](https://sw.kovidgoyal.net/kitty/protocol-extensions/)
 - [WezTerm escape sequences](https://wezfurlong.org/wezterm/escape-sequences.html)
 - [ConEmu ANSI escape codes](https://conemu.github.io/en/AnsiEscapeCodes.html)
+
+<!-- tdn:compatibility -->

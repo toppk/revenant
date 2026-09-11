@@ -18,6 +18,42 @@ backend, widget and build files require coordination even when features are
 independent. Read the handoff's parser, rendering, selection and reset
 invariants before editing those paths.
 
+## Feature identifiers for pending chunks
+
+Work IDs such as S2 name dispatch units; TDN IDs name stable, independently
+assessed behavior. Keep these associations when splitting or reordering the
+local checklist. Dependencies, acceptance criteria and optional/upstream-blocked
+status remain in that checklist; a registry entry does not schedule the feature
+or assert support. This table captures the pending queue at registration time;
+remove a row when its chunk is completed, preserving the feature IDs and evidence.
+
+| Chunk | Scope | TDN feature IDs |
+| --- | --- | --- |
+| A3 | Device-attribute claims | [csi-da1](https://toppk.github.io/revenant/tdn/features/csi-da1/), [csi-da2](https://toppk.github.io/revenant/tdn/features/csi-da2/), [csi-da3](https://toppk.github.io/revenant/tdn/features/csi-da3/) |
+| A4 | Unknown APC diagnostics | [diagnostics-unknown-apc](https://toppk.github.io/revenant/tdn/features/diagnostics-unknown-apc/) |
+| V3 | OSC 22 pointer shape | [osc-22-pointer-shape](https://toppk.github.io/revenant/tdn/features/osc-22-pointer-shape/) |
+| S2 | Prompt navigation | [osc-133-prompt-marks](https://toppk.github.io/revenant/tdn/features/osc-133-prompt-marks/), [ui-prompt-navigation](https://toppk.github.io/revenant/tdn/features/ui-prompt-navigation/) |
+| S3 | Pipe last command output | [ui-pipe-command-output](https://toppk.github.io/revenant/tdn/features/ui-pipe-command-output/) |
+| S4 | Optional clear-to-prompt | [ui-clear-to-prompt](https://toppk.github.io/revenant/tdn/features/ui-clear-to-prompt/) |
+| N1 | Desktop notification callback to urgency | [osc-9-notification](https://toppk.github.io/revenant/tdn/features/osc-9-notification/), [osc-777-notification](https://toppk.github.io/revenant/tdn/features/osc-777-notification/), [notification-x11-urgency](https://toppk.github.io/revenant/tdn/features/notification-x11-urgency/) |
+| N2 | Optional desktop notification adapter | [notification-desktop-delivery](https://toppk.github.io/revenant/tdn/features/notification-desktop-delivery/) |
+| N3 | Progress display | [osc-9-4-progress](https://toppk.github.io/revenant/tdn/features/osc-9-4-progress/), [ui-progress-indicator](https://toppk.github.io/revenant/tdn/features/ui-progress-indicator/) |
+| G1 | Box and block glyphs | [text-box-drawing](https://toppk.github.io/revenant/tdn/features/text-box-drawing/), [text-block-drawing](https://toppk.github.io/revenant/tdn/features/text-block-drawing/), [resource-force-box-chars](https://toppk.github.io/revenant/tdn/features/resource-force-box-chars/) |
+| G2 | Braille and Powerline | [text-braille-drawing](https://toppk.github.io/revenant/tdn/features/text-braille-drawing/), [text-powerline-drawing](https://toppk.github.io/revenant/tdn/features/text-powerline-drawing/) |
+| U1 | Copy-highlight flash | [selection-copy-feedback](https://toppk.github.io/revenant/tdn/features/selection-copy-feedback/) |
+| U2 | Search model and navigation | [search-scrollback-literal](https://toppk.github.io/revenant/tdn/features/search-scrollback-literal/) |
+| U3 | Search UI and bindings | [ui-search-overlay](https://toppk.github.io/revenant/tdn/features/ui-search-overlay/), [search-copy-match](https://toppk.github.io/revenant/tdn/features/search-copy-match/) |
+| K1 | Static inline image rendering | [apc-kitty-static-images](https://toppk.github.io/revenant/tdn/features/apc-kitty-static-images/) |
+| K2 | Media and byte limits | [apc-kitty-temp-file-transfer](https://toppk.github.io/revenant/tdn/features/apc-kitty-temp-file-transfer/), [apc-kitty-shared-memory](https://toppk.github.io/revenant/tdn/features/apc-kitty-shared-memory/), [kitty-graphics-storage-limit](https://toppk.github.io/revenant/tdn/features/kitty-graphics-storage-limit/), [kitty-graphics-command-limit](https://toppk.github.io/revenant/tdn/features/kitty-graphics-command-limit/) |
+| K3 | Unicode placeholders | [apc-kitty-unicode-placeholders](https://toppk.github.io/revenant/tdn/features/apc-kitty-unicode-placeholders/) |
+| K4 | Animation scheduling | [apc-kitty-animation](https://toppk.github.io/revenant/tdn/features/apc-kitty-animation/) |
+| M1 | Full Mouse Ops exceptions | [policy-mouse-ops-exceptions](https://toppk.github.io/revenant/tdn/features/policy-mouse-ops-exceptions/) |
+| F1 | OSC 50 Font Ops | [osc-50-font-set](https://toppk.github.io/revenant/tdn/features/osc-50-font-set/), [osc-50-font-query](https://toppk.github.io/revenant/tdn/features/osc-50-font-query/), [policy-font-ops](https://toppk.github.io/revenant/tdn/features/policy-font-ops/) |
+
+The handoff separately maps remaining Window/Title/Color Ops parity, optional
+interaction work and longer-term designs. Internal refactors and release
+verification are maintenance tasks, not terminal compatibility features.
+
 ## Manual fixtures
 
 Run inside the terminal under test:
@@ -60,7 +96,7 @@ renderer feature switch.
 | Control | Current effect | Remaining work |
 | --- | --- | --- |
 | Allow Mouse Ops | Live master gate on encoded mouse and focus reports; false restores local selection. Default true. | `disallowedMouseOps` named exceptions and unsupported tracking families. |
-| Allow Tcap Ops | Live override of `disallowedTcapOps`; GetTcap gates generated XTGETTCAP replies. Default true. | Configured TN/child TERM integration; XTSETTCAP is absent. |
+| Allow Tcap Ops | Live override of `disallowedTcapOps`; GetTcap gates generated XTGETTCAP replies. Default true. | XTSETTCAP is absent. Configured TN/child TERM integration is implemented separately (A2). |
 | Allow Font Ops | Prepared checked state, resource and SetFont/GetFont parser; menu remains insensitive. | Public OSC 50 callback and font query/set behavior. |
 | Allow Color Ops | Existing dynamic-color policy. | Remaining parity differences are in the drift ledger. |
 | Allow Title Ops | Existing title-change/restoration permission. | Remaining title semantics are in the handoff. |

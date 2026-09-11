@@ -52,46 +52,6 @@ auto-completing; editors use it to suspend auto-indent and key bindings.
 A shell with bracketed paste on shows the pasted text and waits for Enter
 rather than executing each line.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Terminal | Support | Notes |
-| --- | --- | --- |
-| xterm | Yes | Origin[^xterm] |
-| VTE | Yes | Strips C0 controls and `CSI 201 ~`[^vte] |
-| Konsole | Yes | [^konsole] |
-| kitty | Yes | Sanitizes controls[^kitty] |
-| WezTerm | Yes | [^wezterm] |
-| Ghostty | Yes | Configurable sanitization, `clipboard-paste-protection`[^ghostty] |
-| foot | Yes | Strips C0 controls[^foot] |
-| Alacritty | Yes | [^alacritty] |
-| Contour | Yes | [^contour] |
-| mintty | Yes | [^mintty] |
-| PuTTY | Yes | Enabled by default since 0.63[^putty] |
-| Windows Terminal | Yes | [^wt] |
-| Apple Terminal | ? | No public protocol document |
-| iTerm2 | Yes | [^iterm2] |
-| xterm.js | Yes | [^xtermjs] |
-| tmux | Yes | Requests it from the outer terminal, forwards markers to the pane[^tmux] |
-
-<!-- markdownlint-enable MD013 -->
-
-[^xterm]: [XTerm Control Sequences, `?2004`](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h4-Functions-using-CSI-_-ordered-by-the-final-character_s_).
-[^vte]: [gnome/vte](https://gitlab.gnome.org/GNOME/vte), paste handling in `src/vte.cc`.
-[^konsole]: [Konsole source](https://invent.kde.org/utilities/konsole).
-[^kitty]: [kitty, `paste_actions`](https://sw.kovidgoyal.net/kitty/conf/#opt-kitty.paste_actions).
-[^wezterm]: [WezTerm escape sequences](https://wezterm.org/escape-sequences.html).
-[^ghostty]: [Ghostty configuration reference](https://ghostty.org/docs/config/reference#clipboard-paste-protection).
-[^foot]: [foot README](https://codeberg.org/dnkl/foot).
-[^alacritty]: [Alacritty escape sequence support](https://github.com/alacritty/alacritty/blob/master/docs/escape_support.md).
-[^contour]: [Contour VT extensions](https://contour-terminal.org/vt-extensions/).
-[^mintty]: [mintty control sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs).
-[^putty]: [PuTTY changes, 0.63](https://www.chiark.greenend.org.uk/~sgtatham/putty/changes.html).
-[^wt]: [Windows Terminal 1.x release notes](https://github.com/microsoft/terminal/releases).
-[^iterm2]: [iTerm2 escape codes](https://iterm2.com/documentation-escape-codes.html).
-[^xtermjs]: [xterm.js supported sequences](https://xtermjs.org/docs/api/vtfeatures/).
-[^tmux]: [tmux(1)](https://man.openbsd.org/tmux.1).
 
 ## Pitfalls
 
@@ -115,3 +75,5 @@ containing an escape character to see what the emulator strips.
 
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - [GNU Readline, `enable-bracketed-paste`](https://tiswww.case.edu/php/chet/readline/readline.html)
+
+<!-- tdn:compatibility -->

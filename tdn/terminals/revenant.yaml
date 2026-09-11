@@ -1,0 +1,151 @@
+schema_version: 1
+terminal: revenant
+name: Revenant
+page: terminals/revenant.md
+features:
+  osc-7-working-directory:
+    status: partial
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Retains a validated local directory; no consumer yet. Oversized OSC 7 clears retained state. Does not
+      chdir.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-working-directory.sh
+  sgr-58-underline-color:
+    status: supported
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Explicit underline ink stays opaque through inverse, selection and faint; SGR 59 restores text color.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-underline-color.sh
+  dcs-xtgettcap:
+    status: partial
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: TN agrees with child TERM. This assessment covers TN only; the full capability set is not assessed. GetTcap
+      policy applies.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-term-name.sh
+  c0-enq-answerback:
+    status: supported
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Configured bytes sent verbatim; default empty string is silent.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-answerback.sh
+  csi-decscusr:
+    status: partial
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: 0 and omitted restore the configured startup shape. xterm-specific style 7 is not recognized.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-cursor-shape.sh
+  osc-8-hyperlinks:
+    status: partial
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Shift-hover underlines OSC 8 links; Shift+Button 1 activates HTTP(S). Other URI schemes are inert.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-hyperlink-hover.sh
+  dec-mode-2026-synchronized-output:
+    status: supported
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Defers painting until release or a one-second timeout; resize preserves the mode but can repaint current
+      state at the new geometry.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-sync-output.sh
+  osc-52-write:
+    status: partial
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: One target letter only; malformed base64 is ignored rather than clearing. CLIPBOARD, PRIMARY and SELECT
+      ownership is independent.
+    configuration: allowWindowOps overrides disallowedWindowOps; the default list denies this operation.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-clipboard.sh
+  osc-52-read:
+    status: partial
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Denied queries are silent; external selection requests have a one-second budget and do not support INCR
+      transfers.
+    configuration: allowWindowOps overrides disallowedWindowOps; the default list denies this operation.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-clipboard.sh
+  csi-22-23-t-title-stack:
+    status: partial
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Ten-entry title/icon ring and live WM property reads; OSC 1 icon-name updates are not surfaced by libghostty.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-title-stack.sh
+  csi-21-t-title-report:
+    status: supported
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Reports the live WM title. Default policy denies title queries.
+    configuration: allowWindowOps overrides disallowedWindowOps; the default list denies this operation.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-title-stack.sh
+  osc-10-11-default-colors-set:
+    status: partial
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Updates painted foreground/background and borders. Under DECSCNM, selector semantics differ from xterm.
+    configuration: allowColorOps defaults true; when false, disallowedColorOps controls permission.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-dynamic-colors.sh
+  osc-10-11-default-colors-query:
+    status: partial
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Replies reflect effective colors; denied queries remain silent. Under DECSCNM, selector semantics differ
+      from xterm.
+    configuration: allowColorOps defaults true; when false, disallowedColorOps controls permission.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-dynamic-colors.sh
+  dec-mode-2031-color-scheme-reports:
+    status: supported
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Unsolicited reports on scheme changes only while mode 2031 is enabled.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-dynamic-colors.sh
+  csi-996-n-color-scheme-query:
+    status: supported
+    as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
+    notes: Uses perceived luminance of the displayed background, accounting for DECSCNM.
+    review: reviewed
+    checked: '2026-09-10'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-dynamic-colors.sh

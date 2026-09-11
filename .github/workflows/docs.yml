@@ -41,6 +41,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r docs/requirements.txt -r tdn/requirements.txt
+      - run: python -m unittest discover -s tdn/tests
       - run: mkdocs build --strict -d site/docs
       - run: mkdocs build --strict -f tdn/mkdocs.yml -d ../site/tdn
       - run: cp -r www/. site/

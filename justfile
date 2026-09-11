@@ -145,6 +145,12 @@ serve-docs:
 serve-tdn:
     {{mkdocs}} serve -f tdn/mkdocs.yml
 
+# Validate TDN's per-terminal data and its schema regressions
+check-tdn:
+    python3 tdn/hooks/registry.py
+    python3 -m unittest discover -s tdn/tests
+    {{mkdocs}} build --strict -f tdn/mkdocs.yml -d /tmp/revenant-tdn-check
+
 # Strict-build both mkdocs sites without writing site/
 check:
     {{mkdocs}} build --strict -d /tmp/revenant-docs-check/docs

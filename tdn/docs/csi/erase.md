@@ -80,19 +80,6 @@ the wide cell cannot exist without its spacer. Whether the surviving
 neighbor becomes a space or is left untouched varies. Applications that
 erase columns precisely should erase whole grapheme runs.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| ED/EL/ECH/ICH/DCH/IL/DL | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| ED 3 (scrollback) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | Yes (`E3`) |
-| `bce` | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| DECSCA/DECSED/DECSEL | Yes | ? | ? | ? | Yes | Yes | Yes | ? | ? | ? | ? | ? | Partial | ? |
-| REP | Yes | Yes | ? | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | ? | Yes | Yes |
-
-<!-- markdownlint-enable MD013 -->
 
 ## Probe
 
@@ -109,3 +96,5 @@ printf '\033[3J'                                        # clear scrollback only
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - [VT510 DECSCA](https://vt100.net/docs/vt510-rm/DECSCA.html)
 - [terminfo(5), `bce` and `E3`](https://invisible-island.net/ncurses/man/terminfo.5.html)
+
+<!-- tdn:compatibility -->

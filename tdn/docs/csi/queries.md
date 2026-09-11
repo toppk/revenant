@@ -129,3 +129,5 @@ tools/query -r da1 | od -c      # raw bytes
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - [Windows Terminal: sequences supported](https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences)
 - [kitty: keyboard protocol detection](https://sw.kovidgoyal.net/kitty/keyboard-protocol/#detection-of-support-for-this-protocol)
+
+<!-- tdn:compatibility -->

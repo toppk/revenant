@@ -103,26 +103,6 @@ The report is a DSR-style CSI, not an OSC, and is emitted whenever the
 emulator's theme changes while the mode is set. Applications should treat it
 as a hint and still honor explicit `NO_COLOR` or their own configuration.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | mintty | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OSC 4 set | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | Partial[^tm] |
-| OSC 4 query | Yes | Yes | ? | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | ? | ? | Yes | Yes | Partial[^tm] |
-| OSC 10/11 set | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | Partial[^tm] |
-| OSC 10/11 query | Yes | Yes | ? | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | ? | ? | Yes | Yes | Partial[^tm] |
-| OSC 12 cursor | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | ? | ? | Yes | Yes | ? |
-| OSC 17/19 selection | Yes | Yes | ? | ? | ? | ? | ? | ? | ? | Yes | ? | ? | ? | ? | ? | ? |
-| 104/110/111 reset | Yes | Yes | ? | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | ? | ? | Yes | Yes | ? |
-| Mode 2031 | ? | ? | ? | Yes (0.35)? | ? | Yes | Yes | ? | Yes | ? | ? | ? | ? | Yes | ? | ? |
-| X11 color names | Yes | Yes | ? | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-
-<!-- markdownlint-enable MD013 -->
-
-[^tm]: tmux forwards sets to the outer terminal and answers queries itself;
-    the answer may not match the outer terminal until it has been refreshed.
 
 ## Probe
 
@@ -145,3 +125,12 @@ printf '\033[?2031h'; printf '\033[?996n'   # expect CSI ? 997 ; 1 n or ; 2 n
 - [WezTerm escape sequences](https://wezterm.org/escape-sequences.html)
 - [iTerm2 proprietary escape codes](https://iterm2.com/documentation-escape-codes.html)
 - [tmux(1)](https://man.openbsd.org/tmux)
+
+
+## Separately tracked behavior
+
+### Dynamic color addressing under reverse video
+
+Feature ID: `osc-dynamic-colors-reverse-video`. OSC 10/11 address displayed foreground/background under DECSCNM as xterm does.
+
+<!-- tdn:compatibility -->

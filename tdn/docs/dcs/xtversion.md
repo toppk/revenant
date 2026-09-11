@@ -69,3 +69,5 @@ The reply shows the DCS answer (if any) followed by `CSI ? … c`.
 
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - [CSI queries and reports](../csi/queries.md)
+
+<!-- tdn:compatibility -->

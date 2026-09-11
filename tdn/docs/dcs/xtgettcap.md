@@ -45,30 +45,6 @@ frequently disabled by distributions.
 Key-related names (`kf1`, `kcuu1`, …) are also useful: they tell an
 application the encoding the terminal will actually send.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Terminal | XTGETTCAP | Notes |
-| --- | --- | --- |
-| xterm | Yes | [ctlseqs](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Device-Control-functions); `allowTcapOps` |
-| VTE | `?` | |
-| Konsole | `?` | |
-| kitty | Yes | [protocol extensions](https://sw.kovidgoyal.net/kitty/protocol-extensions/) |
-| WezTerm | Yes | [escape sequences](https://wezterm.org/escape-sequences.html) |
-| Ghostty | Yes | [VT reference](https://ghostty.org/docs/vt/dcs/xtgettcap) |
-| foot | Yes | [foot-ctlseqs](https://codeberg.org/dnkl/foot/src/branch/master/doc/foot-ctlseqs.7.scd) |
-| Alacritty | `?` | |
-| Contour | Yes | [VT extensions](https://contour-terminal.org/vt-extensions/) |
-| mintty | Yes | [CtrlSeqs](https://github.com/mintty/mintty/wiki/CtrlSeqs) |
-| PuTTY | ? | |
-| Windows Terminal | ? | not in the console VT list |
-| Apple Terminal | ? | |
-| iTerm2 | `?` | |
-| xterm.js | ? | not in vtfeatures |
-| tmux | `?` | |
-
-<!-- markdownlint-enable MD013 -->
 
 ## Probe
 
@@ -84,3 +60,5 @@ Decode the reply with `xxd -r -p` on each `hex-name=hex-value` pair.
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Device-Control-functions)
 - [terminfo(5)](https://invisible-island.net/ncurses/man/terminfo.5.html)
 - [kitty: XTGETTCAP](https://sw.kovidgoyal.net/kitty/protocol-extensions/)
+
+<!-- tdn:compatibility -->

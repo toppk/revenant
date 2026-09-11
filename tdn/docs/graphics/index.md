@@ -57,46 +57,9 @@ The Kitty protocol's Unicode placeholders were designed for this case: the
 image is transmitted once through a passthrough sequence, then referenced with
 ordinary text cells that tmux can move and redraw.
 
-## Compatibility
 
-<!-- markdownlint-disable MD013 -->
-
-| Emulator | Sixel | iTerm2 | Kitty |
-| --- | --- | --- | --- |
-| xterm | Yes, build option[^xterm] | ? | ? |
-| VTE | Yes, 0.70+ opt-in[^vte] | ? | ? |
-| Konsole | Yes, 22.04+[^konsole] | Yes[^konsole] | Yes[^konsole] |
-| kitty | No[^kitty] | ? | Yes |
-| WezTerm | Yes[^wez] | Yes[^wez] | Yes[^wez] |
-| Ghostty | No[^ghostty] | ? | Yes[^ghostty] |
-| foot | Yes[^foot] | ? | ? |
-| Alacritty | No[^alac] | No[^alac] | No[^alac] |
-| Contour | Yes[^contour] | ? | Partial[^contour] |
-| mintty | Yes[^mintty] | Yes[^mintty] | ? |
-| PuTTY | ? | ? | ? |
-| Windows Terminal | Yes, 1.22[^wt] | ? | ? |
-| Apple Terminal | ? | ? | ? |
-| iTerm2 | Yes[^iterm] | Yes[^iterm] | ? |
-| xterm.js | Yes, addon[^xjs] | Yes, addon[^xjs] | ? |
-| tmux | Yes, 3.4 build option[^tmux] | ? | Passthrough only |
-
-<!-- markdownlint-enable MD013 -->
-
-[^xterm]: [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html); requires `--enable-sixel-graphics` and a `decTerminalID` of 240 or higher.
-[^vte]: [VTE NEWS](https://gitlab.gnome.org/GNOME/vte/-/blob/master/NEWS), 0.70.
-[^konsole]: [Konsole release notes](https://konsole.kde.org/), 22.04.
-[^kitty]: [kitty graphics protocol, "Why not Sixel"](https://sw.kovidgoyal.net/kitty/graphics-protocol/).
-[^wez]: [WezTerm image protocols](https://wezterm.org/imgcat.html).
-[^ghostty]: [Ghostty VT reference](https://ghostty.org/docs/vt).
-[^foot]: [foot README](https://codeberg.org/dnkl/foot).
-[^contour]: [Contour VT extensions](https://github.com/contour-terminal/contour/blob/master/docs/vt-extensions/index.md).
-[^mintty]: [mintty wiki, Control Sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs).
-[^wt]: [Windows Terminal 1.22 release notes](https://github.com/microsoft/terminal/releases).
-[^iterm]: [iTerm2 images](https://iterm2.com/documentation-images.html).
-[^xjs]: [@xterm/addon-image](https://github.com/jerch/xterm-addon-image).
 [^tmux]: [tmux CHANGES](https://github.com/tmux/tmux/blob/master/CHANGES), 3.4.
 
-[^alac]: [Alacritty issue #910, "Sixel/graphics support"](https://github.com/alacritty/alacritty/issues/910), closed as out of scope.
 
 ## Probe
 
@@ -113,3 +76,5 @@ stty sane
 - [VT330/VT340 Programmer Reference, chapter 14](https://vt100.net/docs/vt3xx-gp/)
 - [kitty graphics protocol](https://sw.kovidgoyal.net/kitty/graphics-protocol/)
 - [iTerm2 inline images](https://iterm2.com/documentation-images.html)
+
+<!-- tdn:compatibility -->

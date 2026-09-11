@@ -94,24 +94,6 @@ request, or a tab badge, and most let the user choose. It cannot carry text.
   `OSC 9 ; 4 ; 0` leaves a stale bar.
 - Multiplexers drop all of these without passthrough.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | mintty | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OSC 9 notify | ? | ? | ? | Yes | Yes | Yes | ? | ? | ? | No[^mt] | ? | No[^wt] | ? | Yes | ? | ? |
-| OSC 9;4 progress | ? | ? | ? | ? | ? | Yes (1.2) | ? | ? | ? | Yes | ? | Yes (1.6) | ? | ? | ? | ? |
-| OSC 777 notify | ? | Partial[^vte] | ? | ? | Yes | Yes | Yes | ? | ? | Yes | ? | ? | ? | ? | ? | ? |
-| OSC 99 | ? | ? | ? | Yes | ? | Yes | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| BEL urgency/visual | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Partial | Yes |
-
-<!-- markdownlint-enable MD013 -->
-
-[^mt]: mintty interprets OSC 9 sub-commands in the ConEmu style.
-[^wt]: Windows Terminal interprets OSC 9 sub-commands in the ConEmu style.
-[^vte]: Some VTE-based terminals (e.g. Tilix, Terminator) handle OSC 777 in
-    the host application; VTE itself does not emit a notification.
 
 ## Probe
 
@@ -137,3 +119,5 @@ notifications.
 - [Ghostty VT reference](https://ghostty.org/docs/vt)
 - [WezTerm escape sequences](https://wezterm.org/escape-sequences.html)
 - [mintty control sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs)
+
+<!-- tdn:compatibility -->

@@ -72,30 +72,6 @@ with `off` it drops the sequence. A read query is answered by tmux from its
 own buffer only when `set-clipboard on`. screen does not implement OSC 52;
 use DCS passthrough.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Emulator | Write | Read | Default policy and control |
-| --- | --- | --- | --- |
-| xterm | Yes | Yes | Both denied by the default `disallowedWindowOps` list when `allowWindowOps` is false; true overrides that list |
-| VTE | Yes (0.72) | ? | Writes allowed; reads unimplemented. Older VTE ignores OSC 52 entirely |
-| Konsole | Yes | ? | Off by default; profile option "Allow escape sequences to modify clipboard" |
-| kitty | Yes | Yes | `clipboard_control` (default `write-clipboard write-primary read-clipboard-ask read-primary-ask`); reads prompt the user |
-| WezTerm | Yes | ? | Writes allowed; reads deliberately unimplemented |
-| Ghostty | Yes | Yes | `clipboard-write` (default `allow`), `clipboard-read` (default `ask`) |
-| foot | Yes | Yes | Writes allowed; reads require `osc52` set to allow reads in `foot.ini` |
-| Alacritty | Yes | ? | Writes allowed; reads unimplemented |
-| Contour | Yes | ? | ? |
-| mintty | Yes | Yes | `AllowSetSelection` and `AllowPasteSelection` options; reads off by default |
-| PuTTY | ? | ? | Not implemented |
-| Windows Terminal | Yes (1.16) | ? | Writes allowed; reads unimplemented |
-| Apple Terminal | ? | ? | Not implemented |
-| iTerm2 | Yes | ? | Off by default; "Applications in terminal may access clipboard" preference |
-| xterm.js | Partial | Partial | Requires `@xterm/addon-clipboard`; the addon's provider decides |
-| tmux | Yes | Partial | `set-clipboard` (`on`, `external`, `off`); default `external` |
-
-<!-- markdownlint-enable MD013 -->
 
 ## Probe
 
@@ -120,3 +96,32 @@ Paste into another application after the first command. Use
 - [@xterm/addon-clipboard](https://github.com/xtermjs/xterm.js/tree/master/addons/addon-clipboard)
 - [mintty control sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs)
 - [tmux(1), set-clipboard](https://man.openbsd.org/tmux#set-clipboard)
+
+
+## Separately tracked behavior
+
+### OSC 52 multiple targets
+
+Feature ID: `osc-52-multiple-targets`. Accept a list of selection letters rather than only one target.
+
+### OSC 52 default targets
+
+Feature ID: `osc-52-default-targets`. Apply xterm selection defaults when the target field is empty.
+
+### OSC 52 cut-buffer targets
+
+Feature ID: `osc-52-cut-buffers`. Honor the cut-buffer digits and target letters without folding them into CLIPBOARD.
+
+### OSC 52 invalid-data handling
+
+Feature ID: `osc-52-invalid-base64-clear`. Match xterm selection clearing for invalid base64 rather than silently ignoring it.
+
+### OSC 52 reply target encoding
+
+Feature ID: `osc-52-reply-target`. Match the requested target spelling in selection replies.
+
+### Kitty clipboard protocol
+
+Feature ID: `osc-5522-clipboard`. Separate clipboard extension, outside the current dispatch queue.
+
+<!-- tdn:compatibility -->

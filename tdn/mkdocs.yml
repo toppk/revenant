@@ -49,23 +49,42 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
 
+hooks:
+  - hooks/compatibility.py
+
+watch:
+  - data
+  - terminals
+  - hooks
+
+extra_css:
+  - assets/compatibility.css
+
+extra_javascript:
+  - assets/compatibility.js
+
 plugins:
   - search
   - tags
 
 nav:
   - Home: index.md
+  - Compare terminals: comparison.md
+  - Feature registry: features/index.md
+  - Maintaining compatibility data: registry.md
   - Foundations:
       - Conventions: conventions.md
       - Glossary: glossary.md
       - Environment and detection: environment.md
       - Standards and specifications: standards.md
       - Feature labels: tags.md
+      - Ops permission surfaces: policies/ops.md
       - Window Ops policy: policies/window-ops.md
       - Title Ops policy: policies/title-ops.md
   - Terminals:
       - Landscape: terminals/index.md
       - xterm: terminals/xterm.md
+      - Revenant: terminals/revenant.md
       - VTE (GNOME Terminal): terminals/vte.md
       - Konsole: terminals/konsole.md
       - kitty: terminals/kitty.md
@@ -137,4 +156,5 @@ nav:
   - Practices:
       - Overview: practices/index.md
       - Multiplexers: practices/multiplexers.md
+      - User actions and host integration: practices/user-actions.md
   - Revenant project: https://toppk.github.io/revenant/

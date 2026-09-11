@@ -1,0 +1,4127 @@
+schema_version: 1
+features:
+  csi-editing-operations:
+    title: ED/EL/ECH/ICH/DCH/IL/DL
+    kind: group
+    category: csi
+    pages:
+    - csi/erase.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  csi-3-j-erase-scrollback:
+    title: ED 3 (scrollback)
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  terminfo-bce:
+    title: bce
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    specifications:
+    - xterm-manual
+    labels: []
+  dec-selective-erase:
+    title: DECSCA/DECSED/DECSEL
+    kind: group
+    category: csi
+    pages:
+    - csi/erase.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  csi-rep:
+    title: REP
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps b
+  csi-decrqm:
+    title: DECRQM
+    kind: group
+    category: csi
+    pages:
+    - csi/modes.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps $ p
+  dec-mode-1049-alternate-screen:
+    title: 1049 alternate screen
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1049 h / l
+  dec-mode-2004-bracketed-paste:
+    title: 2004 bracketed paste
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    - input/bracketed-paste.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?2004 h / l
+  dec-mode-2026-synchronized-output:
+    title: 2026 synchronized output
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    - terminal-wg
+    labels: []
+    sequence: CSI ?2026 h / l
+  dec-mode-2027-grapheme-clusters:
+    title: Grapheme cluster mode (2027)
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    - text/graphemes.md
+    specifications:
+    - terminal-wg
+    - unicode-uax-29
+    labels: []
+    sequence: CSI ?2027 h / l
+  dec-mode-2031-color-scheme-reports:
+    title: 2031 color scheme reports
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    - osc/colors.md
+    specifications:
+    - contour-color-scheme
+    labels: []
+    sequence: CSI ?2031 h / l
+  dec-mode-2048-in-band-resize:
+    title: 2048 in band resize
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    - csi/window-ops.md
+    specifications:
+    - terminal-wg
+    labels: []
+    sequence: CSI ?2048 h / l
+  csi-decstr:
+    title: DECSTR
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ! p
+  csi-su-sd-scroll:
+    title: SU/SD
+    kind: group
+    category: csi
+    pages:
+    - csi/scrolling.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  csi-decstbm:
+    title: DECSTBM
+    kind: feature
+    category: csi
+    pages:
+    - csi/scrolling.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Pt ; Pb r
+  csi-decslrm:
+    title: DECSLRM / ?69
+    kind: feature
+    category: csi
+    pages:
+    - csi/scrolling.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Pl ; Pr s
+  dec-mode-1007-alternate-scroll:
+    title: 1007 alternate scroll
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    - csi/scrolling.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1007 h / l
+  dec-mode-45-reverse-wrap:
+    title: ?45 reverse wrap
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    - csi/scrolling.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?45 h / l
+  sgr-256-colors:
+    title: 256 colors
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  sgr-38-2-truecolor:
+    title: Truecolor 38;2
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  sgr-38-2-colon-form:
+    title: Colon form 38:2
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  sgr-3-italic:
+    title: Italic 3
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 3 m
+  sgr-9-strikethrough:
+    title: Strikethrough 9
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 9 m
+  sgr-4-underline-styles:
+    title: Underline styles 4:n
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - kitty-underlines
+    labels: []
+    sequence: CSI 4 m
+  sgr-58-underline-color:
+    title: Underline color 58
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - kitty-underlines
+    labels: []
+    sequence: CSI 58 m
+  sgr-53-overline:
+    title: Overline 53
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 53 m
+  sgr-5-blink:
+    title: Blink 5
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 5 m
+  csi-xtpushsgr:
+    title: XTPUSHSGR
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: 'CSI # {'
+  csi-18-t-text-size:
+    title: 18 size in cells
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 18 t
+  csi-14-16-t-pixel-sizes:
+    title: 14/16 pixel sizes
+    kind: group
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+  csi-22-23-t-title-stack:
+    title: 22/23 title stack
+    kind: group
+    category: csi
+    pages:
+    - csi/window-ops.md
+    - osc/title.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    - title-ops
+    policy_note: Window Ops gates push/pop; Title Ops gates applying labels on pop.
+  csi-21-t-title-report:
+    title: 21 title report
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 21 t
+  csi-3-4-8-t-move-resize:
+    title: Move/resize (3,4,8)
+    kind: group
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+  osc-52-write:
+    title: OSC 52 write
+    kind: feature
+    category: osc
+    pages:
+    - osc/clipboard.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+  osc-52-read:
+    title: OSC 52 read
+    kind: feature
+    category: osc
+    pages:
+    - osc/clipboard.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+  osc-4-palette-set:
+    title: OSC 4 set
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  osc-4-palette-query:
+    title: OSC 4 query
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+  osc-10-11-default-colors-set:
+    title: OSC 10/11 set
+    kind: group
+    category: osc
+    pages:
+    - osc/colors.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+  osc-10-11-default-colors-query:
+    title: OSC 10/11 query
+    kind: group
+    category: osc
+    pages:
+    - osc/colors.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+  osc-12-cursor-color:
+    title: OSC 12 cursor
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 12
+  osc-17-19-selection-colors:
+    title: OSC 17/19 selection
+    kind: group
+    category: osc
+    pages:
+    - osc/colors.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+  osc-104-110-111-color-reset:
+    title: 104/110/111 reset
+    kind: group
+    category: osc
+    pages:
+    - osc/colors.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    policy_note: OSC 110/111 are Color Ops; OSC 104 palette reset is not.
+  osc-x11-color-names:
+    title: X11 color names
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    specifications:
+    - xparsecolor
+    labels: []
+  osc-7-working-directory:
+    title: OSC 7
+    kind: feature
+    category: osc
+    pages:
+    - osc/cwd.md
+    - osc/catalog.md
+    specifications:
+    - terminal-wg
+    - iterm2-escape-codes
+    labels: []
+    sequence: OSC 7
+  osc-1337-current-dir:
+    title: OSC 1337 CurrentDir
+    kind: feature
+    category: osc
+    pages:
+    - osc/cwd.md
+    specifications:
+    - iterm2-escape-codes
+    labels: []
+  osc-9-9-working-directory:
+    title: OSC 9;9
+    kind: feature
+    category: osc
+    pages:
+    - osc/cwd.md
+    - osc/catalog.md
+    specifications:
+    - conemu-ansi
+    labels: []
+    sequence: OSC 9 ; 9
+  osc-8-hyperlinks:
+    title: OSC 8 hyperlinks
+    kind: feature
+    category: osc
+    pages:
+    - osc/hyperlinks.md
+    - osc/catalog.md
+    specifications:
+    - osc-8-hyperlinks-spec
+    labels: []
+    sequence: OSC 8
+  osc-8-link-id:
+    title: id= grouping
+    kind: feature
+    category: osc
+    pages:
+    - osc/hyperlinks.md
+    specifications:
+    - osc-8-hyperlinks-spec
+    labels: []
+  osc-3-x-property:
+    title: OSC 3
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: OSC 3
+  osc-50-font:
+    title: OSC 50 font
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - font-ops
+    sequence: OSC 50
+  osc-22-pointer-shape:
+    title: OSC 22 pointer
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: OSC 22
+  osc-21-kitty-colors:
+    title: OSC 21
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    - osc/catalog.md
+    specifications:
+    - kitty-colors
+    labels: []
+    sequence: OSC 21
+  csi-palette-stack:
+    title: 'CSI # P / # Q'
+    kind: group
+    category: osc
+    pages:
+    - osc/misc.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  osc-66-text-sizing:
+    title: OSC 66
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    - text/sizing.md
+    - osc/catalog.md
+    specifications:
+    - kitty-text-sizing
+    labels: []
+    sequence: OSC 66
+  osc-1337-family:
+    title: OSC 1337 (any)
+    kind: group
+    category: osc
+    pages:
+    - osc/misc.md
+    - osc/catalog.md
+    specifications:
+    - iterm2-escape-codes
+    labels: []
+    sequence: OSC 1337
+  osc-6-apple-document:
+    title: OSC 6
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    - osc/catalog.md
+    specifications:
+    - iterm2-escape-codes
+    labels: []
+    sequence: OSC 6
+  osc-9-notification:
+    title: OSC 9 notify
+    kind: feature
+    category: osc
+    pages:
+    - osc/notifications.md
+    - osc/catalog.md
+    specifications:
+    - iterm2-escape-codes
+    labels: []
+    sequence: OSC 9
+  osc-9-4-progress:
+    title: OSC 9;4 progress
+    kind: feature
+    category: osc
+    pages:
+    - osc/notifications.md
+    - osc/catalog.md
+    specifications:
+    - conemu-ansi
+    labels: []
+    sequence: OSC 9 ; 4
+  osc-777-notification:
+    title: OSC 777 notify
+    kind: feature
+    category: osc
+    pages:
+    - osc/notifications.md
+    - osc/catalog.md
+    specifications:
+    - urxvt-perl
+    labels: []
+    sequence: OSC 777
+  osc-99-notification:
+    title: OSC 99
+    kind: feature
+    category: osc
+    pages:
+    - osc/notifications.md
+    - osc/catalog.md
+    specifications:
+    - kitty-notifications
+    labels: []
+    sequence: OSC 99
+  c0-bel-attention:
+    title: BEL urgency/visual
+    kind: feature
+    category: osc
+    pages:
+    - osc/notifications.md
+    specifications:
+    - xterm-manual
+    labels: []
+  osc-133-prompt-marks:
+    title: OSC 133 A–D
+    kind: feature
+    category: osc
+    pages:
+    - osc/shell-integration.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: OSC 133
+  osc-133-aid-cl:
+    title: aid= / cl=
+    kind: feature
+    category: osc
+    pages:
+    - osc/shell-integration.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  shell-prompt-resize:
+    title: Prompt redraw on resize
+    kind: feature
+    category: osc
+    pages:
+    - osc/shell-integration.md
+    specifications:
+    - kitty-shell-integration
+    labels: []
+  osc-1337-set-user-var:
+    title: OSC 1337 SetUserVar
+    kind: feature
+    category: osc
+    pages:
+    - osc/shell-integration.md
+    specifications:
+    - iterm2-escape-codes
+    labels: []
+  shell-integration-scripts:
+    title: Ships its own shell scripts
+    kind: feature
+    category: osc
+    pages:
+    - osc/shell-integration.md
+    specifications:
+    - kitty-shell-integration
+    labels: []
+  osc-0-2-title:
+    title: OSC 0/2 set
+    kind: group
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - title-ops
+  osc-1-icon-name:
+    title: OSC 1 icon
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - title-ops
+    sequence: OSC 1
+  csi-20-21-t-title-reports:
+    title: 20/21 report
+    kind: group
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+  dec-mode-1000-mouse:
+    title: 1000 mouse
+    kind: feature
+    category: input
+    pages:
+    - csi/modes.md
+    - input/mouse.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - mouse-ops
+    sequence: CSI ?1000 h / l
+  dec-mode-1002-button-motion:
+    title: 1002 button motion
+    kind: feature
+    category: input
+    pages:
+    - csi/modes.md
+    - input/mouse.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - mouse-ops
+    sequence: CSI ?1002 h / l
+  dec-mode-1003-all-motion:
+    title: 1003 all motion
+    kind: feature
+    category: input
+    pages:
+    - csi/modes.md
+    - input/mouse.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - mouse-ops
+    sequence: CSI ?1003 h / l
+  dec-mode-1006-sgr-mouse:
+    title: 1006 sgr mouse
+    kind: feature
+    category: input
+    pages:
+    - csi/modes.md
+    - input/mouse.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - mouse-ops
+    sequence: CSI ?1006 h / l
+  dec-mode-1015-urxvt-mouse:
+    title: 1015 urxvt mouse
+    kind: feature
+    category: input
+    pages:
+    - csi/modes.md
+    - input/mouse.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - mouse-ops
+    sequence: CSI ?1015 h / l
+  dec-mode-1016-pixel-mouse:
+    title: 1016 pixel mouse
+    kind: feature
+    category: input
+    pages:
+    - csi/modes.md
+    - input/mouse.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - mouse-ops
+    sequence: CSI ?1016 h / l
+  dec-mode-1004-focus:
+    title: 1004 focus
+    kind: feature
+    category: input
+    pages:
+    - csi/modes.md
+    - input/mouse.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - mouse-ops
+    sequence: CSI ?1004 h / l
+  csi-u-kitty-keyboard:
+    title: Kitty keyboard protocol
+    kind: feature
+    category: input
+    pages:
+    - input/kitty-keyboard.md
+    specifications:
+    - comprehensive-keyboard-handling-in-terminals
+    labels: []
+  csi-modify-other-keys:
+    title: modifyOtherKeys
+    kind: feature
+    category: input
+    pages:
+    - input/modify-other-keys.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  dec-mode-9001-win32-input:
+    title: win32-input-mode
+    kind: feature
+    category: input
+    pages:
+    - csi/modes.md
+    - input/win32-input-mode.md
+    specifications:
+    - improved-keyboard-handling-in-conpty-spec-4999
+    labels: []
+    sequence: CSI ?9001 h / l
+  dcs-decrqss:
+    title: DECRQSS
+    kind: feature
+    category: dcs
+    pages:
+    - dcs/decrqss.md
+    specifications:
+    - vt510-video-terminal-programmer-information-decrqss
+    labels: []
+  dcs-xtgettcap:
+    title: XTGETTCAP
+    kind: feature
+    category: dcs
+    pages:
+    - dcs/xtgettcap.md
+    specifications:
+    - xterm-control-sequences-dcs-xtgettcap
+    labels:
+    - tcap-ops
+  dcs-sixel:
+    title: Sixel
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/sixel.md
+    - graphics/index.md
+    specifications:
+    - vt330-vt340-programmer-reference-chapter-14
+    labels: []
+  osc-1337-inline-images:
+    title: iTerm2
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/iterm2.md
+    - graphics/index.md
+    specifications:
+    - iterm2-images
+    labels: []
+  apc-kitty-graphics:
+    title: Kitty
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/kitty.md
+    - graphics/index.md
+    specifications:
+    - kitty-graphics
+    labels: []
+  dcs-regis:
+    title: ReGIS
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/legacy.md
+    specifications:
+    - vt330-vt340-programmer-reference-regis-chapters
+    labels: []
+  tek-4014-graphics:
+    title: Tektronix
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/legacy.md
+    specifications:
+    - xterm-manual
+    labels: []
+  esc-percent-encoding:
+    title: ESC % G / ESC % @
+    kind: feature
+    category: text
+    pages:
+    - text/encoding.md
+    - escape.md
+    specifications:
+    - xterm-control-sequences
+    - iso-iec-2022
+    labels: []
+  esc-dec-special-graphics:
+    title: DEC Special Graphics
+    kind: feature
+    category: text
+    pages:
+    - text/encoding.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+  text-c1-in-utf8:
+    title: 8-bit C1 in UTF-8
+    kind: feature
+    category: text
+    pages:
+    - text/encoding.md
+    specifications:
+    - iso-iec-2022
+    labels: []
+  text-non-utf8-locales:
+    title: Non-UTF-8 locales
+    kind: feature
+    category: text
+    pages:
+    - text/encoding.md
+    specifications:
+    - iso-iec-2022
+    labels: []
+  text-bold-is-bright:
+    title: Bold-is-bright option
+    kind: feature
+    category: text
+    pages:
+    - text/rendering.md
+    specifications:
+    - xterm-manual
+    labels: []
+  text-italic-face:
+    title: Italic face
+    kind: feature
+    category: text
+    pages:
+    - text/rendering.md
+    specifications:
+    - xterm-manual
+    labels: []
+  text-shaping:
+    title: Ligatures / shaping
+    kind: feature
+    category: text
+    pages:
+    - text/rendering.md
+    specifications:
+    - harfbuzz
+    labels: []
+  text-box-drawing:
+    title: Synthesized box drawing
+    kind: feature
+    category: text
+    pages:
+    - text/rendering.md
+    specifications:
+    - xterm-manual
+    labels: []
+  text-bidi:
+    title: Bidi reordering
+    kind: feature
+    category: text
+    pages:
+    - text/rendering.md
+    specifications:
+    - ecma-tr-53-handling-of-bi-directional-texts
+    labels: []
+  text-color-emoji:
+    title: Color emoji rendering
+    kind: feature
+    category: text
+    pages:
+    - text/rendering.md
+    specifications:
+    - unicode-uts-51
+    labels: []
+  esc-double-size-lines:
+    title: DECDWL/DECDHL rendered
+    kind: group
+    category: text
+    pages:
+    - text/sizing.md
+    specifications:
+    - vt100-user-guide-line-attributes
+    labels: []
+  text-ambiguous-width:
+    title: Ambiguous-width option
+    kind: feature
+    category: text
+    pages:
+    - text/width.md
+    specifications:
+    - unicode-standard-annex-11-east-asian-width
+    labels: []
+  text-vs16-width:
+    title: VS16 widens
+    kind: feature
+    category: text
+    pages:
+    - text/width.md
+    specifications:
+    - unicode-uts-51
+    - unicode-standard-annex-11-east-asian-width
+    labels: []
+  text-unicode-tables:
+    title: Bundled Unicode tables
+    kind: feature
+    category: text
+    pages:
+    - text/width.md
+    specifications:
+    - unicode-ucd
+    labels: []
+  csi-ich:
+    title: ICH insert characters
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps @
+  csi-sl:
+    title: SL shift left
+    kind: feature
+    category: csi
+    pages:
+    - csi/scrolling.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps SP @
+  csi-cuu:
+    title: CUU cursor up
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps A
+  csi-sr:
+    title: SR shift right
+    kind: feature
+    category: csi
+    pages:
+    - csi/scrolling.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps SP A
+  csi-cud:
+    title: CUD cursor down
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps B
+  csi-cuf:
+    title: CUF cursor forward
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps C
+  csi-cub:
+    title: CUB cursor back
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps D
+  csi-cnl:
+    title: CNL cursor next line
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps E
+  csi-cpl:
+    title: CPL cursor previous line
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps F
+  csi-cha:
+    title: CHA cursor horizontal absolute
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps G
+  csi-cup:
+    title: CUP cursor position
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps ; Ps H
+  csi-cht:
+    title: CHT cursor forward tabulation
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps I
+  csi-ed:
+    title: ED erase in display
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps J
+  csi-decsed:
+    title: DECSED selective erase in display
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ? Ps J
+  csi-el:
+    title: EL erase in line
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps K
+  csi-decsel:
+    title: DECSEL selective erase in line
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ? Ps K
+  csi-il:
+    title: IL insert lines
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps L
+  csi-dl:
+    title: DL delete lines
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps M
+  csi-dch:
+    title: DCH delete characters
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps P
+  csi-xtpushcolors:
+    title: XTPUSHCOLORS push palette
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: 'CSI # P'
+  csi-xtpopcolors:
+    title: XTPOPCOLORS pop palette
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: 'CSI # Q'
+  csi-xtreportcolors:
+    title: XTREPORTCOLORS report palette stack
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: 'CSI # R'
+  csi-su:
+    title: SU scroll up
+    kind: feature
+    category: csi
+    pages:
+    - csi/scrolling.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps S
+  csi-xtsmgraphics:
+    title: XTSMGRAPHICS graphics attributes
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/sixel.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ? Pi ; Pa ; Pv S
+  csi-sd:
+    title: SD scroll down
+    kind: feature
+    category: csi
+    pages:
+    - csi/scrolling.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps T
+  csi-xtrmtitle:
+    title: XTRMTITLE reset title modes
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI > Pm T
+  csi-ech:
+    title: ECH erase characters
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps X
+  csi-cbt:
+    title: CBT cursor backward tabulation
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps Z
+  csi-hpa:
+    title: HPA horizontal position absolute
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps
+  csi-hpr:
+    title: HPR horizontal position relative
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps a
+  csi-da1:
+    title: DA1 primary device attributes
+    kind: feature
+    category: csi
+    pages:
+    - csi/queries.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps c
+  csi-da2:
+    title: DA2 secondary device attributes
+    kind: feature
+    category: csi
+    pages:
+    - csi/queries.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI > Ps c
+  csi-da3:
+    title: DA3 tertiary device attributes
+    kind: feature
+    category: csi
+    pages:
+    - csi/queries.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI = Ps c
+  csi-vpa:
+    title: VPA vertical position absolute
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps d
+  csi-vpr:
+    title: VPR vertical position relative
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps e
+  csi-hvp:
+    title: HVP horizontal and vertical position
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - ecma-48
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps ; Ps f
+  csi-tbc:
+    title: TBC tab clear
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps g
+  csi-sm:
+    title: SM set mode
+    kind: group
+    category: csi
+    pages:
+    - csi/modes.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Pm h
+  csi-decset:
+    title: DECSET set private mode
+    kind: group
+    category: csi
+    pages:
+    - csi/modes.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ? Pm h
+  csi-mc:
+    title: MC media copy
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps i
+  csi-rm:
+    title: RM reset mode
+    kind: group
+    category: csi
+    pages:
+    - csi/modes.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Pm l
+  csi-decrst:
+    title: DECRST reset private mode
+    kind: group
+    category: csi
+    pages:
+    - csi/modes.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ? Pm l
+  csi-sgr:
+    title: SGR select graphic rendition
+    kind: group
+    category: csi
+    pages:
+    - csi/sgr.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Pm m
+  csi-xtmodkeys:
+    title: XTMODKEYS set key modifier options
+    kind: feature
+    category: input
+    pages:
+    - input/modify-other-keys.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI > Pp ; Pv m
+  csi-xtqmodkeys:
+    title: XTQMODKEYS query key modifier options
+    kind: feature
+    category: input
+    pages:
+    - input/modify-other-keys.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ? Pp m
+  csi-dsr:
+    title: DSR device status report; 6 n requests CPR
+    kind: group
+    category: csi
+    pages:
+    - csi/queries.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps n
+  csi-disable-key-modifier-options:
+    title: Disable key modifier options
+    kind: feature
+    category: input
+    pages:
+    - input/modify-other-keys.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI > Ps n
+  csi-xtsmpointer:
+    title: XTSMPOINTER pointer mode
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI > Ps p
+  csi-decscl:
+    title: DECSCL conformance level
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps ; Ps " p
+  csi-decll:
+    title: DECLL load LEDs
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps q
+  csi-decscusr:
+    title: DECSCUSR cursor style
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps SP q
+  csi-decsca:
+    title: DECSCA character protection
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps " q
+  csi-xtversion:
+    title: XTVERSION request
+    kind: feature
+    category: dcs
+    pages:
+    - dcs/xtversion.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI > Ps q
+  csi-xtrestore:
+    title: XTRESTORE restore private modes
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ? Pm r
+  csi-deccara:
+    title: DECCARA change attributes in area
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Pt ; Pl ; Pb ; Pr ; Pm $ r
+  csi-scosc:
+    title: SCOSC save cursor (ANSI.SYS)
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI s
+  csi-xtsave:
+    title: XTSAVE save private modes
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ? Pm s
+  csi-xtwinops:
+    title: XTWINOPS window operations
+    kind: group
+    category: csi
+    pages:
+    - csi/window-ops.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI Ps ; Ps ; Ps t
+  csi-xtsmtitle:
+    title: XTSMTITLE set title modes
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI > Pm t
+  csi-decswbv:
+    title: DECSWBV warning bell volume
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps SP t
+  csi-scorc:
+    title: SCORC restore cursor (ANSI.SYS)
+    kind: feature
+    category: csi
+    pages:
+    - csi/cursor.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI u
+  csi-kitty-key-report:
+    title: Kitty key report
+    kind: feature
+    category: input
+    pages:
+    - input/kitty-keyboard.md
+    - csi/catalog.md
+    specifications:
+    - comprehensive-keyboard-handling-in-terminals
+    labels: []
+    sequence: CSI Pk ; Pm ; Pe ; Pt u
+  csi-kitty-keyboard-query:
+    title: Kitty keyboard query
+    kind: feature
+    category: input
+    pages:
+    - input/kitty-keyboard.md
+    - csi/catalog.md
+    specifications:
+    - comprehensive-keyboard-handling-in-terminals
+    labels: []
+    sequence: CSI ? u
+  csi-kitty-keyboard-push-flags:
+    title: Kitty keyboard push flags
+    kind: feature
+    category: input
+    pages:
+    - input/kitty-keyboard.md
+    - csi/catalog.md
+    specifications:
+    - comprehensive-keyboard-handling-in-terminals
+    labels: []
+    sequence: CSI > Pf u
+  csi-kitty-keyboard-pop-flags:
+    title: Kitty keyboard pop flags
+    kind: feature
+    category: input
+    pages:
+    - input/kitty-keyboard.md
+    - csi/catalog.md
+    specifications:
+    - comprehensive-keyboard-handling-in-terminals
+    labels: []
+    sequence: CSI < Ps u
+  csi-kitty-keyboard-set-flags:
+    title: Kitty keyboard set flags
+    kind: feature
+    category: input
+    pages:
+    - input/kitty-keyboard.md
+    - csi/catalog.md
+    specifications:
+    - comprehensive-keyboard-handling-in-terminals
+    labels: []
+    sequence: CSI = Pf ; Pm u
+  csi-decsmbv:
+    title: DECSMBV margin bell volume
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps SP u
+  csi-deccra:
+    title: DECCRA copy rectangular area
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI … $ v
+  csi-decrqpsr:
+    title: DECRQPSR request presentation state
+    kind: feature
+    category: dcs
+    pages:
+    - dcs/misc.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps $ w
+  csi-decefr:
+    title: DECEFR enable filter rectangle
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Pt ; Pl ; Pb ; Pr ' w
+  csi-decreqtparm:
+    title: DECREQTPARM request terminal parameters
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps x
+  csi-decsace:
+    title: DECSACE select attribute change extent
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps * x
+  csi-decfra:
+    title: DECFRA fill rectangular area
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI … $ x
+  csi-decelr:
+    title: DECELR enable locator reporting
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps ; Pu ' z
+  csi-decera:
+    title: DECERA erase rectangular area
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI … $ z
+  csi-decsle:
+    title: DECSLE select locator events
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Pm ' {
+  csi-decsera:
+    title: DECSERA selective erase rectangular area
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI … $ {
+  csi-decrqlp:
+    title: DECRQLP request locator position
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps ' \|
+  csi-xtpopsgr:
+    title: XTPOPSGR pop graphic rendition
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: 'CSI # }'
+  csi-decic:
+    title: DECIC insert columns
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps ' }
+  csi-decdc:
+    title: DECDC delete columns
+    kind: feature
+    category: csi
+    pages:
+    - csi/erase.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps ' ~
+  osc-0-title-icon:
+    title: Set icon name and window title
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - title-ops
+    sequence: OSC 0
+  osc-2-title:
+    title: Set window title
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - title-ops
+    sequence: OSC 2
+  osc-6-xterm-special-color:
+    title: Enable/disable special color
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: OSC 6
+  osc-10-default-foreground-color:
+    title: Default foreground color
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 10
+  osc-11-default-background-color:
+    title: Default background color
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 11
+  osc-13-pointer-foreground:
+    title: Pointer foreground
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 13
+  osc-14-pointer-background:
+    title: Pointer background
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 14
+  osc-15-tektronix-foreground:
+    title: Tektronix foreground
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 15
+  osc-16-tektronix-background:
+    title: Tektronix background
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 16
+  osc-17-highlight-selection-background:
+    title: Highlight (selection) background
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 17
+  osc-18-tektronix-cursor:
+    title: Tektronix cursor
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 18
+  osc-19-highlight-selection-foreground:
+    title: Highlight (selection) foreground
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 19
+  osc-46-log-file:
+    title: Log file
+    kind: feature
+    category: osc
+    pages:
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: OSC 46
+  osc-51-reserved-emacs-shell:
+    title: Reserved (Emacs shell)
+    kind: feature
+    category: osc
+    pages:
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: OSC 51
+  osc-60-61-query-allowed-disallowed-features:
+    title: Query allowed/disallowed features
+    kind: feature
+    category: osc
+    pages:
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: OSC 60–61
+  osc-106-enable-disable-special-color:
+    title: Enable/disable special color
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: OSC 106
+  osc-440-audio:
+    title: Audio
+    kind: feature
+    category: osc
+    pages:
+    - osc/catalog.md
+    specifications:
+    - mintty-control-sequences
+    labels: []
+    sequence: OSC 440
+  osc-701-locale:
+    title: Locale
+    kind: feature
+    category: osc
+    pages:
+    - osc/catalog.md
+    specifications:
+    - urxvt-manual
+    labels: []
+    sequence: OSC 701
+  osc-7704-special-color-wezterm:
+    title: Special color (WezTerm)
+    kind: feature
+    category: osc
+    pages:
+    - osc/catalog.md
+    specifications:
+    - wezterm-escape-sequences
+    labels: []
+    sequence: OSC 7704
+  osc-7770-font-size:
+    title: Font size
+    kind: feature
+    category: osc
+    pages:
+    - osc/catalog.md
+    specifications:
+    - mintty-control-sequences
+    labels: []
+    sequence: OSC 7770
+  osc-7771-glyph-check:
+    title: Glyph check
+    kind: feature
+    category: osc
+    pages:
+    - osc/catalog.md
+    specifications:
+    - mintty-control-sequences
+    labels: []
+    sequence: OSC 7771
+  osc-7777-window-size-and-position:
+    title: Window size and position
+    kind: feature
+    category: osc
+    pages:
+    - osc/catalog.md
+    specifications:
+    - mintty-control-sequences
+    labels: []
+    sequence: OSC 7777
+  osc-9001-kitty-remote-control:
+    title: Kitty remote control
+    kind: feature
+    category: osc
+    pages:
+    - osc/catalog.md
+    specifications:
+    - kitty-remote-control
+    labels: []
+    sequence: OSC 9001
+  ansi-mode-2-kam:
+    title: 'Mode 2: KAM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 2 h / l
+  ansi-mode-4-irm:
+    title: 'Mode 4: IRM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 4 h / l
+  ansi-mode-12-srm:
+    title: 'Mode 12: SRM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 12 h / l
+  ansi-mode-20-lnm:
+    title: 'Mode 20: LNM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 20 h / l
+  dec-mode-1-decckm:
+    title: 'Mode ?1: DECCKM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1 h / l
+  dec-mode-2-decanm:
+    title: 'Mode ?2: DECANM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?2 h / l
+  dec-mode-3-deccolm:
+    title: 'Mode ?3: DECCOLM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI ?3 h / l
+  dec-mode-4-decsclm:
+    title: 'Mode ?4: DECSCLM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?4 h / l
+  dec-mode-5-decscnm:
+    title: 'Mode ?5: DECSCNM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?5 h / l
+  dec-mode-6-decom:
+    title: 'Mode ?6: DECOM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?6 h / l
+  dec-mode-7-decawm:
+    title: 'Mode ?7: DECAWM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?7 h / l
+  dec-mode-8-decarm:
+    title: 'Mode ?8: DECARM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?8 h / l
+  dec-mode-12-cursor-blink:
+    title: 'Mode ?12: Cursor blink'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?12 h / l
+  dec-mode-25-dectcem:
+    title: 'Mode ?25: DECTCEM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?25 h / l
+  dec-mode-40-allow-3-to-resize:
+    title: 'Mode ?40: Allow ?3 to resize'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI ?40 h / l
+  dec-mode-47-alternate-screen-no-cursor-save:
+    title: 'Mode ?47: Alternate screen (no cursor save)'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?47 h / l
+  dec-mode-66-decnkm:
+    title: 'Mode ?66: DECNKM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?66 h / l
+  dec-mode-67-decbkm:
+    title: 'Mode ?67: DECBKM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?67 h / l
+  dec-mode-69-declrmm:
+    title: 'Mode ?69: DECLRMM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?69 h / l
+  dec-mode-80-decsdm:
+    title: 'Mode ?80: DECSDM'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?80 h / l
+  dec-mode-1047-alternate-screen:
+    title: 'Mode ?1047: Alternate screen; clears it on return'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1047 h / l
+  dec-mode-1034-eight-bit-meta:
+    title: 'Mode ?1034: Eight-bit Meta'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1034 h / l
+  dec-mode-1035-num-lock-modifier-handling:
+    title: 'Mode ?1035: Num Lock modifier handling'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1035 h / l
+  dec-mode-1036-meta-sends-esc:
+    title: 'Mode ?1036: Meta sends ESC'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1036 h / l
+  dec-mode-1039-alt-sends-esc:
+    title: 'Mode ?1039: Alt sends ESC'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1039 h / l
+  dec-mode-1010-scroll-to-bottom-on-output:
+    title: 'Mode ?1010: Scroll to bottom on output'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1010 h / l
+  dec-mode-1011-scroll-to-bottom-on-key-press:
+    title: 'Mode ?1011: Scroll to bottom on key press'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1011 h / l
+  dec-mode-1070-sixel-uses-a-private-palette:
+    title: 'Mode ?1070: Sixel uses a private palette'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1070 h / l
+  sgr-0-reset-all:
+    title: 'SGR 0: Reset all'
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 0 m
+  sgr-1-bold:
+    title: 'SGR 1: Bold'
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 1 m
+  sgr-2-faint:
+    title: 'SGR 2: Faint'
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 2 m
+  sgr-6-rapid-blink:
+    title: 'SGR 6: Rapid blink'
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 6 m
+  sgr-7-inverse:
+    title: 'SGR 7: Inverse'
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 7 m
+  sgr-8-conceal:
+    title: 'SGR 8: Conceal'
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 8 m
+  sgr-21-double-underline:
+    title: 'SGR 21: Double underline'
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: CSI 21 m
+  csi-1-t-de-iconify:
+    title: De-iconify
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 1 t
+  csi-2-t-iconify:
+    title: Iconify
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 2 t
+  csi-3-t-move-window:
+    title: Move window
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 3 t
+  csi-4-t-resize-window-in-pixels:
+    title: Resize window in pixels
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 4 t
+  csi-5-t-raise:
+    title: Raise
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 5 t
+  csi-6-t-lower:
+    title: Lower
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 6 t
+  csi-7-t-refresh:
+    title: Refresh
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 7 t
+  csi-8-t-resize-text-area-in-cells:
+    title: Resize text area in cells
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 8 t
+  csi-11-t-report-window-state:
+    title: Report window state
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 11 t
+  csi-15-t-report-screen-size-in-pixels:
+    title: Report screen size in pixels
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 15 t
+  csi-16-t-report-cell-size-in-pixels:
+    title: Report cell size in pixels
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 16 t
+  csi-19-t-report-screen-size-in-cells:
+    title: Report screen size in cells
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 19 t
+  csi-20-t-report-icon-label:
+    title: Report icon label
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 20 t
+  csi-23-t-pop:
+    title: Pop
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    - title-ops
+    sequence: CSI 23 t
+  c0-0x00-nul:
+    title: NUL
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x00'
+  c0-0x07-bel:
+    title: BEL
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x07'
+  c0-0x08-bs:
+    title: BS
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x08'
+  c0-0x09-ht:
+    title: HT
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x09'
+  c0-0x0a-lf:
+    title: LF
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x0a'
+  c0-0x0b-vt:
+    title: VT
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x0b'
+  c0-0x0c-ff:
+    title: FF
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x0c'
+  c0-0x0d-cr:
+    title: CR
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x0d'
+  c0-0x0e-so:
+    title: SO
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x0e'
+  c0-0x0f-si:
+    title: SI
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x0f'
+  c0-0x18-0x1a-can-sub:
+    title: CAN, SUB
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: 0x18, 0x1a
+  c0-0x1b-esc:
+    title: ESC
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x1b'
+  c0-0x7f-del:
+    title: DEL
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x7f'
+  esc-decsc:
+    title: DECSC
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: ESC 7
+  esc-decrc:
+    title: DECRC
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: ESC 8
+  esc-deckpam:
+    title: DECKPAM
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: ESC =
+  esc-deckpnm:
+    title: DECKPNM
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: ESC >
+  esc-ris:
+    title: RIS
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: ESC c
+  esc-ind:
+    title: IND
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: ESC D
+  esc-nel:
+    title: NEL
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: ESC E
+  esc-hts:
+    title: HTS
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: ESC H
+  esc-ri:
+    title: RI
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: ESC M
+  esc-ss2-ss3:
+    title: SS2, SS3
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: ESC N, ESC O
+  esc-dcs:
+    title: DCS
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: ESC P
+  esc-csi:
+    title: CSI
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: ESC [
+  esc-st:
+    title: ST
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: ESC \
+  esc-osc:
+    title: OSC
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: ESC ]
+  esc-pm-apc:
+    title: PM, APC
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: ESC ^, ESC _
+  esc-decaln:
+    title: DECALN
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: 'ESC # 8'
+  esc-decdhl-decswl-decdwl:
+    title: DECDHL, DECSWL, DECDWL
+    kind: group
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: 'ESC # 3–# 6'
+  esc-scs:
+    title: SCS
+    kind: group
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: ESC ( C, ESC ) C
+  esc-s7c1t-s8c1t:
+    title: S7C1T, S8C1T
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: ESC SP F, ESC SP G
+  c0-enq-answerback:
+    title: ENQ
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - ecma-48
+    labels: []
+    sequence: '0x05'
+  csi-dec-media-copy:
+    title: DEC media copy
+    kind: feature
+    category: csi
+    pages:
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ? Ps i
+  csi-tilde-key-reports:
+    title: Function-key report (CSI 15 ~ = F5); 200 ~/201 ~ bracket a paste
+    kind: group
+    category: input
+    pages:
+    - input/keyboard-legacy.md
+    - csi/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI Ps ~
+  osc-4-palette:
+    title: Set or query palette color index
+    kind: group
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 4
+    policy_note: Color Ops gates queries here; ordinary palette writes are not gated.
+  osc-5-special-colors:
+    title: Set or query special color (bold, underline, blink, reverse)
+    kind: group
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 5
+    policy_note: Color Ops gates queries here; ordinary palette writes are not gated.
+  osc-9-conemu-family:
+    title: ConEmu commands (sleep, message box, progress, directory)
+    kind: group
+    category: osc
+    pages:
+    - osc/notifications.md
+    - osc/catalog.md
+    specifications:
+    - conemu-ansi
+    labels: []
+    sequence: OSC 9 ; 1–10
+  osc-52-selection-access:
+    title: Clipboard and selection access
+    kind: group
+    category: osc
+    pages:
+    - osc/clipboard.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: OSC 52
+  osc-104-palette-reset:
+    title: Reset palette color(s)
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: OSC 104
+  osc-105-special-colors-reset:
+    title: Reset special color(s)
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: OSC 105
+  osc-110-119-dynamic-colors-reset:
+    title: Reset the dynamic color set by 10–19
+    kind: group
+    category: osc
+    pages:
+    - osc/colors.md
+    - osc/catalog.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+    sequence: OSC 110–119
+  dec-mode-1001-highlight-tracking:
+    title: 'Mode ?1001: Highlight tracking; can hang the terminal if the application
+      does not reply'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - mouse-ops
+    sequence: CSI ?1001 h / l
+  dec-mode-8452-sixel-cursor:
+    title: 'Mode ?8452: Sixel: cursor to the right of the image rather than below'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?8452 h / l
+  dec-mode-9-x10-mouse:
+    title: 'Mode ?9: X10 mouse: button press only'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - mouse-ops
+    sequence: CSI ?9 h / l
+  dec-mode-1048-save-restore-cursor:
+    title: 'Mode ?1048: Save/restore cursor as DECSC/DECRC'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ?1048 h / l
+  dec-mode-1005-utf8-mouse:
+    title: 'Mode ?1005: UTF-8 mouse coordinates (obsolete)'
+    kind: feature
+    category: csi
+    pages:
+    - csi/modes.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - mouse-ops
+    sequence: CSI ?1005 h / l
+  esc-memory-lock:
+    title: 'xterm: memory lock / unlock'
+    kind: feature
+    category: controls
+    pages:
+    - escape.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: ESC l, ESC m
+  csi-22-t-push-title:
+    title: Push icon and title / icon / title
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 22 t
+  csi-13-t-position-report:
+    title: Report position (window / text area)
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 13 t
+  csi-14-t-pixel-size-report:
+    title: Report text-area / window size in pixels
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 14 t
+  csi-9-t-maximize:
+    title: Restore / maximize / vertical / horizontal
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 9 t
+  csi-10-t-fullscreen:
+    title: Fullscreen off / on / toggle
+    kind: feature
+    category: csi
+    pages:
+    - csi/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI 10 t
+  csi-dec-dsr:
+    title: DEC device status reports
+    kind: group
+    category: csi
+    pages:
+    - csi/queries.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: CSI ? Ps n
+  csi-996-n-color-scheme-query:
+    title: Query light or dark color scheme
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    specifications:
+    - contour-color-scheme
+    labels: []
+    sequence: CSI ? 996 n
+  sgr-59-underline-color-reset:
+    title: Reset underline color
+    kind: feature
+    category: csi
+    pages:
+    - csi/sgr.md
+    specifications:
+    - kitty-underlines
+    labels: []
+    sequence: CSI 59 m
+  dcs-decudk:
+    title: User-defined keys
+    kind: feature
+    category: dcs
+    pages:
+    - dcs/misc.md
+    specifications:
+    - xterm-control-sequences
+    labels: []
+    sequence: DCS Pfn ; Pcn | keys ST
+  dcs-xtsettcap:
+    title: Set termcap/terminfo entries
+    kind: feature
+    category: dcs
+    pages:
+    - dcs/misc.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - tcap-ops
+    sequence: DCS + p Pt ST
+  dcs-tmux-passthrough:
+    title: tmux passthrough
+    kind: feature
+    category: dcs
+    pages:
+    - dcs/index.md
+    specifications:
+    - tmux-manual
+    labels: []
+    sequence: DCS tmux ; data ST
+  dcs-tmux-control-mode:
+    title: tmux control mode
+    kind: feature
+    category: dcs
+    pages:
+    - dcs/misc.md
+    specifications:
+    - tmux-manual
+    labels: []
+    sequence: DCS 1000 p
+  diagnostics-unknown-apc:
+    title: Unknown APC diagnostics
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  ui-prompt-navigation:
+    title: Previous and next prompt navigation
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  ui-pipe-command-output:
+    title: Pipe the last command output
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  ui-clear-to-prompt:
+    title: Clear to prompt
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  notification-x11-urgency:
+    title: Notification urgency on X11
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  notification-desktop-delivery:
+    title: Desktop notification delivery
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  ui-progress-indicator:
+    title: Progress indicator
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  text-block-drawing:
+    title: Procedural block-element drawing
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  text-braille-drawing:
+    title: Procedural braille drawing
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  text-powerline-drawing:
+    title: Procedural Powerline drawing
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  selection-copy-feedback:
+    title: Copy-highlight feedback
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  search-scrollback-literal:
+    title: Literal scrollback search
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  ui-search-overlay:
+    title: Interactive search overlay
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  search-copy-match:
+    title: Copy a search match
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  kitty-graphics-storage-limit:
+    title: Kitty graphics storage limit
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  kitty-graphics-command-limit:
+    title: Kitty graphics command byte limit
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  hyperlinks-hover-refresh:
+    title: Refresh hyperlink hover after output
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  ui-tabbed-terminals:
+    title: Terminal tabs
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  ui-split-terminals:
+    title: Split terminal panes
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  configuration-profiles:
+    title: Configuration profiles
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  configuration-live-reload:
+    title: Live configuration reload
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  session-snapshots:
+    title: Terminal state snapshots
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  session-pty-fanout:
+    title: Raw PTY stream fanout
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  scrollback-asynchronous-history:
+    title: Asynchronous scrollback history
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  ui-independent-viewports:
+    title: Independent client viewports
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  session-snapshot-resync:
+    title: Snapshot resynchronization
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  input-touchpad-inertia:
+    title: Touchpad inertial scrolling
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - revenant-feature-designs
+    labels: []
+  resource-force-box-chars:
+    title: Force procedural box characters
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  selection-keep-selection:
+    title: Retain selection ownership
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  selection-keep-clipboard:
+    title: Retain clipboard ownership
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  selection-icccm-targets:
+    title: ICCCM text selection targets
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  paste-control-filtering:
+    title: Paste control filtering
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  bell-visual:
+    title: Visual bell
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  ui-scrollbar-styles:
+    title: Scrollbar presentation styles
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  ui-menu-action-parity:
+    title: Menu and translation-action parity
+    kind: group
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  startup-login-shell:
+    title: Login-shell startup
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  startup-hold-after-exit:
+    title: Hold the window after child exit
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  startup-wait-for-map:
+    title: Wait for mapping before startup
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  pty-message-permission:
+    title: PTY message permissions
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  resource-terminal-modes:
+    title: Initial terminal mode settings
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  logging-session-transcript:
+    title: PTY session transcript logging
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  x11-resource-identity:
+    title: X11 resource and application identity
+    kind: group
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  selection-keyboard-extension:
+    title: Keyboard selection extension
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  input-scroll-lock:
+    title: Scroll Lock behavior
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  ui-fullscreen-toggle:
+    title: User fullscreen toggle
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  ui-clear-saved-lines:
+    title: Clear saved lines action
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  xterm-resource-compatibility:
+    title: xterm resource compatibility
+    kind: group
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
+  policy-mouse-ops-exceptions:
+    title: Mouse Ops named exceptions
+    kind: feature
+    category: policies
+    pages:
+    - policies/ops.md
+    specifications:
+    - xterm-manual
+    labels:
+    - mouse-ops
+  policy-font-ops:
+    title: Font Ops policy
+    kind: feature
+    category: policies
+    pages:
+    - policies/ops.md
+    specifications:
+    - xterm-manual
+    labels:
+    - font-ops
+  policy-window-ops:
+    title: Complete Window Ops policy
+    kind: group
+    category: policies
+    pages:
+    - policies/window-ops.md
+    specifications:
+    - xterm-manual
+    labels:
+    - window-ops
+  policy-color-ops-send-events:
+    title: Color Ops and synthetic events
+    kind: feature
+    category: policies
+    pages:
+    - policies/ops.md
+    specifications:
+    - xterm-manual
+    labels:
+    - color-ops
+  policy-kitty-color-ops:
+    title: Kitty color-control permission
+    kind: feature
+    category: policies
+    pages:
+    - policies/ops.md
+    specifications:
+    - revenant-permission-designs
+    labels:
+    - color-ops
+  policy-title-ops-send-events:
+    title: Title Ops and synthetic events
+    kind: feature
+    category: policies
+    pages:
+    - policies/title-ops.md
+    specifications:
+    - xterm-manual
+    labels:
+    - title-ops
+  action-allow-title-ops:
+    title: Title Ops translation action
+    kind: feature
+    category: policies
+    pages:
+    - policies/title-ops.md
+    specifications:
+    - xterm-manual
+    labels:
+    - title-ops
+  apc-kitty-static-images:
+    title: Kitty static inline images
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/kitty.md
+    specifications:
+    - kitty-graphics
+    labels: []
+    sequence: APC G a=T,t=d,... ; data ST
+  apc-kitty-file-transfer:
+    title: Kitty image file transport
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/kitty.md
+    specifications:
+    - kitty-graphics
+    labels: []
+    sequence: APC G t=f,... ; path ST
+  apc-kitty-temp-file-transfer:
+    title: Kitty image temporary-file transport
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/kitty.md
+    specifications:
+    - kitty-graphics
+    labels: []
+    sequence: APC G t=t,... ; path ST
+  apc-kitty-shared-memory:
+    title: Kitty image shared-memory transport
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/kitty.md
+    specifications:
+    - kitty-graphics
+    labels: []
+    sequence: APC G t=s,... ; name ST
+  apc-kitty-unicode-placeholders:
+    title: Kitty Unicode image placeholders
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/kitty.md
+    specifications:
+    - kitty-graphics
+    labels: []
+    sequence: U+10EEEE plus combining encodings
+  apc-kitty-animation:
+    title: Kitty graphics animation
+    kind: feature
+    category: graphics
+    pages:
+    - graphics/kitty.md
+    specifications:
+    - kitty-graphics
+    labels: []
+    sequence: APC G animation commands ST
+  osc-50-font-set:
+    title: Set the terminal font
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - font-ops
+    sequence: OSC 50 ; font ST
+  osc-50-font-query:
+    title: Query the terminal font
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - font-ops
+    sequence: OSC 50 ; ? ST
+  csi-decslpp:
+    title: Set lines per page
+    kind: feature
+    category: policies
+    pages:
+    - policies/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI Ps t (Ps >= 24)
+  csi-decsnls:
+    title: Set number of lines
+    kind: feature
+    category: policies
+    pages:
+    - policies/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI Ps * |
+  csi-decrqcra:
+    title: Request rectangular-area checksum
+    kind: feature
+    category: policies
+    pages:
+    - policies/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI Pi ; Pg ; Pt ; Pl ; Pb ; Pr * y
+  csi-xtchecksum:
+    title: Select checksum algorithm
+    kind: feature
+    category: policies
+    pages:
+    - policies/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: 'CSI Ps # y'
+  csi-decsasd:
+    title: Select active status display
+    kind: feature
+    category: policies
+    pages:
+    - policies/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI Ps $ }
+  csi-decssdt:
+    title: Select status-line type
+    kind: feature
+    category: policies
+    pages:
+    - policies/window-ops.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+    sequence: CSI Ps $ ~
+  osc-52-multiple-targets:
+    title: OSC 52 multiple targets
+    kind: feature
+    category: osc
+    pages:
+    - osc/clipboard.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+  osc-52-default-targets:
+    title: OSC 52 default targets
+    kind: feature
+    category: osc
+    pages:
+    - osc/clipboard.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+  osc-52-cut-buffers:
+    title: OSC 52 cut-buffer targets
+    kind: feature
+    category: osc
+    pages:
+    - osc/clipboard.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+  osc-52-invalid-base64-clear:
+    title: OSC 52 invalid-data handling
+    kind: feature
+    category: osc
+    pages:
+    - osc/clipboard.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+  osc-52-reply-target:
+    title: OSC 52 reply target encoding
+    kind: feature
+    category: osc
+    pages:
+    - osc/clipboard.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - window-ops
+  title-modes-hex-input:
+    title: Hexadecimal title input
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-manual
+    labels:
+    - title-ops
+  title-modes-hex-reports:
+    title: Hexadecimal title reports
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-manual
+    labels:
+    - window-ops
+  title-modes-utf8-input:
+    title: UTF-8 title input mode
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-manual
+    labels:
+    - title-ops
+  title-modes-utf8-reports:
+    title: UTF-8 title report mode
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-manual
+    labels:
+    - window-ops
+  resource-title-modes:
+    title: Title encoding configuration
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-manual
+    labels: []
+  resource-utf8-title:
+    title: UTF-8 Titles setting
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-manual
+    labels: []
+  x11-utf8-title-properties:
+    title: ICCCM and EWMH title properties
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-manual
+    labels:
+    - title-ops
+  title-input-normalization:
+    title: Title input normalization
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-manual
+    labels:
+    - title-ops
+  title-input-byte-limit:
+    title: Title input length limits
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-manual
+    labels:
+    - title-ops
+  resource-same-name:
+    title: Suppress redundant title updates
+    kind: feature
+    category: osc
+    pages:
+    - osc/title.md
+    specifications:
+    - xterm-manual
+    labels: []
+  osc-dynamic-colors-reverse-video:
+    title: Dynamic color addressing under reverse video
+    kind: feature
+    category: osc
+    pages:
+    - osc/colors.md
+    specifications:
+    - xterm-control-sequences
+    labels:
+    - color-ops
+  osc-5522-clipboard:
+    title: Kitty clipboard protocol
+    kind: feature
+    category: osc
+    pages:
+    - osc/clipboard.md
+    specifications:
+    - kitty-clipboard
+    labels: []
+    sequence: OSC 5522 ; ... ST
+  osc-72-drag-drop:
+    title: Terminal drag and drop
+    kind: feature
+    category: osc
+    pages:
+    - osc/misc.md
+    specifications:
+    - kitty-drag-drop
+    labels: []
+    sequence: OSC 72 ; ... ST
+  resource-faint-is-relative:
+    title: Background-relative faint text
+    kind: feature
+    category: text
+    pages:
+    - text/rendering.md
+    specifications:
+    - xterm-manual
+    labels: []

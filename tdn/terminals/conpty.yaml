@@ -1,0 +1,12 @@
+schema_version: 1
+terminal: conpty
+name: ConPTY (conhost)
+features:
+  dec-mode-9001-win32-input:
+    status: supported
+    as-of: null
+    notes: Yes; Requests the mode from its host ([Improved keyboard handling in Conpty](https://github.com/microsoft/terminal/blob/main/doc/specs/%234999%20-%20Improved%20keyboard%20handling%20in%20Conpty.md).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/win32-input-mode.md#compatibility

@@ -78,24 +78,20 @@ stack operation and Title Ops for applying its labels. Labels link to the
 
 ## Compatibility tables
 
-A compatibility cell records what a source says, not what is fashionable.
+Compatibility tables are generated from independent files in
+`tdn/terminals/`. Read the [registry guide](registry.md) for the schema,
+version semantics, evidence requirements, and stable feature IDs.
 
-| Cell | Meaning |
+| Status | Meaning |
 | --- | --- |
-| **Yes** | Documented as supported, with the documenting version where known |
-| **Partial** | Supported with a documented limitation; the note says which |
-| **No** | Documented as unsupported, refused, or removed |
-| **Observed** | Not documented, but measured with a named probe and version |
-| `?` | Not checked; a contribution target, not a claim |
+| Supported | Implemented within the scope of the feature record |
+| Partial | Implemented with the recorded limitation |
+| Unsupported | Assessed as unimplemented |
+| Unknown | Unassessed, uncertain, or conflicting evidence |
 
-A cell should link or footnote its source. Observations name the emulator
-version, the date, and the probe used. Observations never overrule an
-implementation's own documentation on intent; they record outcomes.
-
-Terminals are listed in a fixed order on every table so columns line up
-across pages: xterm, VTE, Konsole, kitty, WezTerm, Ghostty, foot, Alacritty,
-Contour, mintty, PuTTY, Windows Terminal, Apple Terminal, iTerm2, xterm.js,
-tmux. A page may omit columns that are irrelevant, but must not reorder them.
+Imported claims are marked unverified. A default-denied operation is not
+necessarily unsupported. Version, configuration, notes, and evidence appear
+on each feature's page. Do not hand-maintain another compatibility table.
 
 ## Feature page template
 
@@ -108,9 +104,10 @@ One-paragraph summary: what the feature does and who uses it.
 
 ## Syntax
 ## Behavior
-## Compatibility
 ## Probe
 ## Sources
+
+<!-- Add the compatibility marker described in the registry guide. -->
 ```
 
 Optional sections, placed before **Compatibility**: **History**,

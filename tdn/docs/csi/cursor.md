@@ -171,3 +171,5 @@ printf '%*s' "$(tput cols)" x; tools/query cursor   # pending wrap: column stays
 - [WezTerm escape-sequence reference](https://wezterm.org/escape-sequences.html)
 - [Ghostty configuration reference](https://ghostty.org/docs/config/reference#cursor-style-blink)
 - [xterm.js supported sequences](https://xtermjs.org/docs/api/vtfeatures/)
+
+<!-- tdn:compatibility -->

@@ -93,26 +93,6 @@ These settings select encoding; they do not grant permission to change or
 report labels. `utf8Title` also enables UTF-8 title input and EWMH label
 properties. See [Title Ops policy](../policies/title-ops.md) for the distinction.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | mintty | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OSC 0/2 set | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes[^tmux] |
-| OSC 1 icon | Yes | Partial[^icon] | ? | Partial[^icon] | ? | ? | Partial[^icon] | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| 22/23 stack | Yes | Yes | ? | ? | Yes | ? | ? | ? | ? | Yes | ? | ? | ? | ? | ? | ? |
-| 20/21 report | Partial[^xtreport] | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-
-<!-- markdownlint-enable MD013 -->
-
-[^tmux]: Applied to the outer terminal only with `set-titles on`; otherwise
-    stored as the pane title visible in the status line.
-[^icon]: Accepted and parsed; no distinct icon name exists on the platform,
-    so it is ignored or aliased to the title.
-[^xtreport]: Denied by the default `disallowedWindowOps` list when
-    `allowWindowOps` is false. Removing `GetIconTitle` or `GetWinTitle` from
-    that list permits the corresponding report; true overrides the list.
 
 ## Probe
 
@@ -132,3 +112,48 @@ The third line should end with the title that was current before `pushed`.
 - [tmux(1), set-titles](https://man.openbsd.org/tmux#set-titles)
 - [WezTerm escape sequences](https://wezterm.org/escape-sequences.html)
 - [mintty control sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs)
+
+
+## Separately tracked behavior
+
+### Hexadecimal title input
+
+Feature ID: `title-modes-hex-input`. titleModes/XTSMTITLE hexadecimal input decoding.
+
+### Hexadecimal title reports
+
+Feature ID: `title-modes-hex-reports`. titleModes hexadecimal report encoding under the report permission.
+
+### UTF-8 title input mode
+
+Feature ID: `title-modes-utf8-input`. titleModes UTF-8 input decoding and reset semantics.
+
+### UTF-8 title report mode
+
+Feature ID: `title-modes-utf8-reports`. titleModes UTF-8 report encoding under the report permission.
+
+### Title encoding configuration
+
+Feature ID: `resource-title-modes`. titleModes resource default and XTSMTITLE/XTRMTITLE state changes.
+
+### UTF-8 Titles setting
+
+Feature ID: `resource-utf8-title`. utf8Title resource and utf8-title menu/action with locale and allowC1Printable interaction.
+
+### ICCCM and EWMH title properties
+
+Feature ID: `x11-utf8-title-properties`. Synchronize WM_NAME/WM_ICON_NAME and UTF-8 EWMH labels; delete stale properties when encoding changes.
+
+### Title input normalization
+
+Feature ID: `title-input-normalization`. Normalize title control characters and validate hex input like xterm ChangeGroup.
+
+### Title input length limits
+
+Feature ID: `title-input-byte-limit`. Reject overlong title input before decoding, rather than truncating it.
+
+### Suppress redundant title updates
+
+Feature ID: `resource-same-name`. sameName avoids redundant title/icon property changes.
+
+<!-- tdn:compatibility -->

@@ -81,21 +81,6 @@ full screen.
 `?45` (xterm `reverseWrap`) lets BS at column 1 move to the end of the
 previous row. Off by default; used by shells that redraw long prompts.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SU/SD | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| DECSTBM | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| DECSLRM / `?69` | Yes | ? | ? | ? | Yes | Yes | Yes | ? | Yes | ? | Yes | ? | Yes | No[^xjs] | ? |
-| `?1007` alternate scroll | Yes | Yes | ? | ? | Yes | Yes | Yes | Yes | ? | ? | Yes | ? | Yes | Yes | ? |
-| `?45` reverse wrap | Yes | ? | ? | ? | Yes | Yes | ? | ? | Yes | ? | ? | ? | ? | Yes | ? |
-
-<!-- markdownlint-enable MD013 -->
-
-[^xjs]: [xterm.js supported terminal sequences](https://xtermjs.org/docs/api/vtfeatures/) lists DECSLRM as unsupported.
 
 ## Probe
 
@@ -111,3 +96,5 @@ tools/query mode 69                        # DECRQM: 1/2 supported, 0 unknown
 - [VT510 DECSTBM](https://vt100.net/docs/vt510-rm/DECSTBM.html), [DECSLRM](https://vt100.net/docs/vt510-rm/DECSLRM.html)
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - [xterm.js supported sequences](https://xtermjs.org/docs/api/vtfeatures/)
+
+<!-- tdn:compatibility -->

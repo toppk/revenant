@@ -94,25 +94,11 @@ DEC terminals did not have wide characters; xterm wraps and leaves the last
 column blank, and other emulators follow. An application computing wrap
 positions must reproduce this rule.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Behavior | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Windows Terminal | Apple Terminal | iTerm2 | xterm.js |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Ambiguous-width option | Yes[^xterm] | Yes[^vte] | ? | ? | Yes[^wez] | ? | ? | ? | ? | ? | Yes[^iterm] | ? |
-| VS16 widens | Partial[^xterm] | Yes[^vte] | ? | Yes[^kitty] | Yes[^wez] | Yes[^ghostty] | Yes[^foot] | ? | ? | ? | ? | ? |
-| Bundled Unicode tables | Yes | Partial | ? | Yes | Yes | Yes | Yes | Yes | ? | ? | ? | Yes |
-
-<!-- markdownlint-enable MD013 -->
 
 [^xterm]: [xterm manual](https://invisible-island.net/xterm/manpage/xterm.html), `cjkWidth`, `mkWidth`.
 [^vte]: [VTE](https://gitlab.gnome.org/GNOME/vte), `VTE_CJK_WIDTH` and `src/vte.cc`.
 [^wez]: [WezTerm config reference](https://wezterm.org/config/lua/config/treat_east_asian_ambiguous_width_as_wide.html).
-[^kitty]: [kitty](https://github.com/kovidgoyal/kitty), `gen/wcwidth.py`.
-[^ghostty]: [Ghostty](https://github.com/ghostty-org/ghostty), `src/unicode`.
-[^foot]: [foot](https://codeberg.org/dnkl/foot), README "Unicode".
-[^iterm]: [iTerm2 preferences, Profiles > Text, "Treat ambiguous-width characters as double width"](https://iterm2.com/documentation-preferences-profiles-text.html).
+
 
 ## Probe
 
@@ -140,3 +126,5 @@ and with the application's own width library.
 - [Unicode Technical Standard #51, Emoji](https://www.unicode.org/reports/tr51/)
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - [utf8proc](https://github.com/JuliaStrings/utf8proc)
+
+<!-- tdn:compatibility -->

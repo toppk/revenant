@@ -50,20 +50,6 @@ the text, so an application must query first. kitty documents detection via
 its keyboard or graphics query paths and via `TERM_PROGRAM`; a generic probe
 is to send OSC 66 with `w=1` and measure with `CSI 6 n`.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | mintty | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| DECDWL/DECDHL rendered | Yes[^ctl] | ? | ? | ? | ? | ? | ? | ? | ? | Yes[^mintty] | ? | ? | ? | ? | ? |
-| OSC 66 | ? | ? | ? | Yes, 0.40[^tsp] | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-
-<!-- markdownlint-enable MD013 -->
-
-[^ctl]: [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html).
-[^mintty]: [mintty wiki, Control Sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs).
-[^tsp]: [kitty text sizing protocol](https://sw.kovidgoyal.net/kitty/text-sizing-protocol/).
 
 ## Probe
 
@@ -78,3 +64,5 @@ printf '\033]66;w=2;\xe2\x9d\xa4\033\\\033[6n'   # heart forced to width 2
 
 - [VT100 User Guide, line attributes](https://vt100.net/docs/vt100-ug/chapter3.html)
 - [kitty text sizing protocol](https://sw.kovidgoyal.net/kitty/text-sizing-protocol/)
+
+<!-- tdn:compatibility -->

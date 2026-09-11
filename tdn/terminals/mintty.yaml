@@ -1,0 +1,357 @@
+schema_version: 1
+terminal: mintty
+name: mintty
+page: terminals/mintty.md
+features:
+  c0-bel-attention:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/notifications.md#compatibility
+  csi-22-23-t-title-stack:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/title.md#compatibility
+  csi-modify-other-keys:
+    status: supported
+    as-of: null
+    notes: Yes; `modifyOtherKeys` documented in the mintty manual ([mintty manual](https://mintty.github.io/mintty.1.html).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/modify-other-keys.md#compatibility
+  csi-xtpushsgr:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  dcs-decrqss:
+    status: supported
+    as-of: null
+    notes: Yes; [CtrlSeqs](https://github.com/mintty/mintty/wiki/CtrlSeqs)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/dcs/decrqss.md#compatibility
+  dcs-sixel:
+    status: supported
+    as-of: null
+    notes: Yes ([mintty wiki, Control Sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/graphics/index.md#compatibility
+  dcs-xtgettcap:
+    status: supported
+    as-of: null
+    notes: Yes; [CtrlSeqs](https://github.com/mintty/mintty/wiki/CtrlSeqs)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/dcs/xtgettcap.md#compatibility
+  dec-mode-1000-mouse:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1002-button-motion:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1003-all-motion:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1004-focus:
+    status: supported
+    as-of: null
+    notes: Yes ([mintty control sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1006-sgr-mouse:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1015-urxvt-mouse:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-1016-pixel-mouse:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/mouse.md#compatibility
+  dec-mode-2004-bracketed-paste:
+    status: supported
+    as-of: null
+    notes: Yes;  ([mintty control sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/bracketed-paste.md#compatibility
+  esc-double-size-lines:
+    status: supported
+    as-of: null
+    notes: Yes ([mintty wiki, Control Sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/text/sizing.md#compatibility
+  osc-0-2-title:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/title.md#compatibility
+  osc-10-11-default-colors-query:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/colors.md#compatibility
+  osc-10-11-default-colors-set:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/colors.md#compatibility
+  osc-104-110-111-color-reset:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/colors.md#compatibility
+  osc-12-cursor-color:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/colors.md#compatibility
+  osc-1337-family:
+    status: partial
+    as-of: null
+    notes: Partial
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/misc.md#compatibility
+  osc-1337-inline-images:
+    status: supported
+    as-of: null
+    notes: Yes ([mintty wiki, Control Sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/graphics/index.md#compatibility
+  osc-17-19-selection-colors:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/colors.md#compatibility
+  osc-4-palette-query:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/colors.md#compatibility
+  osc-4-palette-set:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/colors.md#compatibility
+  osc-50-font:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/misc.md#compatibility
+  osc-52-read:
+    status: supported
+    as-of: null
+    notes: Yes; `AllowSetSelection` and `AllowPasteSelection` options; reads off by default
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/clipboard.md#compatibility
+  osc-52-write:
+    status: supported
+    as-of: null
+    notes: Yes; `AllowSetSelection` and `AllowPasteSelection` options; reads off by default
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/clipboard.md#compatibility
+  osc-7-working-directory:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/cwd.md#compatibility
+  osc-777-notification:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/notifications.md#compatibility
+  osc-8-hyperlinks:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/hyperlinks.md#compatibility
+  osc-9-4-progress:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/notifications.md#compatibility
+  osc-9-9-working-directory:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/cwd.md#compatibility
+  osc-9-notification:
+    status: unsupported
+    as-of: null
+    notes: No (mintty interprets OSC 9 sub-commands in the ConEmu style.)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/notifications.md#compatibility
+  sgr-256-colors:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-3-italic:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-38-2-colon-form:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-38-2-truecolor:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-4-underline-styles:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-5-blink:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-53-overline:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-58-underline-color:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-9-strikethrough:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility

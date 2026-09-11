@@ -1,0 +1,122 @@
+schema_version: 1
+specifications:
+  ecma-48:
+    title: ECMA-48 §8.2, §8.3
+    url: https://ecma-international.org/publications-and-standards/standards/ecma-48/
+  xterm-control-sequences:
+    title: XTerm Control Sequences
+    url: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+  osc-8-hyperlinks-spec:
+    title: Hyperlinks (a.k.a. HTML-like anchors) in terminal emulators
+    url: https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda
+  comprehensive-keyboard-handling-in-terminals:
+    title: Comprehensive keyboard handling in terminals
+    url: https://sw.kovidgoyal.net/kitty/keyboard-protocol/
+  improved-keyboard-handling-in-conpty-spec-4999:
+    title: 'Improved keyboard handling in Conpty (spec #4999)'
+    url: https://github.com/microsoft/terminal/blob/main/doc/specs/%234999%20-%20Improved%20keyboard%20handling%20in%20Conpty.md
+  vt510-video-terminal-programmer-information-decrqss:
+    title: 'VT510 Video Terminal Programmer Information: DECRQSS'
+    url: https://vt100.net/docs/vt510-rm/DECRQSS.html
+  xterm-control-sequences-dcs-xtgettcap:
+    title: XTerm Control Sequences
+    url: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Device-Control-functions
+  vt330-vt340-programmer-reference-chapter-14:
+    title: VT330/VT340 Programmer Reference, chapter 14
+    url: https://vt100.net/docs/vt3xx-gp/
+  vt330-vt340-programmer-reference-regis-chapters:
+    title: VT330/VT340 Programmer Reference, ReGIS chapters
+    url: https://vt100.net/docs/vt3xx-gp/
+  iso-iec-2022:
+    title: ISO/IEC 2022
+    url: https://www.iso.org/standard/22747.html
+  ecma-tr-53-handling-of-bi-directional-texts:
+    title: ECMA TR/53, Handling of Bi-Directional Texts
+    url: https://ecma-international.org/publications-and-standards/technical-reports/ecma-tr-53/
+  vt100-user-guide-line-attributes:
+    title: VT100 User Guide, line attributes
+    url: https://vt100.net/docs/vt100-ug/chapter3.html
+  unicode-standard-annex-11-east-asian-width:
+    title: 'Unicode Standard Annex #11, East Asian Width'
+    url: https://www.unicode.org/reports/tr11/
+  xterm-manual:
+    title: 'xterm manual: resources and rendering'
+    url: https://invisible-island.net/xterm/manpage/xterm.html
+  kitty-graphics:
+    title: Kitty graphics protocol
+    url: https://sw.kovidgoyal.net/kitty/graphics-protocol/
+  kitty-text-sizing:
+    title: Kitty text sizing protocol
+    url: https://sw.kovidgoyal.net/kitty/text-sizing-protocol/
+  kitty-underlines:
+    title: Colored and styled underlines
+    url: https://sw.kovidgoyal.net/kitty/underlines/
+  kitty-colors:
+    title: Kitty color control
+    url: https://sw.kovidgoyal.net/kitty/color-stack/
+  kitty-notifications:
+    title: Kitty desktop notifications
+    url: https://sw.kovidgoyal.net/kitty/desktop-notifications/
+  kitty-remote-control:
+    title: Kitty remote control
+    url: https://sw.kovidgoyal.net/kitty/remote-control/
+  kitty-shell-integration:
+    title: Kitty shell integration
+    url: https://sw.kovidgoyal.net/kitty/shell-integration/
+  iterm2-images:
+    title: iTerm2 inline images
+    url: https://iterm2.com/documentation-images.html
+  iterm2-escape-codes:
+    title: iTerm2 proprietary escape codes
+    url: https://iterm2.com/documentation-escape-codes.html
+  terminal-wg:
+    title: Terminal working group specifications
+    url: https://gitlab.freedesktop.org/terminal-wg/specifications
+  unicode-uax-29:
+    title: 'Unicode UAX #29: Text Segmentation'
+    url: https://www.unicode.org/reports/tr29/
+  unicode-uts-51:
+    title: 'Unicode UTS #51: Emoji'
+    url: https://www.unicode.org/reports/tr51/
+  unicode-ucd:
+    title: Unicode Character Database
+    url: https://www.unicode.org/ucd/
+  conemu-ansi:
+    title: ConEmu ANSI escape codes
+    url: https://conemu.github.io/en/AnsiEscapeCodes.html#ConEmu_specific_OSC
+  contour-color-scheme:
+    title: Color palette update notifications
+    url: https://contour-terminal.org/vt-extensions/color-palette-update-notifications/
+  mintty-control-sequences:
+    title: mintty control sequences
+    url: https://github.com/mintty/mintty/wiki/CtrlSeqs
+  urxvt-perl:
+    title: rxvt-unicode Perl extensions
+    url: https://man.archlinux.org/man/urxvtperl.3
+  urxvt-manual:
+    title: rxvt-unicode manual
+    url: https://man.archlinux.org/man/urxvt.7
+  wezterm-escape-sequences:
+    title: WezTerm escape sequences
+    url: https://wezterm.org/escape-sequences.html
+  harfbuzz:
+    title: HarfBuzz shaping documentation
+    url: https://harfbuzz.github.io/
+  xparsecolor:
+    title: XParseColor color formats
+    url: https://www.x.org/releases/current/doc/man/man3/XParseColor.3.xhtml
+  tmux-manual:
+    title: tmux manual
+    url: https://man.openbsd.org/tmux
+  revenant-feature-designs:
+    title: Revenant user-action and integration design scopes
+    url: https://github.com/toppk/revenant/blob/master/tdn/docs/practices/user-actions.md
+  kitty-clipboard:
+    title: Kitty clipboard protocol
+    url: https://sw.kovidgoyal.net/kitty/clipboard/
+  kitty-drag-drop:
+    title: Kitty drag and drop protocol
+    url: https://sw.kovidgoyal.net/kitty/dnd-protocol/
+  revenant-permission-designs:
+    title: Revenant permission design scopes
+    url: https://github.com/toppk/revenant/blob/master/tdn/docs/policies/ops.md

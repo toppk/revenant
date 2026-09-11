@@ -9,8 +9,9 @@ file list or a single transient commit as project state here.
 ## Dispatch plumbing and remaining features
 
 Use the [dispatch guide](docs/maintainers/dispatch.md) and the local untracked
-`todo.md` IDs for bounded assignments. `tools/probe-features.py --list` lists
-18 manual fixtures. These fixtures do not imply that the corresponding
+`todo.md` IDs for bounded assignments. The tracked guide maps every pending
+chunk to its stable TDN feature IDs; chunk IDs are work units, not feature IDs.
+`tools/probe-features.py --list` lists 18 manual fixtures. These fixtures do not imply that the corresponding
 features are implemented. Extend the graphics fixture as media, placeholders
 and animation land; it currently covers only static inline RGBA placement.
 
@@ -21,8 +22,9 @@ exceptions remain open. Obtain the encoder's effective tracking mode before
 adding those exceptions: simultaneous requested mode bits are not a reliable
 substitute. Tcap Ops honors `disallowedTcapOps` (`SetTcap,GetTcap`) through the
 shared wildcard/negation parser and gates complete backend-generated
-XTGETTCAP replies. Unrelated replies must survive mixed feeds. Configured TN,
-child TERM integration and XTSETTCAP are not supplied by this permission gate.
+XTGETTCAP replies. Unrelated replies must survive mixed feeds. Configured TN and
+child TERM integration are implemented separately by A2; XTSETTCAP remains open.
+TDN: `policy-mouse-ops-exceptions`, `dcs-xtsettcap`.
 
 Font Ops has Xt resources (`allowFontOps`, `disallowedFontOps`), SetFont/GetFont
 policy helpers and checked menu identity, but its menu remains insensitive and
@@ -32,10 +34,53 @@ arbitrary CSI passthrough. Obtain a public hook rather than another escape
 parser. ENQ, underline attributes, startup cursor style and shell integration
 have no new xterm Ops family. Full Window Ops and Title Ops completion
 checklists below still apply independently.
+TDN: `osc-50-font-set`, `osc-50-font-query`, `policy-font-ops`, `osc-22-pointer-shape`,
+     `diagnostics-unknown-apc`.
 
 `probe-features` checks the runner through a fake PTY, including interruption
 cleanup; `xvfb-request-ops` checks startup/live mouse and capability policy,
 GetTcap exceptions, and preservation of unrelated replies.
+
+## TDN feature registry and compatibility tracking
+
+The user brought the registry work forward while the local `todo.md` queue
+is still being drained. TDN now has stable feature IDs in
+`tdn/data/features.yaml`, specification reference IDs in
+`tdn/data/specifications.yaml`, and an independent support mapping in each
+`tdn/terminals/<terminal-id>.yaml`. Add a terminal by adding its file;
+there is no central terminal list. `as-of` names the assessed version or
+revision, never an inferred first-supported release. Older assessments can
+be retained in `history`.
+
+MkDocs generates a filterable comparison page, one permanent page per
+feature ID, compatibility tables at the bottom of related specification
+pages, terminal profile tables, and a JSON export from those same records.
+The data validator runs during every build; `tdn/tests` covers its contract.
+See `tdn/docs/registry.md` for contributor instructions.
+
+The initial migration preserves old table claims as imported/unverified,
+with links to the exact previous source revision. Conflicting claims stay
+unknown. Legacy aggregate rows are marked as groups and do not confer
+support on individual operations. Revenant is assessed independently of
+xterm and Ghostty; its initial entries identify reviewed development
+revisions and do not assert released-version support.
+
+All named pending features in the local checklist and this handoff have TDN
+IDs, including policy gaps and host/user actions without escape sequences.
+The latter use descriptive IDs and documented design scopes, not invented
+protocol numbers. Optional ideas, open questions and upstream blockers retain
+their existing priority; registration does not promote them into the active
+queue. Broad legacy inventories remain explicitly grouped until their exact
+subfeatures are defined. Refactoring, test-matrix expansion, release audits
+and product anti-goals are not new compatibility features.
+
+Continue implementation work from `todo.md`. Record new support under the
+appropriate feature ID with version, policy/configuration, limitations and
+evidence. After draining the queue, audit the imported claims, resolve
+conflicts, fill missing emulator assessments, and split remaining aggregate
+records into independently tested behavior. Preserve published IDs when
+moving or rewriting pages. Do not turn unknown into unsupported merely
+because a query is denied or a probe has not been run.
 
 ## Maintainer transition — 2026-09-02
 
@@ -257,6 +302,7 @@ foreground RGB component to two-thirds before inverse or selection swapping.
 `xvfb-colors` samples an inverse faint cell to pin the exact result. The
 `faintIsRelative` resource remains unsupported; add background-relative mixing
 only when that resource is implemented.
+TDN: `resource-faint-is-relative`.
 
 Bold style and bold color are independent. The default `boldColors: true`
 promotes foreground palette indices 0–7 to the live 8–15 entries while keeping
@@ -325,7 +371,10 @@ an unbounded cleanup pass.
   stub/backend PTY branch and the placement of `TERM` policy in that startup
   ownership pass. Hard-coded startup prose that duplicates defaults also
   remains cleanup debt. The pre-X scanner and font resource aliases are already
-  centralized; do not reintroduce independent argv scans.
+  centralized; do not reintroduce independent argv scans. Terminal-name
+  integration is now complete (A2); the other process slices remain deferred.
+  TDN: `startup-login-shell`, `resource-terminal-modes`, `startup-hold-after-exit`,
+       `startup-wait-for-map`, `pty-message-permission`, `logging-session-transcript`.
 - When `vt_interaction.c` next receives material work, split X selection/paste,
   hyperlink launching, and mouse reporting into focused owners. Other local
   cleanup should follow its owning feature: table-drive the order-dependent
@@ -338,6 +387,7 @@ an unbounded cleanup pass.
   event; activation re-resolves the target and cannot open the replaced URL.
   Fix the cosmetic lag with a non-reentrant post-render hover refresh when the
   hyperlink interaction owner is split out.
+  TDN: `hyperlinks-hover-refresh`.
 - A logging-density pass remains worthwhile after behavior stabilizes. Prefer
   removing INFO narration and generated summaries over changing diagnostic
   coverage during feature work.
@@ -792,6 +842,7 @@ item. Otherwise record it under v0.6 and keep moving.
    rescanning PTY bytes in the UI. Keep shaped-run caches separate from family
    routing, preserve variable-font coordinates in every engine, and retain the
    existing emoji routing/width, atomicity, color, clipping, and fixture gates.
+   TDN: `esc-double-size-lines`.
 4. **Review the command line and fix its obvious dishonesty.** Use
    `docs/compatibility/command-line-feasibility.md` as the inventory and compare
    behavior with the patch-411 xterm oracle. Reject an unknown option such as
@@ -808,6 +859,7 @@ item. Otherwise record it under v0.6 and keep moving.
    This user-requested session transcript remains distinct from Revenant's
    structured diagnostic `-log` severity; neither option may accidentally
    enable the other.
+   TDN: `logging-session-transcript`.
 6. **Add a bounded `revenant -welcome` setup assistant. Completed.** The shipped
    path initializes the real Xt widget and resource database, prints its report,
    and exits before terminal-backend creation or PTY spawn. It distinguishes
@@ -937,7 +989,10 @@ item. Otherwise record it under v0.6 and keep moving.
    fullscreen with the coherent fullscreen resource/menu/EWMH slice in v0.6;
    the client message is small, but policy and useful window-manager testing are
    not part of the v0.5 quick fixes. Do not turn v0.5 into an exhaustive
-   resource-catalog exercise.
+   resource-catalog exercise. Startup cursor shape is now complete (V2);
+   the action gaps retain the identifiers below.
+   TDN: `ui-clear-saved-lines`, `selection-keyboard-extension`, `input-scroll-lock`,
+        `ui-fullscreen-toggle`.
 10. **Review the documentation as a new user.** Start from a clean supported
     system and follow install, first launch, configuration, fonts, copy/paste,
     keyboard, troubleshooting, and removal without maintainer knowledge.
@@ -1009,6 +1064,9 @@ it does not require resolving every finding before v0.5 ships.
 - Remaining selection-retention, ICCCM text-target, paste-control, visual-bell,
   urgency, scrollbar-style, and insensitive-menu work should be driven by
   actual use or a small compatibility slice.
+  TDN: `selection-keep-selection`, `selection-keep-clipboard`, `selection-icccm-targets`,
+       `paste-control-filtering`, `bell-visual`, `notification-x11-urgency`,
+       `ui-scrollbar-styles`, `ui-menu-action-parity`.
 - Automatic package installation, resource-file editing/loading, and an
   interactive multi-step welcome UI are out of scope; v0.5 requires the
   read-only setup analysis and recommendations described above.
@@ -1055,6 +1113,8 @@ Remaining: `allowSendEvents` interaction, policy for libghostty's Kitty
 OSC 21 colors, and xterm's DECSCNM-relative OSC 10/11 addressing (libghostty
 addresses the normal colors, so under DECSCNM OSC 10 changes what is shown as
 the background).
+TDN: `policy-color-ops-send-events`, `policy-kitty-color-ops`,
+     `osc-dynamic-colors-reverse-video`.
 
 ### Complete xterm Window Ops support — open
 
@@ -1073,21 +1133,38 @@ Deliver this in reviewable slices:
    implements it, and which policy check is missing. Preserve parser ownership
    in libghostty; missing public hooks are upstream API asks, not a reason to
    add a second escape parser.
+   TDN: `policy-window-ops`.
 2. Complete XTWINOPS window manipulation and reports: restore/minimize,
    move/resize in pixels or cells, raise/lower/refresh, maximize/fullscreen,
    window state and position, window/screen/cell geometry, title/icon reports,
    and title push/pop. Apply policy to the existing `CSI 14 t`, `CSI 16 t`,
    and `CSI 18 t` replies as well as newly implemented operations.
+   TDN: `csi-1-t-de-iconify`, `csi-2-t-iconify`, `csi-3-t-move-window`,
+        `csi-4-t-resize-window-in-pixels`, `csi-5-t-raise`, `csi-6-t-lower`,
+        `csi-7-t-refresh`, `csi-8-t-resize-text-area-in-cells`, `csi-9-t-maximize`,
+        `csi-10-t-fullscreen`, `csi-11-t-report-window-state`, `csi-13-t-position-report`,
+        `csi-14-t-pixel-size-report`, `csi-15-t-report-screen-size-in-pixels`,
+        `csi-16-t-report-cell-size-in-pixels`, `csi-18-t-text-size`,
+        `csi-19-t-report-screen-size-in-cells`, `csi-20-t-report-icon-label`,
+        `csi-21-t-title-report`, `csi-22-t-push-title`, `csi-23-t-pop`.
 3. Complete the cross-family controls: `ColumnMode`, `SetWinLines`,
    `GetChecksum`/`SetChecksum`, `SetXprop`, and `StatusLine`. Retain OSC 52
    regression coverage and resolve or explicitly track its upstream parser
    differences. Keep OSC 0/1/2 title setting under its separate `allowTitleOps`
    policy rather than treating every window-related control as Window Ops.
+   TDN: `dec-mode-3-deccolm`, `dec-mode-40-allow-3-to-resize`, `csi-decslpp`,
+        `csi-decsnls`, `csi-decrqcra`, `csi-xtchecksum`, `osc-3-x-property`,
+        `csi-decsasd`, `csi-decssdt`.
+
+   OSC 52 parser parity has separate IDs for each observable difference.
+   TDN: `osc-52-multiple-targets`, `osc-52-default-targets`, `osc-52-cut-buffers`,
+        `osc-52-invalid-base64-clear`, `osc-52-reply-target`.
 4. Make resources, the live menu, actions, configuration reporting, and support
    classifications agree. Preserve xterm's rule that `allowWindowOps: true`
    overrides the deny list, while false applies per-operation restrictions;
    cover names, numeric aliases where supported by xterm, wildcards, negation,
    and restoration of the configured restrictions when toggled off.
+   TDN: `policy-window-ops`.
 
 Acceptance requires exact request/reply and denied-operation tests, observable
 X11 effects, live enable/disable coverage beyond the clipboard, and
@@ -1114,29 +1191,35 @@ The patch-411 source audit leaves these gaps:
   only the icon. Both must obey the live Title Ops permission. Preserve OSC 2
   as a window-title-only update. Seek a libghostty callback carrying the
   selector rather than adding another OSC parser.
+  TDN: `osc-0-title-icon`, `osc-1-icon-name`, `osc-2-title`.
 - **Title encoding modes.** Implement the `titleModes` resource and
   XTSMTITLE/XTRMTITLE (`CSI > Pm t` / `CSI > Pm T`), including hexadecimal
   input/output, UTF-8 input/output, and default/reset semantics. Input decoding
   belongs to the Title Ops path; report encoding is companion work under the
   Window Ops report permission, not another Title Ops authorization check.
+  TDN: `resource-title-modes`, `csi-xtsmtitle`, `csi-xtrmtitle`, `title-modes-hex-input`,
+       `title-modes-hex-reports`, `title-modes-utf8-input`, `title-modes-utf8-reports`.
 - **UTF-8 title resources and properties.** Implement `utf8Title` and the
   `utf8-title` menu/action, with the patch-411 locale and `allowC1Printable`
   interactions. Synchronize ICCCM `WM_NAME`/`WM_ICON_NAME` and EWMH
   `_NET_WM_NAME`/`_NET_WM_ICON_NAME`, including deleting stale EWMH labels
   when the encoding policy requires it. The current setter only calls Xt's
   title/icon resources; reading UTF-8 WM properties does not complete this.
+  TDN: `resource-utf8-title`, `x11-utf8-title-properties`.
 - **Title normalization and limits.** Match `ChangeGroup`'s title-path
   control-character normalization, hex validation, and 1000-byte rejection
   before decoding. The pop path has the 1000-byte check, but ordinary OSC
   title changes currently use libghostty's 1024-byte truncation and no matching
   frontend rejection. Cover non-ASCII labels, invalid input, and boundary
   lengths rather than claiming parity from ASCII examples.
+  TDN: `title-input-normalization`, `title-input-byte-limit`.
 - **Resource/action parity.** Register `allow-title-ops(on/off/toggle)` in the
   translation action table, using the same live state and checkmark as the
   menu. Honor xterm's `allowSendEvents` interaction: it disables effective
   Title Ops and makes the permission toggle insensitive. Audit and implement
   the `sameName` resource's suppression of redundant title/icon property
   updates. These remain missing despite the working menu toggle.
+  TDN: `action-allow-title-ops`, `policy-title-ops-send-events`, `resource-same-name`.
 
 Use `misc.c` (`ChangeGroup` and label setters), `charproc.c` (OSC dispatch,
 title modes, and reports), `ptyx.h` (`AllowTitleOps`/`AllowXtermOps`), and
@@ -1154,12 +1237,23 @@ The broader ideas remain project direction rather than v0.5 promises:
 
 - Kitty graphics and scrollback search are expressly punted from v0.5, and
   neither is a v0.6 announcement gate. They remain possible later features,
-  not work to squeeze in after scope freeze.
+  not work to squeeze in after scope freeze. Their bounded chunks are K1–K4
+  and U2–U3 in the dispatch guide.
+  TDN: `apc-kitty-static-images`, `apc-kitty-temp-file-transfer`,
+       `apc-kitty-shared-memory`, `apc-kitty-unicode-placeholders`, `apc-kitty-animation`,
+       `search-scrollback-literal`, `ui-search-overlay`, `search-copy-match`.
 - Tabs, splits, profiles, and live configuration reload remain open questions.
   They are acceptable only if they respect Xt/X11 resources and the
   window-manager contract rather than turning Revenant into an unrelated shell.
+  TDN: `ui-tabbed-terminals`, `ui-split-terminals`, `configuration-profiles`,
+       `configuration-live-reload`.
 - The deeper DEC/xterm tail, sixel, ReGIS, Tektronix 4014, printer controls,
-  locator operations, and exhaustive command-line/resource compatibility;
+  locator operations, and exhaustive command-line/resource compatibility. The
+  broad inventory remains grouped; give newly identified DEC operations their
+  own IDs when the scope is audited.
+  TDN: `dcs-sixel`, `dcs-regis`, `tek-4014-graphics`, `csi-mc`, `csi-dec-media-copy`,
+       `csi-decelr`, `csi-decefr`, `csi-decsle`, `csi-decrqlp`,
+       `xterm-resource-compatibility`.
 - The snapshot/raw-byte multiplexer design described below, after the intended
   upstream snapshot interface exists.
 
@@ -1194,6 +1288,7 @@ gates rather than aspirations:
    may retain `xterm`/`XTerm` for another release or move toward
    `revenant`/`XTerm`; it must not describe the current default as permanent
    without completing the migration analysis.
+   TDN: `x11-resource-identity`.
 4. **The newcomer path is release quality.** Installation, `-welcome`, the
    manual and website, configuration examples, migration guidance, known
    limitations, diagnostics, package removal, and issue reporting agree and
@@ -1207,6 +1302,7 @@ gates rather than aspirations:
    Start/stop behavior, file creation and permissions, append/truncate policy,
    errors, and nonblocking terminal delivery are compared with xterm, and this
    transcript facility remains independent of diagnostic `-log` severity.
+   TDN: `logging-session-transcript`.
 
 These gates demand complete classification and honest behavior, not wholesale
 implementation of xterm's historical tail. v0.5 findings should flow into this
@@ -1334,3 +1430,5 @@ raw PTY-byte fanout, asynchronous history, independent client viewports, and
 resynchronization by fresh snapshot. Do not freeze a private protocol before
 the intended upstream design is available. Keeping terminal state and
 viewport/selection ownership behind `terminal.h` is the useful preparation.
+TDN: `session-snapshots`, `session-pty-fanout`, `scrollback-asynchronous-history`,
+     `ui-independent-viewports`, `session-snapshot-resync`.

@@ -73,39 +73,6 @@ application asked for. With `extended-keys-format` tmux can choose the
 `27 ~` or `u` form. Without it, tmux collapses modified keys back to the
 legacy encoding.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Terminal | Support | Notes |
-| --- | --- | --- |
-| xterm | Yes | Origin; both formats, `XTQMODKEYS` since patch 372[^xterm] |
-| VTE | ? | |
-| Konsole | ? | |
-| kitty | Partial | Accepts `CSI > 4 ; 2 m` as a request for its own protocol's disambiguate flag[^kitty] |
-| WezTerm | Yes | `enable_csi_u_key_encoding` and modifyOtherKeys handling[^wezterm] |
-| Ghostty | Yes | Documented in its VT reference[^ghostty] |
-| foot | Yes | Both levels; format 1 not selectable[^foot] |
-| Alacritty | ? | |
-| Contour | ? | |
-| mintty | Yes | `modifyOtherKeys` documented in the mintty manual[^mintty] |
-| PuTTY | ? | |
-| Windows Terminal | ? | |
-| Apple Terminal | ? | |
-| iTerm2 | Yes | Preference "Report modifiers using CSI u"[^iterm2] |
-| xterm.js | ? | |
-| tmux | Yes | `extended-keys` option[^tmux] |
-
-<!-- markdownlint-enable MD013 -->
-
-[^xterm]: [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html) and the [xterm manual](https://invisible-island.net/xterm/manpage/xterm.html), resources `modifyOtherKeys` and `formatOtherKeys`.
-[^kitty]: [kitty keyboard protocol, legacy compatibility](https://sw.kovidgoyal.net/kitty/keyboard-protocol/#legacy-key-event-encoding).
-[^wezterm]: [WezTerm configuration reference](https://wezterm.org/config/lua/config/enable_csi_u_key_encoding.html).
-[^ghostty]: [Ghostty VT reference](https://ghostty.org/docs/vt).
-[^foot]: [foot README, keyboard section](https://codeberg.org/dnkl/foot#keyboard).
-[^mintty]: [mintty manual](https://mintty.github.io/mintty.1.html).
-[^iterm2]: [iTerm2 documentation](https://iterm2.com/documentation-preferences-profiles-keys.html).
-[^tmux]: [tmux(1), `extended-keys`](https://man.openbsd.org/tmux.1#extended-keys).
 
 ## Pitfalls
 
@@ -133,3 +100,5 @@ Press Ctrl-1 or Ctrl-Shift-A inside `cat -v` and look for `^[[27;` or
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - [XTerm manual](https://invisible-island.net/xterm/manpage/xterm.html)
 - [tmux(1)](https://man.openbsd.org/tmux.1)
+
+<!-- tdn:compatibility -->

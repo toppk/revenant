@@ -16,6 +16,7 @@ has something specific to say about them.
 | Terminal | Maintainer | Platforms | Engine | Default `TERM` | `TERM_PROGRAM` | Version | Docs | Source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | [xterm](xterm.md) | Thomas Dickey | X11 | own | `xterm-256color` (build-dependent) | — | `xterm -v`; XTVERSION | [ctlseqs](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html) | [invisible-island.net/xterm](https://invisible-island.net/xterm/) |
+| [Revenant](revenant.md) | Revenant project | X11 | libghostty-vt + Xt/Athena | `xterm-256color` (configurable) | — | development revision | [Revenant docs](https://toppk.github.io/revenant/docs/) | [Source](https://github.com/toppk/revenant) |
 | [VTE](vte.md): GNOME Terminal, Ptyxis, Tilix, xfce4-terminal, Terminator, Black Box | GNOME | Linux, BSD | libvte | `xterm-256color` | — | host app; XTVERSION | [VTE docs](https://gnome.pages.gitlab.gnome.org/vte/) | [gitlab.gnome.org/GNOME/vte](https://gitlab.gnome.org/GNOME/vte) |
 | [Konsole](konsole.md) | KDE | Linux, BSD | own | `xterm-256color` | — | `konsole --version`; XTVERSION `?` | [docs.kde.org](https://docs.kde.org/stable5/en/konsole/konsole/) | [invent.kde.org/utilities/konsole](https://invent.kde.org/utilities/konsole) |
 | [kitty](kitty.md) | Kovid Goyal | Linux, macOS, BSD | own | `xterm-kitty` | — | `kitty --version`; XTVERSION | [sw.kovidgoyal.net/kitty](https://sw.kovidgoyal.net/kitty/) | [github.com/kovidgoyal/kitty](https://github.com/kovidgoyal/kitty) |
@@ -121,3 +122,8 @@ These are *not* safe to assume from `TERM` alone: truecolor, underline
 styles, OSC 8, OSC 52, any graphics protocol, the Kitty keyboard protocol,
 synchronized output, and grapheme clustering. Each has a page with the
 detection method that works.
+
+## Compare feature support
+
+Use the [comparison page](../comparison.md) for support assessments, versions,
+limitations, and evidence. Every registered terminal can be selected there.

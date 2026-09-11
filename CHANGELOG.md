@@ -78,6 +78,13 @@ artifacts take their version from the tag, not from the development version in
   last complete frame; a resize repaints the current state at the new grid
   while keeping the mode set and the pending update intact.
 
+### Documentation
+
+- Give TDN features stable identifiers and specification references. Store
+  compatibility in independently maintained terminal YAML files, and generate
+  feature pages, comparison filters, profile tables, and a JSON export from
+  the same data. Preserve imported claims as unverified and retain evidence.
+
 ### Bug fixes
 
 - Map `-geometry` to the application shell only, as the X Toolkit does, and

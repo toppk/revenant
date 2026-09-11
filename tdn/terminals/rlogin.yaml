@@ -1,0 +1,12 @@
+schema_version: 1
+terminal: rlogin
+name: RLogin
+features:
+  dcs-sixel:
+    status: supported
+    as-of: null
+    notes: Yes ([RLogin](https://kmiya-culti.github.io/RLogin/).)
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/graphics/sixel.md#compatibility

@@ -82,3 +82,5 @@ Source: [tmux(1): Control mode](https://man.openbsd.org/tmux#CONTROL_MODE).
 
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - [VT510 Programmer Information](https://vt100.net/docs/vt510-rm/)
+
+<!-- tdn:compatibility -->

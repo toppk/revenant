@@ -1,0 +1,167 @@
+schema_version: 1
+terminal: apple-terminal
+name: Apple Terminal
+page: terminals/apple-terminal.md
+features:
+  c0-bel-attention:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/notifications.md#compatibility
+  csi-decstbm:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/scrolling.md#compatibility
+  csi-editing-operations:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/erase.md#compatibility
+  csi-su-sd-scroll:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/scrolling.md#compatibility
+  dec-mode-1049-alternate-screen:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/modes.md#compatibility
+  dec-mode-2004-bracketed-paste:
+    status: supported
+    as-of: null
+    notes: 'Yes | Also recorded: ?; No public protocol document'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/modes.md#compatibility
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/bracketed-paste.md#compatibility
+  dec-mode-9001-win32-input:
+    status: unknown
+    as-of: null
+    notes: ?; Not a Unix protocol; not documented by any of them
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/win32-input-mode.md#compatibility
+  osc-0-2-title:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/title.md#compatibility
+  osc-52-read:
+    status: unknown
+    as-of: null
+    notes: ?; Not implemented
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/clipboard.md#compatibility
+  osc-52-write:
+    status: unknown
+    as-of: null
+    notes: ?; Not implemented
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/clipboard.md#compatibility
+  osc-6-apple-document:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/misc.md#compatibility
+  osc-7-working-directory:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/cwd.md#compatibility
+  sgr-256-colors:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-3-italic:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  sgr-5-blink:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/sgr.md#compatibility
+  terminfo-bce:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/csi/erase.md#compatibility
+  text-bold-is-bright:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/text/rendering.md#compatibility
+  text-color-emoji:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/text/rendering.md#compatibility
+  text-italic-face:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/text/rendering.md#compatibility
+  text-shaping:
+    status: supported
+    as-of: null
+    notes: 'Yes'
+    review: imported
+    evidence:
+    - kind: import
+      url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/text/rendering.md#compatibility

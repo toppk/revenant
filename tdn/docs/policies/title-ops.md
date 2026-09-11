@@ -57,3 +57,15 @@ stored unchanged.
   `ChangeIconName`); `charproc.c` (OSC dispatch and `window_ops`); `ptyx.h`
   (`AllowTitleOps`, `AllowXtermOps`); `menu.c` (`HandleAllowTitleOps`,
   `enable_allow_xxx_ops`) under `upstream/xterm-snapshots/`.
+
+## Separately tracked behavior
+
+### Title Ops and synthetic events
+
+Feature ID: `policy-title-ops-send-events`. allowSendEvents disables effective Title Ops and makes the toggle insensitive.
+
+### Title Ops translation action
+
+Feature ID: `action-allow-title-ops`. allow-title-ops(on/off/toggle) shares live state and menu checkmark.
+
+<!-- tdn:compatibility -->

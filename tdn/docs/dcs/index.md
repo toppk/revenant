@@ -85,3 +85,5 @@ passthrough queries. See [tmux](../terminals/tmux.md).
 - [ECMA-48 §8.3.27 (DCS) and §8.3.143 (ST)](https://ecma-international.org/publications-and-standards/standards/ecma-48/)
 - [XTerm Control Sequences: Device-Control functions](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Device-Control-functions)
 - [tmux(1): allow-passthrough](https://man.openbsd.org/tmux#allow-passthrough)
+
+<!-- tdn:compatibility -->

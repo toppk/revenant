@@ -135,42 +135,6 @@ these sequences does not mean that an application enabled Kitty flags; query
 these pairs instead. xterm+ records this substantial default-input difference
 in `docs/compatibility/drift.md`.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Terminal | Support | Notes |
-| --- | --- | --- |
-| xterm | ? | Not implemented[^xterm] |
-| VTE | ? | |
-| Konsole | ? | |
-| kitty | Yes | Origin, all flags[^kitty] |
-| WezTerm | Yes | `enable_kitty_keyboard`; default off[^wezterm] |
-| Ghostty | Yes | All flags[^ghostty] |
-| foot | Yes | All flags[^foot] |
-| Alacritty | Yes | Since 0.13[^alacritty] |
-| Contour | Yes | Listed in its VT extensions[^contour] |
-| mintty | ? | |
-| PuTTY | ? | |
-| Windows Terminal | ? | Open feature request[^wt] |
-| Apple Terminal | ? | |
-| iTerm2 | Yes | Since 3.5[^iterm2] |
-| xterm.js | ? | Open feature request[^xtermjs] |
-| tmux | Partial | Forwards with `extended-keys`; does not implement the stack itself[^tmux] |
-
-<!-- markdownlint-enable MD013 -->
-
-[^xterm]: Not present in [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html).
-[^kitty]: [Comprehensive keyboard handling in terminals](https://sw.kovidgoyal.net/kitty/keyboard-protocol/).
-[^wezterm]: [WezTerm `enable_kitty_keyboard`](https://wezterm.org/config/lua/config/enable_kitty_keyboard.html).
-[^ghostty]: [Ghostty VT reference](https://ghostty.org/docs/vt).
-[^foot]: [foot README, keyboard section](https://codeberg.org/dnkl/foot#keyboard).
-[^alacritty]: [Alacritty 0.13 changelog](https://github.com/alacritty/alacritty/blob/master/CHANGELOG.md).
-[^contour]: [Contour VT extensions](https://contour-terminal.org/vt-extensions/).
-[^wt]: [microsoft/terminal issue on kitty keyboard protocol](https://github.com/microsoft/terminal/issues/16155).
-[^iterm2]: [iTerm2 3.5 release notes](https://iterm2.com/downloads.html).
-[^xtermjs]: [xtermjs/xterm.js issue tracker](https://github.com/xtermjs/xterm.js/issues).
-[^tmux]: [tmux(1), `extended-keys`](https://man.openbsd.org/tmux.1#extended-keys).
 
 ## Probe
 
@@ -191,3 +155,5 @@ Press Escape; with the protocol active it prints `^[[27u` rather than `^[`.
 
 - [Comprehensive keyboard handling in terminals](https://sw.kovidgoyal.net/kitty/keyboard-protocol/)
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
+
+<!-- tdn:compatibility -->

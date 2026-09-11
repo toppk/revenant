@@ -77,20 +77,6 @@ opted in. The stack depth is small (xterm: 10). See
 pop consumes the entry but leaves the labels unchanged. This label applies
 to that restoration step, not the other window operations on this page.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `18` size in cells | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | Yes | Yes |
-| `14`/`16` pixel sizes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | Yes (3.4+ relays) |
-| `22`/`23` title stack | Yes | Yes | ? | ? | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | ? |
-| `21` title report | Gated | ? | ? | ? | ? | ? | ? | ? | ? | Gated | ? | ? | ? | ? | ? |
-| Move/resize (`3`,`4`,`8`) | Gated | ? | ? | ? | Partial | ? | ? | ? | ? | Gated | ? | ? | Yes | ? | ? |
-| `?2048` in-band resize | ? | ? | ? | Yes | Yes | Yes | Yes | ? | Yes | ? | ? | ? | ? | ? | ? |
-
-<!-- markdownlint-enable MD013 -->
 
 ## Probe
 
@@ -107,3 +93,5 @@ tools/sendosc push-title; tools/sendosc title probe; sleep 2; tools/sendosc pop-
 - [XTerm manual, `allowWindowOps`](https://invisible-island.net/xterm/manpage/xterm.html)
 - [In-band window resize notifications](https://gist.github.com/rockorager/e695fb2924d36b2bcf1fff4a3704bd83)
 - [kitty: in-band resize](https://sw.kovidgoyal.net/kitty/changelog/)
+
+<!-- tdn:compatibility -->

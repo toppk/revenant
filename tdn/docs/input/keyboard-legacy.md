@@ -228,3 +228,5 @@ infocmp -1 | grep -E '^\s*(kbs|khome|kend|kf5|kcuu1)='
 - [XTerm manual, resources `backarrowKey`, `metaSendsEscape`, `altSendsEscape`](https://invisible-island.net/xterm/manpage/xterm.html)
 - [terminfo(5)](https://invisible-island.net/ncurses/man/terminfo.5.html)
 - [VT220 Programmer Reference, keyboard chapter](https://vt100.net/docs/vt220-rm/chapter3.html)
+
+<!-- tdn:compatibility -->

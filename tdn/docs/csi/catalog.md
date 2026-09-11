@@ -144,3 +144,5 @@ final byte and intermediate are taken.
 - [ECMA-48 §8.3](https://ecma-international.org/publications-and-standards/standards/ecma-48/)
 - [XTerm Control Sequences, CSI](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Functions-using-CSI-_-ordered-by-the-final-character_s_)
 - [VT510 Video Terminal Programmer Information](https://vt100.net/docs/vt510-rm/)
+
+<!-- tdn:compatibility -->

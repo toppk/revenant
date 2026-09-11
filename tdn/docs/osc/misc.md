@@ -125,22 +125,6 @@ OSC 7 became the portable directory report; see
 
 See [Shell integration](shell-integration.md).
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | mintty | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| OSC 3 | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| OSC 50 font | Yes | ? | ? | ? | ? | ? | ? | ? | ? | Yes | ? | ? | ? | ? | ? | ? |
-| OSC 22 pointer | Yes | ? | ? | Yes | ? | ? | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| OSC 21 | ? | ? | ? | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| `CSI # P` / `# Q` | Yes | ? | ? | Yes | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| OSC 66 | ? | ? | ? | Yes (0.40) | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? |
-| OSC 1337 (any) | ? | ? | ? | ? | Partial | Partial | ? | ? | ? | Partial | ? | ? | ? | Yes | ? | ? |
-| OSC 6 | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | ? | Yes | ? | ? | ? |
-
-<!-- markdownlint-enable MD013 -->
 
 ## Probe
 
@@ -160,3 +144,20 @@ printf '\033]1337;RequestAttention=fireworks\033\\'
 - [WezTerm escape sequences](https://wezterm.org/escape-sequences.html)
 - [mintty control sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs)
 - [foot: escape sequences](https://codeberg.org/dnkl/foot/src/branch/master/doc/foot-ctlseqs.7.scd)
+
+
+## Separately tracked behavior
+
+### Set the terminal font
+
+Feature ID: `osc-50-font-set`. Set the terminal font with Font Ops checks and exact query/set behavior.
+
+### Query the terminal font
+
+Feature ID: `osc-50-font-query`. Query the terminal font with Font Ops checks and exact query/set behavior.
+
+### Terminal drag and drop
+
+Feature ID: `osc-72-drag-drop`. Separate drag/drop extension, outside the current dispatch queue.
+
+<!-- tdn:compatibility -->

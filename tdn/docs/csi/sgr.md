@@ -134,27 +134,10 @@ CSI Ps ; … # {   push only the listed attribute classes
 Implemented by xterm (opt-in build), Contour, and mintty; elsewhere `?`.
 Applications cannot rely on it and should track attributes themselves.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Feature | xterm | VTE | Konsole | kitty | WezTerm | Ghostty | foot | Alacritty | Contour | mintty | PuTTY | Windows Terminal | Apple Terminal | iTerm2 | xterm.js | tmux |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 256 colors | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Truecolor `38;2` | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes (0.71+) | Yes | ? | Yes | Yes | Yes (`Tc`/`RGB` feature) |
-| Colon form `38:2` | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | Yes |
-| Italic `3` | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | Yes | Yes | Yes | pass |
-| Strikethrough `9` | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | pass |
-| Underline styles `4:n` | Yes | Yes (0.52+) | Yes | Yes | Yes | Yes | Yes | Yes (0.12+) | Yes | Yes | ? | Yes | ? | Yes | Yes | Yes (`Smulx`) |
-| Underline color `58` | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | ? | Yes | ? | Yes | Yes | Yes (`Setulc`) |
-| Overline `53` | Yes | Yes | ? | ? | Yes | Yes | ? | ? | Yes | Yes | ? | ? | ? | ? | Yes | pass |
-| Blink `5` | Yes | Yes (config) | Yes | ? | Yes | Yes | Yes | ? | Yes | Yes | Yes | Yes | Yes | Yes | Yes | pass |
-| XTPUSHSGR | Yes (opt) | ? | ? | ? | ? | ? | ? | ? | Yes | Yes | ? | ? | ? | ? | ? | ? |
-
-<!-- markdownlint-enable MD013 -->
 
 "pass" means tmux relays the attribute to the outer terminal when that
 terminal's terminfo advertises it.
+
 
 ## Probe
 
@@ -173,3 +156,5 @@ tools/query decrqss m      # DECRQSS: current SGR, e.g. ^[P1$r0;1;31m^[\
 - [kitty underline styles](https://sw.kovidgoyal.net/kitty/underlines/)
 - [Gist: True Colour support in terminals](https://github.com/termstandard/colors)
 - [mintty control sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs)
+
+<!-- tdn:compatibility -->

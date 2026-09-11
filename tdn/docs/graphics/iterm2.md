@@ -48,36 +48,6 @@ moves to the row below the image, column 1, unless `doNotMoveCursor=1`. The
 image scrolls with the rows it sits on and is removed when those rows are
 erased. On the alternate screen it is discarded when the screen is left.
 
-## Compatibility
-
-<!-- markdownlint-disable MD013 -->
-
-| Emulator | Support | Notes |
-| --- | --- | --- |
-| xterm | ? | |
-| VTE | ? | |
-| Konsole | Yes, 22.04+[^konsole] | |
-| kitty | ? | |
-| WezTerm | Yes[^wez] | |
-| Ghostty | ? | |
-| foot | ? | |
-| Alacritty | ? | |
-| Contour | ? | |
-| mintty | Yes[^mintty] | |
-| PuTTY | ? | |
-| Windows Terminal | ? | |
-| Apple Terminal | ? | |
-| iTerm2 | Yes[^iterm] | Reference; multipart since 3.5 |
-| xterm.js | Yes, addon[^xjs] | `@xterm/addon-image`; also used by the VS Code terminal |
-| tmux | ? | |
-
-<!-- markdownlint-enable MD013 -->
-
-[^konsole]: [Konsole 22.04 announcement](https://kde.org/announcements/gear/22.04.0/).
-[^wez]: [WezTerm imgcat](https://wezterm.org/imgcat.html).
-[^mintty]: [mintty wiki, Control Sequences](https://github.com/mintty/mintty/wiki/CtrlSeqs).
-[^iterm]: [iTerm2 inline images](https://iterm2.com/documentation-images.html).
-[^xjs]: [@xterm/addon-image](https://github.com/jerch/xterm-addon-image).
 
 ## Probe
 
@@ -102,3 +72,5 @@ sys.stdout.write("\033]1337;File=inline=1;size=%d:%s\a\n"
 - [iTerm2 inline images](https://iterm2.com/documentation-images.html)
 - [iTerm2 proprietary escape codes](https://iterm2.com/documentation-escape-codes.html)
 - [WezTerm imgcat](https://wezterm.org/imgcat.html)
+
+<!-- tdn:compatibility -->
