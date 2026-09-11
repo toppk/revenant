@@ -78,6 +78,22 @@ artifacts take their version from the tag, not from the development version in
   last complete frame; a resize repaints the current state at the new grid
   while keeping the mode set and the pending update intact.
 
+### Tools
+
+- Add a standalone Go probe with 53 command/TUI cases, arrow-key and mouse
+  navigation, named settings, scrollable help, TDN feature references,
+  JSON evidence, shared terminal cleanup, and migrated font/emoji samples and
+  palettes. `just probe` builds it as needed; `just test-probe` checks decoders
+  and real PTY behavior. Assessment prompts are opt-in with `--assess`; emoji
+  tests have individual sections, a mode-2027 comparison and Run all. Keep the
+  original scripts for comparison. TDN feature slugs now open scenario menus,
+  with stable case IDs, curated breadcrumbs, and entry commands on TDN pages.
+  Page dense samples for 80x24, remove redundant completion pauses, and add
+  clickable ancestors plus selectable test locations for reporting problems.
+  Standardize inspection on Space/Enter to continue and q/Escape to exit a test
+  with cleanup; add F2 selection mode for copying menu text directly;
+  document the input-capture and text-editor exceptions.
+
 ### Documentation
 
 - Give TDN features stable identifiers and specification references. Store

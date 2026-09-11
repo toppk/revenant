@@ -1,7 +1,14 @@
 # Maintainer tools
 
-Human-run terminal verification programs are named
-`probe-<feature>.<extension>`:
+Start terminal verification with `just probe`: it builds the standalone Go
+runner as needed and opens a keyboard/mouse browser. Use `just probe list`, or run a
+feature by slug, such as `just probe osc-8-hyperlinks`, or a scenario directly:
+`just probe osc-52-read clipboard-query --target primary`.
+[The Go probe guide](probe/README.md) covers commands, options and JSON evidence.
+TDN's [migration checklist](../tdn/docs/probe-migration.md) maps every legacy
+script to Go commands, with manual result columns and known coverage gaps.
+
+The existing Python/shell probes remain available for comparison:
 
 - `probe-color.sh`
 - `probe-colors.py`

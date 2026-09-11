@@ -56,14 +56,25 @@ verification are maintenance tasks, not terminal compatibility features.
 
 ## Manual fixtures
 
-Run inside the terminal under test:
+The primary manual entry point is `just probe`, which builds the native Go
+runner and opens a keyboard/mouse browser. Its cases have the same handlers in menu
+and command mode, with TDN IDs and optional JSON evidence. For example:
 
 ```sh
-python3 tools/probe-features.py --list
-python3 tools/probe-features.py underline
-python3 tools/probe-features.py tcap --cap TN --cap Co
-just probe-features mouse --seconds 60
+just probe dcs-xtgettcap identity-tcap --cap TN --cap Co
+just probe dec-mode-1000-mouse input-mouse --seconds 60
+just probe sgr-58-underline-color text-underline
 ```
+
+New feature work adds or extends native cases in `tools/probe/cases.go` and
+their Go handlers. Give each case stable TDN feature IDs, a curated browser
+location, expected behavior, policy and cleanup. Refresh embedded metadata with
+`just update-probe-registry` when changing the registry/navigation, and run
+`just test-probe` and `just check-tdn`. Check completion and early exit at 80×24.
+
+Keep the legacy Python/shell probes and their recipes for comparison until the
+maintainer finishes the [TDN migration checklist](https://toppk.github.io/revenant/tdn/probe-migration/)
+and resolves its gaps. New features do not need a duplicate legacy probe.
 
 The runner emits protocol requests or synthetic data. It does not implement
 features or turn an unanswered request into a pass. Use the same invocation
@@ -71,16 +82,16 @@ in the comparison emulator and record versions/resources. The
 [probe reference](../reference/probes.md#dispatch-fixtures) explains the
 commands, cleanup and limitations.
 
-| Work group | Probe subcommands | Boundary |
+| Work group | Go case IDs (append to the relevant TDN slug) | Boundary |
 | --- | --- | --- |
-| A: answerback and identity | `answerback`, `tcap`, `identity`, `unknown` | ENQ, terminal name and DA claims are separate tasks; unknown callback is APC-only. |
-| V: text/cursor presentation | `underline`, `cursor`, `pointer` | SGR underline color, startup text cursor, and OSC 22 pointer each have separate state. |
-| S: shell integration | `cwd`, `prompts`, `pipe` | Retain cwd, navigate semantic prompts, then pipe a semantic output range on a user action. |
-| N: notifications | `notify`, `progress` | Urgency first; optional notification adapter and progress UI are separate. |
-| G: procedural glyphs | `glyphs` | Box/block rendering first, braille/Powerline later. |
-| U: copy/search | `copy`, `search` | Copy flash; search model; search UI are independent review units. |
-| K: graphics | `graphics` | Initial fixture covers static inline RGBA only. Extend it for media, placeholders and animation as those chunks land. |
-| M/F: permission completion | `mouse`, `font` | Mouse named exceptions and OSC 50 remain feature work. |
+| A: answerback and identity | `identity-answerback`, `identity-tcap`, `identity-reports`, `diagnostics-unknown` | ENQ, terminal name and DA claims are separate tasks; unknown callback is APC-only. |
+| V: text/cursor presentation | `text-underline`, `text-cursor`, `input-pointer` | SGR underline color, startup text cursor, and OSC 22 pointer each have separate state. |
+| S: shell integration | `shell-cwd`, `shell-prompts`, `shell-pipe` | Retain cwd, navigate semantic prompts, then pipe a semantic output range on a user action. |
+| N: notifications | `notifications-urgency`, `notifications-progress` | Urgency first; optional notification adapter and progress UI are separate. |
+| G: procedural glyphs | `text-glyphs` | Box/block rendering first, braille/Powerline later. |
+| U: copy/search | `selection-copy`, `selection-search` | Copy flash; search model; search UI are independent review units. |
+| K: graphics | `graphics-static` | Initial fixture covers static inline RGBA only. Extend it for media, placeholders and animation as those chunks land. |
+| M/F: permission completion | `input-mouse`, `font-query`, `font-set` | Mouse named exceptions and OSC 50 remain feature work. |
 
 A fixture must be extended when a task introduces behavior it cannot yet
 exercise. In particular, the graphics fixture is not evidence for file or

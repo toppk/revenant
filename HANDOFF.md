@@ -41,6 +41,22 @@ TDN: `osc-50-font-set`, `osc-50-font-query`, `policy-font-ops`, `osc-22-pointer-
 cleanup; `xvfb-request-ops` checks startup/live mouse and capability policy,
 GetTcap exceptions, and preservation of unrelated replies.
 
+## Unified Go manual probe
+
+The probe is part of TDN; use `just probe` for new feature work. It builds the
+standalone Linux Go runner independently of the C terminal build. Add native
+cases with stable TDN IDs, expected behavior, policy and cleanup; register their
+navigation in `tdn/data/probe-navigation.json` and refresh metadata with
+`just update-probe-registry`. Keep measurements quiet, reads bounded, and cleanup
+active on exits, signals and panics. `just test-probe` covers Go/PTY behavior;
+`just check-tdn` also checks the embedded snapshot against the registry.
+
+The [probe guide](tools/probe/README.md) is the source for controls, commands,
+80×24 behavior, evidence and maintenance instructions. Retain legacy scripts
+and recipes until the maintainer completes the [migration worksheet](tdn/docs/probe-migration.md)
+and resolves its color-tour/spawn gaps. Probe observations do not automatically
+become terminal support claims.
+
 ## TDN feature registry and compatibility tracking
 
 The user brought the registry work forward while the local `todo.md` queue

@@ -58,6 +58,27 @@ reflow-prompt: build-gcc
 reflow-resize window: build-gcc
     ./{{gcc_build}}/xtp-resize-loop "{{window}}" --grid 38 80 24 250
 
+# Build the standalone Go probe; Go's build cache reuses unchanged packages
+build-probe:
+    mkdir -p build-probe
+    cd tools/probe && GOCACHE="${GOCACHE:-{{justfile_directory()}}/.cache/go-build}" go build -o ../../build-probe/probe .
+
+# Open feature navigation, or pass a TDN slug: just probe osc-8-hyperlinks
+[positional-arguments]
+probe *args: build-probe
+    #!/usr/bin/env bash
+    set -euo pipefail
+    exec "{{justfile_directory()}}/build-probe/probe" "$@"
+
+# Refresh embedded feature titles/provenance after registry or navigation edits (PyYAML required)
+update-probe-registry:
+    python3 tdn/hooks/probe_catalog.py
+
+# Check the Go runner, PTY cleanup/replies, and migration sample parity
+test-probe: build-probe
+    cd tools/probe && GOCACHE="${GOCACHE:-{{justfile_directory()}}/.cache/go-build}" go test ./...
+    python3 tests/probe-go.py build-probe/probe
+
 # Interactively inspect legacy, raw, and Kitty keyboard encoding
 probe-keymodes *args:
     python3 tools/probe-keymodes.py {{args}}

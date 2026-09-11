@@ -72,6 +72,7 @@ nav:
   - Compare terminals: comparison.md
   - Feature registry: features/index.md
   - Maintaining compatibility data: registry.md
+  - Probe migration checklist: probe-migration.md
   - Foundations:
       - Conventions: conventions.md
       - Glossary: glossary.md

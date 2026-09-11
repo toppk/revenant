@@ -10,8 +10,10 @@ from mkdocs.exceptions import PluginError
 from mkdocs.structure.files import File
 from mkdocs.utils import get_relative_url
 from registry import Registry, RegistryError, MARKER
+from probe_catalog import catalog
 
 _registry = None
+_probe_features = {}
 LABEL = {
     "supported": "Supported",
     "partial": "Partial",
@@ -22,9 +24,12 @@ DEFAULT_TERMINALS = {"xterm", "revenant", "ghostty", "kitty", "vte"}
 
 
 def on_files(files, config):
-    global _registry
+    global _registry, _probe_features
     try:
         _registry = Registry(Path(config.config_file_path).parent)
+        _probe_features = {
+            f["id"]: f for f in catalog(Path(config.config_file_path).parent.parent)
+        }
     except RegistryError as error:
         raise PluginError(f"TDN registry: {error}") from error
     for fid, feature in _registry.features.items():
@@ -158,6 +163,11 @@ def matrix(ids, page, files):
 def feature_detail(fid, page, files):
     feature = _registry.features[fid]
     out = [f"Feature ID: `{fid}`. Type: **{feature['kind']}**."]
+    if fid in _probe_features:
+        trail = " / ".join(_probe_features[fid]["breadcrumb"])
+        out.append(
+            f"Manual tests: `just probe {fid}` opens this feature's scenarios.\n\nBrowse under **{escape(trail)}**. A scenario may exercise related features; its existence does not establish support."
+        )
     if feature["kind"] == "group":
         out.append(
             "This is a legacy aggregate assessment. It does not establish support for each individual operation; assess those feature IDs separately."

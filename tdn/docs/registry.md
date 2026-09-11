@@ -1,5 +1,9 @@
 # Maintaining the feature database
 
+The terminal probe is part of TDN. Use the
+[legacy probe migration checklist](probe-migration.md) for the one-time manual
+comparison of Python/shell probes with the Go feature commands.
+
 Each terminal owns one file: `tdn/terminals/<terminal-id>.yaml`. The build
 discovers these files automatically; there is no central terminal list to edit.
 The file's `features` mapping is keyed by stable feature ID:
@@ -102,6 +106,30 @@ Policy labels are `window-ops`, `title-ops`, `color-ops`, `font-ops`,
 `tcap-ops`, and `mouse-ops`. Apply them to the affected feature, not every
 feature on its page. `policy_note` explains mixed groups, such as title
 push/pop where Title Ops only governs applying saved labels on pop.
+
+## Probe entry points and curated navigation
+
+Feature slugs also address the standalone Go probe. For example,
+`just probe osc-8-hyperlinks` opens the feature's scenarios, while
+`just probe osc-52-write clipboard-set` runs one scenario directly. Feature
+pages with probes display their entry command and browsing location.
+
+`data/probe-navigation.json` assigns features to manually curated breadcrumb
+paths. These are independent of the protocol prefix and specification sources:
+`osc-8-hyperlinks` can appear under **Window and desktop / Hyperlinks** without
+changing its ID. Prefer identifiers combining a real control and a clear purpose;
+keep provenance in `specifications`. No single standard defines the whole tree.
+
+After changing feature metadata or navigation, run `just update-probe-registry`
+to refresh the Go binary's embedded snapshot. The generator needs Python/PyYAML
+for maintenance; the probe build/runtime needs Go only. TDN tests check snapshot
+freshness; probe tests check case IDs and feature mappings. A case can exercise
+several features, and a feature can have several scenarios. Probe availability
+and successful execution do not automatically establish terminal support.
+
+Existing feature IDs currently remain unchanged. Any future rename needs an
+explicit migration of terminal records, references, probe mappings and published
+URLs; rearranging breadcrumbs alone needs no rename.
 
 ## Pending implementation work
 

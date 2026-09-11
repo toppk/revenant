@@ -7,9 +7,15 @@ description: interactive verification programs
 
 # Interactive terminal probes
 
-Human-run visual and interactive verification programs use the naming pattern
-`tools/probe-<feature>.<ext>`. This keeps them discoverable separately from
-build utilities and automated `tests/xtp-*` or `tests/xvfb-*` helpers.
+Use `just probe` for new feature testing. It builds the standalone Go runner
+and opens TDN's feature browser; append a feature slug and case ID to run a
+case directly, for example `just probe osc-8-hyperlinks links-demo`. The
+[probe guide](https://github.com/toppk/revenant/blob/master/tools/probe/README.md)
+is the source for navigation, F2 text selection, options, evidence and cleanup.
+Keep the legacy scripts below for comparison until the maintainer completes
+the [TDN migration checklist](https://toppk.github.io/revenant/tdn/probe-migration/).
+
+## Legacy comparison tools
 
 Run the same probe inside Revenant, xterm, and Ghostty when comparing behavior.
 Record the emulator version, font configuration, locale, and exact invocation

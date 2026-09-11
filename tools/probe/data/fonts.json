@@ -1,0 +1,123 @@
+[
+  {
+    "title": "1. Combining marks and conjuncts",
+    "samples": [
+      {
+        "label": "e + combining acute",
+        "text": "é",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": ""
+      },
+      {
+        "label": "Devanagari ksha",
+        "text": "क्ष",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          1,
+          2
+        ],
+        "note": "legacy: 1+0+1. Cluster width for Indic conjuncts is not yet settled by the 2027 spec ecosystem; 1 or 2 accepted, reported."
+      },
+      {
+        "label": "Vietnamese depth-2 (e+circumflex+acute)",
+        "text": "ế",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": "everyday text needing mark-to-mark: acute must sit ON the circumflex, not on the e. Smudge here breaks Vietnamese."
+      }
+    ]
+  },
+  {
+    "title": "2. Mark-placement lab (width is regime-neutral; ink differs)",
+    "samples": [
+      {
+        "label": "Tower: six marks above",
+        "text": "à́̂̃̄̅",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": "shaping+capable font: marks climb; overstrike: one smudge."
+      },
+      {
+        "label": "Cellar: five marks below",
+        "text": "a̖̗̘̙̜",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": "same test downward; fonts with above-only anchors fail here."
+      },
+      {
+        "label": "Both directions at once",
+        "text": "ò̖̗̘́̂",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": "three up, three down; the base should stay on the baseline."
+      },
+      {
+        "label": "Enclosing circle (a + U+20DD)",
+        "text": "a⃝",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": "the mark surrounds the base; renderers that only offset upward draw a circle floating beside/above the a."
+      },
+      {
+        "label": "Marks on a WIDE base (CJK + acute)",
+        "text": "日́",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "2 cells both regimes: the mark must center over a double-width glyph - tests mark placement x, not just y."
+      },
+      {
+        "label": "Double diacritic SPANNING two bases (t+U+0361+s)",
+        "text": "t͡s",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "one mark bridging two cells: U+0361 ties t and s. Legacy and cluster both 2 (two clusters); the tie must arc across the cell boundary - the hardest ink test in this file."
+      },
+      {
+        "label": "Zalgo word (three bases, mixed marks)",
+        "text": "h̵̨è̖̗́l̴̃",
+        "legacy": [
+          3
+        ],
+        "cluster": [
+          3
+        ],
+        "note": "width 3 regardless of chaos: strikethrough overlay U+0335, ogonek-ish U+0328, overlay U+0334 - three mark CLASSES (above, below, overlay) on adjacent cells. Ink may legally escape the line box; cells must not."
+      }
+    ]
+  }
+]

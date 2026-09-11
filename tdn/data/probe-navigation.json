@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "groups": [
+    {
+      "breadcrumb": [
+        "Text, emoji and rendering",
+        "Emoji and Unicode widths"
+      ],
+      "features": [
+        "dec-mode-2027-grapheme-clusters",
+        "text-vs16-width"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Text, emoji and rendering",
+        "Glyphs"
+      ],
+      "features": [
+        "text-box-drawing",
+        "text-block-drawing",
+        "text-braille-drawing",
+        "text-powerline-drawing"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Text, emoji and rendering",
+        "SGR colors and decorations"
+      ],
+      "features": [
+        "csi-sgr",
+        "sgr-256-colors",
+        "sgr-38-2-truecolor",
+        "sgr-38-2-colon-form",
+        "sgr-58-underline-color",
+        "sgr-59-underline-color-reset",
+        "sgr-4-underline-styles",
+        "sgr-7-inverse"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Text, emoji and rendering",
+        "DEC modes and cursor"
+      ],
+      "features": [
+        "dec-mode-5-decscnm",
+        "dec-mode-2026-synchronized-output",
+        "csi-decscusr"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Text, emoji and rendering",
+        "OSC colors and fonts"
+      ],
+      "features": [
+        "osc-10-default-foreground-color",
+        "osc-11-default-background-color",
+        "osc-12-cursor-color",
+        "osc-4-palette-set",
+        "osc-4-palette-query",
+        "osc-104-palette-reset",
+        "csi-996-n-color-scheme-query",
+        "osc-50-font-query",
+        "osc-50-font-set"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Text, emoji and rendering",
+        "Kitty graphics"
+      ],
+      "features": [
+        "apc-kitty-static-images"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Window and desktop",
+        "OSC 52 clipboard"
+      ],
+      "features": [
+        "osc-52-read",
+        "osc-52-write"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Window and desktop",
+        "CSI title operations"
+      ],
+      "features": [
+        "csi-20-t-report-icon-label",
+        "csi-21-t-title-report",
+        "csi-22-t-push-title",
+        "csi-23-t-pop"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Window and desktop",
+        "Hyperlinks"
+      ],
+      "features": [
+        "osc-8-hyperlinks",
+        "hyperlinks-hover-refresh"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Window and desktop",
+        "Notifications and progress"
+      ],
+      "features": [
+        "osc-9-notification",
+        "osc-777-notification",
+        "notification-x11-urgency",
+        "osc-9-4-progress",
+        "ui-progress-indicator"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Input",
+        "Mouse and pointer"
+      ],
+      "features": [
+        "dec-mode-1000-mouse",
+        "dec-mode-1006-sgr-mouse",
+        "dec-mode-1004-focus",
+        "osc-22-pointer-shape"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Input",
+        "Keyboard protocols"
+      ],
+      "features": [
+        "csi-modify-other-keys",
+        "csi-u-kitty-keyboard"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Input",
+        "Selection and search"
+      ],
+      "features": [
+        "selection-copy-feedback",
+        "search-scrollback-literal",
+        "ui-search-overlay",
+        "search-copy-match"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Shell integration",
+        "Directory and prompt markers"
+      ],
+      "features": [
+        "osc-7-working-directory",
+        "osc-133-prompt-marks",
+        "ui-prompt-navigation",
+        "ui-pipe-command-output"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Identity and capabilities",
+        "Device reports"
+      ],
+      "features": [
+        "csi-da1",
+        "csi-da2",
+        "csi-da3",
+        "csi-xtversion",
+        "c0-enq-answerback"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Identity and capabilities",
+        "XTGETTCAP"
+      ],
+      "features": [
+        "dcs-xtgettcap"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Diagnostics",
+        "Unknown controls"
+      ],
+      "features": [
+        "diagnostics-unknown-apc"
+      ]
+    }
+  ]
+}

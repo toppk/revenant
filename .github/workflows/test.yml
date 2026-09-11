@@ -21,6 +21,23 @@ env:
   LIBGHOSTTY_ZIG_CACHE_DIR: ${{ github.workspace }}/libghostty-zig
 
 jobs:
+  probe:
+    name: Go terminal probe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: tools/probe/go.mod
+          cache-dependency-path: tools/probe/go.mod
+      - name: Build and test the standalone probe
+        working-directory: tools/probe
+        run: |
+          test -z "$(gofmt -l .)"
+          go test ./...
+          go build -o ../../build-probe/probe .
+      - run: python3 tests/probe-go.py build-probe/probe
+
   compilers:
     name: GCC, Clang, and stub backend
     runs-on: ubuntu-latest

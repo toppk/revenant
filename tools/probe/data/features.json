@@ -1,0 +1,738 @@
+[
+  {
+    "id": "dec-mode-2027-grapheme-clusters",
+    "title": "Grapheme cluster mode (2027)",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Emoji and Unicode widths"
+    ],
+    "specifications": [
+      "terminal-wg",
+      "unicode-uax-29"
+    ],
+    "sequence": "CSI ?2027 h / l"
+  },
+  {
+    "id": "text-vs16-width",
+    "title": "VS16 widens",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Emoji and Unicode widths"
+    ],
+    "specifications": [
+      "unicode-uts-51",
+      "unicode-standard-annex-11-east-asian-width"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "text-box-drawing",
+    "title": "Synthesized box drawing",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Glyphs"
+    ],
+    "specifications": [
+      "xterm-manual"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "text-block-drawing",
+    "title": "Procedural block-element drawing",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Glyphs"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "text-braille-drawing",
+    "title": "Procedural braille drawing",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Glyphs"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "text-powerline-drawing",
+    "title": "Procedural Powerline drawing",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Glyphs"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "csi-sgr",
+    "title": "SGR select graphic rendition",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "SGR colors and decorations"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI Pm m"
+  },
+  {
+    "id": "sgr-256-colors",
+    "title": "256 colors",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "SGR colors and decorations"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "sgr-38-2-truecolor",
+    "title": "Truecolor 38;2",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "SGR colors and decorations"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "sgr-38-2-colon-form",
+    "title": "Colon form 38:2",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "SGR colors and decorations"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "sgr-58-underline-color",
+    "title": "Underline color 58",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "SGR colors and decorations"
+    ],
+    "specifications": [
+      "kitty-underlines"
+    ],
+    "sequence": "CSI 58 m"
+  },
+  {
+    "id": "sgr-59-underline-color-reset",
+    "title": "Reset underline color",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "SGR colors and decorations"
+    ],
+    "specifications": [
+      "kitty-underlines"
+    ],
+    "sequence": "CSI 59 m"
+  },
+  {
+    "id": "sgr-4-underline-styles",
+    "title": "Underline styles 4:n",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "SGR colors and decorations"
+    ],
+    "specifications": [
+      "kitty-underlines"
+    ],
+    "sequence": "CSI 4 m"
+  },
+  {
+    "id": "sgr-7-inverse",
+    "title": "SGR 7: Inverse",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "SGR colors and decorations"
+    ],
+    "specifications": [
+      "ecma-48"
+    ],
+    "sequence": "CSI 7 m"
+  },
+  {
+    "id": "dec-mode-5-decscnm",
+    "title": "Mode ?5: DECSCNM",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "DEC modes and cursor"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI ?5 h / l"
+  },
+  {
+    "id": "dec-mode-2026-synchronized-output",
+    "title": "2026 synchronized output",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "DEC modes and cursor"
+    ],
+    "specifications": [
+      "xterm-control-sequences",
+      "terminal-wg"
+    ],
+    "sequence": "CSI ?2026 h / l"
+  },
+  {
+    "id": "csi-decscusr",
+    "title": "DECSCUSR cursor style",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "DEC modes and cursor"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI Ps SP q"
+  },
+  {
+    "id": "osc-10-default-foreground-color",
+    "title": "Default foreground color",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "OSC colors and fonts"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "OSC 10"
+  },
+  {
+    "id": "osc-11-default-background-color",
+    "title": "Default background color",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "OSC colors and fonts"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "OSC 11"
+  },
+  {
+    "id": "osc-12-cursor-color",
+    "title": "OSC 12 cursor",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "OSC colors and fonts"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "OSC 12"
+  },
+  {
+    "id": "osc-4-palette-set",
+    "title": "OSC 4 set",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "OSC colors and fonts"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "osc-4-palette-query",
+    "title": "OSC 4 query",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "OSC colors and fonts"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "osc-104-palette-reset",
+    "title": "Reset palette color(s)",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "OSC colors and fonts"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "OSC 104"
+  },
+  {
+    "id": "csi-996-n-color-scheme-query",
+    "title": "Query light or dark color scheme",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "OSC colors and fonts"
+    ],
+    "specifications": [
+      "contour-color-scheme"
+    ],
+    "sequence": "CSI ? 996 n"
+  },
+  {
+    "id": "osc-50-font-query",
+    "title": "Query the terminal font",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "OSC colors and fonts"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "OSC 50 ; ? ST"
+  },
+  {
+    "id": "osc-50-font-set",
+    "title": "Set the terminal font",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "OSC colors and fonts"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "OSC 50 ; font ST"
+  },
+  {
+    "id": "apc-kitty-static-images",
+    "title": "Kitty static inline images",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Kitty graphics"
+    ],
+    "specifications": [
+      "kitty-graphics"
+    ],
+    "sequence": "APC G a=T,t=d,... ; data ST"
+  },
+  {
+    "id": "osc-52-read",
+    "title": "OSC 52 read",
+    "breadcrumb": [
+      "Window and desktop",
+      "OSC 52 clipboard"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "osc-52-write",
+    "title": "OSC 52 write",
+    "breadcrumb": [
+      "Window and desktop",
+      "OSC 52 clipboard"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "csi-20-t-report-icon-label",
+    "title": "Report icon label",
+    "breadcrumb": [
+      "Window and desktop",
+      "CSI title operations"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI 20 t"
+  },
+  {
+    "id": "csi-21-t-title-report",
+    "title": "21 title report",
+    "breadcrumb": [
+      "Window and desktop",
+      "CSI title operations"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI 21 t"
+  },
+  {
+    "id": "csi-22-t-push-title",
+    "title": "Push icon and title / icon / title",
+    "breadcrumb": [
+      "Window and desktop",
+      "CSI title operations"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI 22 t"
+  },
+  {
+    "id": "csi-23-t-pop",
+    "title": "Pop",
+    "breadcrumb": [
+      "Window and desktop",
+      "CSI title operations"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI 23 t"
+  },
+  {
+    "id": "osc-8-hyperlinks",
+    "title": "OSC 8 hyperlinks",
+    "breadcrumb": [
+      "Window and desktop",
+      "Hyperlinks"
+    ],
+    "specifications": [
+      "osc-8-hyperlinks-spec"
+    ],
+    "sequence": "OSC 8"
+  },
+  {
+    "id": "hyperlinks-hover-refresh",
+    "title": "Refresh hyperlink hover after output",
+    "breadcrumb": [
+      "Window and desktop",
+      "Hyperlinks"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "osc-9-notification",
+    "title": "OSC 9 notify",
+    "breadcrumb": [
+      "Window and desktop",
+      "Notifications and progress"
+    ],
+    "specifications": [
+      "iterm2-escape-codes"
+    ],
+    "sequence": "OSC 9"
+  },
+  {
+    "id": "osc-777-notification",
+    "title": "OSC 777 notify",
+    "breadcrumb": [
+      "Window and desktop",
+      "Notifications and progress"
+    ],
+    "specifications": [
+      "urxvt-perl"
+    ],
+    "sequence": "OSC 777"
+  },
+  {
+    "id": "notification-x11-urgency",
+    "title": "Notification urgency on X11",
+    "breadcrumb": [
+      "Window and desktop",
+      "Notifications and progress"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "osc-9-4-progress",
+    "title": "OSC 9;4 progress",
+    "breadcrumb": [
+      "Window and desktop",
+      "Notifications and progress"
+    ],
+    "specifications": [
+      "conemu-ansi"
+    ],
+    "sequence": "OSC 9 ; 4"
+  },
+  {
+    "id": "ui-progress-indicator",
+    "title": "Progress indicator",
+    "breadcrumb": [
+      "Window and desktop",
+      "Notifications and progress"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "dec-mode-1000-mouse",
+    "title": "1000 mouse",
+    "breadcrumb": [
+      "Input",
+      "Mouse and pointer"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI ?1000 h / l"
+  },
+  {
+    "id": "dec-mode-1006-sgr-mouse",
+    "title": "1006 sgr mouse",
+    "breadcrumb": [
+      "Input",
+      "Mouse and pointer"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI ?1006 h / l"
+  },
+  {
+    "id": "dec-mode-1004-focus",
+    "title": "1004 focus",
+    "breadcrumb": [
+      "Input",
+      "Mouse and pointer"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI ?1004 h / l"
+  },
+  {
+    "id": "osc-22-pointer-shape",
+    "title": "OSC 22 pointer",
+    "breadcrumb": [
+      "Input",
+      "Mouse and pointer"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "OSC 22"
+  },
+  {
+    "id": "csi-modify-other-keys",
+    "title": "modifyOtherKeys",
+    "breadcrumb": [
+      "Input",
+      "Keyboard protocols"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "csi-u-kitty-keyboard",
+    "title": "Kitty keyboard protocol",
+    "breadcrumb": [
+      "Input",
+      "Keyboard protocols"
+    ],
+    "specifications": [
+      "comprehensive-keyboard-handling-in-terminals"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "selection-copy-feedback",
+    "title": "Copy-highlight feedback",
+    "breadcrumb": [
+      "Input",
+      "Selection and search"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "search-scrollback-literal",
+    "title": "Literal scrollback search",
+    "breadcrumb": [
+      "Input",
+      "Selection and search"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "ui-search-overlay",
+    "title": "Interactive search overlay",
+    "breadcrumb": [
+      "Input",
+      "Selection and search"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "search-copy-match",
+    "title": "Copy a search match",
+    "breadcrumb": [
+      "Input",
+      "Selection and search"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "osc-7-working-directory",
+    "title": "OSC 7",
+    "breadcrumb": [
+      "Shell integration",
+      "Directory and prompt markers"
+    ],
+    "specifications": [
+      "terminal-wg",
+      "iterm2-escape-codes"
+    ],
+    "sequence": "OSC 7"
+  },
+  {
+    "id": "osc-133-prompt-marks",
+    "title": "OSC 133 A–D",
+    "breadcrumb": [
+      "Shell integration",
+      "Directory and prompt markers"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "OSC 133"
+  },
+  {
+    "id": "ui-prompt-navigation",
+    "title": "Previous and next prompt navigation",
+    "breadcrumb": [
+      "Shell integration",
+      "Directory and prompt markers"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "ui-pipe-command-output",
+    "title": "Pipe the last command output",
+    "breadcrumb": [
+      "Shell integration",
+      "Directory and prompt markers"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "csi-da1",
+    "title": "DA1 primary device attributes",
+    "breadcrumb": [
+      "Identity and capabilities",
+      "Device reports"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI Ps c"
+  },
+  {
+    "id": "csi-da2",
+    "title": "DA2 secondary device attributes",
+    "breadcrumb": [
+      "Identity and capabilities",
+      "Device reports"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI > Ps c"
+  },
+  {
+    "id": "csi-da3",
+    "title": "DA3 tertiary device attributes",
+    "breadcrumb": [
+      "Identity and capabilities",
+      "Device reports"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI = Ps c"
+  },
+  {
+    "id": "csi-xtversion",
+    "title": "XTVERSION request",
+    "breadcrumb": [
+      "Identity and capabilities",
+      "Device reports"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI > Ps q"
+  },
+  {
+    "id": "c0-enq-answerback",
+    "title": "ENQ",
+    "breadcrumb": [
+      "Identity and capabilities",
+      "Device reports"
+    ],
+    "specifications": [
+      "ecma-48"
+    ],
+    "sequence": "0x05"
+  },
+  {
+    "id": "dcs-xtgettcap",
+    "title": "XTGETTCAP",
+    "breadcrumb": [
+      "Identity and capabilities",
+      "XTGETTCAP"
+    ],
+    "specifications": [
+      "xterm-control-sequences-dcs-xtgettcap"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "diagnostics-unknown-apc",
+    "title": "Unknown APC diagnostics",
+    "breadcrumb": [
+      "Diagnostics",
+      "Unknown controls"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  }
+]

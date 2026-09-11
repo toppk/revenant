@@ -1,0 +1,461 @@
+[
+  {
+    "title": "1. Single-code-point emoji",
+    "samples": [
+      {
+        "label": "Grinning face U+1F600",
+        "text": "😀",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          2
+        ],
+        "note": ""
+      },
+      {
+        "label": "Rocket U+1F680",
+        "text": "🚀",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          2
+        ],
+        "note": ""
+      },
+      {
+        "label": "Pizza U+1F355",
+        "text": "🍕",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          2
+        ],
+        "note": ""
+      },
+      {
+        "label": "Snowman U+2603 (text-default)",
+        "text": "☃",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": "1 cell in BOTH regimes: no VS16, text presentation."
+      }
+    ],
+    "id": "single"
+  },
+  {
+    "title": "2. Variation selectors",
+    "samples": [
+      {
+        "label": "Heart U+2764 bare",
+        "text": "❤",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": ""
+      },
+      {
+        "label": "Heart + VS15",
+        "text": "❤︎",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": "Forced text presentation remains narrow in both regimes."
+      },
+      {
+        "label": "Heart + VS16",
+        "text": "❤️",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "THE regime discriminator: legacy 1+0=1, cluster 2. A terminal showing 2 with 2027 off widened unilaterally."
+      },
+      {
+        "label": "Warning U+26A0 bare",
+        "text": "⚠",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": ""
+      },
+      {
+        "label": "Warning + VS16",
+        "text": "⚠️",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          2
+        ],
+        "note": ""
+      },
+      {
+        "label": "Emoji-default grinning face + VS15",
+        "text": "😀︎",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "Verified libghostty behavior: VS15 changes presentation but does not narrow this emoji-default base in mode 2027."
+      },
+      {
+        "label": "Keycap 1+VS16+U+20E3",
+        "text": "1️⃣",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "legacy: 1+0+0 (20E3 is combining)."
+      },
+      {
+        "label": "Keycap 1+U+20E3 (no VS16)",
+        "text": "1⃣",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": "Exercises optional-VS keycap syntax; rendering remains visual-only."
+      },
+      {
+        "label": "Keycap #+U+20E3",
+        "text": "#⃣",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": ""
+      },
+      {
+        "label": "Keycap *+U+20E3",
+        "text": "*⃣",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": ""
+      }
+    ],
+    "id": "variation-selectors"
+  },
+  {
+    "title": "3. Skin-tone modifiers",
+    "samples": [
+      {
+        "label": "Waving hand",
+        "text": "👋",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          2
+        ],
+        "note": ""
+      },
+      {
+        "label": "Wave + medium tone",
+        "text": "👋🏽",
+        "legacy": [
+          4
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "legacy: 2+2 (modifiers are EAW Wide). Two glyphs at width 4 is CORRECT rendering with 2027 off."
+      },
+      {
+        "label": "Thumbs up + dark tone",
+        "text": "👍🏿",
+        "legacy": [
+          4
+        ],
+        "cluster": [
+          2
+        ],
+        "note": ""
+      }
+    ],
+    "id": "skin-tones"
+  },
+  {
+    "title": "4. ZWJ sequences",
+    "samples": [
+      {
+        "label": "Family M+W+G",
+        "text": "👨‍👩‍👧",
+        "legacy": [
+          6
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "legacy: 2+0+2+0+2."
+      },
+      {
+        "label": "Family W+W+B+B",
+        "text": "👩‍👩‍👦‍👦",
+        "legacy": [
+          8
+        ],
+        "cluster": [
+          2
+        ],
+        "note": ""
+      },
+      {
+        "label": "Woman technologist",
+        "text": "👩‍💻",
+        "legacy": [
+          4
+        ],
+        "cluster": [
+          2
+        ],
+        "note": ""
+      },
+      {
+        "label": "Firefighter + tone",
+        "text": "🧑🏾‍🚒",
+        "legacy": [
+          6
+        ],
+        "cluster": [
+          2
+        ],
+        "note": ""
+      },
+      {
+        "label": "Rainbow flag",
+        "text": "🏳️‍🌈",
+        "legacy": [
+          3
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "legacy: 1F3F3 is EAW Neutral (1) + VS(0) + ZWJ(0) + rainbow(2) = 3. Odd widths are legacy's honest arithmetic."
+      },
+      {
+        "label": "Pirate flag",
+        "text": "🏴‍☠️",
+        "legacy": [
+          3
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "legacy: 2+0+1+0."
+      },
+      {
+        "label": "Polar bear",
+        "text": "🐻‍❄️",
+        "legacy": [
+          3
+        ],
+        "cluster": [
+          2
+        ],
+        "note": ""
+      },
+      {
+        "label": "Heart on fire",
+        "text": "❤️‍🔥",
+        "legacy": [
+          3
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "legacy: 1+0+0+2."
+      }
+    ],
+    "id": "zwj"
+  },
+  {
+    "title": "5. Flags",
+    "samples": [
+      {
+        "label": "US (RI pair)",
+        "text": "🇺🇸",
+        "legacy": [
+          2,
+          4
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "UNDERSPECIFIED in legacy: wcwidth tables disagree on RI (1 or 2 each). Both 2 and 4 accepted; neither judged."
+      },
+      {
+        "label": "Japan",
+        "text": "🇯🇵",
+        "legacy": [
+          2,
+          4
+        ],
+        "cluster": [
+          2
+        ],
+        "note": ""
+      },
+      {
+        "label": "Scotland (tag sequence)",
+        "text": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "legacy: 2 + six tag chars at 0. Same width in both regimes; only the RENDERING differs (and rendering is not graded)."
+      }
+    ],
+    "id": "flags"
+  },
+  {
+    "title": "6. Runs and boundaries (concatenated clusters)",
+    "samples": [
+      {
+        "label": "Bracketed run: [tech+family+flag]",
+        "text": "[👩‍💻👨‍👩‍👧🏳️‍🌈]",
+        "legacy": [
+          15
+        ],
+        "cluster": [
+          8
+        ],
+        "note": "brackets are INSIDE the sample: ASCII hard against both cluster edges. legacy 1+4+6+3+1. Per-sample passes do not imply run passes; edge segmentation and error accumulation only show up here."
+      },
+      {
+        "label": "Adjacent flags (RI pairing parity)",
+        "text": "🇺🇸🇯🇵🇧🇷",
+        "legacy": [
+          6,
+          12
+        ],
+        "cluster": [
+          6
+        ],
+        "note": "six RIs = three flags (US JP BR). A mis-pairer shows the same width with the WRONG flags: verify by eye too."
+      },
+      {
+        "label": "Odd RI count (five indicators)",
+        "text": "🇺🇸🇯🇵🇧",
+        "legacy": [
+          5,
+          10
+        ],
+        "cluster": [
+          6
+        ],
+        "note": "cluster: US + JP + lone B = 2+2+2. The trailing lone indicator is the parity edge case. Width 2 for the lone RI is libghostty's choice; another terminal may disagree."
+      },
+      {
+        "label": "ZWJ only WITHIN clusters, none between",
+        "text": "👨‍👩‍👧👩‍💻",
+        "legacy": [
+          10
+        ],
+        "cluster": [
+          4
+        ],
+        "note": "family then technologist, no joiner between: must stay two clusters. legacy 6+4."
+      },
+      {
+        "label": "Dangling ZWJ before plain text",
+        "text": "👨‍x",
+        "legacy": [
+          3
+        ],
+        "cluster": [
+          3
+        ],
+        "note": "UAX #29 breaks after ZWJ when the next char is not pictographic: both regimes agree on 3. Any other answer is a segmentation bug."
+      },
+      {
+        "label": "CJK-edged run: 日+technologist+日",
+        "text": "日👩‍💻日",
+        "legacy": [
+          8
+        ],
+        "cluster": [
+          6
+        ],
+        "note": "Wide neighbors expose cluster-boundary off-by-ones: legacy 2+4+2, cluster 2+2+2."
+      },
+      {
+        "label": "Right-margin wrap: grinning face",
+        "text": "😀",
+        "note": "The two-cell glyph must wrap as one unit, never split across rows.",
+        "right_margin": true
+      }
+    ],
+    "id": "boundaries"
+  },
+  {
+    "title": "7. Capacity and pathological clusters",
+    "samples": [
+      {
+        "label": "Four-person family, four tones (41 UTF-8 bytes)",
+        "text": "👨🏽‍👩🏾‍👧🏿‍👦🏻",
+        "legacy": [
+          16
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "Control below the renderer's 64-byte cell buffer: legacy four people + four wide modifiers, cluster one family."
+      },
+      {
+        "label": "Heart + 25 VS16 selectors (78 UTF-8 bytes)",
+        "text": "❤️️️️️️️️️️️️️️️️️️️️️️️️️",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "Exceeds XTP_VISUAL_TEXT_CAPACITY. Width and the following sample must remain sound; placeholder artwork is not graded."
+      },
+      {
+        "label": "Post-overflow sentinel",
+        "text": "X",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": "Must still align after the over-capacity grapheme."
+      }
+    ],
+    "id": "capacity"
+  }
+]
