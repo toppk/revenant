@@ -3339,6 +3339,179 @@ done:
         return result;
 }
 
+typedef struct
+{
+        unsigned int calls;
+        size_t last_length;
+        bool last_truncated;
+        uint8_t last[XTP_UNKNOWN_APC_CAPTURE_LIMIT + 8U];
+        SelfTestPtyCapture pty;
+} SelfTestUnknownApcHarness;
+
+static void
+SelfTestUnknownApcPty(const uint8_t *bytes, size_t length, void *closure)
+{
+        SelfTestUnknownApcHarness *harness = closure;
+
+        SelfTestCapturePty(bytes, length, &harness->pty);
+}
+
+static void
+SelfTestUnknownApcEffect(const uint8_t *bytes, size_t length, bool truncated, void *closure)
+{
+        SelfTestUnknownApcHarness *harness = closure;
+
+        ++harness->calls;
+        harness->last_length = length;
+        harness->last_truncated = truncated;
+        memset(harness->last, 0, sizeof(harness->last));
+        if (length < sizeof(harness->last))
+                memcpy(harness->last, bytes, length);
+}
+
+static bool
+SelfTestUnknownApcIs(const SelfTestUnknownApcHarness *harness, unsigned int calls,
+                     const char *payload, bool truncated)
+{
+        return harness->calls == calls && harness->last_length == strlen(payload) &&
+               memcmp(harness->last, payload, strlen(payload)) == 0 &&
+               harness->last_truncated == truncated;
+}
+
+static int
+SelfTestUnknownApc(void)
+{
+        XtpTerminal *terminal;
+        SelfTestUnknownApcHarness harness = {0};
+        SelfTestRowCapture rows;
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestUnknownApcPty,
+            .unknown_apc = SelfTestUnknownApcEffect,
+            .closure = &harness,
+        };
+        const char *stage = "setup";
+        char *big = NULL;
+        size_t index;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        stage = "a whole unknown APC is delivered once";
+        SelfTestFeedText(terminal, "\033_unknown-probe-dispatch\033\\");
+        if (!SelfTestUnknownApcIs(&harness, 1, "unknown-probe-dispatch", false))
+                goto done;
+        stage = "the 8-bit ST also terminates it";
+        SelfTestFeedText(terminal, "\033_abc;xy\xc2\x9c");
+        if (!SelfTestUnknownApcIs(&harness, 2, "abc;xy", false))
+                goto done;
+        stage = "byte-by-byte feeding delivers the same payload";
+        {
+                static const char split[] = "\033_frag;ment\033\\";
+
+                for (index = 0; split[index] != '\0'; ++index)
+                        XtpTerminalFeed(terminal, (const uint8_t *)split + index, 1);
+        }
+        if (!SelfTestUnknownApcIs(&harness, 3, "frag;ment", false))
+                goto done;
+        stage = "ESC ends the APC before the terminator's backslash arrives";
+        SelfTestFeedText(terminal, "\033_tail\033");
+        if (!SelfTestUnknownApcIs(&harness, 4, "tail", false))
+                goto done;
+        SelfTestFeedText(terminal, "\\");
+        if (harness.calls != 4 || harness.pty.used != 0)
+                goto done;
+        stage = "surrounding text and controls survive";
+        SelfTestFeedText(terminal, "\033[H\033[2Jab\033_x;1\033\\cd\033[6n");
+        if (!SelfTestUnknownApcIs(&harness, 5, "x;1", false) ||
+            SelfTestRowCaptureRender(terminal, &rows) != 0 || !SelfTestRowIs(&rows, 0, "abcd") ||
+            !SelfTestPtyEqualsText(&harness.pty, "\033[1;5R"))
+                goto done;
+        harness.pty = (SelfTestPtyCapture){0};
+        stage = "embedded non-aborting C0 bytes, including NUL, are payload";
+        {
+                static const uint8_t c0[] = "\033_a\a\r\n\x01\0z\033\\";
+
+                XtpTerminalFeed(terminal, c0, sizeof(c0) - 1U);
+        }
+        if (harness.calls != 6 || harness.last_length != 7 ||
+            memcmp(harness.last, "a\a\r\n\x01\0z", 7) != 0 || harness.last_truncated)
+                goto done;
+        stage = "ESC followed by another control ends the APC and keeps the control";
+        SelfTestFeedText(terminal, "\033_ended\033[6n");
+        if (!SelfTestUnknownApcIs(&harness, 7, "ended", false) ||
+            !SelfTestPtyEqualsText(&harness.pty, "\033[1;5R"))
+                goto done;
+        harness.pty = (SelfTestPtyCapture){0};
+        stage = "CAN aborts without a report";
+        SelfTestFeedText(terminal, "\033_dropped\030\033[6n");
+        if (harness.calls != 7 || !SelfTestPtyEqualsText(&harness.pty, "\033[1;5R"))
+                goto done;
+        harness.pty = (SelfTestPtyCapture){0};
+        stage = "SUB aborts without a report";
+        SelfTestFeedText(terminal, "\033_dropped\032\033[6n");
+        if (harness.calls != 7 || !SelfTestPtyEqualsText(&harness.pty, "\033[1;5R"))
+                goto done;
+        harness.pty = (SelfTestPtyCapture){0};
+        stage = "empty and identifier-prefix payloads are dropped by the core";
+        SelfTestFeedText(terminal, "\033_\033\\\033_25a\033\\");
+        if (harness.calls != 7)
+                goto done;
+        stage = "an oversized payload is cut at the capture limit";
+        big = malloc(XTP_UNKNOWN_APC_CAPTURE_LIMIT * 4U + 4U);
+        if (big == NULL)
+                goto done;
+        big[0] = '\033';
+        big[1] = '_';
+        for (index = 0; index < XTP_UNKNOWN_APC_CAPTURE_LIMIT * 4U; ++index)
+                big[2 + index] = (char)('a' + index % 26);
+        big[2 + index] = '\033';
+        big[3 + index] = '\\';
+        XtpTerminalFeed(terminal, (const uint8_t *)big, XTP_UNKNOWN_APC_CAPTURE_LIMIT * 4U + 4U);
+        if (harness.calls != 8 || harness.last_length != XTP_UNKNOWN_APC_CAPTURE_LIMIT ||
+            !harness.last_truncated || memcmp(harness.last, big + 2, harness.last_length) != 0)
+                goto done;
+        stage = "a limit-sized payload is complete";
+        XtpTerminalFeed(terminal, (const uint8_t *)big, XTP_UNKNOWN_APC_CAPTURE_LIMIT + 2U);
+        SelfTestFeedText(terminal, "\033\\");
+        if (harness.calls != 9 || harness.last_length != XTP_UNKNOWN_APC_CAPTURE_LIMIT ||
+            harness.last_truncated)
+                goto done;
+        stage = "Kitty graphics keeps its own path and reply";
+        SelfTestFeedText(terminal, "\033_Ga=q,i=31,f=24,s=1,v=1;AAAA\033\\");
+        if (harness.calls != 9 || !SelfTestPtyEqualsText(&harness.pty, "\033_Gi=31;OK\033\\"))
+                goto done;
+        harness.pty = (SelfTestPtyCapture){0};
+        stage = "the glyph protocol identifier is not reported";
+        SelfTestFeedText(terminal, "\033_25a1;anything\033\\");
+        if (harness.calls != 9)
+                goto done;
+        stage = "the parser is intact afterwards";
+        SelfTestFeedText(terminal, "\033_after\033\\\033[c");
+        if (!SelfTestUnknownApcIs(&harness, 10, "after", false) ||
+            !SelfTestPtyEqualsText(&harness.pty, XTP_DA1_REPLY))
+                goto done;
+        stage = "without an effect the backend stays quiet";
+        effects.unknown_apc = NULL;
+        XtpTerminalSetEffects(terminal, &effects);
+        harness.pty = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033_ignored\033\\\033[5n");
+        if (harness.calls != 10 || !SelfTestPtyEqualsText(&harness.pty, "\033[0n"))
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "unknown APC mismatch stage=%s calls=%u length=%zu pty=%zu", stage,
+                       harness.calls, harness.last_length, harness.pty.used);
+        free(big);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
 static int
 SelfTestStartupCursorShape(void)
 {
@@ -4010,6 +4183,7 @@ XtpSelfTest(void)
             {"device attributes firmware", SelfTestDeviceAttributesFirmware},
             {"device attributes", SelfTestDeviceAttributes},
             {"device attributes evidence", SelfTestDeviceAttributesEvidence},
+            {"unknown APC", SelfTestUnknownApc},
             {"working directory decode", SelfTestWorkingDirectoryDecode},
             {"working directory effect", SelfTestWorkingDirectoryEffectDelivery},
             {"color-ops policy", SelfTestColorOpsPolicy},

@@ -529,6 +529,21 @@ function-pointer helper would lose the useful type check.
   reads the exact reply bytes through the real PTY for one write and for
   fragmented writes, with the expected DA2 number computed independently
   from Meson's version string.
+- Unknown APC diagnostics: the adapter sets libghostty's unknown-sequence
+  callback with `XTP_UNKNOWN_APC_CAPTURE_LIMIT` (256) retained bytes and
+  forwards APC-tagged reports through the backend-neutral `unknown_apc`
+  effect; the application logs each one with `XtpLogBytePreview` under the
+  `terminal` subsystem at info level as `unknown APC ignored
+  truncated=<yes|no> bytes=<n> preview="..."`. No reply is written and no
+  Ops family applies. The `unknown APC` self-test pins whole, 8-bit-ST,
+  byte-by-byte, and ESC-split delivery, surrounding text and a CPR reply,
+  embedded C0 bytes including NUL, ESC-terminated and CAN/SUB-aborted forms, empty and
+  identifier-prefix drops, truncation at and beyond the limit, the Kitty
+  graphics reply and glyph-protocol silence, parser health afterwards, and
+  silence without an effect. `xvfb-unknown-apc` sends whole, fragmented,
+  C0-laden, and oversized APCs around a Kitty query and DSR through the
+  real PTY, requires exactly those two replies, and diffs the logged event
+  lines. The callback is APC-only; OSC/CSI visibility stays an upstream ask.
 - Answerback: `answerbackString` is copied into the backend and, on
   libghostty's ENQ effect, written straight through the host PTY effect with
   an empty result returned to the core, so the reply filters (mode-12
@@ -1443,7 +1458,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 46 tests for each libghostty build
+The normal full matrix currently contains 47 tests for each libghostty build
 and 8 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

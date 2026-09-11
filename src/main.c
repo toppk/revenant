@@ -592,6 +592,17 @@ TerminalWorkingDirectoryDropped(size_t length, void *closure)
                length);
 }
 
+/* Diagnostics only: the core already discarded the APC, and nothing is answered. */
+static void
+TerminalUnknownApc(const uint8_t *bytes, size_t length, bool truncated, void *closure)
+{
+        (void)closure;
+        XtpLogBytePreview(XTP_LOG_INFO, "terminal",
+                          truncated ? "unknown APC ignored truncated=yes"
+                                    : "unknown APC ignored truncated=no",
+                          bytes, length);
+}
+
 static void
 TerminalCursorBlinkReset(void *closure)
 {
@@ -782,6 +793,7 @@ ApplyTerminalEffects(App *app)
             .title_op = TerminalTitleOp,
             .working_directory_changed = TerminalWorkingDirectory,
             .working_directory_dropped = TerminalWorkingDirectoryDropped,
+            .unknown_apc = TerminalUnknownApc,
             .closure = app,
         };
 

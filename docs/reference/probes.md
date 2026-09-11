@@ -228,7 +228,7 @@ implemented; use `Co` for the existing Tcap permission check.
 | `cursor` | Inspect startup cursor before a DECSCUSR request; `--styles` also cycles application styles. |
 | `pointer` | Move over the grid to compare requested OSC 22 pointer shapes. |
 | `identity` | Show DA1, DA2 and XTVERSION reply bytes. |
-| `unknown` | Send an unsupported APC for future diagnostic logging; no reply is expected. |
+| `unknown` | Send an unsupported APC; Revenant logs it as `unknown APC ignored` under `-debug` and never replies. |
 | `cwd --cwd /tmp` | Report an OSC 7 directory for a future consumer/debug check. |
 | `prompts` | Emit synthetic OSC 133 prompts for future previous/next actions. |
 | `pipe` | Emit three synthetic command outputs; a future pipe action should capture only COMMAND-3-BEGIN through COMMAND-3-END. |

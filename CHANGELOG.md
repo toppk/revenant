@@ -10,6 +10,12 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Log unsupported Application Program Commands. Every completed APC that
+  libghostty does not implement (anything other than Kitty graphics and the
+  glyph protocol) is recorded under `-debug` as `unknown APC ignored` with
+  up to 256 payload bytes and a truncation flag; nothing is answered and
+  surrounding output is unaffected. Unsupported OSC and CSI controls are
+  still not visible, which remains an upstream libghostty limitation.
 - Answer device-attribute queries with an audited identity instead of
   libghostty's default. DA1 reports `CSI ? 62 ; 6 ; 21 ; 22 c` (VT220 level
   with selective erase, left/right margins, and ANSI color, each backed by a

@@ -378,6 +378,34 @@ Two small parser-level differences come with the core. libghostty answers
 answers DA3 at every level, where xterm requires VT420 or higher. Both are
 pinned in the self-test so a core change reopens this entry.
 
+### Unknown APC diagnostics
+
+xterm 411 consumes an Application Program Command silently: `CASE_APC`
+begins a string that the string-mode dispatch treats as `/* ignored */`.
+libghostty likewise implements only the Kitty graphics (`G`) and glyph
+(`25a1;`) APC protocols and discards the rest. Revenant registers the core's
+unknown-sequence callback so each other completed APC is written to the
+diagnostic log as `unknown APC ignored truncated=<yes|no> bytes=<n>
+preview="..."` at info level (visible with `-debug` or `-log info`). The
+backend retains at most 256 payload bytes per APC; longer payloads are
+reported with `truncated=yes` and the byte count of the retained prefix,
+so the log cannot grow with the application's output. Nothing is answered
+on the PTY, no permission setting applies, and the core's parser state and
+surrounding text or controls are unaffected. Recognized APCs keep their own
+paths and are never reported as unknown.
+
+Behavior that follows from the core, pinned by the `unknown APC` self-test:
+an APC ends at the ESC of its `ESC \` terminator (or at the 8-bit ST), so an
+ESC followed by any other byte still reports the payload and then processes
+that escape normally; CAN and SUB abort the APC without a report; an empty
+payload, or one that is only a prefix of the glyph identifier (`2`, `25`,
+`25a`), is discarded without a report; other, non-aborting C0 bytes inside
+the payload, NUL included, are data.
+
+This callback is APC-only. Unsupported OSC and CSI controls remain invisible
+to Revenant, which is an upstream API limitation rather than a place for a
+second escape parser; OSC 22 and OSC 50 stay on that upstream ask.
+
 ### Compositor-backed background opacity
 
 Revenant adds a `backgroundOpacity` resource, expressed as a number from `0.0`

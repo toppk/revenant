@@ -845,6 +845,17 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-unknown-apc',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-unknown-apc.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+        ],
+        timeout: 60,
+        is_parallel: false,
+    )
+    test(
         'xvfb-device-attributes',
         find_program('sh'),
         args: [

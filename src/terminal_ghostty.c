@@ -400,6 +400,33 @@ DeviceAttributesEffectPointer(void)
         return pointer;
 }
 
+static void
+UnknownSequenceEffect(GhosttyTerminal handle, void *userdata,
+                      const GhosttyTerminalUnknownSequence *sequence)
+{
+        XtpTerminal *terminal = userdata;
+
+        (void)handle;
+        if (terminal == NULL || sequence == NULL || terminal->effects.unknown_apc == NULL ||
+            sequence->tag != GHOSTTY_TERMINAL_UNKNOWN_SEQUENCE_APC)
+                return;
+        terminal->effects.unknown_apc(sequence->value.apc.content.ptr,
+                                      sequence->value.apc.content.len,
+                                      sequence->value.apc.truncated, terminal->effects.closure);
+}
+
+static const void *
+UnknownSequenceEffectPointer(void)
+{
+        GhosttyTerminalUnknownSequenceFn function = UnknownSequenceEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
 static const void *
 EnquiryEffectPointer(void)
 {
@@ -1180,6 +1207,7 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
 {
         XtpTerminal *terminal = calloc(1, sizeof(*terminal));
         GhosttyTerminalModeConfig grapheme_mode = {GHOSTTY_MODE_GRAPHEME_CLUSTER, unicode_width};
+        size_t unknown_apc_limit = XTP_UNKNOWN_APC_CAPTURE_LIMIT;
 
         if (terminal == NULL)
                 return NULL;
@@ -1244,7 +1272,11 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_DEVICE_ATTRIBUTES,
                                  DeviceAttributesEffectPointer()) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_PWD_CHANGED,
-                                 WorkingDirectoryEffectPointer()) != GHOSTTY_SUCCESS) {
+                                 WorkingDirectoryEffectPointer()) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_UNKNOWN_MAX_BYTES,
+                                 &unknown_apc_limit) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_UNKNOWN_SEQUENCE,
+                                 UnknownSequenceEffectPointer()) != GHOSTTY_SUCCESS) {
                 FreeHandles(terminal);
                 free(terminal);
                 return NULL;

@@ -12,6 +12,9 @@
 
 typedef struct XtpTerminal XtpTerminal;
 
+/* Payload bytes retained per unsupported APC before the backend marks it truncated. */
+#define XTP_UNKNOWN_APC_CAPTURE_LIMIT 256U
+
 typedef enum
 {
         XTP_COLOR_DEFAULT,
@@ -348,6 +351,8 @@ typedef struct
          * because the payload exceeded its capture buffer; the earlier directory
          * is no longer trustworthy. `length` counts the payload bytes seen. */
         void (*working_directory_dropped)(size_t length, void *closure);
+        /* A completed APC the core does not implement, borrowed; truncated marks a capture cut. */
+        void (*unknown_apc)(const uint8_t *bytes, size_t length, bool truncated, void *closure);
         void *closure;
 } XtpTerminalEffects;
 
