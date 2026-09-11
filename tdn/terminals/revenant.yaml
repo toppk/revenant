@@ -41,6 +41,52 @@ features:
     evidence:
     - kind: test
       url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-answerback.sh
+  csi-da1:
+    status: supported
+    as-of: git:fd6dee5cbec31ee19ed4be6514e63fc08088b123
+    notes: 'Replies CSI ? 62 ; 6 ; 21 ; 22 c: VT220 level with selective erase, left/right margins and ANSI color,
+      each pinned by rendered-cell backend tests. 132 columns, Sixel, ReGIS, locator, rectangular editing and
+      Ghostty''s clipboard code are deliberately absent. Nonzero parameters are answered (xterm ignores them).'
+    review: reviewed
+    checked: '2026-09-11'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/fd6dee5cbec31ee19ed4be6514e63fc08088b123/tests/xvfb-device-attributes.sh
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/fd6dee5cbec31ee19ed4be6514e63fc08088b123/src/selftest.c
+    - kind: source
+      url: https://github.com/toppk/revenant/blob/fd6dee5cbec31ee19ed4be6514e63fc08088b123/src/device_attributes.h
+  csi-da2:
+    status: supported
+    as-of: git:fd6dee5cbec31ee19ed4be6514e63fc08088b123
+    notes: 'Replies CSI > 1 ; Pv ; 0 c with Pv = major * 10000 + minor * 100 + patch of the Revenant version. The
+      type is VT220 to match DA1; XTVERSION is the identification path.'
+    review: reviewed
+    checked: '2026-09-11'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/fd6dee5cbec31ee19ed4be6514e63fc08088b123/tests/xvfb-device-attributes.sh
+    - kind: source
+      url: https://github.com/toppk/revenant/blob/fd6dee5cbec31ee19ed4be6514e63fc08088b123/src/device_attributes.c
+  csi-da3:
+    status: supported
+    as-of: git:fd6dee5cbec31ee19ed4be6514e63fc08088b123
+    notes: Replies DCS ! | 00000000 ST at every level; there is no unit ID. xterm answers only at VT420 or higher.
+    review: reviewed
+    checked: '2026-09-11'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/fd6dee5cbec31ee19ed4be6514e63fc08088b123/tests/xvfb-device-attributes.sh
+  csi-xtversion:
+    status: supported
+    as-of: git:fd6dee5cbec31ee19ed4be6514e63fc08088b123
+    notes: Replies DCS > | revenant(<version>) ST following xterm's XTerm(411) display form with the actual product
+      and version.
+    review: reviewed
+    checked: '2026-09-11'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/fd6dee5cbec31ee19ed4be6514e63fc08088b123/tests/xvfb-device-attributes.sh
   csi-decscusr:
     status: partial
     as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
