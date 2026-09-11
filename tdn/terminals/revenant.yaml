@@ -87,6 +87,20 @@ features:
     evidence:
     - kind: test
       url: https://github.com/toppk/revenant/blob/fd6dee5cbec31ee19ed4be6514e63fc08088b123/tests/xvfb-device-attributes.sh
+  diagnostics-unknown-apc:
+    status: supported
+    as-of: git:ab0907105bf6a871ef473dfbc0e929c8ff6b4d11
+    notes: Completed APCs other than Kitty graphics and the glyph protocol are logged at info level with up to 256
+      payload bytes and a truncation flag; no reply, no permission. ESC ends an APC; CAN/SUB abort without a
+      report. Other C0 bytes, including NUL, are retained as binary data. OSC/CSI remain invisible (upstream
+      limitation).
+    review: reviewed
+    checked: '2026-09-11'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/ab0907105bf6a871ef473dfbc0e929c8ff6b4d11/tests/xvfb-unknown-apc.sh
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/ab0907105bf6a871ef473dfbc0e929c8ff6b4d11/src/selftest.c
   csi-decscusr:
     status: partial
     as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
