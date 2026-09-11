@@ -290,6 +290,33 @@ TitleEffect(GhosttyTerminal handle, void *userdata)
         }
 }
 
+static void
+WorkingDirectoryEffect(GhosttyTerminal handle, void *userdata)
+{
+        XtpTerminal *terminal = userdata;
+        GhosttyString value = {0};
+
+        ++terminal->pwd_reports_delivered;
+        if (terminal->effects.working_directory_changed != NULL &&
+            ghostty_terminal_get(handle, GHOSTTY_TERMINAL_DATA_PWD, &value) == GHOSTTY_SUCCESS) {
+                XtpLog(XTP_LOG_INFO, "terminal", "working directory effect bytes=%zu", value.len);
+                terminal->effects.working_directory_changed(value.ptr, value.len,
+                                                            terminal->effects.closure);
+        }
+}
+
+static const void *
+WorkingDirectoryEffectPointer(void)
+{
+        GhosttyTerminalPwdChangedFn function = WorkingDirectoryEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
 static bool
 SizeEffect(GhosttyTerminal handle, void *userdata, GhosttySizeReportSize *size)
 {
@@ -852,6 +879,51 @@ ColorOscEnd(size_t offset, void *closure)
         terminal->color_list_active = false;
 }
 
+static void
+FeedOscHeader(unsigned int selector, size_t offset, void *closure)
+{
+        CursorBlinkFeed *feed = closure;
+        XtpTerminal *terminal = feed->terminal;
+
+        ColorOscHeader(selector, offset, closure);
+        if (selector == 7U) {
+                /* Earlier controls in this feed must deliver their own pwd
+                 * callbacks before this report's delivery is judged. */
+                CursorBlinkBeforeChange(offset, feed);
+                terminal->pwd_report_active = true;
+                terminal->pwd_report_start = offset + 1U;
+                terminal->pwd_report_bytes = 0;
+                terminal->pwd_reports_before_report = terminal->pwd_reports_delivered;
+        }
+}
+
+/* libghostty drops an OSC whose payload overflows its fixed capture buffer
+ * without any callback. Dispatching the report here, at its terminator, shows
+ * whether the pwd callback fired so a dropped report cannot leave the
+ * application holding the previous directory. */
+static void
+FeedOscEnd(size_t offset, void *closure)
+{
+        CursorBlinkFeed *feed = closure;
+        XtpTerminal *terminal = feed->terminal;
+
+        ColorOscEnd(offset, closure);
+        if (!terminal->pwd_report_active)
+                return;
+        terminal->pwd_report_active = false;
+        if (offset > terminal->pwd_report_start)
+                terminal->pwd_report_bytes += offset - terminal->pwd_report_start;
+        CursorBlinkBeforeChange(offset + 1U, feed);
+        if (terminal->pwd_reports_delivered != terminal->pwd_reports_before_report)
+                return;
+        XtpLog(XTP_LOG_WARNING, "terminal",
+               "working directory report dropped by the core bytes=%zu limit=%u",
+               terminal->pwd_report_bytes, XTP_GHOSTTY_OSC_CAPTURE_LIMIT);
+        if (terminal->effects.working_directory_dropped != NULL)
+                terminal->effects.working_directory_dropped(terminal->pwd_report_bytes,
+                                                            terminal->effects.closure);
+}
+
 static size_t
 ReplyLength(const uint8_t *bytes, size_t length)
 {
@@ -1129,7 +1201,9 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_COLOR_SCHEME,
                                  ColorSchemeEffectPointer()) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_ENQUIRY,
-                                 EnquiryEffectPointer()) != GHOSTTY_SUCCESS) {
+                                 EnquiryEffectPointer()) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_PWD_CHANGED,
+                                 WorkingDirectoryEffectPointer()) != GHOSTTY_SUCCESS) {
                 FreeHandles(terminal);
                 free(terminal);
                 return NULL;
@@ -1160,15 +1234,20 @@ XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
                     .before_change = CursorBlinkBeforeChange,
                     .reset = CursorBlinkResetEffect,
                     .window_op = CursorBlinkWindowOp,
-                    .osc_header = ColorOscHeader,
+                    .osc_header = FeedOscHeader,
                     .osc_payload = ColorOscPayload,
                     .osc_item_end = ColorOscItemEnd,
-                    .osc_end = ColorOscEnd,
+                    .osc_end = FeedOscEnd,
                     .closure = &feed,
                 };
 
                 XtpLog(XTP_LOG_DEBUG, "terminal", "feed bytes=%zu", length);
                 XtpCursorBlinkObserverFeed(&terminal->cursor_blink, bytes, length, &effects);
+                if (terminal->pwd_report_active) {
+                        if (length > terminal->pwd_report_start)
+                                terminal->pwd_report_bytes += length - terminal->pwd_report_start;
+                        terminal->pwd_report_start = 0;
+                }
                 /* A withheld or captured item continues in the next feed. */
                 if (terminal->color_list_capturing) {
                         CaptureIndexText(terminal, bytes, length);

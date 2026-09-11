@@ -10,6 +10,12 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Track the shell's working directory from OSC 7 reports. The `file://` URI
+  is percent-decoded and kept only when it names an existing local directory
+  on this host; reports for other hosts, other URI schemes, malformed escapes,
+  or missing directories clear the retained path instead, as do reports
+  longer than libghostty's 2048-byte OSC limit. Nothing acts on the path
+  yet, and the terminal's own working directory never changes.
 - Add the `termName` resource and `-tn` option. The configured name (default
   `xterm-256color`) becomes the child's `TERM` and the answer to an XTGETTCAP
   `TN` query, so the two can no longer disagree; the reply still obeys Tcap

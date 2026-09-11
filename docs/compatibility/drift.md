@@ -318,6 +318,24 @@ stays set across a host resize and the pending update is still painted when
 the application releases the batch. Hyperlink hover feedback requested during
 a hold is deferred and applied by a full repaint at release.
 
+### OSC 7 working-directory reports
+
+Stock xterm ignores OSC 7. Revenant accepts the `file://` URI that shells
+emit on each prompt, percent-decodes it, and retains the path when the URI
+names this host (an empty host, `localhost`, or the local hostname) and the
+directory exists here. Reports for other hosts, other schemes, malformed
+escapes, or directories that do not exist locally clear the retained path
+rather than leaving an earlier one in place, and an empty OSC 7 clears it as
+the shell intends. The URI's authority must be a plain host name; a user
+name, port, or other delimiter in it is rejected. libghostty discards any
+OSC 7 longer than 2048 bytes without reporting it; Revenant detects the
+missing report and clears the retained path, so a very long directory name
+is unknown rather than stale. The path is recorded for later features such as opening a
+new window in the same directory; nothing acts on it yet, no permission
+setting gates it, and the terminal process's own working directory never
+follows the shell. The `-debug` log shows each decision as a `working
+directory` event.
+
 ### Compositor-backed background opacity
 
 Revenant adds a `backgroundOpacity` resource, expressed as a number from `0.0`

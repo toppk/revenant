@@ -134,6 +134,7 @@ widget_sources = files(
     'src/unicode_script.c',
     'src/url_match.c',
     'src/window_ops.c',
+    'src/working_directory.c',
     'src/ops_list.c',
     'src/color_ops.c',
     'src/request_ops.c',
@@ -825,6 +826,17 @@ if build_with_ghostty and xvfb.found()
         find_program('sh'),
         args: [
             files('tests/xvfb-term-name.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+        ],
+        timeout: 60,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-working-directory',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-working-directory.sh'),
             xvfb.full_path(),
             xterm_plus.full_path(),
         ],

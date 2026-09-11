@@ -13,6 +13,7 @@
 #include "terminal.h"
 #include "unicode_script.h"
 #include "title_stack.h"
+#include "working_directory.h"
 #include "url_match.h"
 #include "window_ops.h"
 #include "version.h"
@@ -2718,6 +2719,236 @@ done:
 }
 
 static int
+SelfTestWorkingDirectoryDecode(void)
+{
+        static const struct
+        {
+                const char *report;
+                const char *hostname;
+                XtpWorkingDirectoryStatus status;
+                const char *path;
+        } cases[] = {
+            {"", "xtp-host.example.org", XTP_WORKING_DIRECTORY_CLEARED, NULL},
+            {"file:///tmp", "xtp-host.example.org", XTP_WORKING_DIRECTORY_SET, "/tmp"},
+            {"file:///tmp", NULL, XTP_WORKING_DIRECTORY_SET, "/tmp"},
+            {"file://localhost/tmp/a%20b", "xtp-host.example.org", XTP_WORKING_DIRECTORY_SET,
+             "/tmp/a b"},
+            {"FILE://LOCALHOST/x", "xtp-host.example.org", XTP_WORKING_DIRECTORY_SET, "/x"},
+            {"file://xtp-host.example.org/home/u/%C3%A9t%C3%A9", "xtp-host.example.org",
+             XTP_WORKING_DIRECTORY_SET, "/home/u/\xc3\xa9t\xc3\xa9"},
+            {"file://XTP-HOST/x", "xtp-host.example.org", XTP_WORKING_DIRECTORY_SET, "/x"},
+            {"file://xtp-host.example.org/x", "xtp-host", XTP_WORKING_DIRECTORY_SET, "/x"},
+            {"file:///tmp/x?query#fragment", "xtp-host", XTP_WORKING_DIRECTORY_SET, "/tmp/x"},
+            {"/bare/path with space/\xc3\xa9", "xtp-host", XTP_WORKING_DIRECTORY_SET,
+             "/bare/path with space/\xc3\xa9"},
+            {"file://other.example.org/x", "xtp-host.example.org", XTP_WORKING_DIRECTORY_REMOTE,
+             NULL},
+            {"file://xtp-host/x", NULL, XTP_WORKING_DIRECTORY_REMOTE, NULL},
+            {"file://xtp-hostile/x", "xtp-host", XTP_WORKING_DIRECTORY_REMOTE, NULL},
+            {"file://xtp-host.example@elsewhere.invalid/tmp", "xtp-host",
+             XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file://user@localhost/tmp", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file://xtp-host:22/tmp", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file://xtp-host?x/tmp", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file://xtp-host#/tmp", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file://xtp-host\n/tmp", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file://xtp%2Dhost/tmp", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file://[::1]/tmp", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file://localhost /tmp", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file://xtp-host.example.org", "xtp-host.example.org", XTP_WORKING_DIRECTORY_INVALID,
+             NULL},
+            {"file:///tmp/%2", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file:///tmp/%zz", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file:///tmp/a%00b", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file:///tmp/a%0Ab", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file:///tmp/a\x01b", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"/bare/\x7f", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file:/tmp", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"file://", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"ssh://xtp-host/tmp", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"relative/path", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+            {"C:\\Users", "xtp-host", XTP_WORKING_DIRECTORY_INVALID, NULL},
+        };
+        size_t index;
+
+        for (index = 0; index < XtNumber(cases); ++index) {
+                char *path = "untouched";
+                XtpWorkingDirectoryStatus status = XtpWorkingDirectoryDecode(
+                    (const uint8_t *)cases[index].report, strlen(cases[index].report),
+                    cases[index].hostname, &path);
+                bool ok = status == cases[index].status &&
+                          (cases[index].path == NULL
+                               ? path == NULL
+                               : path != NULL && strcmp(path, cases[index].path) == 0);
+
+                if (!ok) {
+                        XtpLog(XTP_LOG_ERROR, "self-test",
+                               "working directory decode mismatch report=%s status=%d path=%s",
+                               cases[index].report, (int)status, path != NULL ? path : "(null)");
+                        free(path);
+                        return -1;
+                }
+                free(path);
+        }
+        return 0;
+}
+
+typedef struct
+{
+        unsigned int calls;
+        char last[64];
+        size_t last_length;
+        unsigned int dropped_calls;
+        size_t dropped_length;
+} SelfTestWorkingDirectoryHarness;
+
+static void
+SelfTestWorkingDirectoryDropped(size_t length, void *closure)
+{
+        SelfTestWorkingDirectoryHarness *harness = closure;
+
+        ++harness->dropped_calls;
+        harness->dropped_length = length;
+}
+
+/* An OSC 7 whose payload is `length` bytes, split for feeding in two chunks. */
+static char *
+SelfTestLongDirectoryReport(size_t length)
+{
+        char *report = malloc(length + 8U);
+
+        if (report == NULL)
+                return NULL;
+        memcpy(report, "\033]7;/", 5);
+        memset(report + 5, 'd', length - 1U);
+        memcpy(report + 4 + length, "\033\\", 3);
+        return report;
+}
+
+static void
+SelfTestWorkingDirectoryEffect(const uint8_t *bytes, size_t length, void *closure)
+{
+        SelfTestWorkingDirectoryHarness *harness = closure;
+
+        ++harness->calls;
+        harness->last_length = length;
+        memset(harness->last, 0, sizeof(harness->last));
+        if (length < sizeof(harness->last))
+                memcpy(harness->last, bytes, length);
+}
+
+static int
+SelfTestWorkingDirectoryEffectDelivery(void)
+{
+        XtpTerminal *terminal;
+        SelfTestWorkingDirectoryHarness harness = {0};
+        XtpTerminalEffects effects = {
+            .working_directory_changed = SelfTestWorkingDirectoryEffect,
+            .working_directory_dropped = SelfTestWorkingDirectoryDropped,
+            .closure = &harness,
+        };
+        const char *stage = "setup";
+        char *report = NULL;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        stage = "OSC 7 delivers the raw URI";
+        SelfTestFeedText(terminal, "\033]7;file://localhost/tmp/a%20b\033\\");
+        if (harness.calls != 1 || strcmp(harness.last, "file://localhost/tmp/a%20b") != 0)
+                goto done;
+        stage = "OSC 7 with BEL terminator";
+        SelfTestFeedText(terminal, "\033]7;file:///tmp\a");
+        if (harness.calls != 2 || strcmp(harness.last, "file:///tmp") != 0)
+                goto done;
+        stage = "an empty OSC 7 reports a clear";
+        SelfTestFeedText(terminal, "\033]7;\033\\");
+        if (harness.calls != 3 || harness.last_length != 0)
+                goto done;
+        stage = "unrelated OSCs do not fire the effect";
+        SelfTestFeedText(terminal, "\033]2;title\033\\\033]133;A\033\\");
+        if (harness.calls != 3 || harness.dropped_calls != 0)
+                goto done;
+        stage = "a report inside the core's capture limit is delivered";
+        report = SelfTestLongDirectoryReport(2000);
+        if (report == NULL)
+                goto done;
+        SelfTestFeedText(terminal, report);
+        free(report);
+        if (harness.calls != 4 || harness.last_length != 2000 || harness.dropped_calls != 0)
+                goto done;
+        stage = "a report beyond the capture limit is reported as dropped";
+        report = SelfTestLongDirectoryReport(2300);
+        if (report == NULL)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)report, 1000);
+        if (harness.dropped_calls != 0)
+                goto done;
+        XtpTerminalFeed(terminal, (const uint8_t *)report + 1000, strlen(report) - 1000U);
+        free(report);
+        if (harness.calls != 4 || harness.dropped_calls != 1 || harness.dropped_length != 2300)
+                goto done;
+        stage = "a BEL-terminated oversized report is dropped too";
+        report = SelfTestLongDirectoryReport(2300);
+        if (report == NULL)
+                goto done;
+        report[strlen(report) - 2U] = '\a';
+        report[strlen(report) - 1U] = '\0';
+        SelfTestFeedText(terminal, report);
+        free(report);
+        if (harness.calls != 4 || harness.dropped_calls != 2 || harness.dropped_length != 2300)
+                goto done;
+        stage = "delivery resumes after a dropped report";
+        SelfTestFeedText(terminal, "\033]7;file:///tmp\033\\");
+        if (harness.calls != 5 || harness.dropped_calls != 2 ||
+            strcmp(harness.last, "file:///tmp") != 0)
+                goto done;
+        stage = "an earlier report in the same feed does not mask a dropped one";
+        report = SelfTestLongDirectoryReport(2300);
+        if (report == NULL)
+                goto done;
+        {
+                static const char earlier[] = "\033]1337;CurrentDir=/tmp\033\\";
+                size_t earlier_length = strlen(earlier);
+                size_t report_length = strlen(report);
+                char *combined = malloc(earlier_length + report_length + 1U);
+
+                if (combined == NULL) {
+                        free(report);
+                        goto done;
+                }
+                memcpy(combined, earlier, earlier_length);
+                memcpy(combined + earlier_length, report, report_length + 1U);
+                SelfTestFeedText(terminal, combined);
+                free(combined);
+                if (harness.calls != 6 || harness.dropped_calls != 3 ||
+                    harness.dropped_length != 2300 || strcmp(harness.last, "/tmp") != 0) {
+                        free(report);
+                        goto done;
+                }
+                stage = "the same reports in separate feeds give the same result";
+                SelfTestFeedText(terminal, earlier);
+                SelfTestFeedText(terminal, report);
+                free(report);
+                if (harness.calls != 7 || harness.dropped_calls != 4 ||
+                    harness.dropped_length != 2300 || strcmp(harness.last, "/tmp") != 0)
+                        goto done;
+        }
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "working directory effect mismatch stage=%s calls=%u dropped=%u last=%s",
+                       stage, harness.calls, harness.dropped_calls, harness.last);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 SelfTestTerminfoName(void)
 {
         static const char query[] = "\033P+q544e\033\\";
@@ -3544,6 +3775,8 @@ XtpSelfTest(void)
             {"startup cursor shape", SelfTestStartupCursorShape},
             {"answerback", SelfTestAnswerback},
             {"terminfo name", SelfTestTerminfoName},
+            {"working directory decode", SelfTestWorkingDirectoryDecode},
+            {"working directory effect", SelfTestWorkingDirectoryEffectDelivery},
             {"color-ops policy", SelfTestColorOpsPolicy},
             {"request Ops", SelfTestRequestOps},
             {"color scheme", SelfTestColorScheme},

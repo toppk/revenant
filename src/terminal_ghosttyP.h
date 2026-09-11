@@ -5,6 +5,9 @@
 #include "cursor_blink.h"
 #include "terminal.h"
 
+/* osc.zig Parser.MAX_BUF: the fixed capture used for OSC 7 and most other OSCs. */
+#define XTP_GHOSTTY_OSC_CAPTURE_LIMIT 2048U
+
 #include <ghostty/vt.h>
 
 /* One OSC 4/5 query occurrence: replies for an index are consumed in order. */
@@ -48,6 +51,13 @@ struct XtpTerminal
         bool allow_tcap_ops;
         XtpTcapOps tcap_ops;
         XtpColorOps color_ops;
+        /* OSC 7 in flight through the observer; counts payload bytes so a
+         * report the core drops can still be reported to the application. */
+        bool pwd_report_active;
+        size_t pwd_report_start;
+        size_t pwd_report_bytes;
+        unsigned int pwd_reports_delivered;
+        unsigned int pwd_reports_before_report;
         bool color_list_active;
         bool color_list_skipping;
         bool color_list_any_denied;

@@ -410,6 +410,30 @@ function-pointer helper would lose the useful type check.
   including Xft DPI; `-report-config` uses the identical font-matching path.
 - Shift+keypad font selection, proportional window resizing, WM resize
   increments, and grid-preserving renderer switches.
+- Working directory: libghostty's `OPT_PWD_CHANGED` callback delivers the raw
+  OSC 7 (or OSC 9/1337) value through the backend-neutral
+  `working_directory_changed` effect. `working_directory.c` decodes `file://`
+  URIs (empty, `localhost`, or this host by short or full name; percent
+  escapes; query and fragment dropped) and bare absolute paths, rejecting
+  other schemes, relative paths, malformed escapes, and control bytes. The
+  authority must be a plain registered name; userinfo, ports, escapes, or
+  delimiters in it are rejected before any hostname comparison. The
+  application keeps one heap copy in `App.working_directory` after a `stat`
+  confirms a local directory; every report it cannot validate clears the
+  copy so consumers never see a stale path, and an empty report clears it
+  too. The terminal process's cwd is never changed. No Ops family gates the
+  report. libghostty drops any OSC 7 longer than its fixed 2048-byte capture
+  (`osc.zig` `Parser.MAX_BUF`) without a callback, so the feed observer
+  flushes earlier output at each OSC 7 header (so a preceding OSC 1337 or
+  OSC 7 in the same feed delivers its own callback first), dispatches the
+  report to the core at its terminator, and fires the
+  `working_directory_dropped` effect when no pwd callback followed; the
+  application clears its copy on that effect as well.
+  `xvfb-working-directory` checks the logged event sequence for spaces and
+  UTF-8, the local hostname, a remote host, a missing directory, the
+  bare-path form, a malformed escape, a clear, and an oversized report
+  between two valid ones, and reads `/proc/<pid>/cwd` before and after to
+  prove the terminal stayed put.
 - Terminal name: the `termName` application resource (`-tn`) is resolved
   once, exported as the child's `TERM` by the PTY spawner, and pushed to
   libghostty's terminfo-name option so XTGETTCAP `TN` reports the same
@@ -1290,7 +1314,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 44 tests for each libghostty build
+The normal full matrix currently contains 45 tests for each libghostty build
 and 8 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

@@ -341,6 +341,13 @@ typedef struct
                                              size_t *length, void *closure);
         /* XTWINOPS 20-23 with the raw second and third parameters (0 when absent). */
         void (*title_op)(XtpTitleOp op, unsigned int target, unsigned int slot, void *closure);
+        /* OSC 7/9/1337 working-directory report as the application sent it, borrowed
+         * for the call; zero length means the application cleared it. */
+        void (*working_directory_changed)(const uint8_t *bytes, size_t length, void *closure);
+        /* The core discarded a complete OSC 7 without reporting it, typically
+         * because the payload exceeded its capture buffer; the earlier directory
+         * is no longer trustworthy. `length` counts the payload bytes seen. */
+        void (*working_directory_dropped)(size_t length, void *closure);
         void *closure;
 } XtpTerminalEffects;
 

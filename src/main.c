@@ -9,6 +9,7 @@
 #include "version.h"
 #include "vt_widget.h"
 #include "welcome.h"
+#include "working_directory.h"
 #include "x11_opacity.h"
 
 #include <X11/Intrinsic.h>
@@ -24,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 typedef struct
@@ -46,6 +48,9 @@ typedef struct
         Boolean running;
         XtpTitleStack title_stack;
         const char *term_name;
+        /* Last validated OSC 7 directory for future consumers; NULL when unknown. */
+        char *working_directory;
+        char hostname[256];
 } App;
 
 typedef struct
@@ -531,6 +536,63 @@ TerminalTitle(const char *title, size_t length, void *closure)
 }
 
 static void
+ForgetWorkingDirectory(App *app)
+{
+        free(app->working_directory);
+        app->working_directory = NULL;
+}
+
+/* Only the retained path changes; the terminal's own cwd never follows the shell. */
+static void
+TerminalWorkingDirectory(const uint8_t *bytes, size_t length, void *closure)
+{
+        App *app = closure;
+        char *path = NULL;
+        struct stat info;
+
+        switch (XtpWorkingDirectoryDecode(bytes, length, app->hostname, &path)) {
+        case XTP_WORKING_DIRECTORY_SET:
+                if (stat(path, &info) != 0 || !S_ISDIR(info.st_mode)) {
+                        XtpLog(XTP_LOG_INFO, "shell",
+                               "working directory rejected reason=not a local directory path=%s",
+                               path);
+                        free(path);
+                        ForgetWorkingDirectory(app);
+                        return;
+                }
+                ForgetWorkingDirectory(app);
+                app->working_directory = path;
+                XtpLog(XTP_LOG_INFO, "shell", "working directory set path=%s", path);
+                return;
+        case XTP_WORKING_DIRECTORY_CLEARED:
+                ForgetWorkingDirectory(app);
+                XtpLog(XTP_LOG_INFO, "shell", "working directory cleared");
+                return;
+        case XTP_WORKING_DIRECTORY_REMOTE:
+                ForgetWorkingDirectory(app);
+                XtpLogBytePreview(XTP_LOG_INFO, "shell",
+                                  "working directory rejected reason=remote host", bytes, length);
+                return;
+        case XTP_WORKING_DIRECTORY_INVALID:
+                ForgetWorkingDirectory(app);
+                XtpLogBytePreview(XTP_LOG_INFO, "shell",
+                                  "working directory rejected reason=invalid report", bytes,
+                                  length);
+                return;
+        }
+}
+
+static void
+TerminalWorkingDirectoryDropped(size_t length, void *closure)
+{
+        App *app = closure;
+
+        ForgetWorkingDirectory(app);
+        XtpLog(XTP_LOG_INFO, "shell", "working directory rejected reason=report dropped bytes=%zu",
+               length);
+}
+
+static void
 TerminalCursorBlinkReset(void *closure)
 {
         App *app = closure;
@@ -718,6 +780,8 @@ ApplyTerminalEffects(App *app)
             .cursor_blink_reset = TerminalCursorBlinkReset,
             .clipboard_write = TerminalClipboardWrite,
             .title_op = TerminalTitleOp,
+            .working_directory_changed = TerminalWorkingDirectory,
+            .working_directory_dropped = TerminalWorkingDirectoryDropped,
             .closure = app,
         };
 
@@ -1234,6 +1298,9 @@ WireApplication(App *app, const AppResources *resources)
                              ? resources->term_name
                              : XTP_TERM_NAME_DEFAULT;
         XtpLog(XTP_LOG_INFO, "config", "termName=%s", app->term_name);
+        if (gethostname(app->hostname, sizeof(app->hostname)) != 0)
+                app->hostname[0] = '\0';
+        app->hostname[sizeof(app->hostname) - 1U] = '\0';
         XtpMenusCreate(&app->menus, app->shell, resources->menu_locale, MenuDispatch, app);
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
@@ -1319,6 +1386,7 @@ DestroyApplication(App *app)
         if (app->vt != NULL)
                 XtpVtSetTerminal(app->vt, NULL);
         XtpTitleStackClear(&app->title_stack);
+        ForgetWorkingDirectory(app);
         if (app->terminal != NULL) {
                 XtpTerminalFree(app->terminal);
                 app->terminal = NULL;
