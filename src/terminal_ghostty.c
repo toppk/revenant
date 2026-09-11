@@ -1,5 +1,6 @@
 #include "terminal_ghosttyP.h"
 
+#include "device_attributes.h"
 #include "diagnostics.h"
 #include "version.h"
 
@@ -359,6 +360,44 @@ EnquiryEffect(GhosttyTerminal handle, void *userdata)
                                             terminal->answerback_length, terminal->effects.closure);
         }
         return (GhosttyString){.ptr = NULL, .len = 0};
+}
+
+static bool
+DeviceAttributesEffect(GhosttyTerminal handle, void *userdata, GhosttyDeviceAttributes *attributes)
+{
+        size_t count;
+        const uint16_t *features = XtpDeviceAttributesFeatures(&count);
+        size_t index;
+
+        (void)handle;
+        (void)userdata;
+        if (attributes == NULL)
+                return false;
+        memset(attributes, 0, sizeof(*attributes));
+        attributes->primary.conformance_level = XTP_DA1_CONFORMANCE_LEVEL;
+        if (count > sizeof(attributes->primary.features) / sizeof(attributes->primary.features[0]))
+                count =
+                    sizeof(attributes->primary.features) / sizeof(attributes->primary.features[0]);
+        for (index = 0; index < count; ++index)
+                attributes->primary.features[index] = features[index];
+        attributes->primary.num_features = count;
+        attributes->secondary.device_type = XTP_DA2_DEVICE_TYPE;
+        attributes->secondary.firmware_version = (uint16_t)XtpDeviceAttributesFirmware(XTP_VERSION);
+        attributes->secondary.rom_cartridge = 0;
+        attributes->tertiary.unit_id = XTP_DA3_UNIT_ID;
+        return true;
+}
+
+static const void *
+DeviceAttributesEffectPointer(void)
+{
+        GhosttyTerminalDeviceAttributesFn function = DeviceAttributesEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
 }
 
 static const void *
@@ -1202,6 +1241,8 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
                                  ColorSchemeEffectPointer()) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_ENQUIRY,
                                  EnquiryEffectPointer()) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_DEVICE_ATTRIBUTES,
+                                 DeviceAttributesEffectPointer()) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_PWD_CHANGED,
                                  WorkingDirectoryEffectPointer()) != GHOSTTY_SUCCESS) {
                 FreeHandles(terminal);

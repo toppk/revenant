@@ -129,7 +129,7 @@ query/set and cursor inspection/style cycling into separate checks.
 | `python3 tools/probe-features.py pointer` | `just probe osc-22-pointer-shape input-pointer` | Pointer shape over grid and default restored on exit. | Pending |
 | `python3 tools/probe-features.py cursor` | `just probe csi-decscusr text-cursor` | Startup cursor appearance and query replies. | Pending |
 | `python3 tools/probe-features.py cursor --styles` | `just probe csi-decscusr text-cursor --styles` | Explicit cursor styles and return to configured default. | Pending |
-| `python3 tools/probe-features.py identity` | `just probe csi-da1 identity-reports` | DA1, DA2 and XTVERSION; Go additionally queries DA3. | Pending |
+| `python3 tools/probe-features.py identity` | `just probe csi-da1 identity-reports` | DA1, DA2 and XTVERSION; Go additionally queries DA3 and decodes the DA1/DA2 claims. | Pending |
 | `python3 tools/probe-features.py unknown` | `just probe diagnostics-unknown-apc diagnostics-unknown` | Unsupported APC diagnostics; no reply required. | Pending |
 | `python3 tools/probe-features.py cwd --cwd /tmp` | `just probe osc-7-working-directory shell-cwd --cwd /tmp` | Reported directory in terminal diagnostics; also try an existing path with spaces/Unicode. | Pending |
 | `python3 tools/probe-features.py prompts` | `just probe osc-133-prompt-marks shell-prompts` | Synthetic prompt markers and manual prompt navigation. | Pending |

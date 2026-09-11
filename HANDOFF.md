@@ -129,9 +129,10 @@ The important completed state is:
   `CSI 14 t`, `CSI 16 t`, and `CSI 18 t` queries and identifies itself to
   XTVERSION as `revenant(<version>)`, following xterm's `XTerm(411)` display
   convention while retaining honest product identity. Backend self-tests pin
-  the initial and post-resize replies. Device-attribute queries still use
-  libghostty's defaults; choosing a Revenant-owned DA1/DA2/DA3 capability
-  identity is explicitly deferred to v0.6.
+  the initial and post-resize replies. Device-attribute replies are now
+  Revenant-owned through libghostty's device-attributes callback (see the
+  A3 entry below and the drift ledger); the earlier "deferred to v0.6"
+  wording described an unreviewed default, not a completed audit.
 
 Two review-method rules are now evidence-backed project practice. First, any
 claim that “xterm does X” must be checked against the pinned
@@ -512,6 +513,22 @@ function-pointer helper would lose the useful type check.
   default, option, and resource forms, and checks the silent reply under Tcap
   Ops denial; `xvfb-report-config` covers the default, empty, and custom
   report lines.
+- Device attributes: libghostty's device-attributes callback fills the
+  identity declared in `src/device_attributes.h`: DA1 `CSI ? 62 ; 6 ; 21 ;
+  22 c`, DA2 `CSI > 1 ; Pv ; 0 c` with `Pv` computed from `XTP_VERSION`
+  (`major * 10000 + minor * 100 + patch`, clamped to 16 bits), and DA3
+  `DCS ! | 00000000 ST`; XTVERSION is unchanged. Every DA1 code is backed
+  by the `device attributes evidence` self-test, which checks rendered cells
+  for DECSCA/DECSED/DECSEL, DECLRMM/DECSLRM with DECRQM, and palette/RGB
+  foregrounds; the `device attributes` self-test pins the exact bytes, the
+  zero-parameter forms, neighboring DSR/XTVERSION/DECRQM replies in one
+  feed, byte-by-byte split feeds, the core's answer to a nonzero parameter,
+  and silence for other intermediates. Adding a code means adding rendered
+  evidence there and updating the drift ledger's omission list, which says
+  which codes were rejected and why. `xvfb-device-attributes`
+  reads the exact reply bytes through the real PTY for one write and for
+  fragmented writes, with the expected DA2 number computed independently
+  from Meson's version string.
 - Answerback: `answerbackString` is copied into the backend and, on
   libghostty's ENQ effect, written straight through the host PTY effect with
   an empty result returned to the core, so the reply filters (mode-12
@@ -815,12 +832,12 @@ item. Otherwise record it under v0.6 and keep moving.
    XTWINOPS size reports and a product-owned XTVERSION reply are now integrated
    and covered before and after resize. Full Ghostty formats XTVERSION as
    `ghostty <version>`, Ghostling reports `ghostling`, and xterm 411 reports
-   `XTerm(411)`; Revenant deliberately reports `revenant(<version>)`. DA queries
-   work through libghostty defaults (`CSI ? 62 ; 22 c` for DA1, meaning
-   VT220-level plus ANSI color), so there is no missing protocol path. Defer a
-   custom DA identity to v0.6 because the advertised feature set, clipboard
-   permission, DA2 version values, and DA3 policy must be honest rather than
-   copied mechanically from Ghostling. The Clang build and 30/30 maintained
+   `XTerm(411)`; Revenant deliberately reports `revenant(<version>)`. DA
+   replies are configured through the device-attributes callback rather
+   than libghostty's `CSI ? 62 ; 22 c` default: the advertised feature set,
+   clipboard code, DA2 version value, and DA3 form were each audited against
+   implemented behavior instead of copied from Ghostling; the drift ledger
+   records the evidence. The Clang build and 30/30 maintained
    tests, formatting check, and `git diff --check` passed after the terminal
    report implementation. A full visible-boundary re-exercise of every matrix
    row remains part of the release inventory if stronger acceptance evidence is
@@ -1426,7 +1443,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 45 tests for each libghostty build
+The normal full matrix currently contains 46 tests for each libghostty build
 and 8 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

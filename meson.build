@@ -135,6 +135,7 @@ widget_sources = files(
     'src/url_match.c',
     'src/window_ops.c',
     'src/working_directory.c',
+    'src/device_attributes.c',
     'src/ops_list.c',
     'src/color_ops.c',
     'src/request_ops.c',
@@ -839,6 +840,19 @@ if build_with_ghostty and xvfb.found()
             files('tests/xvfb-working-directory.sh'),
             xvfb.full_path(),
             xterm_plus.full_path(),
+        ],
+        timeout: 60,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-device-attributes',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-device-attributes.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            program_name,
+            build_version,
         ],
         timeout: 60,
         is_parallel: false,

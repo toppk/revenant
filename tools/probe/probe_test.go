@@ -32,6 +32,37 @@ func TestTcapExactDecoding(t *testing.T) {
 		}
 	}
 }
+func TestDeviceAttributesDecoding(t *testing.T) {
+	for _, test := range []struct{ wire, want string }{
+		{esc + "[?62;6;21;22c", "level 62 (VT220 class); features: 6 selective erase, 21 horizontal scrolling, 22 ANSI color"},
+		{esc + "[?1;2c", "level 1; features: 2 printer"},
+		{esc + "[?64;99c", "level 64 (VT420 class); features: 99 unknown"},
+		{esc + "[?6c", "level 6; no feature codes"},
+	} {
+		got, err := decodeDA1([]byte(test.wire))
+		if err != nil || got != test.want {
+			t.Fatalf("%q: %q, %v", test.wire, got, err)
+		}
+	}
+	for _, test := range []struct{ wire, want string }{
+		{esc + "[>1;700;0c", "type 1 (VT220), firmware 700, cartridge 0"},
+		{esc + "[>41;411;0c", "type 41 (VT420), firmware 411, cartridge 0"},
+		{esc + "[>7;1;2c", "type 7 (unknown), firmware 1, cartridge 2"},
+	} {
+		got, err := decodeDA2([]byte(test.wire))
+		if err != nil || got != test.want {
+			t.Fatalf("%q: %q, %v", test.wire, got, err)
+		}
+	}
+	for _, bad := range []string{esc + "[?c", esc + "[?6;c", esc + "[>1;2c", "garbage", esc + "[>1;2;3;4c"} {
+		if _, err := decodeDA1([]byte(bad)); err == nil && !strings.HasPrefix(bad, esc+"[>") {
+			t.Fatalf("DA1 accepted malformed reply %q", bad)
+		}
+		if _, err := decodeDA2([]byte(bad)); err == nil {
+			t.Fatalf("DA2 accepted malformed reply %q", bad)
+		}
+	}
+}
 func TestOSCFramingPreservesUTF8AndC1(t *testing.T) {
 	matcher := regexp.MustCompile(oscPattern("l"))
 	for _, wire := range []string{esc + "]lÜ title" + st, "\x9dlÜ title\x9c", esc + "]l漢Ü\a"} {

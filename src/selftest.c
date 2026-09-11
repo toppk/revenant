@@ -2,6 +2,7 @@
 
 #include "char_class.h"
 #include "cursor_blink.h"
+#include "device_attributes.h"
 #include "diagnostics.h"
 #include "emoji_presentation.h"
 #include "font_chain.h"
@@ -3108,6 +3109,237 @@ done:
 }
 
 static int
+SelfTestDeviceAttributesFirmware(void)
+{
+        static const struct
+        {
+                const char *version;
+                unsigned int firmware;
+        } cases[] = {
+            {"0.7.0-dev", 700}, {"0.6.1", 601},    {"1.2.3", 10203},
+            {"0.7", 700},       {"3", 30000},      {"7.0.0", 65535},
+            {"1.250.3", 19903}, {"0.100.0", 9900}, {"6.55.35", 65535},
+            {"6.55.36", 65535}, {"", 0},           {"dev", 0},
+            {".7.0", 0},        {"0.7.0.9", 700},  {NULL, 0},
+        };
+        size_t index;
+
+        for (index = 0; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+                unsigned int firmware = XtpDeviceAttributesFirmware(cases[index].version);
+
+                if (firmware != cases[index].firmware) {
+                        XtpLog(XTP_LOG_ERROR, "self-test",
+                               "firmware mismatch version=%s expected=%u actual=%u",
+                               cases[index].version != NULL ? cases[index].version : "(null)",
+                               cases[index].firmware, firmware);
+                        return -1;
+                }
+        }
+        return 0;
+}
+
+static int
+SelfTestDeviceAttributes(void)
+{
+        static const char *const queries[] = {"\033[c",   "\033[0c", "\033[>c",
+                                              "\033[>0c", "\033[=c", "\033[=0c"};
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestCapturePty,
+            .closure = &capture,
+        };
+        char da2[32];
+        char expected[256];
+        const char *stage = "exact replies";
+        size_t index;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        snprintf(da2, sizeof(da2), "\033[>%u;%u;0c", XTP_DA2_DEVICE_TYPE,
+                 XtpDeviceAttributesFirmware(XTP_VERSION));
+        for (index = 0; index < sizeof(queries) / sizeof(queries[0]); ++index) {
+                const char *reply = index < 2 ? XTP_DA1_REPLY : index < 4 ? da2 : XTP_DA3_REPLY;
+
+                capture = (SelfTestPtyCapture){0};
+                SelfTestFeedText(terminal, queries[index]);
+                if (!SelfTestPtyEqualsText(&capture, reply))
+                        goto done;
+        }
+        stage = "neighboring queries survive in one feed";
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033[6n\033[c\033[>c\033[=c\033[>q\033[?2026$p");
+        snprintf(expected, sizeof(expected),
+                 "\033[1;1R" XTP_DA1_REPLY "%s" XTP_DA3_REPLY "\033P>|" XTP_PROGRAM_NAME
+                 "(" XTP_VERSION ")\033\\\033[?2026;2$y",
+                 da2);
+        if (!SelfTestPtyEqualsText(&capture, expected))
+                goto done;
+        stage = "split feeds produce the same bytes";
+        capture = (SelfTestPtyCapture){0};
+        for (index = 0; index < sizeof(queries) / sizeof(queries[0]); ++index) {
+                const char *query = queries[index];
+                size_t position;
+
+                for (position = 0; query[position] != '\0'; ++position)
+                        XtpTerminalFeed(terminal, (const uint8_t *)query + position, 1);
+        }
+        snprintf(expected, sizeof(expected),
+                 XTP_DA1_REPLY XTP_DA1_REPLY "%s%s" XTP_DA3_REPLY XTP_DA3_REPLY, da2, da2);
+        if (!SelfTestPtyEqualsText(&capture, expected))
+                goto done;
+        /* xterm 411 ignores a nonzero parameter; the core answers, as the drift ledger records. */
+        stage = "nonzero parameter is answered by the core";
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033[1c");
+        if (!SelfTestPtyEqualsText(&capture, XTP_DA1_REPLY))
+                goto done;
+        stage = "other intermediates stay silent";
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033[?c\033[!c\033[>=c");
+        if (capture.used != 0)
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test", "device attributes mismatch stage=%s bytes=%zu",
+                       stage, capture.used);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+typedef struct
+{
+        char rows[3][81];
+        XtpColor foreground[3];
+} SelfTestRowCapture;
+
+static void
+SelfTestRowCaptureFrame(const XtpRenderFrame *frame, void *closure)
+{
+        (void)frame;
+        (void)closure;
+}
+
+static void
+SelfTestRowCaptureCell(const XtpRenderCell *cell, void *closure)
+{
+        SelfTestRowCapture *capture = closure;
+
+        if (cell->row >= 3U || cell->column >= 80U)
+                return;
+        capture->rows[cell->row][cell->column] = cell->utf8_length == 0   ? ' '
+                                                 : cell->utf8_length == 1 ? cell->utf8[0]
+                                                                          : '?';
+        if (cell->row == 0U && cell->column < 3U)
+                capture->foreground[cell->column] = cell->foreground;
+}
+
+static int
+SelfTestRowCaptureRender(XtpTerminal *terminal, SelfTestRowCapture *capture)
+{
+        static const XtpRenderer renderer = {
+            .begin = SelfTestRowCaptureFrame,
+            .cell = SelfTestRowCaptureCell,
+            .end = SelfTestRowCaptureFrame,
+            .abort = NULL,
+        };
+        size_t row;
+
+        memset(capture, 0, sizeof(*capture));
+        for (row = 0; row < 3U; ++row)
+                memset(capture->rows[row], ' ', 80);
+        return XtpTerminalRender(terminal, &renderer, capture, true);
+}
+
+static bool
+SelfTestRowIs(const SelfTestRowCapture *capture, size_t row, const char *prefix)
+{
+        size_t length = strlen(prefix);
+        size_t column;
+
+        if (memcmp(capture->rows[row], prefix, length) != 0)
+                return false;
+        for (column = length; column < 80U; ++column) {
+                if (capture->rows[row][column] != ' ')
+                        return false;
+        }
+        return true;
+}
+
+/* Each claimed DA1 code is proven through rendered cells, not parser acceptance. */
+static int
+SelfTestDeviceAttributesEvidence(void)
+{
+        XtpTerminal *terminal;
+        SelfTestRowCapture capture;
+        SelfTestPtyCapture pty = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestCapturePty,
+            .closure = &pty,
+        };
+        const char *stage = "selective erase keeps DECSCA cells";
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        SelfTestFeedText(terminal, "\033[H\033[1\"qAB\033[0\"qCD\033[?2J");
+        if (SelfTestRowCaptureRender(terminal, &capture) != 0 || !SelfTestRowIs(&capture, 0, "AB"))
+                goto done;
+        SelfTestFeedText(terminal, "\033[2;1H\033[1\"qPQ\033[0\"qRS\033[?2K");
+        if (SelfTestRowCaptureRender(terminal, &capture) != 0 || !SelfTestRowIs(&capture, 1, "PQ"))
+                goto done;
+        stage = "plain erase ignores DEC protection";
+        SelfTestFeedText(terminal, "\033[2J");
+        if (SelfTestRowCaptureRender(terminal, &capture) != 0 || !SelfTestRowIs(&capture, 0, "") ||
+            !SelfTestRowIs(&capture, 1, ""))
+                goto done;
+        stage = "left/right margins bound line insertion";
+        SelfTestFeedText(
+            terminal, "\033[H0123456789ABCDEFGHIJKLMNOPQRST\033[?69h\033[10;20s\033[1;12H\033[L");
+        if (SelfTestRowCaptureRender(terminal, &capture) != 0 ||
+            !SelfTestRowIs(&capture, 0, "012345678           KLMNOPQRST") ||
+            !SelfTestRowIs(&capture, 1, "         9ABCDEFGHIJ"))
+                goto done;
+        stage = "DECRQM reports mode 69";
+        pty = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, "\033[?69$p");
+        if (!SelfTestPtyEqualsText(&pty, "\033[?69;1$y"))
+                goto done;
+        stage = "resetting mode 69 restores full-width insertion";
+        SelfTestFeedText(terminal, "\033[?69l\033[H\033[L");
+        if (SelfTestRowCaptureRender(terminal, &capture) != 0 || !SelfTestRowIs(&capture, 0, "") ||
+            !SelfTestRowIs(&capture, 1, "012345678           KLMNOPQRST"))
+                goto done;
+        stage = "palette and RGB foregrounds reach cells";
+        SelfTestFeedText(terminal, "\033[2J\033[H\033[31mR\033[38;5;200mG\033[38;2;1;2;3mB\033[0m");
+        if (SelfTestRowCaptureRender(terminal, &capture) != 0 ||
+            !SelfTestRowIs(&capture, 0, "RGB") || capture.foreground[0].kind != XTP_COLOR_PALETTE ||
+            capture.foreground[0].palette != 1 || capture.foreground[1].kind != XTP_COLOR_PALETTE ||
+            capture.foreground[1].palette != 200 || capture.foreground[2].kind != XTP_COLOR_RGB ||
+            capture.foreground[2].red != 1 || capture.foreground[2].green != 2 ||
+            capture.foreground[2].blue != 3)
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "device attribute evidence mismatch stage=%s row0=\"%.32s\" row1=\"%.32s\"",
+                       stage, capture.rows[0], capture.rows[1]);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 SelfTestStartupCursorShape(void)
 {
         static const XtpRenderer renderer = {
@@ -3572,7 +3804,7 @@ static int
 SelfTestKittyKeyboardState(void)
 {
         static const uint8_t query_order[] = "\033[?u\033[c";
-        static const uint8_t query_order_expected[] = "\033[?0u\033[?62;22c";
+        static const uint8_t query_order_expected[] = "\033[?0u" XTP_DA1_REPLY;
         static const uint8_t state_transitions[] = "\033[=1;1u\033[?u" /* set: 1 */
                                                    "\033[=2;2u\033[?u" /* augment: 1 | 2 = 3 */
                                                    "\033[=1;3u\033[?u" /* clear: 3 & ~1 = 2 */
@@ -3775,6 +4007,9 @@ XtpSelfTest(void)
             {"startup cursor shape", SelfTestStartupCursorShape},
             {"answerback", SelfTestAnswerback},
             {"terminfo name", SelfTestTerminfoName},
+            {"device attributes firmware", SelfTestDeviceAttributesFirmware},
+            {"device attributes", SelfTestDeviceAttributes},
+            {"device attributes evidence", SelfTestDeviceAttributesEvidence},
             {"working directory decode", SelfTestWorkingDirectoryDecode},
             {"working directory effect", SelfTestWorkingDirectoryEffectDelivery},
             {"color-ops policy", SelfTestColorOpsPolicy},

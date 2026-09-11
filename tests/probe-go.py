@@ -373,6 +373,30 @@ class ProbeAcceptance(unittest.TestCase):
             )
             self.assertEqual(received, payload)
 
+    def test_identity_decodes_device_attributes(self):
+        replies = {
+            b"\x1b[c": b"\x1b[?62;6;21;22c",
+            b"\x1b[>c": b"\x1b[>1;700;0c",
+            b"\x1b[=c": b"\x1bP!|00000000\x1b\\",
+            b"\x1b[>q": b"\x1bP>|xterm+(test)\x1b\\",
+        }
+
+        def respond(data):
+            return b"".join(reply for request, reply in replies.items() if request in data)
+
+        code, output, restored = run_probe(
+            ["csi-da1", "identity-reports", "--timeout", ".2"], respond=respond
+        )
+        self.assertEqual(code, 0, output)
+        self.assertTrue(restored)
+        self.assertIn(
+            b"DA1 claims level 62 (VT220 class); features: 6 selective erase, "
+            b"21 horizontal scrolling, 22 ANSI color",
+            output,
+        )
+        self.assertIn(b"DA2 claims type 1 (VT220), firmware 700, cartridge 0", output)
+        self.assertIn(b"xterm+(test)", output)
+
     def test_slow_escape_prefix_remains_query_data(self):
         sent = False
 

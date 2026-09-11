@@ -10,6 +10,13 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Answer device-attribute queries with an audited identity instead of
+  libghostty's default. DA1 reports `CSI ? 62 ; 6 ; 21 ; 22 c` (VT220 level
+  with selective erase, left/right margins, and ANSI color, each backed by a
+  rendered-cell test), DA2 reports `CSI > 1 ; Pv ; 0 c` with `Pv` derived
+  from the Revenant version, and DA3 keeps the all-zero unit ID. Sixel,
+  ReGIS, 132-column, locator, and rectangular-editing codes are not claimed;
+  XTVERSION still names the product. The manual probe decodes the replies.
 - Track the shell's working directory from OSC 7 reports. The `file://` URI
   is percent-decoded and kept only when it names an existing local directory
   on this host; reports for other hosts, other URI schemes, malformed escapes,

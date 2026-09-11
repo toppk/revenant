@@ -29,7 +29,6 @@ remove a row when its chunk is completed, preserving the feature IDs and evidenc
 
 | Chunk | Scope | TDN feature IDs |
 | --- | --- | --- |
-| A3 | Device-attribute claims | [csi-da1](https://toppk.github.io/revenant/tdn/features/csi-da1/), [csi-da2](https://toppk.github.io/revenant/tdn/features/csi-da2/), [csi-da3](https://toppk.github.io/revenant/tdn/features/csi-da3/) |
 | A4 | Unknown APC diagnostics | [diagnostics-unknown-apc](https://toppk.github.io/revenant/tdn/features/diagnostics-unknown-apc/) |
 | V3 | OSC 22 pointer shape | [osc-22-pointer-shape](https://toppk.github.io/revenant/tdn/features/osc-22-pointer-shape/) |
 | S2 | Prompt navigation | [osc-133-prompt-marks](https://toppk.github.io/revenant/tdn/features/osc-133-prompt-marks/), [ui-prompt-navigation](https://toppk.github.io/revenant/tdn/features/ui-prompt-navigation/) |
@@ -44,7 +43,7 @@ remove a row when its chunk is completed, preserving the feature IDs and evidenc
 | U2 | Search model and navigation | [search-scrollback-literal](https://toppk.github.io/revenant/tdn/features/search-scrollback-literal/) |
 | U3 | Search UI and bindings | [ui-search-overlay](https://toppk.github.io/revenant/tdn/features/ui-search-overlay/), [search-copy-match](https://toppk.github.io/revenant/tdn/features/search-copy-match/) |
 | K1 | Static inline image rendering | [apc-kitty-static-images](https://toppk.github.io/revenant/tdn/features/apc-kitty-static-images/) |
-| K2 | Media and byte limits | [apc-kitty-temp-file-transfer](https://toppk.github.io/revenant/tdn/features/apc-kitty-temp-file-transfer/), [apc-kitty-shared-memory](https://toppk.github.io/revenant/tdn/features/apc-kitty-shared-memory/), [kitty-graphics-storage-limit](https://toppk.github.io/revenant/tdn/features/kitty-graphics-storage-limit/), [kitty-graphics-command-limit](https://toppk.github.io/revenant/tdn/features/kitty-graphics-command-limit/) |
+| K2 | Media and byte limits | [kitty-graphics-storage-limit](https://toppk.github.io/revenant/tdn/features/kitty-graphics-storage-limit/), [kitty-graphics-command-limit](https://toppk.github.io/revenant/tdn/features/kitty-graphics-command-limit/), [apc-kitty-temp-file-transfer](https://toppk.github.io/revenant/tdn/features/apc-kitty-temp-file-transfer/), [apc-kitty-shared-memory](https://toppk.github.io/revenant/tdn/features/apc-kitty-shared-memory/) |
 | K3 | Unicode placeholders | [apc-kitty-unicode-placeholders](https://toppk.github.io/revenant/tdn/features/apc-kitty-unicode-placeholders/) |
 | K4 | Animation scheduling | [apc-kitty-animation](https://toppk.github.io/revenant/tdn/features/apc-kitty-animation/) |
 | M1 | Full Mouse Ops exceptions | [policy-mouse-ops-exceptions](https://toppk.github.io/revenant/tdn/features/policy-mouse-ops-exceptions/) |

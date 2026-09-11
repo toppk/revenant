@@ -45,7 +45,7 @@ an implementation gate.
 
 | Capability demonstrated by Ghostling | Revenant status | Remaining integration |
 | --- | --- | --- |
-| PTY-backed shell and terminal effects | Present | Retain ordered backpressure coverage for the shared write queue. XTWINOPS size and XTVERSION reports are integrated; review custom device-attribute identity in v0.6. |
+| PTY-backed shell and terminal effects | Present | Retain ordered backpressure coverage for the shared write queue. XTWINOPS size, XTVERSION, and audited DA1/DA2/DA3 replies are integrated; the drift ledger records the capability evidence. |
 | Resize with primary-screen reflow | Present | Retain geometry regression coverage; the [Readline 8.3 wrapped-prompt regression](../reference/bash-readline-resize.md) is fixed upstream and requires no terminal workaround. |
 | 24-bit and 256-color terminal output | Present | Retain xterm `color0` through `color15` resource and OSC 4/104 reset coverage. |
 | Bold, italic, inverse, and decorations | Present | Xft uses real clipped bold, italic, and bold-italic faces; bitmap bold remains synthetic as a separate xterm-fidelity task. |

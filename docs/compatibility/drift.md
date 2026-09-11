@@ -336,6 +336,48 @@ setting gates it, and the terminal process's own working directory never
 follows the shell. The `-debug` log shows each decision as a `working
 directory` event.
 
+### Device attributes (DA1, DA2, DA3)
+
+xterm 411 with its default `decTerminalID` of 420 answers DA1 with
+`CSI ? 64 ; 1 ; 2 ; 6 ; 9 ; 15 ; 17 ; 18 ; 21 ; 22 ; 28 c` (observed from
+the Fedora build under Xvfb; `charproc.c` adds 3 and 4 when ReGIS/Sixel are
+compiled in and enabled, 8 for a VT220 keyboard type, and 16 and 29 with the
+DEC locator), DA2 with `CSI > 41 ; 411 ; 0 c`, and DA3 with
+`DCS ! | 00000000 ST`. Those lists describe xterm's own feature set and its
+`decTerminalID` resource, which Revenant does not implement. Revenant instead
+advertises only what it demonstrably does:
+
+| Query | Revenant reply | Basis |
+| --- | --- | --- |
+| DA1 | `CSI ? 62 ; 6 ; 21 ; 22 c` | VT220 level; selective erase, left/right margins, ANSI color |
+| DA2 | `CSI > 1 ; Pv ; 0 c` | VT220 type; `Pv` is `major * 10000 + minor * 100 + patch` of the Revenant version |
+| DA3 | `DCS ! | 00000000 ST` | No unit ID; same all-zero form as xterm |
+| XTVERSION | `DCS > | revenant(<version>) ST` | Unchanged product identity |
+
+Each DA1 feature code is pinned by a backend self-test that checks rendered
+cells rather than parser acceptance: `6` covers DECSCA with DECSED/DECSEL
+(and plain ED ignoring DEC protection), `21` covers DECLRMM mode 69 with
+DECSLRM bounding line insertion and DECRQM reporting the mode, and `22`
+covers palette and 24-bit foregrounds reaching cells. The level and DA2 type
+stay at VT220 for the reason Ghostty gives: the core has no DECRQSS-class
+DCS replies or rectangular editing, so a VT420 claim would be hollow even
+though two VT420-family controls are present. The codes xterm lists but
+Revenant omits are each unsupported here: `1` (DECCOLM is ignored because
+mode 40 is off and the window never resizes to 132 columns), `2` (no
+printer), `3`/`4` (no ReGIS or Sixel rendering), `8` (no DECUDK), `9`/`15`
+(only the UK and DEC special sets are mapped, not the national replacement
+or technical sets), `16`/`29` (no DEC locator), `17` (no DECRQTSR/DECRQSS),
+`18` (no DECRQDE windowing), and `28` (no DECCRA/DECFRA/DECERA). Ghostty's
+non-standard `52` clipboard code is also omitted: OSC 52 obeys the Window
+Ops policy, which denies it by default, and no application keys off the
+code. `Pv` is the only DA2 field with content because DA2 defines it as a
+firmware number; XTVERSION remains the identification path.
+
+Two small parser-level differences come with the core. libghostty answers
+`CSI 1 c` and other nonzero DA parameters, where xterm stays silent, and it
+answers DA3 at every level, where xterm requires VT420 or higher. Both are
+pinned in the self-test so a core change reopens this entry.
+
 ### Compositor-backed background opacity
 
 Revenant adds a `backgroundOpacity` resource, expressed as a number from `0.0`
