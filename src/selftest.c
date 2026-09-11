@@ -459,7 +459,7 @@ SelfTestPty(void)
                     "\"$TERM_PROGRAM_VERSION\"",
             NULL,
         };
-        XtpPty *pty = XtpPtySpawn(command, 80, 24, 8, 16);
+        XtpPty *pty = XtpPtySpawn(command, NULL, 80, 24, 8, 16);
         char output[256];
         size_t used = 0;
         int attempts;
@@ -602,7 +602,7 @@ SelfTestPtyQueue(void)
             (char *)"stty raw -echo; printf R; sleep 0.2; exec cat",
             NULL,
         };
-        XtpPty *pty = XtpPtySpawn(command, 80, 24, 8, 16);
+        XtpPty *pty = XtpPtySpawn(command, NULL, 80, 24, 8, 16);
         uint8_t *payload = NULL;
         uint8_t buffer[8192];
         size_t received = 0;
@@ -2718,6 +2718,74 @@ done:
 }
 
 static int
+SelfTestTerminfoName(void)
+{
+        static const char query[] = "\033P+q544e\033\\";
+        XtpTerminal *terminal;
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {.write_pty = SelfTestCapturePty, .closure = &capture};
+        const char *stage = "setup";
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(20, 4, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        stage = "unset name answers nothing";
+        SelfTestFeedText(terminal, query);
+        if (capture.used != 0)
+                goto done;
+        stage = "configured name is reported hex-encoded";
+        if (XtpTerminalSetTerminfoName(terminal, "xtp-test") != 0)
+                goto done;
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, query);
+        if (!SelfTestPtyEqualsText(&capture, "\033P1+r544E=7874702D74657374\033\\"))
+                goto done;
+        stage = "Tcap Ops denial keeps TN silent";
+        {
+                XtpTcapOps tcap;
+
+                XtpTcapOpsParse(XTP_TCAP_OPS_DEFAULT_DISALLOWED, &tcap);
+                XtpTerminalSetTcapOpsPolicy(terminal, false, &tcap);
+        }
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, query);
+        XtpTerminalSetTcapOpsPolicy(terminal, true, NULL);
+        if (capture.used != 0)
+                goto done;
+        stage = "over-long names are rejected";
+        {
+                char *text = malloc(130);
+
+                if (text == NULL)
+                        goto done;
+                memset(text, 'x', 129);
+                text[129] = '\0';
+                if (XtpTerminalSetTerminfoName(terminal, text) == 0) {
+                        free(text);
+                        goto done;
+                }
+                free(text);
+        }
+        stage = "a rejected name leaves TN unanswered rather than stale";
+        capture = (SelfTestPtyCapture){0};
+        SelfTestFeedText(terminal, query);
+        if (capture.used != 0)
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "terminfo name mismatch stage=%s bytes=%zu reply=%.*s", stage, capture.used,
+                       (int)capture.used, (const char *)capture.bytes);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 SelfTestAnswerback(void)
 {
         XtpTerminal *terminal;
@@ -3475,6 +3543,7 @@ XtpSelfTest(void)
             {"underline color", SelfTestUnderlineColor},
             {"startup cursor shape", SelfTestStartupCursorShape},
             {"answerback", SelfTestAnswerback},
+            {"terminfo name", SelfTestTerminfoName},
             {"color-ops policy", SelfTestColorOpsPolicy},
             {"request Ops", SelfTestRequestOps},
             {"color scheme", SelfTestColorScheme},

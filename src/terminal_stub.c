@@ -139,6 +139,13 @@ XtpTerminalEncodeMouse(XtpTerminal *terminal, const XtpMouseEvent *event, char *
 }
 
 int
+XtpTerminalSetTerminfoName(XtpTerminal *terminal, const char *name)
+{
+        (void)name;
+        return terminal != NULL ? 0 : -1;
+}
+
+int
 XtpTerminalSetAnswerback(XtpTerminal *terminal, const char *answerback)
 {
         (void)answerback;

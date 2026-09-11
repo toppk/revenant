@@ -449,6 +449,10 @@ XTerm*SimpleMenu*foreground:  white
 XTerm*fontMenu*font3*Label:   Small (6x10)
 ```
 
+The `termName` application resource (`-tn`) names the terminal for the child:
+it is exported as `TERM`, `xterm-256color` by default, and is also what an
+XTGETTCAP `TN` query reports, so programs that check both see one answer.
+
 Menus are created under the `menuLocale` resource (default `C`) so bitmap
 menu fonts work on UTF-8 desktops without a `Missing charsets` warning, the
 same trick xterm uses.

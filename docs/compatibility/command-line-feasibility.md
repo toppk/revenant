@@ -60,7 +60,7 @@ The two original structural gaps are complete:
 | `-class string` | Override application class before Xt init | Single pre-X scan, then `XtOpenDisplay`/shell identity | WM_CLASS, app-default resolution, and `CustomTerm*resource` lookup are covered under Xvfb | DONE |
 | `-name string` | Override instance name (`xterm.` resources, icon, title) | Same scan; `-e` defaults icon/title to the child basename | WM_CLASS, `custom*resource`, command provenance, WM_NAME, and WM_ICON_NAME are covered under Xvfb | DONE |
 | `-/+ls` | `loginShell`: prefix `argv[0]` with `-` | `pty.c` exec | One line at exec time | READY |
-| `-tn name` | `termName`: `TERM` for the child | `pty.c` environment; libghostty `OPT_TERMINFO_NAME` should match for XTGETTCAP | Set env; also feed the name to libghostty | READY |
+| `-tn name` | `termName`: `TERM` for the child | `pty.c` environment and libghostty `OPT_TERMINFO_NAME` from one resolved name | XTGETTCAP `TN` reports the child's `TERM`; Tcap Ops gates the reply | DONE |
 | `-ti termid` | `decTerminalID`: DA responses (vt100/220/…) | libghostty answers DA itself; no terminal-ID option in the reviewed API | Needs an ID option or DA callback | BLOCKED |
 | `-tm string` | `ttyModes`: stty-style keywords for the PTY | `pty.c` termios | Parse the small keyword language, apply with `tcsetattr` | READY |
 | `-/+ie` | `ptyInitialErase`: take erase char from the PTY | `pty.c` termios | Read `VERASE`, feed backarrow mode | READY |

@@ -65,6 +65,7 @@ XrmOptionDescRec XtpCommandOptions[] = {
     {"-T", ".title", XrmoptionSepArg, NULL},
     {"-n", "*iconName", XrmoptionSepArg, NULL},
     {"-title", ".title", XrmoptionSepArg, NULL},
+    {"-tn", ".termName", XrmoptionSepArg, NULL},
     {"-w", ".borderWidth", XrmoptionSepArg, NULL},
     {"#", ".iconGeometry", XrmoptionStickyArg, NULL},
 };
@@ -152,6 +153,7 @@ static const OptionHelp option_help[] = {
     {"-name string", "client instance, icon, and title strings"},
     {"-class string", "application class string (XTerm)"},
     {"-title string", "title string"},
+    {"-tn name", "TERM for the child and XTGETTCAP TN"},
     {"-xrm resourcestring", "additional resource specification"},
     {"-selectionTimeout milliseconds", "Xt selection timeout"},
     {"-/+synchronous", "turn synchronous X requests on/off"},

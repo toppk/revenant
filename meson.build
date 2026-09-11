@@ -821,6 +821,17 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-term-name',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-term-name.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+        ],
+        timeout: 60,
+        is_parallel: false,
+    )
+    test(
         'xvfb-answerback',
         find_program('sh'),
         args: [

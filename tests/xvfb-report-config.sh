@@ -52,6 +52,31 @@ grep -E -B 1 '^XTerm\*color0:[[:space:]]+black$' "$report" | \
 grep -E -B 1 '^XTerm\*color15:[[:space:]]+white$' "$report" | \
     grep -q '\[compiled default\] \[supported\]'
 
+grep -E -B 1 '^XTerm\*termName:[[:space:]]+xterm-256color$' "$report" | \
+    grep -q '\[compiled default\] \[supported\]'
+if grep -q '^! effective termName:' "$report"
+then
+    echo "default termName should not print a separate effective value" >&2
+    exit 1
+fi
+
+term_name_report=$test_dir/term-name-report
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+    "$fixture_root/run" base "$terminal" -tn '' -report-config >"$term_name_report" 2>>"$log"
+grep -E -B 1 '^XTerm\*termName:[[:space:]]*$' "$term_name_report" | \
+    grep -q '\[command line\] \[supported\]'
+grep -E -q '^! effective termName:[[:space:]]+xterm-256color$' "$term_name_report"
+
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+    "$fixture_root/run" base "$terminal" -tn xtp-custom -report-config >"$term_name_report" 2>>"$log"
+grep -E -B 1 '^XTerm\*termName:[[:space:]]+xtp-custom$' "$term_name_report" | \
+    grep -q '\[command line\] \[supported\]'
+if grep -q '^! effective termName:' "$term_name_report"
+then
+    echo "custom termName should not print a separate effective value" >&2
+    exit 1
+fi
+
 override_report=$test_dir/override-report
 HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
     "$fixture_root/run" base "$terminal" \
@@ -88,4 +113,4 @@ do
     grep -E -q "^$expected$" "$alias_report"
 done
 
-echo "report-config resource classifications, overrides, and aliases passed"
+echo "report-config resource classifications, termName, overrides, and aliases passed"

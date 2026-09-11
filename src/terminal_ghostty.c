@@ -347,6 +347,27 @@ EnquiryEffectPointer(void)
 }
 
 int
+XtpTerminalSetTerminfoName(XtpTerminal *terminal, const char *name)
+{
+        GhosttyString value = {.ptr = (const uint8_t *)name,
+                               .len = name != NULL ? strlen(name) : 0};
+
+        if (terminal == NULL)
+                return -1;
+        if (ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_TERMINFO_NAME,
+                                 name != NULL ? &value : NULL) != GHOSTTY_SUCCESS) {
+                /* A rejected name must not leave an earlier one answering TN. */
+                (void)ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_TERMINFO_NAME,
+                                           NULL);
+                XtpLog(XTP_LOG_WARNING, "terminal",
+                       "terminfo name rejected bytes=%zu; TN unanswered", value.len);
+                return -1;
+        }
+        XtpLog(XTP_LOG_INFO, "terminal", "terminfo name=%s", name != NULL ? name : "(unset)");
+        return 0;
+}
+
+int
 XtpTerminalSetAnswerback(XtpTerminal *terminal, const char *answerback)
 {
         char *copy = NULL;

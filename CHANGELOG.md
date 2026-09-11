@@ -10,6 +10,10 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Add the `termName` resource and `-tn` option. The configured name (default
+  `xterm-256color`) becomes the child's `TERM` and the answer to an XTGETTCAP
+  `TN` query, so the two can no longer disagree; the reply still obeys Tcap
+  Ops, and `-report-config` shows the effective name.
 - Answer ENQ with xterm's `answerbackString` resource. The string is sent
   verbatim for every ENQ (0x05) the application writes; the default is empty
   and sends nothing.

@@ -3,6 +3,7 @@
 #include "ansi_palette.h"
 #include "command_options.h"
 #include "diagnostics.h"
+#include "pty_process.h"
 #include "resource_catalog.h"
 #include "sme_slider.h"
 #include "terminal.h"
@@ -82,6 +83,7 @@ typedef struct
 
 static const ResourceProbe resource_probes[] = {
     {"xterm.geometry", "XTerm.Geometry"},
+    {"xterm.termName", "XTerm.TermName"},
     {"xterm.menuLocale", "XTerm.MenuLocale"},
     {"xterm.logLevel", "XTerm.LogLevel"},
     {"xterm.debug", "XTerm.Debug"},
@@ -753,6 +755,25 @@ ReportResourceGroup(const ReportContext *context, const char *heading, const Res
 }
 
 static void
+ReportTerminalName(const ReportContext *context)
+{
+        static const ResourceSpec spec = {"xterm.termName", "XTerm.TermName",
+                                          XTP_TERM_NAME_DEFAULT};
+        Resolved resolved = ResolveResource(context, &spec);
+        const char *effective = resolved.value != NULL && *resolved.value != '\0'
+                                    ? resolved.value
+                                    : XTP_TERM_NAME_DEFAULT;
+
+        PrintResolved("XTerm*termName", "supported",
+                      "Name placed in the child's TERM and answered for XTGETTCAP TN; "
+                      "an empty value falls back to the compiled default.",
+                      &resolved);
+        if (resolved.value == NULL || *resolved.value == '\0')
+                printf("! effective termName:\t%s\n", effective);
+        free(resolved.value);
+}
+
+static void
 ReportPaletteAndPointer(const ReportContext *context)
 {
         static const char *const defaults[XTP_ANSI_PALETTE_SIZE] = {XTP_ANSI_PALETTE_DEFAULT_LIST};
@@ -963,7 +984,8 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
                 return "unsupported";
         if (entry->scope == XTP_RESOURCE_APPLICATION) {
                 if (strcmp(name, "title") == 0 || strcmp(name, "iconName") == 0 ||
-                    strcmp(name, "iconGeometry") == 0 || strcmp(name, "menuLocale") == 0)
+                    strcmp(name, "iconGeometry") == 0 || strcmp(name, "menuLocale") == 0 ||
+                    strcmp(name, "termName") == 0)
                         return "supported";
                 return "unsupported";
         }
@@ -1530,6 +1552,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
                             appearance_support, appearance_help, XtNumber(appearance));
         ReportResourceGroup(&context, "Behavior and transitional features", behavior,
                             behavior_names, behavior_support, behavior_help, XtNumber(behavior));
+        ReportTerminalName(&context);
         ReportUpstreamCatalog(&context);
         ReportUpstreamAppDefaults();
         ReportToolkitCatalog(&context);

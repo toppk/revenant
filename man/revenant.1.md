@@ -27,7 +27,8 @@ colour, current mouse and focus reporting, synchronized output (DEC private
 mode 2026), grapheme-aware cell width, and the kitty keyboard protocol.
 
 Without arguments **revenant** runs the shell named by **SHELL**, or */bin/sh*
-if that is unset, and sets **TERM** to **xterm-256color**. Everything after
+if that is unset, and sets **TERM** to the **termName** resource, which
+**-tn** sets and which defaults to **xterm-256color**. Everything after
 **-e** is the command to run instead and must come last.
 
 **revenant** is measured against xterm patch 411, which defines the visible
@@ -153,7 +154,9 @@ against them.
 :   The command run when none is given with **-e**.
 
 **TERM**
-:   Set to **xterm-256color** in the child's environment.
+:   Set in the child's environment to the **termName** resource (**-tn**),
+    **xterm-256color** by default. An XTGETTCAP query for **TN** reports the
+    same name.
 
 **XAPPLRESDIR**, **XENVIRONMENT**
 :   Consulted by the X Toolkit when loading resources, as for any Xt program.

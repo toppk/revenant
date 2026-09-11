@@ -410,6 +410,18 @@ function-pointer helper would lose the useful type check.
   including Xft DPI; `-report-config` uses the identical font-matching path.
 - Shift+keypad font selection, proportional window resizing, WM resize
   increments, and grid-preserving renderer switches.
+- Terminal name: the `termName` application resource (`-tn`) is resolved
+  once, exported as the child's `TERM` by the PTY spawner, and pushed to
+  libghostty's terminfo-name option so XTGETTCAP `TN` reports the same
+  string; the reply passes through the Tcap Ops filter like any XTGETTCAP
+  reply. Names the core rejects (over 128 bytes) still set `TERM` but clear
+  any earlier core name so `TN` stays unanswered rather than stale, with a
+  warning. `-report-config` prints `termName` with its compiled default and
+  adds an `effective termName` line when the configured value is empty.
+  `xvfb-term-name` compares `TERM` and the hex-encoded `TN` reply for the
+  default, option, and resource forms, and checks the silent reply under Tcap
+  Ops denial; `xvfb-report-config` covers the default, empty, and custom
+  report lines.
 - Answerback: `answerbackString` is copied into the backend and, on
   libghostty's ENQ effect, written straight through the host PTY effect with
   an empty result returned to the core, so the reply filters (mode-12
@@ -1278,7 +1290,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 43 tests for each libghostty build
+The normal full matrix currently contains 44 tests for each libghostty build
 and 8 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

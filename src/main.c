@@ -45,6 +45,7 @@ typedef struct
         Boolean argb_visual;
         Boolean running;
         XtpTitleStack title_stack;
+        const char *term_name;
 } App;
 
 typedef struct
@@ -67,6 +68,7 @@ static const TerminalModeMenuItem terminal_mode_menu_items[] = {
 typedef struct
 {
         String menu_locale;
+        String term_name;
         String log_level;
         Boolean debug;
         Boolean report_config;
@@ -81,6 +83,15 @@ static XtResource application_resources[] = {
         XtOffsetOf(AppResources, menu_locale),
         XtRString,
         (XtPointer) "C",
+    },
+    {
+        "termName",
+        "TermName",
+        XtRString,
+        sizeof(String),
+        XtOffsetOf(AppResources, term_name),
+        XtRString,
+        (XtPointer)XTP_TERM_NAME_DEFAULT,
     },
     {
         "logLevel",
@@ -1219,6 +1230,10 @@ WireApplication(App *app, const AppResources *resources)
         XtAddCallback(app->vt, XtNpopupMenuCallback, PopupRequested, app);
         XtAddCallback(app->vt, XtNpasteCallback, PasteReceived, app);
         XtAddCallback(app->vt, XtNinputCallback, EncodedInputReceived, app);
+        app->term_name = resources->term_name != NULL && *resources->term_name != '\0'
+                             ? resources->term_name
+                             : XTP_TERM_NAME_DEFAULT;
+        XtpLog(XTP_LOG_INFO, "config", "termName=%s", app->term_name);
         XtpMenusCreate(&app->menus, app->shell, resources->menu_locale, MenuDispatch, app);
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
@@ -1249,6 +1264,10 @@ CreateTerminal(App *app)
         }
         XtpLog(XTP_LOG_INFO, "config", "terminal backend=%s", XtpTerminalBackend());
         ApplyTerminalEffects(app);
+        /* One name for the child's TERM and for XTGETTCAP TN. */
+        if (XtpTerminalSetTerminfoName(app->terminal, app->term_name) != 0)
+                XtpLog(XTP_LOG_WARNING, "terminal", "XTGETTCAP TN stays unanswered for termName=%s",
+                       app->term_name);
         XtpVtSetTerminal(app->vt, app->terminal);
         return 0;
 }
@@ -1275,9 +1294,9 @@ StartChild(App *app, char **command)
         if (XtpTerminalBackendIsStub())
                 return 0;
 
-        app->pty =
-            XtpPtySpawn(command, (uint16_t)XtpVtColumns(app->vt), (uint16_t)XtpVtRows(app->vt),
-                        XtpVtCellWidth(app->vt), XtpVtCellHeight(app->vt));
+        app->pty = XtpPtySpawn(command, app->term_name, (uint16_t)XtpVtColumns(app->vt),
+                               (uint16_t)XtpVtRows(app->vt), XtpVtCellWidth(app->vt),
+                               XtpVtCellHeight(app->vt));
         if (app->pty == NULL) {
                 XtpLog(XTP_LOG_ERROR, "pty", "cannot start command=%s", command[0]);
                 return -1;

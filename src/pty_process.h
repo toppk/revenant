@@ -5,10 +5,13 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+/* TERM and XTGETTCAP TN name used when termName is unset or empty. */
+#define XTP_TERM_NAME_DEFAULT "xterm-256color"
+
 typedef struct XtpPty XtpPty;
 
-XtpPty *XtpPtySpawn(char *const argv[], uint16_t columns, uint16_t rows, uint32_t cell_width,
-                    uint32_t cell_height);
+XtpPty *XtpPtySpawn(char *const argv[], const char *term_name, uint16_t columns, uint16_t rows,
+                    uint32_t cell_width, uint32_t cell_height);
 void XtpPtyFree(XtpPty *pty);
 int XtpPtyFd(const XtpPty *pty);
 pid_t XtpPtyPid(const XtpPty *pty);

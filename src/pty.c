@@ -38,8 +38,8 @@ WindowSize(uint16_t columns, uint16_t rows, uint32_t cell_width, uint32_t cell_h
 }
 
 XtpPty *
-XtpPtySpawn(char *const argv[], uint16_t columns, uint16_t rows, uint32_t cell_width,
-            uint32_t cell_height)
+XtpPtySpawn(char *const argv[], const char *term_name, uint16_t columns, uint16_t rows,
+            uint32_t cell_width, uint32_t cell_height)
 {
         XtpPty *pty;
         struct winsize size = WindowSize(columns, rows, cell_width, cell_height);
@@ -58,7 +58,9 @@ XtpPtySpawn(char *const argv[], uint16_t columns, uint16_t rows, uint32_t cell_w
                 return NULL;
         }
         if (pty->child == 0) {
-                (void)setenv("TERM", "xterm-256color", 1);
+                (void)setenv(
+                    "TERM",
+                    term_name != NULL && *term_name != '\0' ? term_name : XTP_TERM_NAME_DEFAULT, 1);
                 (void)setenv("TERM_PROGRAM", XTP_PROGRAM_NAME, 1);
                 (void)setenv("TERM_PROGRAM_VERSION", XTP_VERSION, 1);
                 execvp(argv[0], argv);

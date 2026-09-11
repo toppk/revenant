@@ -54,6 +54,7 @@ inventory; an option not shown there is not silently accepted.
 | `-b pixels` | `vt100.internalBorder` | Padding inside the window |
 | `-cr color` | `vt100.cursorColor` | Text cursor color |
 | `-title string` / `-T string` | `.title` | Window title |
+| `-tn name` | `.termName` | `TERM` for the child and the XTGETTCAP `TN` reply (default `xterm-256color`) |
 | `-n string` | `.iconName` | Icon name |
 | `#geom` | `.iconGeometry` | Icon geometry in xterm's sticky form |
 | `-iconic` | `.iconic` | Start iconified |

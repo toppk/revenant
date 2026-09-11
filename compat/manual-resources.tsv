@@ -53,6 +53,7 @@ vt100	cursorBar	CursorBar	boolean	false		Start with a bar cursor instead of a bl
 vt100	answerbackString	AnswerbackString	string			Text sent verbatim to the application when it writes ENQ (0x05). The default is empty, which sends nothing.
 vt100	cursorOnTime	CursorOnTime	integer	600		Milliseconds a blinking cursor remains visible.
 vt100	cursorOffTime	CursorOffTime	integer	300		Milliseconds a blinking cursor remains hidden.
+application	termName	TermName	string	xterm-256color		Terminal name placed in the child's TERM and reported for an XTGETTCAP TN query, so both always agree; -tn sets it. Names over 128 bytes still set TERM but leave TN unanswered.
 application	menuLocale	MenuLocale	string	C		Locale under which the popup menus are created, so bitmap menu fonts work on UTF-8 desktops without charset warnings.
 application	logLevel	LogLevel	string	warning		Minimum severity written to standard error: debug, info, warning, or error.
 application	debug	Debug	boolean	false		Compatibility alias: when logLevel is unset, true selects the debug level.

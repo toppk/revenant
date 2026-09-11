@@ -138,8 +138,9 @@ can be implemented reliably.
 **Allow Tcap Ops** defaults true and overrides `disallowedTcapOps` (default
 `SetTcap,GetTcap`). Names, wildcards and tilde negation share the other Ops
 list parser. GetTcap suppresses generated XTGETTCAP replies; it does not
-change the capability database. Configuring TN and the child's TERM together
-remains pending, as does XTSETTCAP. `allowSendEvents` does not override these
+change the capability database. `termName` (`-tn`) supplies both the child's
+`TERM` and the `TN` reply, so they cannot disagree. XTSETTCAP remains
+unimplemented. `allowSendEvents` does not override these
 permissions.
 
 `allowFontOps` (true) and `disallowedFontOps` (`SetFont,GetFont`) are accepted

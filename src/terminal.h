@@ -436,6 +436,9 @@ int XtpTerminalSetAnsiPalette(XtpTerminal *terminal,
 int XtpTerminalSetBoldColors(XtpTerminal *terminal, bool enabled);
 int XtpTerminalSetCharClass(XtpTerminal *terminal, const char *specification);
 int XtpTerminalSetTitle(XtpTerminal *terminal, const char *title, size_t length);
+/* The name XTGETTCAP "TN" reports; it must match the child's TERM. Names over
+ * 128 bytes are rejected by the core and leave TN unanswered. */
+int XtpTerminalSetTerminfoName(XtpTerminal *terminal, const char *name);
 /* xterm's answerbackString, sent verbatim for ENQ; empty or NULL stays silent. */
 int XtpTerminalSetAnswerback(XtpTerminal *terminal, const char *answerback);
 int XtpTerminalGetScrollbar(XtpTerminal *terminal, XtpTerminalScrollbar *scrollbar);
