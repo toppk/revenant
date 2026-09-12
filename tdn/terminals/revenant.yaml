@@ -246,3 +246,27 @@ features:
     evidence:
     - kind: test
       url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tests/xvfb-dynamic-colors.sh
+  osc-133-prompt-marks:
+    status: partial
+    as-of: git:75abb483ab7796e70f4e8348c3c5d2bab98b1e98
+    notes: A/B/C/D and k=s continuation marks are parsed by the core and exposed as row prompt state, a mark index,
+      and the core's cell-exact command-output selection; used for prompt navigation only. Click-to-move and redraw
+      options are not assessed.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/75abb483ab7796e70f4e8348c3c5d2bab98b1e98/tests/xvfb-prompt-navigation.sh
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/75abb483ab7796e70f4e8348c3c5d2bab98b1e98/src/selftest.c
+  ui-prompt-navigation:
+    status: supported
+    as-of: git:75abb483ab7796e70f4e8348c3c5d2bab98b1e98
+    notes: previous-prompt()/next-prompt() actions on Ctrl+Shift+Up/Down move the viewport between OSC 133 prompts
+      through scrollback, wrapped and continuation prompts, reflow, and page eviction; no-op on the alternate screen
+      and inside the live area.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/75abb483ab7796e70f4e8348c3c5d2bab98b1e98/tests/xvfb-prompt-navigation.sh

@@ -38,7 +38,7 @@ existing ID; its parent is complete only after all three.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| Shell | S2 prompt navigation → S3 output pipe | S2 first exposes semantic ranges; S3 also uses completed S1 cwd. |
+| Shell | S3 output pipe | Uses the completed S2 semantic range API and S1 cwd. |
 | Rendering and selection | G1 → G2; U1; U2 → U3 | G2 reuses G1 drawing; U3 needs U2 search model. |
 | Progress | N3 | Independent of desktop delivery; select the UI surface before coding. |
 | API-dependent | V3, F1, M1 | Public OSC hooks for V3/F1; effective mouse tracking API for M1. |
@@ -65,17 +65,6 @@ conflicting ownership even within the same batch.
       scenario and verify hyperlink-hover precedence externally.
 
 ## S: Shell integration
-
-- [ ] **S2 — Prompt navigation.** Expose core semantic rows/cells and add
-      previous/next prompt translation actions. Owner: backend history API,
-      interaction and translations.
-      Probe: `just probe ui-prompt-navigation shell-prompts` . No dependency on S1 required.
-      First review the semantic range API, then
-      the navigation actions; keep both within S2 and test the API for S3 reuse. Accept: wrapped
-      prompts, scrollback eviction, missing markers,
-      alternate screen, and viewport boundaries. Stop: no command execution,
-      output pipe, search overlay, or clear-to-prompt.
-      TDN: `osc-133-prompt-marks`, `ui-prompt-navigation`.
 
 - [ ] **S3 — Pipe last command output.** Depends on S1 and S2's semantic
       range API. Add configured command/resource plus explicit user action;
