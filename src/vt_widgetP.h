@@ -39,6 +39,17 @@
 #define XtCFont6 "Font6"
 #define XtCFont7 "Font7"
 
+/* A key held back until Xt has dispatched this event's translations; see DeferKey. */
+typedef struct PendingKey
+{
+        struct PendingKey *next;
+        XtIntervalId timer;
+        Widget widget;
+        XKeyEvent event;
+        XtpKeyAction action;
+        Boolean owned;
+} PendingKey;
+
 typedef struct
 {
         Boolean used;
@@ -85,6 +96,8 @@ typedef enum
         XTP_LOCAL_ACTION_SCROLL_BACK,
         XTP_LOCAL_ACTION_SCROLL_FORWARD,
         XTP_LOCAL_ACTION_REPORT_FONT_ROUTING,
+        XTP_LOCAL_ACTION_PREVIOUS_PROMPT,
+        XTP_LOCAL_ACTION_NEXT_PROMPT,
 } LocalKeyAction;
 
 typedef struct
@@ -281,6 +294,10 @@ typedef struct
         Boolean detectable_autorepeat;
         KeyActionIdentity recent_key_actions[XTP_RECENT_KEY_ACTIONS];
         unsigned int next_key_action;
+        PendingKey *pending_keys;
+        /* Keycodes whose press a local action owned; their release is owned whatever the modifiers.
+         */
+        uint8_t owned_keycodes[32];
         ColorCacheEntry colors[XTP_COLOR_CACHE_SIZE];
         size_t color_count;
 } Vt100Part;
@@ -311,6 +328,10 @@ void VtFontReloadApplied(Vt100Rec *vt);
 Dimension VtScrollbarTotalWidth(Vt100Rec *vt);
 void VtUpdateScrollbar(Vt100Rec *vt);
 Boolean VtScrollViewportBy(Vt100Rec *vt, intptr_t rows);
+/* Moves the viewport `count` prompts up (negative) or down; False when nothing moved. */
+Boolean VtScrollToPrompt(Vt100Rec *vt, long count);
+void VtMarkPendingKeyOwned(Vt100Rec *vt, const XKeyEvent *event);
+void VtInsertKeyAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 Boolean VtDeferSynchronizedRedraw(Vt100Rec *vt);
 void VtFreeOwnedSelections(Vt100Rec *vt);
 void VtResetEffectiveColors(Vt100Rec *vt);
@@ -345,6 +366,8 @@ void VtDoubleUnderlineRows(int center, int area_top, int area_bottom, int *top, 
 void VtHyperlinkEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch);
 void VtScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 void VtScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtPreviousPromptAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtNextPromptAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 void VtSelectStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 void VtSelectExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 void VtSelectEndAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);

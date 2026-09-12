@@ -68,13 +68,17 @@ main(int argc, char **argv)
              strcmp(argv[2], "ctrl-cycle") != 0 && strcmp(argv[2], "up-cycle") != 0 &&
              strcmp(argv[2], "shift-insert-cycle") != 0 && strcmp(argv[2], "up") != 0 &&
              strcmp(argv[2], "shift-up") != 0 && strcmp(argv[2], "ctrl-up") != 0 &&
-             strcmp(argv[2], "alt-up") != 0 && strcmp(argv[2], "super-up") != 0 &&
-             strcmp(argv[2], "f1") != 0 && strcmp(argv[2], "f5") != 0 &&
-             strcmp(argv[2], "f12") != 0 && strcmp(argv[2], "f13") != 0 &&
-             strcmp(argv[2], "f13-cycle") != 0 && strcmp(argv[2], "home") != 0 &&
-             strcmp(argv[2], "delete") != 0 && strcmp(argv[2], "kp-1") != 0 &&
-             strcmp(argv[2], "app-kp-1") != 0 && strcmp(argv[2], "kp-enter") != 0 &&
-             strcmp(argv[2], "adiaeresis") != 0 && strcmp(argv[2], "compose-e-acute") != 0)) {
+             strcmp(argv[2], "ctrl-shift-up") != 0 && strcmp(argv[2], "ctrl-shift-down") != 0 &&
+             strcmp(argv[2], "ctrl-shift-up-burst") != 0 &&
+             strcmp(argv[2], "ctrl-shift-up-modifiers-first") != 0 &&
+             strcmp(argv[2], "ctrl-shift-up-press") != 0 && strcmp(argv[2], "alt-up") != 0 &&
+             strcmp(argv[2], "super-up") != 0 && strcmp(argv[2], "f1") != 0 &&
+             strcmp(argv[2], "f5") != 0 && strcmp(argv[2], "f12") != 0 &&
+             strcmp(argv[2], "f13") != 0 && strcmp(argv[2], "f13-cycle") != 0 &&
+             strcmp(argv[2], "home") != 0 && strcmp(argv[2], "delete") != 0 &&
+             strcmp(argv[2], "kp-1") != 0 && strcmp(argv[2], "app-kp-1") != 0 &&
+             strcmp(argv[2], "kp-enter") != 0 && strcmp(argv[2], "adiaeresis") != 0 &&
+             strcmp(argv[2], "compose-e-acute") != 0)) {
                 fprintf(stderr,
                         "usage: %s WINDOW-ID "
                         "{ctrl-i|tab|a-cycle|shift-a-cycle|ctrl-cycle|up-cycle|"
@@ -109,6 +113,17 @@ main(int argc, char **argv)
         } else if (strcmp(argv[2], "shift-up") == 0) {
                 keysym = XK_Up;
                 state = ShiftMask;
+        } else if (strcmp(argv[2], "ctrl-shift-up") == 0) {
+                keysym = XK_Up;
+                state = ShiftMask | ControlMask;
+        } else if (strcmp(argv[2], "ctrl-shift-down") == 0) {
+                keysym = XK_Down;
+                state = ShiftMask | ControlMask;
+        } else if (strcmp(argv[2], "ctrl-shift-up-burst") == 0 ||
+                   strcmp(argv[2], "ctrl-shift-up-modifiers-first") == 0 ||
+                   strcmp(argv[2], "ctrl-shift-up-press") == 0) {
+                keysym = XK_Up;
+                state = ShiftMask | ControlMask;
         } else if (strcmp(argv[2], "ctrl-up") == 0) {
                 keysym = XK_Up;
                 state = ControlMask;
@@ -238,12 +253,43 @@ main(int argc, char **argv)
         event.xkey.state = state;
         event.xkey.keycode = keycode;
         event.xkey.same_screen = True;
-        event.xkey.type = KeyPress;
-        (void)XSendEvent(display, target, True, KeyPressMask, &event);
-        if (strstr(argv[2], "-cycle") != NULL)
+        if (strcmp(argv[2], "ctrl-shift-up-burst") == 0) {
+                /* Twelve cycles in one flush arrive before any zero-delay timer runs. */
+                int cycle;
+
+                for (cycle = 0; cycle < 12; ++cycle) {
+                        event.xkey.type = KeyPress;
+                        (void)XSendEvent(display, target, True, KeyPressMask, &event);
+                        event.xkey.type = KeyRelease;
+                        (void)XSendEvent(display, target, True, KeyReleaseMask, &event);
+                }
+        } else if (strcmp(argv[2], "ctrl-shift-up-modifiers-first") == 0) {
+                /* Ctrl is released before the arrow, then a plain key follows as a sentinel. */
+                KeyCode sentinel = XKeysymToKeycode(display, XK_a);
+
+                event.xkey.type = KeyPress;
                 (void)XSendEvent(display, target, True, KeyPressMask, &event);
-        event.xkey.type = KeyRelease;
-        (void)XSendEvent(display, target, True, KeyReleaseMask, &event);
+                event.xkey.type = KeyRelease;
+                event.xkey.state = ShiftMask;
+                (void)XSendEvent(display, target, True, KeyReleaseMask, &event);
+                event.xkey.state = 0;
+                event.xkey.keycode = sentinel;
+                event.xkey.type = KeyPress;
+                (void)XSendEvent(display, target, True, KeyPressMask, &event);
+                event.xkey.type = KeyRelease;
+                (void)XSendEvent(display, target, True, KeyReleaseMask, &event);
+        } else if (strcmp(argv[2], "ctrl-shift-up-press") == 0) {
+                /* The press alone; the key stays down while focus moves elsewhere. */
+                event.xkey.type = KeyPress;
+                (void)XSendEvent(display, target, True, KeyPressMask, &event);
+        } else {
+                event.xkey.type = KeyPress;
+                (void)XSendEvent(display, target, True, KeyPressMask, &event);
+                if (strstr(argv[2], "-cycle") != NULL)
+                        (void)XSendEvent(display, target, True, KeyPressMask, &event);
+                event.xkey.type = KeyRelease;
+                (void)XSendEvent(display, target, True, KeyReleaseMask, &event);
+        }
         XSync(display, False);
         printf("sent %s to 0x%lx\n", argv[2], target);
         XCloseDisplay(display);

@@ -853,6 +853,21 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-prompt-navigation',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-prompt-navigation.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            key_test_tool.full_path(),
+            window_ink_test_tool.full_path(),
+            resize_test_tool.full_path(),
+            urgency_test_tool.full_path(),
+        ],
+        timeout: 150,
+        is_parallel: false,
+    )
+    test(
         'xvfb-notification-urgency',
         find_program('sh'),
         args: [

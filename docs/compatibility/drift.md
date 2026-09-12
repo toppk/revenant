@@ -406,6 +406,36 @@ This callback is APC-only. Unsupported OSC and CSI controls remain invisible
 to Revenant, which is an upstream API limitation rather than a place for a
 second escape parser; OSC 22 and OSC 50 stay on that upstream ask.
 
+### Prompt navigation (OSC 133)
+
+xterm 411 has no notion of shell prompts: it ignores OSC 133 and binds
+nothing to Ctrl+Shift+Up or Ctrl+Shift+Down, so those keys reach the
+application as modified arrows. Revenant adds `previous-prompt()` and
+`next-prompt()` translation actions on those default bindings, matching
+Ghostty's `jump_to_prompt` keys, and treats the gesture as translation-owned
+so it is not also sent to the PTY. The actions move the viewport to the
+start of the previous or next prompt that a shell marked with OSC 133,
+following libghostty's prompt iterator: continuation lines (`k=s`) and
+soft-wrapped prompt rows belong to the prompt above them, a continuation
+run whose primary row was pruned counts as a prompt, a prompt inside the
+live area keeps the live view, and the alternate screen has no history to
+move through. One normalization differs from the core: for an orphan
+continuation run at the very top of the screen, libghostty's upward search
+stops at the row it entered while its downward search returns the top;
+Revenant returns the run's top row in both directions. To restore xterm's
+delivery of the keys, bind them to xterm's own keypress action, which
+Revenant accepts for this purpose:
+
+```xrdb
+XTerm*vt100.translations: #override \n\
+    Ctrl Shift <KeyPress> Up:   insert-seven-bit() \n\
+    Ctrl Shift <KeyPress> Down: insert-seven-bit()
+```
+
+Nothing is selected, executed, or cleared; command-output extraction and
+clear-to-prompt remain separate work, although the backend already exposes
+the core's cell-exact command-output selection for them.
+
 ### Notification urgency (OSC 9, OSC 777)
 
 xterm 411 does not implement OSC 9 or OSC 777; both are discarded as

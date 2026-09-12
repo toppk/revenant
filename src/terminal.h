@@ -460,6 +460,40 @@ int XtpTerminalGetScrollbar(XtpTerminal *terminal, XtpTerminalScrollbar *scrollb
 int XtpTerminalScrollBy(XtpTerminal *terminal, intptr_t rows);
 int XtpTerminalScrollTo(XtpTerminal *terminal, uint64_t row);
 int XtpTerminalScrollToBottom(XtpTerminal *terminal);
+
+typedef enum
+{
+        XTP_SEMANTIC_ROW_NONE,
+        XTP_SEMANTIC_ROW_PROMPT,
+        XTP_SEMANTIC_ROW_PROMPT_CONTINUATION,
+} XtpSemanticRow;
+
+/* An inclusive cell range in screen coordinates: row 0 is the top of the scrollback. */
+typedef struct
+{
+        uint64_t start_row;
+        uint16_t start_column;
+        uint64_t end_row;
+        uint16_t end_column;
+} XtpSemanticSpan;
+
+/* OSC 133 prompt state of a screen row; -1 when the row does not exist or the alternate
+ * screen is active. Each call resolves the row from the top of the screen. */
+int XtpTerminalSemanticRow(XtpTerminal *terminal, uint64_t row, XtpSemanticRow *state);
+/* Start row of the nearest prompt strictly above (or below) `from`, found through an index
+ * of OSC 133 marks rather than a row scan. A continuation run resolves to its primary row
+ * or, when that row is gone, to the run's top row. -1 when there is none. */
+int XtpTerminalFindPrompt(XtpTerminal *terminal, uint64_t from, bool forward, uint64_t *row);
+/* Prompt marks the backend currently stores, dead ones included; never compacts. Diagnostics. */
+size_t XtpTerminalPromptMarks(XtpTerminal *terminal);
+/* The core's command-output selection for the prompt starting at `prompt_start`: from the
+ * first written output cell (a written space counts) to the last written one, cell-exact,
+ * ending before the next prompt row. -1 when the command wrote nothing. */
+int XtpTerminalCommandOutput(XtpTerminal *terminal, uint64_t prompt_start, XtpSemanticSpan *span);
+/* Plain text of a span with soft wraps joined and trailing blanks trimmed, NUL-terminated;
+ * the caller frees *text. */
+int XtpTerminalSpanText(XtpTerminal *terminal, const XtpSemanticSpan *span, char **text,
+                        size_t *length);
 XtpSelectionResult XtpTerminalSelectionStart(XtpTerminal *terminal, uint16_t column, uint16_t row,
                                              double surface_x, double surface_y, uint64_t time_ns,
                                              XtpSelectionUnit unit, bool repeat);

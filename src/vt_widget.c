@@ -40,6 +40,10 @@ static XtActionsRec actions[] = {
     {"popup-menu", PopupMenuAction},
     {"scroll-back", VtScrollBackAction},
     {"scroll-forw", VtScrollForwardAction},
+    {"previous-prompt", VtPreviousPromptAction},
+    {"next-prompt", VtNextPromptAction},
+    {"insert-seven-bit", VtInsertKeyAction},
+    {"insert-eight-bit", VtInsertKeyAction},
     {"select-start", VtSelectStartAction},
     {"select-extend", VtSelectExtendAction},
     {"select-end", VtSelectEndAction},
@@ -62,6 +66,8 @@ static char translations[] = "Shift~Ctrl <KeyPress> KP_Add: larger-vt-font()\n"
                              "Shift <KeyPress> Insert: insert-selection(SELECT, CUT_BUFFER0)\n"
                              "Shift <KeyPress> Prior: scroll-back(1,halfpage)\n"
                              "Shift <KeyPress> Next: scroll-forw(1,halfpage)\n"
+                             "Ctrl Shift <KeyPress> Up: previous-prompt()\n"
+                             "Ctrl Shift <KeyPress> Down: next-prompt()\n"
                              "!Ctrl <Btn1Down>: popup-menu(mainMenu)\n"
                              "!Lock Ctrl <Btn1Down>: popup-menu(mainMenu)\n"
                              "!Lock Ctrl @Num_Lock <Btn1Down>: popup-menu(mainMenu)\n"
@@ -575,6 +581,49 @@ ScrollViewportTo(Vt100Rec *vt, uint64_t row)
         }
         ScheduleViewportUpdate(vt);
         return True;
+}
+
+Boolean
+VtScrollToPrompt(Vt100Rec *vt, long count)
+{
+        XtpTerminalScrollbar state;
+        uint64_t from;
+        uint64_t target = 0;
+        long remaining = count < 0 ? -count : count;
+        const char *direction = count < 0 ? "previous" : "next";
+
+        if (vt->vt.terminal == NULL || count == 0 ||
+            XtpTerminalGetScrollbar(vt->vt.terminal, &state) != 0)
+                return False;
+        /* The alternate screen and an unscrolled primary screen have no history to move through. */
+        if (state.total <= state.length) {
+                XtpLog(XTP_LOG_INFO, "scrollback", "prompt navigation direction=%s: no history",
+                       direction);
+                return False;
+        }
+        from = state.offset;
+        while (remaining > 0 &&
+               XtpTerminalFindPrompt(vt->vt.terminal, from, count > 0, &target) == 0) {
+                from = target;
+                --remaining;
+        }
+        if (from == state.offset) {
+                XtpLog(XTP_LOG_INFO, "scrollback",
+                       "prompt navigation direction=%s from=%llu: no %s prompt", direction,
+                       (unsigned long long)state.offset, direction);
+                return False;
+        }
+        /* A prompt inside the live area cannot be scrolled to from the live view. */
+        if (count > 0 && state.offset + state.length == state.total &&
+            from + state.length >= state.total) {
+                XtpLog(XTP_LOG_INFO, "scrollback",
+                       "prompt navigation direction=next from=%llu: already at the live view",
+                       (unsigned long long)state.offset);
+                return False;
+        }
+        XtpLog(XTP_LOG_INFO, "scrollback", "prompt navigation direction=%s from=%llu to=%llu",
+               direction, (unsigned long long)state.offset, (unsigned long long)from);
+        return ScrollViewportTo(vt, from);
 }
 
 static Boolean

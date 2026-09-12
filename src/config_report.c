@@ -831,6 +831,8 @@ KnownTranslationAction(const char *action)
                strcmp(action, "set-render-font") == 0 || strcmp(action, "set-select") == 0 ||
                strcmp(action, "report-font-routing") == 0 || strcmp(action, "popup-menu") == 0 ||
                strcmp(action, "scroll-back") == 0 || strcmp(action, "scroll-forw") == 0 ||
+               strcmp(action, "previous-prompt") == 0 || strcmp(action, "next-prompt") == 0 ||
+               strcmp(action, "insert-seven-bit") == 0 || strcmp(action, "insert-eight-bit") == 0 ||
                strcmp(action, "select-start") == 0 || strcmp(action, "select-extend") == 0 ||
                strcmp(action, "select-end") == 0 || strcmp(action, "start-extend") == 0 ||
                strcmp(action, "insert-selection") == 0 || strcmp(action, "mouse-press") == 0 ||
@@ -920,9 +922,10 @@ ReportTranslations(const ReportContext *context)
 
         if (resolved.origin == ORIGIN_COMPILED_DEFAULT) {
                 static const char *const defaults[] = {
-                    "larger-vt-font", "smaller-vt-font", "insert-selection", "scroll-back",
-                    "scroll-forw",    "popup-menu",      "select-start",     "mouse-press",
-                    "start-extend",   "select-end",      "mouse-motion",     "select-extend",
+                    "larger-vt-font",  "smaller-vt-font", "insert-selection", "scroll-back",
+                    "scroll-forw",     "popup-menu",      "select-start",     "mouse-press",
+                    "start-extend",    "select-end",      "mouse-motion",     "select-extend",
+                    "previous-prompt", "next-prompt",
                 };
 
                 for (action = 0; action < XtNumber(defaults); ++action)

@@ -58,6 +58,13 @@ struct XtpTerminal
         size_t pwd_report_bytes;
         unsigned int pwd_reports_delivered;
         unsigned int pwd_reports_before_report;
+        /* OSC 133 prompt marks as tracked references, one per row, in screen-row order; the core's
+         * row retention bounds the count and each dies with its row. */
+        GhosttyTrackedGridRef *prompt_marks;
+        size_t prompt_mark_count;
+        size_t prompt_mark_capacity;
+        bool prompt_mark_first_item;
+        bool prompt_mark_pending;
         bool color_list_active;
         bool color_list_skipping;
         bool color_list_any_denied;

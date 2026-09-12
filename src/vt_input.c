@@ -397,6 +397,8 @@ VtAcceptLocalKeyAction(Vt100Rec *vt, XEvent *event, LocalKeyAction action)
         identity->state = event->xkey.state;
         identity->action = action;
         vt->vt.next_key_action = (vt->vt.next_key_action + 1U) % XTP_RECENT_KEY_ACTIONS;
+        SetKeycode(vt->vt.owned_keycodes, event->xkey.keycode, true);
+        VtMarkPendingKeyOwned(vt, &event->xkey);
         return True;
 }
 
@@ -408,18 +410,24 @@ VtLocalKeyActionOwnsEvent(Vt100Rec *vt, const XKeyEvent *event, Boolean release)
 
         if (vt == NULL || event == NULL)
                 return False;
+        /* A release follows its owned press even if a modifier was let go first. */
+        if (release) {
+                if (!KeycodeSet(vt->vt.owned_keycodes, event->keycode))
+                        return False;
+                SetKeycode(vt->vt.owned_keycodes, event->keycode, false);
+                for (slot = 0; slot < XTP_RECENT_KEY_ACTIONS; ++slot) {
+                        if (vt->vt.recent_key_actions[slot].keycode == event->keycode)
+                                vt->vt.recent_key_actions[slot].used = False;
+                }
+                return True;
+        }
         for (slot = 0; slot < XTP_RECENT_KEY_ACTIONS; ++slot) {
                 KeyActionIdentity *identity = &vt->vt.recent_key_actions[slot];
 
-                if (!identity->used || identity->keycode != event->keycode ||
-                    identity->state != event->state)
-                        continue;
-                if (!release &&
-                    (identity->serial != event->serial || identity->time != event->time))
-                        continue;
-                owned = True;
-                if (release)
-                        identity->used = False;
+                if (identity->used && identity->keycode == event->keycode &&
+                    identity->state == event->state && identity->serial == event->serial &&
+                    identity->time == event->time)
+                        owned = True;
         }
         return owned;
 }
@@ -442,6 +450,80 @@ TranslationOwnsKey(const XKeyEvent *event)
                         return true;
         }
         return false;
+}
+
+/* The default prompt-navigation gesture; whether a translation owns it is only known
+ * after Xt has dispatched this event, so these keys are decided one tick later. */
+static bool
+DeferredGestureKey(const XKeyEvent *event)
+{
+        KeySym physical;
+
+        if (event == NULL ||
+            (event->state & (ShiftMask | ControlMask)) != (ShiftMask | ControlMask))
+                return false;
+        physical = XLookupKeysym((XKeyEvent *)event, 0);
+        return physical == XK_Up || physical == XK_Down;
+}
+
+static void
+DeferredKey(XtPointer closure, XtIntervalId *id)
+{
+        PendingKey *pending = closure;
+        Vt100Rec *vt = VtAsRecord(pending->widget);
+        PendingKey **link;
+
+        (void)id;
+        for (link = &vt->vt.pending_keys; *link != NULL; link = &(*link)->next) {
+                if (*link == pending) {
+                        *link = pending->next;
+                        break;
+                }
+        }
+        if (pending->owned || VtLocalKeyActionOwnsEvent(vt, &pending->event,
+                                                        pending->action == XTP_KEY_ACTION_RELEASE))
+                XtpLog(XTP_LOG_DEBUG, "input", "key %s owned by local Xt action",
+                       KeyActionName(pending->action));
+        else
+                KeyEvent(vt, &pending->event, pending->action);
+        free(pending);
+}
+
+/* Bursts queue without limit; if memory runs out the key is dropped rather than delivered,
+ * because a locally bound gesture must never reach the application. */
+static void
+DeferKey(Vt100Rec *vt, XKeyEvent *event, XtpKeyAction action)
+{
+        PendingKey *pending = calloc(1, sizeof(*pending));
+        PendingKey **link;
+
+        if (pending == NULL) {
+                XtpLog(XTP_LOG_WARNING, "input", "no memory to defer key %s; dropped",
+                       KeyActionName(action));
+                return;
+        }
+        pending->widget = (Widget)vt;
+        pending->event = *event;
+        pending->action = action;
+        for (link = &vt->vt.pending_keys; *link != NULL; link = &(*link)->next)
+                ;
+        *link = pending;
+        pending->timer =
+            XtAppAddTimeOut(XtWidgetToApplicationContext((Widget)vt), 0, DeferredKey, pending);
+}
+
+void
+VtMarkPendingKeyOwned(Vt100Rec *vt, const XKeyEvent *event)
+{
+        PendingKey *pending;
+
+        for (pending = vt->vt.pending_keys; pending != NULL; pending = pending->next) {
+                if (pending->action != XTP_KEY_ACTION_RELEASE &&
+                    pending->event.serial == event->serial && pending->event.time == event->time &&
+                    pending->event.keycode == event->keycode &&
+                    pending->event.state == event->state)
+                        pending->owned = True;
+        }
 }
 
 static void
@@ -512,6 +594,9 @@ InputEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_di
                         XUnsetICFocus(vt->vt.input_context);
                 memset(vt->vt.pressed_keycodes, 0, sizeof(vt->vt.pressed_keycodes));
                 memset(vt->vt.filtered_keycodes, 0, sizeof(vt->vt.filtered_keycodes));
+                /* Releases after a focus change are new events; stale ownership would eat them. */
+                memset(vt->vt.owned_keycodes, 0, sizeof(vt->vt.owned_keycodes));
+                memset(vt->vt.recent_key_actions, 0, sizeof(vt->vt.recent_key_actions));
         } else if (event->type == KeyPress || event->type == KeyRelease) {
                 XtpKeyAction action;
                 bool filtered = XFilterEvent(event, vt->vt.input_window);
@@ -547,6 +632,8 @@ InputEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_di
                 if (VtLocalKeyActionOwnsEvent(vt, &event->xkey, event->type == KeyRelease)) {
                         XtpLog(XTP_LOG_DEBUG, "input", "key %s owned by local Xt action",
                                KeyActionName(action));
+                } else if (DeferredGestureKey(&event->xkey)) {
+                        DeferKey(vt, &event->xkey, action);
                 } else if (TranslationOwnsKey(&event->xkey)) {
                         XtpLog(XTP_LOG_DEBUG, "input", "key %s reserved for Xt translation",
                                KeyActionName(action));
@@ -587,6 +674,13 @@ VtInitializeInput(Vt100Rec *vt)
 void
 VtDestroyInput(Vt100Rec *vt)
 {
+        while (vt->vt.pending_keys != NULL) {
+                PendingKey *pending = vt->vt.pending_keys;
+
+                vt->vt.pending_keys = pending->next;
+                XtRemoveTimeOut(pending->timer);
+                free(pending);
+        }
         if (vt->vt.input_context != NULL) {
                 XDestroyIC(vt->vt.input_context);
                 vt->vt.input_context = NULL;

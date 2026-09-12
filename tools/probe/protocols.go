@@ -308,6 +308,10 @@ func shellFixture(s *Session) {
 		s.osc(133, "C")
 		s.say("COMMAND-%d-BEGIN", i)
 		s.say("output with Unicode: café 界; literal shell text: $(do-not-execute)")
+		// Enough output that the prompts leave a 24-row window, so navigation has somewhere to go.
+		for k := 1; k <= 8; k++ {
+			s.say("command-%d output line %d", i, k)
+		}
 		s.say("COMMAND-%d-END", i)
 		s.osc(133, "D;0")
 		active = false
@@ -316,9 +320,17 @@ func shellFixture(s *Session) {
 	s.osc(133, "A")
 	s.send("probe-ready$ ")
 	s.osc(133, "B")
-	s.say("[waiting for manual navigation or pipe action]")
-	s.say("Pipe must contain only COMMAND-3-BEGIN through COMMAND-3-END.")
-	s.pause()
+	s.say("[waiting for manual action]")
+	if s.result.Case == "shell prompts" {
+		s.say("CHECK 1: Repeated Ctrl+Shift+Up should visit earlier probe-N$ prompts.")
+		s.say("CHECK 2: Another Ctrl+Shift+Up at probe-1$ should leave the view unchanged.")
+		s.say("CHECK 3: Repeated Ctrl+Shift+Down should visit later prompts and return to probe-ready$.")
+		s.say("CHECK 4: Another Ctrl+Shift+Down at probe-ready$ should leave the live view unchanged.")
+		s.say("PASS: each jump puts the named prompt at the top; both boundary checks stay put.")
+	} else {
+		s.say("PASS: the pipe contains only COMMAND-3-BEGIN through COMMAND-3-END.")
+	}
+	s.pauseLabel("Space/Enter: finish test | q/Esc: stop test")
 }
 func notify(s *Session) {
 	s.say("Switch focus away; requests are sent after three seconds.")

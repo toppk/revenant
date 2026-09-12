@@ -529,6 +529,92 @@ function-pointer helper would lose the useful type check.
   reads the exact reply bytes through the real PTY for one write and for
   fragmented writes, with the expected DA2 number computed independently
   from Meson's version string.
+- Prompt navigation: the adapter keeps an index of OSC 133 prompt starts as
+  libghostty tracked grid references. The feed observer already delimits
+  OSC selectors and payload items for OSC 7 and the color queries; for
+  selector 133 it looks at the first payload byte only, and when that byte
+  is `A` it flushes the OSC through the core at its terminator and records a
+  tracked reference at the cursor row (`RecordPromptMark`). Marks are kept
+  in screen-row order (a mark placed above the newest one is inserted by
+  bisection), one per row so a redraw of any prompt row, newest or older,
+  adds nothing. Pruning takes rows from the top and a reset takes them all,
+  so dead marks form a prefix that `CompactPromptMarks` drops on every
+  insert (`XtpTerminalPromptMarks` reports the raw stored count and never
+  compacts, so the regression measures the insert-time bound); the index is
+  therefore bounded by the rows the core retains even when nothing ever
+  searches it, with no fixed cap and no fallback scan. Marks are skipped when
+  the alternate screen is active, dropped lazily once the core reports they
+  have no value (pruned scrollback, reset) or their row no longer carries a
+  mark, and freed with the terminal. `XtpTerminalFindPrompt` bisects the
+  index for `from`, then walks marks in one direction resolving each to its
+  prompt start (`PromptStartOf`: a continuation row walks up through the
+  run to its primary row or to the run's top when that row is gone), so a
+  search costs a handful of point conversions rather than a row scan; a
+  history without marks costs nothing. `XtpTerminalSemanticRow` still
+  resolves one row from the top of the screen and is for tests and
+  spot checks, not loops. Upward orphan handling is a Revenant
+  normalization, not exact core behavior: libghostty's upward iterator
+  returns the continuation row where it entered an orphan run that starts
+  at screen row zero, while its downward iterator returns row zero;
+  Revenant returns the run's top row in both directions. The core marks a
+  soft-wrapped prompt's tail rows as continuations and can leave a reflowed
+  prompt row marked as a continuation; both resolve through the same rule.
+  `XtpTerminalCommandOutput` wraps the core's own `select_output`: it finds
+  any output-content cell in the prompt's block and lets libghostty derive
+  the highlight from the prompt (first written output cell to the last, a
+  written space counting as output, bounded by the row before the next
+  prompt; no-value when nothing was written, so blank-only output is a span
+  whose text formats to nothing), then confirms with `OutputBelongsToPrompt`
+  that no other prompt row lies between the prompt's own rows and the
+  selection, which keeps a prompt missing from the index from handing back
+  a later command's output; the result is a cell-exact `XtpSemanticSpan`;
+  `XtpTerminalSpanText` formats a span through the core's plain formatter
+  with soft wraps joined and trailing blanks trimmed. Output that begins on
+  the prompt row after the input is included; a prompt that starts mid-row
+  is moved to a fresh line by the core. All of these decline on the
+  alternate screen. The widget's `VtScrollToPrompt` refuses when there is
+  no history, reports "already at the live view" when the next prompt is
+  inside the live area and the viewport is already there, logs each move as
+  `prompt navigation direction=… from=… to=…`, and scrolls with the usual
+  render scheduling. `previous-prompt()`/`next-prompt()` take an optional
+  count and `Ctrl Shift <KeyPress> Up/Down` are the default translations.
+  Whether that gesture is translation-owned is decided after Xt has
+  dispatched the event: the raw key path appends Ctrl+Shift+Up/Down to an
+  unbounded pending list and a zero-delay timeout either drops it or
+  encodes it normally. Bursts queue without limit (Xt drains queued X
+  events before due timers, so a burst arrives whole), and an allocation
+  failure drops the key rather than delivering a bound gesture. A local
+  action marks its pending press owned directly (`VtMarkPendingKeyOwned`)
+  as well as recording it in the key-action ring, and release ownership
+  is tracked per keycode in `owned_keycodes`, so releasing a modifier
+  before the arrow still suppresses the arrow's release; a focus-out clears
+  both the keycode set and the action ring so a key released elsewhere
+  cannot eat a later press's release. An override such
+  as `Ctrl Shift <KeyPress> Up: insert-seven-bit()` restores delivery;
+  `insert-seven-bit()`/`insert-eight-bit()` are registered as no-op
+  actions for that purpose and `-report-config` knows all four. The
+  `prompt navigation` self-test pins row states, both search directions,
+  the continuation and orphan rules, cell-exact output spans and text for
+  plain, continuation, wrapped and orphan prompts plus a same-row layout,
+  blank-leading and blank-only output, no output for the live prompt, scrolling to a history row versus the
+  live area, the alternate screen, reflow at a narrower width, no markers,
+  and eviction. `xvfb-prompt-navigation` presses the bindings against a
+  six-prompt fixture and checks every logged move plus the top row's ink
+  from outside the process (a prompt row is inverse video, an output row is
+  blank), resizes through X to reflow a 150-character prompt, enters and
+  leaves the alternate screen, runs a thirty-block fixture against `-sl 40`
+  for page eviction, checks with Kitty event reporting on in a raw child
+  that the `insert-seven-bit()` override delivers the press and release
+  while the default binding delivers nothing, that a twelve-pair burst in
+  one flush runs twelve navigations with every press and release owned and
+  nothing delivered, that releasing Ctrl before the arrow still suppresses
+  the arrow's release so only a sentinel key reaches the child, that a
+  focus change while Ctrl+Shift+Up is held leaves a later plain Up's press
+  and release intact, and runs a fixture without markers. The self-test
+  also indexes six thousand prompts and walks them all, and redraws an
+  older prompt row without growing the walk, and writes three thousand
+  prompts into a 40-line scrollback without searching to confirm the live
+  mark count never exceeds the retained rows.
 - Notification urgency: libghostty's desktop-notification callback (OSC 9
   iTerm2 form with an empty title, OSC 777 `notify;title;body`) reaches the
   application through the backend-neutral `notification` effect. The
@@ -1491,7 +1577,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 48 tests for each libghostty build
+The normal full matrix currently contains 49 tests for each libghostty build
 and 8 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

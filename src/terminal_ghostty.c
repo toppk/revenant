@@ -15,6 +15,9 @@ typedef struct
         size_t written;
 } CursorBlinkFeed;
 
+static void RecordPromptMark(XtpTerminal *terminal);
+static void FreePromptMarks(XtpTerminal *terminal);
+
 static const GhosttyKey key_map[XTP_KEY_COUNT] = {
     [XTP_KEY_UNIDENTIFIED] = GHOSTTY_KEY_UNIDENTIFIED,
     [XTP_KEY_BACKQUOTE] = GHOSTTY_KEY_BACKQUOTE,
@@ -721,6 +724,7 @@ FreeHandles(XtpTerminal *terminal)
 {
         free(terminal->answerback);
         terminal->answerback = NULL;
+        FreePromptMarks(terminal);
         ghostty_tracked_grid_ref_free(terminal->selection_extend_end);
         ghostty_tracked_grid_ref_free(terminal->selection_extend_start);
         ghostty_selection_gesture_event_free(terminal->selection_release);
@@ -979,6 +983,10 @@ FeedOscHeader(unsigned int selector, size_t offset, void *closure)
         XtpTerminal *terminal = feed->terminal;
 
         ColorOscHeader(selector, offset, closure);
+        if (selector == 133U) {
+                terminal->prompt_mark_first_item = true;
+                terminal->prompt_mark_pending = false;
+        }
         if (selector == 7U) {
                 /* Earlier controls in this feed must deliver their own pwd
                  * callbacks before this report's delivery is judged. */
@@ -987,6 +995,21 @@ FeedOscHeader(unsigned int selector, size_t offset, void *closure)
                 terminal->pwd_report_start = offset + 1U;
                 terminal->pwd_report_bytes = 0;
                 terminal->pwd_reports_before_report = terminal->pwd_reports_delivered;
+        }
+}
+
+/* Only an OSC 133 whose first item starts with 'A' begins a prompt; the payload itself
+ * stays with libghostty, which marks the row. */
+static void
+FeedOscPayload(unsigned int selector, bool query, size_t offset, void *closure)
+{
+        CursorBlinkFeed *feed = closure;
+        XtpTerminal *terminal = feed->terminal;
+
+        ColorOscPayload(selector, query, offset, closure);
+        if (selector == 133U && terminal->prompt_mark_first_item) {
+                terminal->prompt_mark_first_item = false;
+                terminal->prompt_mark_pending = feed->bytes[offset] == 'A';
         }
 }
 
@@ -1001,6 +1024,12 @@ FeedOscEnd(size_t offset, void *closure)
         XtpTerminal *terminal = feed->terminal;
 
         ColorOscEnd(offset, closure);
+        terminal->prompt_mark_first_item = false;
+        if (terminal->prompt_mark_pending) {
+                terminal->prompt_mark_pending = false;
+                CursorBlinkBeforeChange(offset + 1U, feed);
+                RecordPromptMark(terminal);
+        }
         if (!terminal->pwd_report_active)
                 return;
         terminal->pwd_report_active = false;
@@ -1337,7 +1366,7 @@ XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
                     .reset = CursorBlinkResetEffect,
                     .window_op = CursorBlinkWindowOp,
                     .osc_header = FeedOscHeader,
-                    .osc_payload = ColorOscPayload,
+                    .osc_payload = FeedOscPayload,
                     .osc_item_end = ColorOscItemEnd,
                     .osc_end = FeedOscEnd,
                     .closure = &feed,
@@ -1641,6 +1670,414 @@ XtpTerminalScrollToBottom(XtpTerminal *terminal)
         if (terminal == NULL)
                 return -1;
         ghostty_terminal_scroll_viewport(terminal->handle, viewport);
+        return 0;
+}
+
+/* Row count of the primary screen including scrollback; 0 on the alternate screen, which
+ * has no history and whose grid references would not describe what is displayed. */
+static uint64_t
+ScreenRows(XtpTerminal *terminal)
+{
+        GhosttyTerminalScrollbar state = {0};
+        GhosttyTerminalScreen screen = GHOSTTY_TERMINAL_SCREEN_PRIMARY;
+
+        if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_ACTIVE_SCREEN, &screen) !=
+                GHOSTTY_SUCCESS ||
+            screen != GHOSTTY_TERMINAL_SCREEN_PRIMARY ||
+            ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_SCROLLBAR, &state) !=
+                GHOSTTY_SUCCESS)
+                return 0;
+        return state.total;
+}
+
+static bool
+ScreenRowRef(XtpTerminal *terminal, uint64_t row, GhosttyGridRef *ref)
+{
+        GhosttyPoint point = {
+            GHOSTTY_POINT_TAG_SCREEN,
+            {.coordinate = {0, (uint32_t)row}},
+        };
+
+        return row <= UINT32_MAX &&
+               ghostty_terminal_grid_ref(terminal->handle, point, ref) == GHOSTTY_SUCCESS;
+}
+
+static bool
+ScreenRowSemantic(XtpTerminal *terminal, uint64_t row, XtpSemanticRow *state)
+{
+        GhosttyGridRef ref;
+        GhosttyRow data;
+        GhosttyRowSemanticPrompt prompt = GHOSTTY_ROW_SEMANTIC_NONE;
+
+        if (!ScreenRowRef(terminal, row, &ref) ||
+            ghostty_grid_ref_row(&ref, &data) != GHOSTTY_SUCCESS ||
+            ghostty_row_get(data, GHOSTTY_ROW_DATA_SEMANTIC_PROMPT, &prompt) != GHOSTTY_SUCCESS)
+                return false;
+        if (prompt == GHOSTTY_ROW_SEMANTIC_PROMPT)
+                *state = XTP_SEMANTIC_ROW_PROMPT;
+        else if (prompt == GHOSTTY_ROW_SEMANTIC_PROMPT_CONTINUATION)
+                *state = XTP_SEMANTIC_ROW_PROMPT_CONTINUATION;
+        else
+                *state = XTP_SEMANTIC_ROW_NONE;
+        return true;
+}
+
+int
+XtpTerminalSemanticRow(XtpTerminal *terminal, uint64_t row, XtpSemanticRow *state)
+{
+        if (terminal == NULL || state == NULL || row >= ScreenRows(terminal))
+                return -1;
+        return ScreenRowSemantic(terminal, row, state) ? 0 : -1;
+}
+
+static void
+RemovePromptMark(XtpTerminal *terminal, size_t index)
+{
+        ghostty_tracked_grid_ref_free(terminal->prompt_marks[index]);
+        memmove(&terminal->prompt_marks[index], &terminal->prompt_marks[index + 1U],
+                (terminal->prompt_mark_count - index - 1U) * sizeof(terminal->prompt_marks[0]));
+        --terminal->prompt_mark_count;
+}
+
+/* Screen row of a mark; a mark whose row is gone is removed and reports false. */
+static bool
+PromptMarkRow(XtpTerminal *terminal, size_t index, uint64_t *row)
+{
+        GhosttyPointCoordinate point;
+
+        if (ghostty_tracked_grid_ref_has_value(terminal->prompt_marks[index]) &&
+            ghostty_tracked_grid_ref_point(terminal->prompt_marks[index], GHOSTTY_POINT_TAG_SCREEN,
+                                           &point) == GHOSTTY_SUCCESS) {
+                *row = point.y;
+                return true;
+        }
+        RemovePromptMark(terminal, index);
+        return false;
+}
+
+/* Pruning takes rows from the top and a reset takes them all, so dead marks form a prefix.
+ * Dropping that prefix on every insert keeps the index bounded by the rows the core retains
+ * without ever scanning rows. */
+static void
+CompactPromptMarks(XtpTerminal *terminal)
+{
+        size_t dead = 0;
+
+        while (dead < terminal->prompt_mark_count &&
+               !ghostty_tracked_grid_ref_has_value(terminal->prompt_marks[dead]))
+                ghostty_tracked_grid_ref_free(terminal->prompt_marks[dead++]);
+        if (dead == 0)
+                return;
+        memmove(terminal->prompt_marks, terminal->prompt_marks + dead,
+                (terminal->prompt_mark_count - dead) * sizeof(terminal->prompt_marks[0]));
+        terminal->prompt_mark_count -= dead;
+}
+
+/* Index of the first mark below `row`; dead marks met by the bisection are dropped. */
+static size_t
+PromptMarkUpperBound(XtpTerminal *terminal, uint64_t row)
+{
+        size_t low = 0;
+        size_t high = terminal->prompt_mark_count;
+
+        while (low < high) {
+                size_t mid = low + (high - low) / 2U;
+                uint64_t mark_row;
+
+                if (!PromptMarkRow(terminal, mid, &mark_row)) {
+                        --high;
+                        continue;
+                }
+                if (mark_row > row)
+                        high = mid;
+                else
+                        low = mid + 1U;
+        }
+        return low;
+}
+
+/* Resolves a marked row to its prompt's start: a continuation run belongs to the primary
+ * row above it, or to its own top row when that primary row is gone (xterm+ normalizes
+ * that case to the top in both directions). False when the row no longer holds a mark. */
+static bool
+PromptStartOf(XtpTerminal *terminal, uint64_t row, uint64_t *start)
+{
+        XtpSemanticRow state;
+        uint64_t top = row;
+
+        if (!ScreenRowSemantic(terminal, row, &state) || state == XTP_SEMANTIC_ROW_NONE)
+                return false;
+        while (state == XTP_SEMANTIC_ROW_PROMPT_CONTINUATION && top > 0 &&
+               ScreenRowSemantic(terminal, top - 1U, &state) && state != XTP_SEMANTIC_ROW_NONE)
+                --top;
+        *start = top;
+        return true;
+}
+
+/* Called once the core has processed an OSC 133 prompt start: the cursor row is the marked
+ * row, so a tracked reference records it in row order. */
+static void
+RecordPromptMark(XtpTerminal *terminal)
+{
+        uint16_t cursor_y = 0;
+        GhosttyPoint point = {GHOSTTY_POINT_TAG_ACTIVE, {.coordinate = {0, 0}}};
+        GhosttyGridRef ref;
+        GhosttyPointCoordinate coordinate;
+        GhosttyTrackedGridRef mark = NULL;
+        XtpSemanticRow state;
+        uint64_t row;
+        uint64_t last_row = 0;
+        bool last_valid = false;
+        size_t index;
+
+        if (ScreenRows(terminal) == 0 ||
+            ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_CURSOR_Y, &cursor_y) !=
+                GHOSTTY_SUCCESS)
+                return;
+        CompactPromptMarks(terminal);
+        point.value.coordinate.y = cursor_y;
+        if (ghostty_terminal_grid_ref(terminal->handle, point, &ref) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_point_from_grid_ref(terminal->handle, &ref, GHOSTTY_POINT_TAG_SCREEN,
+                                                 &coordinate) != GHOSTTY_SUCCESS)
+                return;
+        row = coordinate.y;
+        /* An aborted OSC leaves the row unmarked; a redrawn prompt keeps its single mark. */
+        if (!ScreenRowSemantic(terminal, row, &state) || state == XTP_SEMANTIC_ROW_NONE)
+                return;
+        /* One mark per row keeps the index bounded by the rows the core retains, so a redrawn
+         * prompt anywhere in the active area never adds a second reference. */
+        index = terminal->prompt_mark_count;
+        if (index != 0) {
+                last_valid = PromptMarkRow(terminal, index - 1U, &last_row);
+                if (last_valid && last_row == row)
+                        return;
+                if (last_valid && last_row > row) {
+                        uint64_t previous_row;
+
+                        index = PromptMarkUpperBound(terminal, row);
+                        if (index != 0 && PromptMarkRow(terminal, index - 1U, &previous_row) &&
+                            previous_row == row)
+                                return;
+                        if (index > terminal->prompt_mark_count)
+                                index = terminal->prompt_mark_count;
+                } else {
+                        index = terminal->prompt_mark_count;
+                }
+        }
+        if (terminal->prompt_mark_count == terminal->prompt_mark_capacity) {
+                size_t capacity =
+                    terminal->prompt_mark_capacity != 0 ? terminal->prompt_mark_capacity * 2U : 64U;
+                GhosttyTrackedGridRef *marks =
+                    realloc(terminal->prompt_marks, capacity * sizeof(*marks));
+
+                if (marks == NULL)
+                        return;
+                terminal->prompt_marks = marks;
+                terminal->prompt_mark_capacity = capacity;
+        }
+        if (ghostty_terminal_grid_ref_track(terminal->handle, point, &mark) != GHOSTTY_SUCCESS)
+                return;
+        memmove(&terminal->prompt_marks[index + 1U], &terminal->prompt_marks[index],
+                (terminal->prompt_mark_count - index) * sizeof(terminal->prompt_marks[0]));
+        terminal->prompt_marks[index] = mark;
+        ++terminal->prompt_mark_count;
+}
+
+size_t
+XtpTerminalPromptMarks(XtpTerminal *terminal)
+{
+        return terminal != NULL ? terminal->prompt_mark_count : 0;
+}
+
+static void
+FreePromptMarks(XtpTerminal *terminal)
+{
+        while (terminal->prompt_mark_count != 0)
+                RemovePromptMark(terminal, terminal->prompt_mark_count - 1U);
+        free(terminal->prompt_marks);
+        terminal->prompt_marks = NULL;
+        terminal->prompt_mark_capacity = 0;
+}
+
+int
+XtpTerminalFindPrompt(XtpTerminal *terminal, uint64_t from, bool forward, uint64_t *row)
+{
+        uint64_t total;
+        uint64_t mark_row;
+        uint64_t start;
+        size_t index;
+
+        if (terminal == NULL || row == NULL)
+                return -1;
+        total = ScreenRows(terminal);
+        /* Backward searches may start one past the last row to cover the whole screen. */
+        if (total == 0 || from > total || (forward && from == total))
+                return -1;
+        index = PromptMarkUpperBound(terminal, from);
+        if (!forward) {
+                while (index > 0) {
+                        --index;
+                        if (!PromptMarkRow(terminal, index, &mark_row) || mark_row >= from)
+                                continue;
+                        if (!PromptStartOf(terminal, mark_row, &start)) {
+                                RemovePromptMark(terminal, index);
+                                continue;
+                        }
+                        if (start < from) {
+                                *row = start;
+                                return 0;
+                        }
+                }
+                return -1;
+        }
+        while (index < terminal->prompt_mark_count) {
+                if (!PromptMarkRow(terminal, index, &mark_row))
+                        continue;
+                if (!PromptStartOf(terminal, mark_row, &start)) {
+                        RemovePromptMark(terminal, index);
+                        continue;
+                }
+                /* A start at or above `from` is the current prompt's own continuation. */
+                if (start > from) {
+                        *row = start;
+                        return 0;
+                }
+                ++index;
+        }
+        return -1;
+}
+
+static bool
+ScreenCellRef(XtpTerminal *terminal, uint64_t row, uint16_t column, GhosttyGridRef *ref)
+{
+        GhosttyPoint point = {
+            GHOSTTY_POINT_TAG_SCREEN,
+            {.coordinate = {column, (uint32_t)row}},
+        };
+
+        return row <= UINT32_MAX &&
+               ghostty_terminal_grid_ref(terminal->handle, point, ref) == GHOSTTY_SUCCESS;
+}
+
+/* The core picks the prompt nearest above the chosen cell; this confirms no other prompt
+ * sits between `prompt_start`'s own rows and the selection, so a prompt missing from the
+ * index cannot hand back a later command's output. */
+static bool
+OutputBelongsToPrompt(XtpTerminal *terminal, uint64_t prompt_start, uint64_t output_row)
+{
+        uint64_t row = prompt_start + 1U;
+        XtpSemanticRow state;
+
+        while (row <= output_row && ScreenRowSemantic(terminal, row, &state) &&
+               state == XTP_SEMANTIC_ROW_PROMPT_CONTINUATION)
+                ++row;
+        for (; row <= output_row; ++row) {
+                if (!ScreenRowSemantic(terminal, row, &state) || state != XTP_SEMANTIC_ROW_NONE)
+                        return false;
+        }
+        return true;
+}
+
+int
+XtpTerminalCommandOutput(XtpTerminal *terminal, uint64_t prompt_start, XtpSemanticSpan *span)
+{
+        uint64_t total;
+        uint64_t end;
+        uint64_t next;
+        uint64_t row;
+        XtpSemanticRow state;
+
+        if (terminal == NULL || span == NULL)
+                return -1;
+        total = ScreenRows(terminal);
+        if (prompt_start >= total || !ScreenRowSemantic(terminal, prompt_start, &state) ||
+            state == XTP_SEMANTIC_ROW_NONE)
+                return -1;
+        end = XtpTerminalFindPrompt(terminal, prompt_start, true, &next) == 0 ? next : total;
+        /* Any output-content cell in the block, written or not, lets the core derive the
+         * highlight from the prompt itself; it answers no-value when nothing was written. */
+        for (row = prompt_start; row < end; ++row) {
+                uint16_t column;
+
+                for (column = 0; column < terminal->geometry_columns; ++column) {
+                        GhosttyGridRef ref;
+                        GhosttyCell cell;
+                        GhosttyCellSemanticContent content;
+                        GhosttySelection selection = {.size = sizeof(selection)};
+                        GhosttyPointCoordinate first;
+                        GhosttyPointCoordinate last;
+
+                        if (!ScreenCellRef(terminal, row, column, &ref) ||
+                            ghostty_grid_ref_cell(&ref, &cell) != GHOSTTY_SUCCESS ||
+                            ghostty_cell_get(cell, GHOSTTY_CELL_DATA_SEMANTIC_CONTENT, &content) !=
+                                GHOSTTY_SUCCESS)
+                                return -1;
+                        if (content != GHOSTTY_CELL_SEMANTIC_OUTPUT)
+                                continue;
+                        if (ghostty_terminal_select_output(terminal->handle, ref, &selection) !=
+                                GHOSTTY_SUCCESS ||
+                            ghostty_terminal_point_from_grid_ref(terminal->handle, &selection.start,
+                                                                 GHOSTTY_POINT_TAG_SCREEN,
+                                                                 &first) != GHOSTTY_SUCCESS ||
+                            ghostty_terminal_point_from_grid_ref(terminal->handle, &selection.end,
+                                                                 GHOSTTY_POINT_TAG_SCREEN,
+                                                                 &last) != GHOSTTY_SUCCESS)
+                                return -1;
+                        if (last.y < first.y || (last.y == first.y && last.x < first.x)) {
+                                GhosttyPointCoordinate swap = first;
+
+                                first = last;
+                                last = swap;
+                        }
+                        if (!OutputBelongsToPrompt(terminal, prompt_start, first.y))
+                                return -1;
+                        span->start_row = first.y;
+                        span->start_column = first.x;
+                        span->end_row = last.y;
+                        span->end_column = last.x;
+                        return 0;
+                }
+        }
+        return -1;
+}
+
+int
+XtpTerminalSpanText(XtpTerminal *terminal, const XtpSemanticSpan *span, char **text, size_t *length)
+{
+        GhosttySelection selection = {.size = sizeof(selection)};
+        GhosttyTerminalSelectionFormatOptions options = {
+            .size = sizeof(options),
+            .emit = GHOSTTY_FORMATTER_FORMAT_PLAIN,
+            .unwrap = true,
+            .trim = true,
+        };
+        uint8_t *formatted = NULL;
+        size_t formatted_length = 0;
+        char *copy;
+
+        if (terminal == NULL || span == NULL || text == NULL || length == NULL)
+                return -1;
+        *text = NULL;
+        *length = 0;
+        if (ScreenRows(terminal) == 0 ||
+            !ScreenCellRef(terminal, span->start_row, span->start_column, &selection.start) ||
+            !ScreenCellRef(terminal, span->end_row, span->end_column, &selection.end))
+                return -1;
+        selection.rectangle = false;
+        options.selection = &selection;
+        if (ghostty_terminal_selection_format_alloc(terminal->handle, NULL, options, &formatted,
+                                                    &formatted_length) != GHOSTTY_SUCCESS)
+                return -1;
+        copy = malloc(formatted_length + 1U);
+        if (copy != NULL) {
+                memcpy(copy, formatted, formatted_length);
+                copy[formatted_length] = '\0';
+        }
+        ghostty_free(NULL, formatted, formatted_length);
+        if (copy == NULL)
+                return -1;
+        *text = copy;
+        *length = formatted_length;
         return 0;
 }
 

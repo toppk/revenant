@@ -112,6 +112,28 @@ class Emulator:
 
 
 class ProbeAcceptance(unittest.TestCase):
+
+    def test_prompt_fixture_explains_manual_pass_and_direct_exit(self):
+        sent = False
+
+        def interact(output):
+            nonlocal sent
+            if not sent and b"Space/Enter: finish test | q/Esc: stop test" in output:
+                sent = True
+                return b" "
+            return b""
+
+        code, output, restored = run_probe(
+            ["ui-prompt-navigation", "shell-prompts"], interaction=interact
+        )
+        self.assertEqual(code, 0, output[-2000:])
+        self.assertTrue(restored)
+        self.assertTrue(sent)
+        self.assertIn(b"CHECK 1: Repeated Ctrl+Shift+Up", output)
+        self.assertIn(b"CHECK 3: Repeated Ctrl+Shift+Down", output)
+        self.assertIn(b"PASS: each jump puts the named prompt at the top", output)
+        self.assertNotIn(b"Pipe must contain", output)
+
     def test_command_catalog_and_tdn_references(self):
         catalog = json.loads(subprocess.check_output([str(BINARY), "list", "--json"]))
         ids = set(

@@ -10,6 +10,17 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Navigate between shell prompts. Ctrl+Shift+Up and Ctrl+Shift+Down run the
+  new `previous-prompt()` and `next-prompt()` translation actions, which move
+  the viewport to the start of the previous or next prompt that a shell has
+  marked with OSC 133, through scrollback, across wrapped and continuation
+  prompt lines, and after resize reflow. A prompt inside the live area keeps
+  the live view, a screen without history (the alternate screen) does nothing,
+  and both actions accept a repeat count. Prompt positions come from an
+  index of OSC 133 marks, so a deep history without prompts costs nothing to
+  search. Binding the keys to xterm's `insert-seven-bit()` restores their
+  delivery to applications. The backend also exposes the core's cell-exact
+  command-output selection and its text for later output extraction.
 - Raise the X11 urgency hint for application notifications. An OSC 9 or
   OSC 777 `notify` request that arrives while the window is unfocused sets
   `XUrgencyHint` in WM_HINTS, leaving every other hint field alone, and the

@@ -48,7 +48,9 @@ action. Shift+Insert originally exposed this failure by sending modified Insert
 Xt can also dispatch the same physical key event through more than one
 translation route. Local key actions share an event-identity guard so paste,
 paging, and font changes run once per X event without suppressing genuine
-auto-repeat.
+auto-repeat. The release of an owned key is suppressed by keycode, so
+letting go of a modifier before the key does not leak an orphan release to
+an application that reports key releases.
 
 Shift+Button 1 on an explicit or detected hyperlink is an intentional Revenant
 extension, not one of patch 411's default bindings. Shift-hover underlines the
@@ -57,6 +59,16 @@ links. On a cell without an explicit OSC 8 target or detected URL, the same
 gesture falls through to ordinary selection. The extension and its scheme
 policy are documented in [Hyperlinks](../usage/hyperlinks.md) and the
 [xterm differences ledger](drift.md).
+
+Ctrl+Shift+Up and Ctrl+Shift+Down are a second intentional extension: they
+run `previous-prompt()` and `next-prompt()`, the same keys Ghostty binds for
+prompt jumps, and are translation-owned so the modified arrows are not also
+sent to the application. Shift+Up and Shift+Down alone still reach the
+application. Ownership is decided per event after Xt has run the
+translations, so an override that binds the gesture to xterm's
+`insert-seven-bit()` (accepted as a no-op that leaves the key to the input
+path) restores xterm's delivery; the [xterm differences ledger](drift.md)
+shows the resource.
 
 Changes to the upstream baseline require re-reading `VTInitTranslations()` and
 updating this table. Missing bindings are compatibility work, not intentional

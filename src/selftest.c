@@ -3645,6 +3645,309 @@ done:
         return result;
 }
 
+static bool
+SelfTestRowStateIs(XtpTerminal *terminal, uint64_t row, XtpSemanticRow expected)
+{
+        XtpSemanticRow state;
+
+        return XtpTerminalSemanticRow(terminal, row, &state) == 0 && state == expected;
+}
+
+static bool
+SelfTestPromptIs(XtpTerminal *terminal, uint64_t from, bool forward, int64_t expected)
+{
+        uint64_t row;
+        int result = XtpTerminalFindPrompt(terminal, from, forward, &row);
+
+        if (expected < 0)
+                return result != 0;
+        return result == 0 && row == (uint64_t)expected;
+}
+
+/* Checks the core's output span for a prompt and the plain text it formats to. */
+static bool
+SelfTestOutputIs(XtpTerminal *terminal, uint64_t prompt, uint64_t start_row, uint16_t start_column,
+                 uint64_t end_row, uint16_t end_column, const char *expected)
+{
+        XtpSemanticSpan span;
+        char *text = NULL;
+        size_t length = 0;
+        bool matches;
+
+        if (XtpTerminalCommandOutput(terminal, prompt, &span) != 0) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "no output span for prompt row %llu",
+                       (unsigned long long)prompt);
+                return false;
+        }
+        if (span.start_row != start_row || span.start_column != start_column ||
+            span.end_row != end_row || span.end_column != end_column) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "output span for row %llu is %llu,%u-%llu,%u",
+                       (unsigned long long)prompt, (unsigned long long)span.start_row,
+                       span.start_column, (unsigned long long)span.end_row, span.end_column);
+                return false;
+        }
+        if (XtpTerminalSpanText(terminal, &span, &text, &length) != 0)
+                return false;
+        matches = length == strlen(expected) && strcmp(text, expected) == 0;
+        if (!matches)
+                XtpLog(XTP_LOG_ERROR, "self-test", "output text for row %llu is \"%s\" (%zu bytes)",
+                       (unsigned long long)prompt, text, length);
+        free(text);
+        return matches;
+}
+
+static bool
+SelfTestNoOutput(XtpTerminal *terminal, uint64_t prompt)
+{
+        XtpSemanticSpan span;
+
+        return XtpTerminalCommandOutput(terminal, prompt, &span) != 0;
+}
+
+/* Walks backward from the bottom of the screen counting prompt starts. */
+static unsigned int
+SelfTestCountPrompts(XtpTerminal *terminal)
+{
+        XtpTerminalScrollbar state;
+        uint64_t from;
+        uint64_t row;
+        unsigned int count = 0;
+
+        if (XtpTerminalGetScrollbar(terminal, &state) != 0)
+                return 0;
+        from = state.total;
+        while (XtpTerminalFindPrompt(terminal, from, false, &row) == 0) {
+                if (SelfTestRowStateIs(terminal, row, XTP_SEMANTIC_ROW_NONE))
+                        return 0;
+                ++count;
+                from = row;
+        }
+        return count;
+}
+
+/*
+ * Screen rows after the fixture on a 20x6 grid: 0 p1 prompt, 1-2 output, 3 p2 prompt,
+ * 4 its k=s continuation, 5 output, 6 wrapped prompt, 7 its wrap tail (the core marks it a
+ * continuation), 8 output,
+ * 9 an orphan k=s continuation, 10 output, 11 the live prompt; rows 6-11 are active.
+ */
+static int
+SelfTestPromptNavigation(void)
+{
+        static const char fixture[] =
+            "\033]133;A\033\\p1$ \033]133;B\033\\cmd1\r\n"
+            "\033]133;C\033\\out1a\r\nout1b\r\n\033]133;D;0\033\\"
+            "\033]133;A\033\\p2$ \033]133;B\033\\cmd2 \\\r\n"
+            "\033]133;A;k=s\033\\> \033]133;B\033\\more\r\n"
+            "\033]133;C\033\\out2\r\n\033]133;D;0\033\\"
+            "\033]133;A\033\\pppppppppppppppppppppppp$ \033]133;B\033\\cmd3\r\n"
+            "\033]133;C\033\\out3\r\n\033]133;D;0\033\\"
+            "\033]133;A;k=s\033\\> \033]133;B\033\\orphan\r\n"
+            "\033]133;C\033\\out5\r\n\033]133;D;0\033\\"
+            "\033]133;A\033\\p4$ \033]133;B\033\\";
+        XtpTerminal *terminal;
+        XtpTerminal *plain = NULL;
+        XtpTerminal *layout = NULL;
+        XtpTerminalScrollbar state = {0};
+        XtpSemanticRow live_kind;
+        uint64_t found;
+        const char *stage = "setup";
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(20, 6, 8, 16, false);
+        plain = XtpTerminalNewWithGraphemeWidth(20, 6, 8, 16, false);
+        layout = XtpTerminalNewWithGraphemeWidth(20, 6, 8, 16, false);
+        if (terminal == NULL || plain == NULL || layout == NULL ||
+            XtpTerminalSetScrollbackLines(terminal, 64) != 0 ||
+            XtpTerminalSetScrollbackLines(plain, 64) != 0)
+                goto done;
+        stage = "thousands of prompts stay indexed and reachable";
+        {
+                XtpTerminal *deep = XtpTerminalNewWithGraphemeWidth(20, 6, 8, 16, false);
+                unsigned int count = 0;
+                uint64_t walk;
+                uint64_t found_row;
+                int line;
+
+                if (deep == NULL || XtpTerminalSetScrollbackLines(deep, 20000) != 0)
+                        goto deep_failed;
+                for (line = 0; line < 6000; ++line)
+                        SelfTestFeedText(
+                            deep, "\033]133;A\033\\$ \033]133;B\033\\c\r\n\033]133;C\033\\o\r\n");
+                if (XtpTerminalGetScrollbar(deep, &state) != 0)
+                        goto deep_failed;
+                walk = state.total;
+                while (XtpTerminalFindPrompt(deep, walk, false, &found_row) == 0) {
+                        ++count;
+                        walk = found_row;
+                }
+                if (count != 6000 || walk != 0 || !SelfTestPromptIs(deep, 0, true, 2) ||
+                    !SelfTestPromptIs(deep, 11998, true, -1))
+                        goto deep_failed;
+                XtpTerminalFree(deep);
+                goto deep_done;
+        deep_failed:
+                XtpTerminalFree(deep);
+                goto done;
+        deep_done:;
+        }
+        stage = "pruned prompts leave the index bounded by retained rows";
+        {
+                XtpTerminal *small = XtpTerminalNewWithGraphemeWidth(20, 6, 8, 16, false);
+                int line;
+
+                if (small == NULL || XtpTerminalSetScrollbackLines(small, 40) != 0) {
+                        XtpTerminalFree(small);
+                        goto done;
+                }
+                /* No search runs between writes and the count accessor never compacts, so
+                 * only insert-time compaction can bound this; the fixture ends on a mark so the
+                 * last operation is an insert rather than output that might prune a page. */
+                for (line = 0; line < 3000; ++line)
+                        SelfTestFeedText(
+                            small, "\033]133;A\033\\$ \033]133;B\033\\c\r\n\033]133;C\033\\o\r\n");
+                SelfTestFeedText(small, "\033]133;A\033\\");
+                if (XtpTerminalGetScrollbar(small, &state) != 0 || state.total >= 6000 ||
+                    XtpTerminalPromptMarks(small) > state.total ||
+                    XtpTerminalPromptMarks(small) == 0 ||
+                    !SelfTestPromptIs(small, state.total, false, state.total - 1U)) {
+                        XtpLog(XTP_LOG_ERROR, "self-test", "prompt marks=%zu retained rows=%llu",
+                               XtpTerminalPromptMarks(small), (unsigned long long)state.total);
+                        XtpTerminalFree(small);
+                        goto done;
+                }
+                XtpTerminalFree(small);
+        }
+        stage = "no markers means no prompts";
+        SelfTestFeedText(plain, "a\r\nb\r\nc\r\nd\r\ne\r\nf\r\ng\r\nh\r\n");
+        if (XtpTerminalGetScrollbar(plain, &state) != 0 || state.total != 9 ||
+            !SelfTestPromptIs(plain, state.offset, false, -1) ||
+            !SelfTestPromptIs(plain, 0, true, -1) ||
+            !SelfTestRowStateIs(plain, 0, XTP_SEMANTIC_ROW_NONE) ||
+            XtpTerminalSemanticRow(plain, 9, NULL) == 0)
+                goto done;
+        stage = "row states follow OSC 133";
+        SelfTestFeedText(terminal, fixture);
+        if (XtpTerminalGetScrollbar(terminal, &state) != 0 || state.total != 12 ||
+            state.offset != 6 || !SelfTestRowStateIs(terminal, 0, XTP_SEMANTIC_ROW_PROMPT) ||
+            !SelfTestRowStateIs(terminal, 1, XTP_SEMANTIC_ROW_NONE) ||
+            !SelfTestRowStateIs(terminal, 3, XTP_SEMANTIC_ROW_PROMPT) ||
+            !SelfTestRowStateIs(terminal, 4, XTP_SEMANTIC_ROW_PROMPT_CONTINUATION) ||
+            !SelfTestRowStateIs(terminal, 6, XTP_SEMANTIC_ROW_PROMPT) ||
+            !SelfTestRowStateIs(terminal, 7, XTP_SEMANTIC_ROW_PROMPT_CONTINUATION) ||
+            !SelfTestRowStateIs(terminal, 9, XTP_SEMANTIC_ROW_PROMPT_CONTINUATION) ||
+            !SelfTestRowStateIs(terminal, 11, XTP_SEMANTIC_ROW_PROMPT) ||
+            XtpTerminalSemanticRow(terminal, 12, NULL) == 0)
+                goto done;
+        stage = "previous prompt from the active viewport";
+        if (!SelfTestPromptIs(terminal, 6, false, 3) || !SelfTestPromptIs(terminal, 3, false, 0) ||
+            !SelfTestPromptIs(terminal, 0, false, -1))
+                goto done;
+        stage = "a continuation resolves to its primary row";
+        if (!SelfTestPromptIs(terminal, 5, false, 3) || !SelfTestPromptIs(terminal, 4, false, 3))
+                goto done;
+        stage = "an orphan continuation is its own prompt";
+        if (!SelfTestPromptIs(terminal, 11, false, 9) || !SelfTestPromptIs(terminal, 10, false, 9))
+                goto done;
+        stage = "next prompt skips the current prompt's continuations";
+        if (!SelfTestPromptIs(terminal, 0, true, 3) || !SelfTestPromptIs(terminal, 3, true, 6) ||
+            !SelfTestPromptIs(terminal, 4, true, 6) || !SelfTestPromptIs(terminal, 6, true, 9) ||
+            !SelfTestPromptIs(terminal, 9, true, 11) || !SelfTestPromptIs(terminal, 11, true, -1))
+                goto done;
+        stage = "command output spans are cell-exact and formatted by the core";
+        if (!SelfTestOutputIs(terminal, 0, 1, 0, 2, 4, "out1a\nout1b") ||
+            !SelfTestOutputIs(terminal, 3, 5, 0, 5, 3, "out2") ||
+            !SelfTestOutputIs(terminal, 6, 8, 0, 8, 3, "out3") ||
+            !SelfTestOutputIs(terminal, 9, 10, 0, 10, 3, "out5") ||
+            !SelfTestNoOutput(terminal, 11) || !SelfTestNoOutput(terminal, 1))
+                goto done;
+        /* Output may start on the prompt row right after the input; a prompt that begins
+         * mid-row is moved to a fresh line by the core, so the earlier output keeps its row.
+         * Both follow libghostty's own selectOutput rather than row arithmetic. */
+        stage = "same-row layouts follow the core";
+        SelfTestFeedText(layout, "\033]133;A\033\\p$ \033]133;B\033\\cmd\033]133;C\033\\tail\r\n"
+                                 "more\r\nout\033]133;A\033\\q$ \033]133;B\033\\");
+        if (!SelfTestPromptIs(layout, 0, true, 3) || !SelfTestPromptIs(layout, 3, false, 0) ||
+            !SelfTestOutputIs(layout, 0, 0, 6, 2, 2, "tail\nmore\nout") ||
+            !SelfTestNoOutput(layout, 3))
+                goto done;
+        /* Written spaces are output cells: leading blanks stay, and blank-only output is a
+         * span whose formatted text is empty rather than "no output". */
+        stage = "blank-leading and blank-only output follow the core";
+        SelfTestFeedText(layout,
+                         "\r\n\033]133;A\033\\r$ \033]133;B\033\\x\r\n\033]133;C\033\\  lead\r\n"
+                         "\033]133;D;0\033\\\033]133;A\033\\s$ \033]133;B\033\\y\r\n"
+                         "\033]133;C\033\\   \r\n\033]133;D;0\033\\"
+                         "\033]133;A\033\\t$ \033]133;B\033\\");
+        if (!SelfTestPromptIs(layout, 3, true, 4) || !SelfTestPromptIs(layout, 4, true, 6) ||
+            !SelfTestPromptIs(layout, 6, true, 8) ||
+            !SelfTestOutputIs(layout, 4, 5, 0, 5, 5, "  lead") ||
+            !SelfTestOutputIs(layout, 6, 7, 0, 7, 2, "") || !SelfTestNoOutput(layout, 8))
+                goto done;
+        stage = "scrolling to a prompt row lands there, or on the active area";
+        if (XtpTerminalScrollTo(terminal, 3) != 0 ||
+            XtpTerminalGetScrollbar(terminal, &state) != 0 || state.offset != 3 ||
+            XtpTerminalScrollTo(terminal, 9) != 0 ||
+            XtpTerminalGetScrollbar(terminal, &state) != 0 || state.offset != 6)
+                goto done;
+        stage = "the alternate screen has no history and the API declines";
+        SelfTestFeedText(terminal, "\033[?1049h\033[Halt\r\n");
+        if (XtpTerminalGetScrollbar(terminal, &state) != 0 || state.total != state.length ||
+            state.total != 6 || XtpTerminalSemanticRow(terminal, 0, &live_kind) == 0 ||
+            XtpTerminalFindPrompt(terminal, 6, false, &found) == 0 ||
+            XtpTerminalFindPrompt(terminal, 0, true, &found) == 0 || !SelfTestNoOutput(terminal, 0))
+                goto done;
+        SelfTestFeedText(terminal, "\033[?1049l");
+        if (SelfTestCountPrompts(terminal) != 5)
+                goto done;
+        /* Reflow rejoins the wrapped prompt into one row that the core leaves marked as a
+         * continuation; the orphan rule still makes it a prompt start. */
+        stage = "reflow keeps every prompt start";
+        if (XtpTerminalResize(terminal, 40, 6, 8, 16) != 0 || SelfTestCountPrompts(terminal) != 5 ||
+            XtpTerminalGetScrollbar(terminal, &state) != 0 || state.total != 11 ||
+            !SelfTestPromptIs(terminal, 11, false, 10) ||
+            !SelfTestPromptIs(terminal, 10, false, 8) || !SelfTestPromptIs(terminal, 8, false, 6) ||
+            !SelfTestPromptIs(terminal, 6, true, 8) ||
+            !SelfTestOutputIs(terminal, 6, 7, 0, 7, 3, "out3"))
+                goto done;
+        /* A prompt redrawn on an earlier active row (screen row 8, active row 4) must not add a
+         * second mark: the walk still counts five prompts and reaches the same rows. */
+        stage = "redrawing an older prompt row adds no mark";
+        SelfTestFeedText(terminal, "\033[4;1H\033]133;A\033\\\033[6;1H");
+        if (SelfTestCountPrompts(terminal) != 5 || !SelfTestPromptIs(terminal, 10, false, 8) ||
+            !SelfTestPromptIs(terminal, 8, false, 6))
+                goto done;
+        stage = "eviction drops early prompts without breaking the walk";
+        if (XtpTerminalSetScrollbackLines(terminal, 0) != 0 ||
+            XtpTerminalGetScrollbar(terminal, &state) != 0 || state.total != state.length ||
+            SelfTestCountPrompts(terminal) > 3 || !SelfTestPromptIs(terminal, 0, false, -1))
+                goto done;
+        result = 0;
+done:
+        if (result != 0) {
+                char states[16] = {0};
+                size_t index;
+
+                for (index = 0; index < 12; ++index) {
+                        XtpSemanticRow kind;
+
+                        states[index] = XtpTerminalSemanticRow(terminal, index, &kind) != 0 ? '?'
+                                        : kind == XTP_SEMANTIC_ROW_PROMPT                   ? 'P'
+                                        : kind == XTP_SEMANTIC_ROW_PROMPT_CONTINUATION      ? 'C'
+                                                                                            : '.';
+                }
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "prompt navigation mismatch stage=%s total=%llu offset=%llu rows=%s", stage,
+                       (unsigned long long)state.total, (unsigned long long)state.offset, states);
+        }
+        XtpTerminalFree(layout);
+        XtpTerminalFree(plain);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
 static int
 SelfTestStartupCursorShape(void)
 {
@@ -4318,6 +4621,7 @@ XtpSelfTest(void)
             {"device attributes evidence", SelfTestDeviceAttributesEvidence},
             {"unknown APC", SelfTestUnknownApc},
             {"notification effect", SelfTestNotificationEffectDelivery},
+            {"prompt navigation", SelfTestPromptNavigation},
             {"working directory decode", SelfTestWorkingDirectoryDecode},
             {"working directory effect", SelfTestWorkingDirectoryEffectDelivery},
             {"color-ops policy", SelfTestColorOpsPolicy},

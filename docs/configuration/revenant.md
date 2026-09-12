@@ -431,8 +431,9 @@ XTerm*vt100.translations: #override \n\
 ```
 
 Actions currently implemented include `insert-selection`, `select-end`,
-`set-select`, `scroll-back`, `scroll-forw`, `larger-vt-font`,
-`smaller-vt-font`, `set-render-font`, and the popup actions. The report labels
+`set-select`, `scroll-back`, `scroll-forw`, `previous-prompt`, `next-prompt`,
+`insert-seven-bit`, `insert-eight-bit`, `larger-vt-font`, `smaller-vt-font`,
+`set-render-font`, and the popup actions. The report labels
 each action *supported* or *unsupported*.
 The [default VT bindings audit](../compatibility/default-bindings.md) accounts
 for every patch-411 group and records the remaining action-level gaps.

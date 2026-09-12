@@ -1512,6 +1512,55 @@ VtScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *nu
         (void)VtScrollViewportBy(vt, rows);
 }
 
+static long
+PromptActionCount(String *params, Cardinal num_params)
+{
+        long count = 1;
+
+        if (num_params != 0) {
+                char *end = NULL;
+                long parsed = strtol(params[0], &end, 10);
+
+                if (end != params[0] && *end == '\0' && parsed > 0)
+                        count = parsed;
+        }
+        return count;
+}
+
+void
+VtPreviousPromptAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        if (event != NULL && event->type == KeyPress &&
+            !VtAcceptLocalKeyAction(vt, event, XTP_LOCAL_ACTION_PREVIOUS_PROMPT))
+                return;
+        (void)VtScrollToPrompt(vt, -PromptActionCount(params, *num_params));
+}
+
+void
+VtNextPromptAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        if (event != NULL && event->type == KeyPress &&
+            !VtAcceptLocalKeyAction(vt, event, XTP_LOCAL_ACTION_NEXT_PROMPT))
+                return;
+        (void)VtScrollToPrompt(vt, PromptActionCount(params, *num_params));
+}
+
+/* xterm's default keypress actions: the raw key path already encodes the key, so binding
+ * one of these hands a gesture back to the application instead of a local action. */
+void
+VtInsertKeyAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
+{
+        (void)widget;
+        (void)params;
+        (void)num_params;
+        if (event != NULL && (event->type == KeyPress || event->type == KeyRelease))
+                XtpLog(XTP_LOG_DEBUG, "input", "key left to the input path by translation");
+}
+
 #define XTP_CLIPBOARD_READ_TIMEOUT_MS 1000
 
 static Time

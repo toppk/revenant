@@ -285,6 +285,51 @@ XtpTerminalScrollToBottom(XtpTerminal *terminal)
         return terminal != NULL ? 0 : -1;
 }
 
+int
+XtpTerminalSemanticRow(XtpTerminal *terminal, uint64_t row, XtpSemanticRow *state)
+{
+        (void)terminal;
+        (void)row;
+        (void)state;
+        return -1;
+}
+
+int
+XtpTerminalFindPrompt(XtpTerminal *terminal, uint64_t from, bool forward, uint64_t *row)
+{
+        (void)terminal;
+        (void)from;
+        (void)forward;
+        (void)row;
+        return -1;
+}
+
+size_t
+XtpTerminalPromptMarks(XtpTerminal *terminal)
+{
+        (void)terminal;
+        return 0;
+}
+
+int
+XtpTerminalCommandOutput(XtpTerminal *terminal, uint64_t prompt_start, XtpSemanticSpan *span)
+{
+        (void)terminal;
+        (void)prompt_start;
+        (void)span;
+        return -1;
+}
+
+int
+XtpTerminalSpanText(XtpTerminal *terminal, const XtpSemanticSpan *span, char **text, size_t *length)
+{
+        (void)terminal;
+        (void)span;
+        (void)text;
+        (void)length;
+        return -1;
+}
+
 XtpSelectionResult
 XtpTerminalSelectionStart(XtpTerminal *terminal, uint16_t column, uint16_t row, double surface_x,
                           double surface_y, uint64_t time_ns, XtpSelectionUnit unit, bool repeat)
