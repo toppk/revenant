@@ -5,6 +5,51 @@ Status: Standard (C0, C1), DEC (most `ESC x` commands).
 Before CSI, OSC, and DCS there are single control bytes and two-byte escape
 commands. Every emulator implements the C0 set; the rest is uneven.
 
+## Syntax
+
+```text
+ESC intermediate-bytes final-byte
+```
+
+ECMA-35 (ISO 2022) defines the escape sequence and ECMA-48 borrows it.
+Intermediate bytes are `0x20`–`0x2f`, the final byte is `0x30`–`0x7e`, and
+there is no terminator: a parser dispatches on the first byte outside the
+intermediate range. The byte after `ESC` decides which family the sequence
+belongs to, and the final byte's column decides who owns it.
+
+<!-- markdownlint-disable MD013 -->
+
+| Final byte | Class | Owner |
+| --- | --- | --- |
+| `0x30`–`0x3f` (`0`–`?`) | `Fp` | Private: `ESC 7`, `ESC 8`, `ESC =`, `ESC >` |
+| `0x40`–`0x5f` (`@`–`_`) | `Fe` | C1 controls: `ESC D` is IND, `ESC [` is CSI |
+| `0x60`–`0x7e` (`` ` ``–`~`) | `Fs` | Standardized single functions: `ESC c` is RIS |
+| `0x40`–`0x7e` after an intermediate | `Ft` | Charset designations and registered functions |
+
+The second byte maps the code space:
+
+| Second byte | Family | Examples |
+| --- | --- | --- |
+| `SP` | ACS, announce code structure | `ESC SP F`, `ESC SP G` (DEC names: S7C1T, S8C1T) |
+| `!`, `"` | Designate a C0 or C1 set | Not seen in practice |
+| `#` | Private and single functions | `ESC # 8` DECALN, `ESC # 3`–`# 6` line sizes |
+| `$` | Designate a multibyte charset | `ESC $ ( Id`, `ESC $ ) Id`, … |
+| `%` | DOCS, designate other coding system | `ESC % G` UTF-8, `ESC % @` back to ISO 2022 |
+| `&` | IRR, charset revision | Not seen in practice |
+| `(`, `)`, `*`, `+` | Designate a 94-charset to G0–G3 | `ESC ( B`, `ESC ) 0` |
+| `-`, `.`, `/` | Designate a 96-charset to G1–G3 | `ESC - A` |
+| `0`–`?` | Private single functions | DECSC, DECRC, DECKPAM, DECKPNM |
+| `@`–`_` | C1 controls | IND, NEL, HTS, RI, SS2, SS3, DCS, CSI, ST, OSC, PM, APC |
+| `` ` ``–`~` | Single functions | RIS |
+
+<!-- markdownlint-enable MD013 -->
+
+A charset identifier `Id` is itself `intermediate-bytes final-byte`: a
+private final byte (`0`–`?`) names a vendor set such as DEC Special
+Graphics, `~` names the empty set, a leading `SP` names a soft (DRCS)
+set, and anything else is a registered set from the ISO-IR register.
+Emulators implement a handful of these; see [Encoding](text/encoding.md).
+
 ## C0 controls
 
 <!-- markdownlint-disable MD013 -->
@@ -51,7 +96,8 @@ commands. Every emulator implements the C0 set; the rest is uneven.
 | `ESC ^`, `ESC _` | PM, APC | Privacy message, application program command (APC carries Kitty graphics) |
 | `ESC # 8` | DECALN | Fill the screen with `E`; the classic alignment test |
 | `ESC # 3`–`# 6` | DECDHL, DECSWL, DECDWL | Double-height and double-width lines; see [Text sizing](text/sizing.md) |
-| `ESC ( C`, `ESC ) C` | SCS | Designate charset `C` to G0/G1: `B` ASCII, `0` DEC Special Graphics, `A` UK |
+| `ESC ( C` … `ESC + C` | SCS | Designate 94-charset `C` to G0–G3: `B` ASCII, `0` DEC Special Graphics, `A` UK |
+| `ESC - C` … `ESC / C` | SCS | Designate 96-charset `C` to G1–G3; `A` is Latin-1 |
 | `ESC % G`, `ESC % @` | | Select UTF-8 / return to ISO 2022; see [Encoding](text/encoding.md) |
 | `ESC SP F`, `ESC SP G` | S7C1T, S8C1T | Emit C1 controls as 7-bit or 8-bit |
 | `ESC l`, `ESC m` | | xterm: memory lock / unlock; obsolete |
@@ -91,5 +137,7 @@ printf '\005'; tools/query ''          # ENQ answerback, usually silent
 - [ECMA-35 (ISO 2022) code extension](https://ecma-international.org/publications-and-standards/standards/ecma-35/)
 - [VT510 programmer reference](https://vt100.net/docs/vt510-rm/)
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
+- [terminal-wg N0001, Existing terminal sequence structures §2](https://gitlab.freedesktop.org/terminal-wg/terminal-parsing/-/blob/master/doc/n0001.md)
+- [ISO-IR, International Register of Coded Character Sets](https://www.itscj.ipsj.or.jp/itscj_english/iso-ir/ISO-IR.pdf)
 
 <!-- tdn:compatibility -->

@@ -16,10 +16,15 @@ introducer and the terminator is opaque command string, and the meaning of
 `Ps` comes from xterm and the vendors that followed it. The
 [catalog](catalog.md) lists every selector TDN knows about.
 
-Unlike CSI, OSC has no parameter/intermediate/final structure. Some
-selectors take several `;`-separated fields inside `Pt`, some take
-`key=value` pairs, some take base64; each feature page documents its own
-field grammar. A parser must not split on `;` before it knows the selector,
+In practice OSC has none of CSI's parameter/intermediate/final structure.
+DEC STD 070 did define one, `OSC I* Ft Pt ST`, which DEC never used and
+Sun's shelltool used for three commands; it cannot be confused with the
+numbered form because it has no digits or `;` before its final byte, and
+no current emulator implements it. See
+[Control strings](../control-strings.md#internal-structure). Within the
+numbered form, some selectors take several `;`-separated fields inside
+`Pt`, some take `key=value` pairs, some take base64; each feature page
+documents its own field grammar. A parser must not split on `;` before it knows the selector,
 because titles, URIs, and file paths legitimately contain semicolons.
 
 ## Terminators
@@ -40,6 +45,18 @@ every emulator also accepts. Both are common, and both have costs:
 Text before the terminator is opaque. An emulator that does not know `Ps`
 must still consume everything up to `ST` or `BEL` without printing it.
 
+### History
+
+The terminator conventions are older than the ECMA-48 alignment. The 1992
+X Window System User's Guide documents xterm's OSC as `OSC Ps` followed by
+text and ended by *the first non-printing character*, which excluded the
+control bytes ECMA-48 permits inside a command string. CDE's dtterm
+documented the form with an explicit `BEL`, which is where `OSC Ps ; Pt BEL`
+comes from. The `ST` form was added afterwards to bring the sequence in
+line with the standard, so today's parsers accept both. aixterm went
+further and allowed a DCS nested inside a `BEL`-terminated OSC, which no
+current emulator does.
+
 ## Parser requirements
 
 The VT500 parser's `osc_string` state collects bytes until `ST`, `BEL`
@@ -48,9 +65,10 @@ The VT500 parser's `osc_string` state collects bytes until `ST`, `BEL`
 - `ESC` followed by anything other than `\` aborts the OSC and starts a new
   escape; the collected text is discarded;
 - `CAN` and `SUB` abort;
-- other C0 controls inside the string are ignored by the reference parser,
-  but some emulators keep them in the payload; applications must not rely
-  on either;
+- ECMA-48 permits `0x08`–`0x0d` (BS, HT, LF, VT, FF, CR) inside a command
+  string and no other C0 bytes. The reference parser ignores every C0
+  control inside the string; some emulators keep the permitted ones in the
+  payload; applications must not rely on either;
 - the payload is bytes, not characters. Emulators that validate it as UTF-8
   (VTE, kitty) drop or replace invalid sequences; xterm passes them through.
 
@@ -110,3 +128,6 @@ printf '\033]8;;https://example.com\033\\link\033]8;;\033\\\n'
 - [ECMA-48 §8.3.89 OSC, §8.3.143 ST](https://ecma-international.org/publications-and-standards/standards/ecma-48/)
 - [XTerm Control Sequences, Operating System Commands](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Operating-System-Commands)
 - [A parser for DEC's ANSI-compatible video terminals](https://vt100.net/emu/dec_ansi_parser)
+- [DEC STD 070 Video Systems Reference Manual §3.5.4.2](http://bitsavers.org/pdf/dec/standards/EL-SM070-00_DEC_STD_070_Video_Systems_Reference_Manual_Dec91.pdf)
+- [terminal-wg N0001, Existing terminal sequence structures §4.3](https://gitlab.freedesktop.org/terminal-wg/terminal-parsing/-/blob/master/doc/n0001.md)
+- [Control strings](../control-strings.md)

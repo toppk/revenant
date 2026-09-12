@@ -6,6 +6,15 @@ specifications:
   xterm-control-sequences:
     title: XTerm Control Sequences
     url: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+  dec-std-070:
+    title: DEC STD 070 Video Systems Reference Manual
+    url: http://bitsavers.org/pdf/dec/standards/EL-SM070-00_DEC_STD_070_Video_Systems_Reference_Manual_Dec91.pdf
+  kitty-unscroll:
+    title: 'kitty: Unscrolling the screen'
+    url: https://sw.kovidgoyal.net/kitty/unscroll/
+  terminal-wg-n0001:
+    title: 'terminal-wg N0001: Existing terminal sequence structures'
+    url: https://gitlab.freedesktop.org/terminal-wg/terminal-parsing/-/blob/master/doc/n0001.md
   osc-8-hyperlinks-spec:
     title: Hyperlinks (a.k.a. HTML-like anchors) in terminal emulators
     url: https://gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda

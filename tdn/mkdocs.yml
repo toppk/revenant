@@ -104,6 +104,7 @@ nav:
       - xterm.js: terminals/xtermjs.md
       - tmux: terminals/tmux.md
   - Control characters and ESC: escape.md
+  - Control strings: control-strings.md
   - CSI:
       - Overview: csi/index.md
       - Anatomy and parsing: csi/anatomy.md

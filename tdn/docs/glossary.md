@@ -6,7 +6,7 @@
 
 **APC**
 : Application Program Command, `ESC _ … ST`. Carries the Kitty graphics
-  protocol; otherwise ignored.
+  protocol; otherwise ignored. See [Control strings](control-strings.md).
 
 **Application**
 : The program writing to the PTY: a shell, an editor, a TUI.
@@ -24,6 +24,11 @@
 **ConPTY**
 : The Windows pseudoconsole. Sits between every Windows terminal and its
   applications and re-encodes the byte stream.
+
+**Control string**
+: A sequence with an introducer (DCS, OSC, APC, PM, SOS), an opaque
+  payload, and a String Terminator. See
+  [Control strings](control-strings.md).
 
 **CPR**
 : Cursor Position Report, `CSI row ; col R`.
@@ -78,6 +83,11 @@
 **Pending wrap**
 : The state after printing in the last column: the cursor is drawn there and
   the next character wraps first.
+
+**PM, SOS**
+: Privacy Message (`ESC ^ … ST`) and Start of String (`ESC X … ST`), the
+  two ECMA-48 control strings no current emulator uses. A parser consumes
+  them silently. See [Control strings](control-strings.md).
 
 **PTY**
 : Pseudo-terminal. The kernel object with a master (emulator) and slave

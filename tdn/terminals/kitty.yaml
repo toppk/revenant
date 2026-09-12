@@ -95,6 +95,19 @@ features:
     evidence:
     - kind: import
       url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/osc/misc.md#compatibility
+  csi-plus-t-unscroll:
+    status: supported
+    as-of: git:9710eb4460ca0ab1532b0107d7066c20d7e9a66f
+    notes: Documented as added in 0.20.2. The parser dispatches CSI + T to
+      screen_reverse_scroll_and_fill_from_scrollback and bare CSI T stays SD.
+      Documentation and source review; not executed.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: specification
+      url: https://sw.kovidgoyal.net/kitty/unscroll/
+    - kind: source
+      url: https://github.com/kovidgoyal/kitty/blob/9710eb4460ca0ab1532b0107d7066c20d7e9a66f/kitty/vt-parser.c
   csi-rep:
     status: supported
     as-of: null

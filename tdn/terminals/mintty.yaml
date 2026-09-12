@@ -27,6 +27,19 @@ features:
     evidence:
     - kind: import
       url: https://github.com/toppk/revenant/blob/e2b248588a26dc4cc7e6eaf5fa34286584d093ab/tdn/docs/input/modify-other-keys.md#compatibility
+  csi-plus-t-unscroll:
+    status: supported
+    as-of: '3.8.3'
+    notes: Documented in the control-sequences wiki as filling from the
+      scrollback buffer. The changelog records the sequence in 3.5.2 and a
+      width-change fix in 3.6.0. Documentation review; not executed.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: specification
+      url: https://github.com/mintty/mintty/wiki/CtrlSeqs#unscroll
+    - kind: source
+      url: https://github.com/mintty/mintty/blob/3.8.3/wiki/Changelog.md
   csi-xtpushsgr:
     status: supported
     as-of: null

@@ -40,8 +40,10 @@ wrapped.
 
 ## Sub-parameters
 
-ECMA-48 allows `:` to separate sub-parameters within one parameter. Only SGR
-uses this in practice:
+ECMA-48 allows `:` to separate sub-parameters within one parameter. SGR is
+the main user; the [Kitty keyboard protocol](../input/kitty-keyboard.md)
+also carries modifiers and event types as sub-parameters of `CSI … u`.
+The SGR forms:
 
 ```text
 CSI 4 : 3 m                curly underline
@@ -55,8 +57,38 @@ parser knows how many sub-parameters belong to `38`. The semicolon form
 that does not understand it. See [SGR](sgr.md#color-parameter-forms).
 
 Terminals that predate sub-parameters may treat `:` as a parameter
-terminator or ignore the whole sequence. Applications should consult the
-terminfo `Smulx`/`Setulc` capabilities or probe before relying on colons.
+terminator or ignore the whole sequence. Even emulators that handle colons
+in SGR do not always handle them in every other CSI function, because the
+sub-parameter support was retrofitted for colors rather than added to the
+parser generally. Applications should consult the terminfo
+`Smulx`/`Setulc` capabilities or probe before relying on colons.
+
+## Private markers and function identity
+
+ECMA-48 intended a private marker to select a private *variant* of the
+same function: SM and RM say that private modes may be implemented through
+private parameters, which is exactly what `CSI ? Pm h` is. SCO and xterm
+instead used the markers to define distinct functions (`CSI > Pm m` has
+nothing to do with SGR), and every emulator since has followed. A function
+is therefore identified by the marker, the intermediates, and the final
+byte together, and a parser must keep all three.
+
+ECMA-48 reserves the standard final bytes `@`–`o` and hands out `p`–`~`
+for private use, which is why DEC's commands end there. The unused space
+between the two is the intermediate bytes: an intermediate plus a
+*standard* final byte defines a function that collides with nothing, and
+newer sequences use it. xterm's color stack is `CSI # P`, `CSI # Q`,
+`CSI # R`; kitty's unscroll is `CSI Ps + T`. ECMA-48 itself planned `!`
+for no-parameter functions and never assigned one. The historical
+alternative, private functions on bare standard finals (SCO's `CSI U` for
+reset, colliding with NP), is why some ECMA-48 functions are unusable on
+terminals that claim to support them.
+
+Two marker placements that look plausible are not accepted: a marker in
+the middle of a parameter string (`CSI 4 ; ? 7 h`) and a marker after the
+parameters (`CSI 4 ? p`). VT320 and VT420 hardware ignored both; the
+reference parser treats a marker after a digit as an error and consumes
+the sequence without acting on it.
 
 ## Reading examples
 
@@ -86,7 +118,12 @@ most emulators implement directly. Its properties worth knowing:
   without aborting it (so `CSI 3` `LF` `1 m` is legal, if unwise);
 - DEL (`0x7f`) is ignored;
 - an unrecognized final byte dispatches to nothing; the bytes are consumed
-  silently and never printed.
+  silently and never printed;
+- ECMA-48 §9 says that bytes `0xa0`–`0xff` inside a control sequence are
+  treated as their `0x20`–`0x7f` counterparts (the eight-bit "column
+  10–15" rule). No emulator applies this in a UTF-8 session, where those
+  bytes are continuation bytes; parsers either reject them or abort the
+  sequence.
 
 Malformed or unbounded parameter strings must not consume unlimited memory.
 Emulators typically stop accumulating after a fixed number of parameter
@@ -108,3 +145,5 @@ blink-bar | od -c` shows exactly what a parser receives.
 - [ECMA-48](https://ecma-international.org/publications-and-standards/standards/ecma-48/)
 - [A parser for DEC's ANSI-compatible video terminals](https://vt100.net/emu/dec_ansi_parser)
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
+- [terminal-wg N0001, Existing terminal sequence structures §3](https://gitlab.freedesktop.org/terminal-wg/terminal-parsing/-/blob/master/doc/n0001.md)
+- [kitty, Unscrolling the screen](https://sw.kovidgoyal.net/kitty/unscroll/)

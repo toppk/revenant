@@ -16,6 +16,8 @@ The spaces are notation, never bytes, unless written as `SP`.
 | `OSC` | `ESC ]` or `0x9d` | Operating System Command |
 | `DCS` | `ESC P` or `0x90` | Device Control String |
 | `APC` | `ESC _` or `0x9f` | Application Program Command |
+| `PM` | `ESC ^` or `0x9e` | Privacy Message |
+| `SOS` | `ESC X` or `0x98` | Start of String |
 | `ST` | `ESC \` or `0x9c` | String Terminator |
 | `BEL` | `0x07` | Bell; accepted as an OSC terminator by most emulators |
 | `SP` | `0x20` | A literal space byte used as an intermediate |

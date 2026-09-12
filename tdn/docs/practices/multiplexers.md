@@ -21,7 +21,11 @@ tmux understands and forwards, without any wrapping:
   advertises them (`terminal-features`, `terminal-overrides`);
 - the DEC private modes it tracks per pane (alternate screen, cursor
   visibility, mouse, bracketed paste, focus events);
-- DECSCUSR (cursor style), `CSI ? 2026` synchronized output (tmux 3.4+).
+- DECSCUSR (cursor style), `CSI ? 2026` synchronized output (tmux 3.4+);
+- `ESC k name ST`, screen's window-name string, which tmux also applies
+  as the window name when `allow-rename` is on. No emulator outside a
+  multiplexer acts on it; see
+  [Control strings](../control-strings.md#non-standard-introducers).
 
 Queries are answered by tmux, not the outer terminal: DA1, DA2, DSR,
 DECRQM, and XTVERSION all report tmux's own identity and its per-pane
@@ -84,4 +88,6 @@ reliable way.
 - [tmux wiki: FAQ, passthrough](https://github.com/tmux/tmux/wiki/FAQ#what-is-the-passthrough-escape-sequence-and-how-do-i-use-it)
 - [tmux(1), allow-passthrough](https://man.openbsd.org/tmux#allow-passthrough)
 - [screen(1), Control sequences](https://www.gnu.org/software/screen/manual/screen.html#Control-Sequences)
+- [screen(1), Naming windows](https://www.gnu.org/software/screen/manual/screen.html#Naming-Windows)
+- [tmux(1), allow-rename](https://man.openbsd.org/tmux#allow-rename)
 - [tmux page](../terminals/tmux.md)

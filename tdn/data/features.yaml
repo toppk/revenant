@@ -4125,3 +4125,14 @@ features:
     specifications:
     - xterm-manual
     labels: []
+  csi-plus-t-unscroll:
+    title: Unscroll (CSI + T)
+    kind: feature
+    category: csi
+    pages:
+    - csi/scrolling.md
+    - csi/catalog.md
+    specifications:
+    - kitty-unscroll
+    labels: []
+    sequence: CSI Ps + T

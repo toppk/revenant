@@ -40,6 +40,7 @@ says "report" is emulator-to-application; everything else is a command.
 | `CSI ? Pi ; Pa ; Pv S` | XTSMGRAPHICS graphics attributes | xterm | [Sixel](../graphics/sixel.md) |
 | `CSI Ps T` | SD scroll down | ECMA-48 | [Scrolling](scrolling.md#scroll-commands) |
 | `CSI > Pm T` | XTRMTITLE reset title modes | xterm | [Titles](../osc/title.md) |
+| `CSI Ps + T` | Unscroll: pull `Ps` rows back from scrollback | kitty | [Scrolling](scrolling.md#scrollback) |
 | `CSI Ps X` | ECH erase characters | ECMA-48 | [Erase and edit](erase.md#erase) |
 | `CSI Ps Z` | CBT cursor backward tabulation | ECMA-48 | [Escape](../escape.md#tab-stops) |
 | `CSI Ps ^` | SD scroll down (alternate) | ECMA-48 | [Scrolling](scrolling.md#scroll-commands) |

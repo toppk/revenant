@@ -41,6 +41,7 @@ application relies on lives in that private space.
 | [VT320](https://vt100.net/docs/vt320-uu/), [VT420](https://vt100.net/docs/vt420-uu/) | DECRQM/DECRPM, DECRQSS/DECRPSS, DECSLRM and DECLRMM, DECSCUSR (VT520), tertiary DA | [Modes](csi/modes.md), [DECRQSS](dcs/decrqss.md), [Scrolling](csi/scrolling.md) |
 | [VT330/VT340](https://vt100.net/docs/vt3xx-gp/) | Sixel and ReGIS | [Sixel](graphics/sixel.md), [ReGIS](graphics/legacy.md) |
 | [VT510/VT520](https://vt100.net/docs/vt510-rm/) | The most complete single DEC reference; the manual TDN cites when a command's DEC definition is needed | throughout |
+| [DEC STD 070](http://bitsavers.org/pdf/dec/standards/EL-SM070-00_DEC_STD_070_Video_Systems_Reference_Manual_Dec91.pdf) Video Systems Reference Manual | DEC's internal conformance standard: the parser, the `DCS P* I* Ft data ST` header and the equivalent OSC/APC/PM structure, private-range rules | [Control strings](control-strings.md), [DCS](dcs/index.md), [OSC anatomy](osc/anatomy.md) |
 
 <!-- markdownlint-enable MD013 -->
 
@@ -95,6 +96,21 @@ xterm documents are the source for the **xterm** status.
 
 These are the source for the **Extension** status when at least one other
 emulator has adopted them, and **Vendor-private** when not.
+
+## Surveys
+
+Some documents define nothing and instead record what exists. TDN cites
+them for history and for the anatomy pages; they are never the source of a
+status.
+
+<!-- markdownlint-disable MD013 -->
+
+| Document | Records | TDN sections |
+| --- | --- | --- |
+| [terminal-wg N0001, Existing terminal sequence structures](https://gitlab.freedesktop.org/terminal-wg/terminal-parsing/-/blob/master/doc/n0001.md) | The terminal-parsing subgroup's survey of every sequence shape in use or on record: the ESC code space, CSI marker and sub-parameter practice, control-string internals, non-standard introducers, and grammar-violating sequences from historical terminals | [Escape](escape.md), [CSI anatomy](csi/anatomy.md), [OSC anatomy](osc/anatomy.md), [DCS](dcs/index.md), [Control strings](control-strings.md) |
+| [A parser for DEC's ANSI-compatible video terminals](https://vt100.net/emu/dec_ansi_parser) | Paul Williams' state machine, reverse-engineered from VT500-series hardware; the de facto reference parser | [CSI anatomy](csi/anatomy.md), [Control strings](control-strings.md) |
+
+<!-- markdownlint-enable MD013 -->
 
 ## Emulator documentation
 

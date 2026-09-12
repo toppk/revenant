@@ -67,6 +67,7 @@ Scrollback is outside every standard. Emulator conventions:
 | `?1010` | Scroll to bottom on output | xterm |
 | `?1011` | Scroll to bottom on key press | xterm |
 | `CSI ? Ps ; … t`, `Ps` = 14 | Reserved by xterm for scrollback size reports; not implemented | |
+| `CSI Ps + T` | Unscroll: move `Ps` rows from scrollback back onto the screen, pushing the region down; the inverse of SU into scrollback (kitty 0.20.2+, mintty 3.5.2+); `CSI Ps T` without the intermediate stays SD | Extension |
 
 <!-- markdownlint-enable MD013 -->
 
@@ -96,5 +97,6 @@ tools/query mode 69                        # DECRQM: 1/2 supported, 0 unknown
 - [VT510 DECSTBM](https://vt100.net/docs/vt510-rm/DECSTBM.html), [DECSLRM](https://vt100.net/docs/vt510-rm/DECSLRM.html)
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
 - [xterm.js supported sequences](https://xtermjs.org/docs/api/vtfeatures/)
+- [kitty, Unscrolling the screen](https://sw.kovidgoyal.net/kitty/unscroll/)
 
 <!-- tdn:compatibility -->

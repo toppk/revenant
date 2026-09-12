@@ -39,7 +39,8 @@ catalogs are the fastest way in.
 
 | Section | What it covers |
 | --- | --- |
-| [Control characters and ESC](escape.md) | C0, C1, and two-byte escape commands |
+| [Control characters and ESC](escape.md) | C0, C1, the ESC grammar, and two-byte escape commands |
+| [Control strings](control-strings.md) | The DCS/OSC/APC/PM/SOS framing, the DEC header structure, and non-standard introducers |
 | [CSI](csi/index.md) | [Anatomy](csi/anatomy.md), [catalog](csi/catalog.md); cursor, erase, SGR, scrolling, modes, queries, window operations |
 | [OSC](osc/index.md) | [Anatomy](osc/anatomy.md), [catalog](osc/catalog.md); titles, hyperlinks, colors, clipboard, working directory, shell integration, notifications |
 | [DCS](dcs/index.md) | DECRQSS, XTGETTCAP, XTVERSION, and other device-control strings |

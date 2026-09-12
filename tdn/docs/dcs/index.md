@@ -14,12 +14,23 @@ parameter list.
 DCS parameter-bytes intermediate-bytes final-byte data ST
 ```
 
-`DCS` is `ESC P` (or C1 `0x90`); `ST` is `ESC \` (or C1 `0x9c`). The
-parameter, intermediate, and final bytes use the same ranges as
-[CSI](../csi/anatomy.md); the data that follows is command-specific and may
-contain any bytes except the terminator. Most emulators also terminate a DCS
-on `BEL`, `CAN`, `SUB`, or a bare `ESC` that does not begin `ST`, but only
-`ST` is standard.
+`DCS` is `ESC P` (or C1 `0x90`); `ST` is `ESC \` (or C1 `0x9c`). ECMA-48
+defines only the framing; the header comes from DEC STD 070, which gives a
+DCS the same parameter, intermediate, and final bytes as
+[CSI](../csi/anatomy.md) and identifies the command by its intermediates
+and final byte. The data that follows is command-specific and may contain
+any bytes except the terminator. Most emulators also terminate a DCS on
+`BEL`, `CAN`, `SUB`, or a bare `ESC` that does not begin `ST`, but only
+`ST` is standard. The family as a whole, including APC, PM, and SOS, is
+described in [Control strings](../control-strings.md).
+
+DEC required the final byte to be private (`p`–`~`) and never used a
+private marker in a DCS header. Both rules have since been broken: the
+XTVERSION reply is `DCS > | text ST`, and the first synchronized-updates
+draft used `DCS = 1 s ST` before
+[mode 2026](../csi/modes.md#synchronized-output) replaced it. ECMA-48's own
+mechanism for typing a DCS, IDCS (`CSI Pn SP O`) sent before the string,
+was never implemented by anyone.
 
 ## Members
 
@@ -85,5 +96,8 @@ passthrough queries. See [tmux](../terminals/tmux.md).
 - [ECMA-48 §8.3.27 (DCS) and §8.3.143 (ST)](https://ecma-international.org/publications-and-standards/standards/ecma-48/)
 - [XTerm Control Sequences: Device-Control functions](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h3-Device-Control-functions)
 - [tmux(1): allow-passthrough](https://man.openbsd.org/tmux#allow-passthrough)
+- [DEC STD 070 Video Systems Reference Manual §3.5.4.1](http://bitsavers.org/pdf/dec/standards/EL-SM070-00_DEC_STD_070_Video_Systems_Reference_Manual_Dec91.pdf)
+- [terminal-wg N0001, Existing terminal sequence structures §4.1–4.2](https://gitlab.freedesktop.org/terminal-wg/terminal-parsing/-/blob/master/doc/n0001.md)
+- [Control strings](../control-strings.md)
 
 <!-- tdn:compatibility -->
