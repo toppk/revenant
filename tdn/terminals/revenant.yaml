@@ -270,3 +270,14 @@ features:
     evidence:
     - kind: test
       url: https://github.com/toppk/revenant/blob/75abb483ab7796e70f4e8348c3c5d2bab98b1e98/tests/xvfb-prompt-navigation.sh
+  ui-pipe-command-output:
+    status: supported
+    as-of: git:1f99bd0f0844e453df54beb598b4845744e09d9c
+    notes: pipe-command-output() (Ctrl+Shift+G) writes the last completed command's OSC 133 output, wrapped lines
+      joined, to the pipeCommandOutput helper's stdin in the last OSC 7 directory. Unset by default; output is
+      never executed.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/1f99bd0f0844e453df54beb598b4845744e09d9c/tests/xvfb-pipe-output.sh

@@ -38,7 +38,6 @@ existing ID; its parent is complete only after all three.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| Shell | S3 output pipe | Uses the completed S2 semantic range API and S1 cwd. |
 | Rendering and selection | G1 → G2; U1; U2 → U3 | G2 reuses G1 drawing; U3 needs U2 search model. |
 | Progress | N3 | Independent of desktop delivery; select the UI surface before coding. |
 | API-dependent | V3, F1, M1 | Public OSC hooks for V3/F1; effective mouse tracking API for M1. |
@@ -65,18 +64,6 @@ conflicting ownership even within the same batch.
       scenario and verify hyperlink-hover precedence externally.
 
 ## S: Shell integration
-
-- [ ] **S3 — Pipe last command output.** Depends on S1 and S2's semantic
-      range API. Add configured command/resource plus explicit user action;
-      feed output bytes over stdin and use validated command cwd.
-      Probe: `just probe ui-pipe-command-output shell-pipe --cwd /tmp` ; configure a capture
-      helper during tests.
-      No Ops family: OSC 133 marks data; only the user action launches a
-      process. Accept: exactly COMMAND-3-BEGIN through COMMAND-3-END, no prompt
-      or earlier output; Unicode/wrapping; unset command; closed pipe; child
-      cleanup; shell-looking output remains data. Stop: no automatic command
-      execution on receipt of OSC markers.
-      TDN: `ui-pipe-command-output`.
 
 - [ ] **S4 — Optional clear-to-prompt.** Depends on S2. Define separately
       whether this means viewport movement or history deletion before coding.
