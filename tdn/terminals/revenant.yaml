@@ -281,3 +281,35 @@ features:
     evidence:
     - kind: test
       url: https://github.com/toppk/revenant/blob/1f99bd0f0844e453df54beb598b4845744e09d9c/tests/xvfb-pipe-output.sh
+  text-box-drawing:
+    status: supported
+    as-of: git:7421d5bd57a1756913cd486ed2daf86ffaeae748
+    notes: U+2500-U+257F are drawn as cell-geometry rectangles when the primary Xft face lacks the glyph, on the
+      bitmap path, or under forceBoxChars; light, heavy and double lines, dashes, arcs and diagonals join exactly
+      across cells at any size and in bold.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/7421d5bd57a1756913cd486ed2daf86ffaeae748/tests/xvfb-box-glyphs.sh
+  text-block-drawing:
+    status: supported
+    as-of: git:7421d5bd57a1756913cd486ed2daf86ffaeae748
+    notes: U+2580-U+259F half, eighth and quadrant blocks are exact cell partitions and the three shades are 2x2
+      stipples, clipped to the cell and colored like text under inverse video and selection.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/7421d5bd57a1756913cd486ed2daf86ffaeae748/tests/xvfb-box-glyphs.sh
+  resource-force-box-chars:
+    status: supported
+    as-of: git:7421d5bd57a1756913cd486ed2daf86ffaeae748
+    notes: forceBoxChars (+fbx enables, -fbx disables), the font menu's font-linedrawing entry and
+      set-font-linedrawing() force procedural drawing for U+2500-U+259F; turning it off returns to the face's own
+      glyphs at once. The bitmap path draws these ranges procedurally regardless.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/7421d5bd57a1756913cd486ed2daf86ffaeae748/tests/xvfb-box-glyphs.sh

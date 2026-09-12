@@ -38,7 +38,7 @@ existing ID; its parent is complete only after all three.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| Rendering and selection | G1 → G2; U1; U2 → U3 | G2 reuses G1 drawing; U3 needs U2 search model. |
+| Rendering and selection | G2; U1; U2 → U3 | G2 reuses the landed G1 drawing module; U3 needs U2 search model. |
 | Progress | N3 | Independent of desktop delivery; select the UI surface before coding. |
 | API-dependent | V3, F1, M1 | Public OSC hooks for V3/F1; effective mouse tracking API for M1. |
 | Graphics series | K1 → K2a limits → K2b temp files → K2c shared memory; K3/K4 after K1 | Keep resource limits, transport, placeholders and scheduling separate. |
@@ -98,19 +98,8 @@ conflicting ownership even within the same batch.
 
 ## G: Procedural glyphs
 
-- [ ] **G1 — Box and block glyphs.** Implement cell-metric rasterization,
-      `forceBoxChars` and existing font-linedrawing menu behavior as one unit.
-      Owner: dedicated drawing module, font/draw integration and menu wiring.
-      Probe: `just probe text-box-drawing text-glyphs` under bitmap/Xft, multiple sizes,
-      normal/bold. No Ops
-      family. Accept: pixel joins across adjacent cells, clipping, inverse and
-      selection colors, toggle back to font rendering. Stop: no braille or
-      Powerline yet; preserve ordinary Unicode shaping/routing.
-      TDN: `text-box-drawing`, `text-block-drawing`, `resource-force-box-chars`.
-      Coverage: the case paints samples; manually toggle font line drawing and
-      verify resource/menu behavior with pixel tests. It does not toggle itself.
-
-- [ ] **G2 — Braille and Powerline.** Depends on G1 drawing interface.
+- [ ] **G2 — Braille and Powerline.** Extend the `src/box_glyphs.c` planner
+      and `XtpBoxGlyphCodepoint` range that G1 landed.
       Probe: `just probe text-braille-drawing text-glyphs`; repeat via
       `just probe text-powerline-drawing text-glyphs` . Add deterministic dot/triangle pixel
       tests at odd cell sizes.
