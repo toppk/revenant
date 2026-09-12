@@ -101,6 +101,43 @@ features:
       url: https://github.com/toppk/revenant/blob/ab0907105bf6a871ef473dfbc0e929c8ff6b4d11/tests/xvfb-unknown-apc.sh
     - kind: test
       url: https://github.com/toppk/revenant/blob/ab0907105bf6a871ef473dfbc0e929c8ff6b4d11/src/selftest.c
+  osc-9-notification:
+    status: partial
+    as-of: git:87fdc41407fe2a096bd7f5d59456bfe61b7b80f9
+    notes: iTerm2 form decoded with an empty title and the body as sent, logged, and mapped to X11 urgency while
+      unfocused. No desktop delivery. Valid ConEmu forms remain separate; incomplete or invalid ConEmu-shaped
+      payloads fall back to notification text in libghostty.
+    review: reviewed
+    checked: '2026-09-11'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/tests/xvfb-notification-urgency.sh
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/src/selftest.c
+  osc-777-notification:
+    status: partial
+    as-of: git:87fdc41407fe2a096bd7f5d59456bfe61b7b80f9
+    notes: notify;title;body is decoded, logged, and mapped to X11 urgency while unfocused. No desktop delivery;
+      other rxvt extensions are dropped by the core.
+    review: reviewed
+    checked: '2026-09-11'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/tests/xvfb-notification-urgency.sh
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/src/selftest.c
+  notification-x11-urgency:
+    status: supported
+    as-of: git:87fdc41407fe2a096bd7f5d59456bfe61b7b80f9
+    notes: XUrgencyHint is set for notifications received while unfocused and cleared on focus-in. Every other
+      WM_HINTS field is preserved, repeated requests are idempotent, and failed hint updates remain retryable.
+    review: reviewed
+    checked: '2026-09-11'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/tests/xvfb-notification-urgency.sh
+    - kind: source
+      url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/src/urgency.c
   csi-decscusr:
     status: partial
     as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab

@@ -2,8 +2,9 @@
 
 Monstar (`upstream/monstar`) is a reference implementation, not a promise
 that the pinned libghostty C API exposes every hook. Read `HANDOFF.md` and
-`docs/maintainers/dispatch.md` before starting a chunk. This local checklist
-stays untracked; durable contracts belong in the handoff and tracked docs.
+`docs/maintainers/dispatch.md` before starting a chunk. This tracked checklist
+contains only open work; durable implementation contracts belong in the handoff
+and supporting docs.
 
 Each ID is an open, bounded implementation/review unit. `TDN:` names the
 feature slugs in `tdn/data/features.yaml`; chunk IDs are work units, not slugs.
@@ -37,7 +38,6 @@ existing ID; its parent is complete only after all three.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| Next | N1 urgency | Independent feature boundaries; audit actual API/claims first. |
 | Shell | S2 prompt navigation → S3 output pipe | S2 first exposes semantic ranges; S3 also uses completed S1 cwd. |
 | Rendering and selection | G1 → G2; U1; U2 → U3 | G2 reuses G1 drawing; U3 needs U2 search model. |
 | Progress | N3 | Independent of desktop delivery; select the UI surface before coding. |
@@ -100,15 +100,6 @@ conflicting ownership even within the same batch.
       after defining the semantics; prompt markers alone do not verify clearing.
 
 ## N: Notifications
-
-- [ ] **N1 — Desktop notification callback to urgency.** Wire OSC 9/777
-      `OPT_DESKTOP_NOTIFICATION` to X11 WM urgency when unfocused; clear on
-      focus. Owner: backend effect and shell WM hints.
-      Probe: `just probe notification-x11-urgency notifications-urgency`.
-      No xterm Ops family. Accept: external WM_HINTS checks, focused versus
-      unfocused, repeated requests, preservation of other hints, teardown.
-      Stop: no hard D-Bus dependency or child notification command.
-      TDN: `osc-9-notification`, `osc-777-notification`, `notification-x11-urgency`.
 
 - [ ] **N2 — Optional desktop notification adapter.** Depends on N1 effect.
       Choose configured executable or optional libnotify Meson feature; keep
