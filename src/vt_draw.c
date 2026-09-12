@@ -276,12 +276,17 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
                 ? (cell->inverse ? cell->foreground.kind == XTP_COLOR_DEFAULT
                                  : cell->background.kind == XTP_COLOR_DEFAULT)
                 : (!cell->inverse && cell->background.kind == XTP_COLOR_DEFAULT);
-        if (cell->selected) {
+        /* A copy flash paints copied cells on copyFlashColor, or shows them unselected. */
+        if (cell->selected && (!vt->vt.copy_flash_active || vt->vt.copy_flash_has_color)) {
                 Pixel temporary = visual.foreground;
 
                 visual.foreground = visual.background;
                 visual.background = temporary;
                 translucent_background = False;
+                if (vt->vt.copy_flash_active)
+                        visual.background =
+                            RgbPixel(vt, vt->vt.copy_flash_rgb[0], vt->vt.copy_flash_rgb[1],
+                                     vt->vt.copy_flash_rgb[2]);
         }
         visual.opaque_background = visual.background;
         if (translucent_background)

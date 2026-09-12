@@ -476,6 +476,13 @@ U+E0B0–U+E0BF from the cell under the same rules and the same switch, so
 Powerline branch and lock icons and the Nerd Font flame separators, and the
 legacy computing symbols still come from the font.
 
+### Copy feedback
+
+xterm has no copy feedback. Revenant adds `copyFlashDuration` and
+`copyFlashColor`; the duration defaults to 0, so the xterm appearance is
+unchanged unless it is set. The flash follows only user selection gestures,
+never an application's OSC 52 write.
+
 ### Notification urgency (OSC 9, OSC 777)
 
 xterm 411 does not implement OSC 9 or OSC 777; both are discarded as

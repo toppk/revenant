@@ -40,7 +40,8 @@ func glyphs(s *Session) {
 }
 func copyFixture(s *Session) {
 	s.say("COPY-PROBE alpha café 界 omega COPY-END")
-	s.say("Select and copy; inspect the feedback, selection and exact paste contents.")
+	s.say("Start with -xrm 'XTerm*copyFlashDuration: 300' and optionally copyFlashColor.")
+	s.say("Select and copy; inspect the flash, its expiry, the selection and exact paste contents.")
 	s.pause()
 }
 func searchFixture(s *Session) {

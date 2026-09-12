@@ -58,6 +58,7 @@ RemoveOwnedSelection(Vt100Rec *vt, OwnedSelection *entry)
                 (vt->vt.owned_selection_count - index - 1U) * sizeof(*vt->vt.owned_selections));
         --vt->vt.owned_selection_count;
         if (highlighted && !AnyHighlightedSelection(vt)) {
+                VtCancelCopyFlash(vt, "selection-lost");
                 if (vt->vt.terminal != NULL)
                         XtpTerminalSelectionClear(vt->vt.terminal);
                 XtpVtUpdate((Widget)vt);
@@ -1036,6 +1037,7 @@ VtSelectStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_
                 XBell(XtDisplay(widget), 0);
                 return;
         }
+        VtCancelCopyFlash(vt, "new-selection");
         vt->vt.selection_dragging = True;
         vt->vt.selection_extending = False;
         vt->vt.selection_pointer_x = event->xbutton.x;
@@ -1109,6 +1111,7 @@ VtStartExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_
                 return;
         }
         if (result > 0) {
+                VtCancelCopyFlash(vt, "new-selection");
                 vt->vt.selection_dragging = True;
                 vt->vt.selection_extending = True;
                 vt->vt.selection_pointer_x = event->xbutton.x;
@@ -1196,6 +1199,7 @@ OwnSelectionText(Vt100Rec *vt, const char *source_name, Atom atom, const uint8_t
                 free(entry->text);
                 entry->highlight = highlight;
                 if (was_highlighted && !AnyHighlightedSelection(vt)) {
+                        VtCancelCopyFlash(vt, "selection-replaced");
                         if (vt->vt.terminal != NULL)
                                 XtpTerminalSelectionClear(vt->vt.terminal);
                         XtpVtUpdate((Widget)vt);
@@ -1231,6 +1235,8 @@ PublishSelection(Vt100Rec *vt, String *params, Cardinal num_params, const uint8_
         if (num_params != 0 && owned == 0) {
                 XtpTerminalSelectionClear(vt->vt.terminal);
                 XtpVtUpdate((Widget)vt);
+        } else if (owned != 0) {
+                VtStartCopyFlash(vt);
         }
 }
 

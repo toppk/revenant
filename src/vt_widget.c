@@ -265,6 +265,10 @@ static XtResource resources[] = {
      (XtPointer)600},
     {"cursorOffTime", "CursorOffTime", XtRInt, sizeof(int), OFFSET(cursor_off_time), XtRImmediate,
      (XtPointer)300},
+    {"copyFlashDuration", "CopyFlashDuration", XtRInt, sizeof(int), OFFSET(copy_flash_duration),
+     XtRImmediate, (XtPointer)0},
+    {"copyFlashColor", "CopyFlashColor", XtRString, sizeof(String), OFFSET(copy_flash_color_name),
+     XtRString, (XtPointer) ""},
     {"scrollBar", "ScrollBar", XtRBoolean, sizeof(Boolean), OFFSET(scroll_bar), XtRImmediate,
      (XtPointer)False},
     {"rightScrollBar", "RightScrollBar", XtRBoolean, sizeof(Boolean), OFFSET(right_scroll_bar),
@@ -957,6 +961,26 @@ ApplyTerminalAnsiPalette(Vt100Rec *vt)
 }
 
 static void
+ResolveCopyFlashColor(Vt100Rec *vt)
+{
+        const char *name = vt->vt.copy_flash_color_name;
+        XColor color;
+
+        vt->vt.copy_flash_has_color = False;
+        if (name == NULL || *name == '\0')
+                return;
+        if (!XParseColor(XtDisplay((Widget)vt), vt->core.colormap, name, &color)) {
+                XtpLog(XTP_LOG_ERROR, "config",
+                       "invalid copyFlashColor=%s; the flash shows copied cells unselected", name);
+                return;
+        }
+        vt->vt.copy_flash_rgb[0] = (uint8_t)(color.red >> 8);
+        vt->vt.copy_flash_rgb[1] = (uint8_t)(color.green >> 8);
+        vt->vt.copy_flash_rgb[2] = (uint8_t)(color.blue >> 8);
+        vt->vt.copy_flash_has_color = True;
+}
+
+static void
 Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
 {
         Vt100Rec *vt = VtAsRecord(new_widget);
@@ -977,6 +1001,9 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
                 vt->vt.cursor_on_time = 0;
         if (vt->vt.cursor_off_time < 0)
                 vt->vt.cursor_off_time = 0;
+        if (vt->vt.copy_flash_duration < 0)
+                vt->vt.copy_flash_duration = 0;
+        ResolveCopyFlashColor(vt);
         ResolveBackgroundOpacity(vt);
         vt->vt.opaque_background_pixel = VtOpaquePixel(vt, vt->core.background_pixel);
         if (vt->vt.reverse_video)
@@ -1059,6 +1086,10 @@ Destroy(Widget widget)
                 XtRemoveTimeOut(vt->vt.selection_autoscroll_timer);
         if (vt->vt.cursor_blink_timer != (XtIntervalId)0)
                 XtRemoveTimeOut(vt->vt.cursor_blink_timer);
+        if (vt->vt.copy_flash_timer != (XtIntervalId)0) {
+                XtRemoveTimeOut(vt->vt.copy_flash_timer);
+                XtpLog(XTP_LOG_INFO, "selection", "copy flash cancelled reason=teardown");
+        }
         VtDestroyInput(vt);
         ReleaseGc(widget);
         VtReleaseBoxStipples(vt);
@@ -2023,6 +2054,63 @@ HoldSynchronizedOutput(Vt100Rec *vt, Boolean *force_full)
                 vt->vt.sync_output_full_redraw = False;
         }
         return False;
+}
+
+/* Under a synchronized hold the repaint waits for release, so no held frame shows a flash. */
+static void
+RepaintCopyFlash(Vt100Rec *vt)
+{
+        if (!XtIsRealized((Widget)vt) || vt->vt.terminal == NULL || VtDeferSynchronizedRedraw(vt))
+                return;
+        VtInvalidateFrame(vt);
+        XtpVtRedraw((Widget)vt);
+}
+
+static void
+CopyFlashExpired(XtPointer closure, XtIntervalId *timer)
+{
+        Vt100Rec *vt = closure;
+
+        (void)timer;
+        vt->vt.copy_flash_timer = (XtIntervalId)0;
+        vt->vt.copy_flash_active = False;
+        XtpLog(XTP_LOG_INFO, "selection", "copy flash expired");
+        RepaintCopyFlash(vt);
+}
+
+void
+VtStartCopyFlash(Vt100Rec *vt)
+{
+        Boolean restart = vt->vt.copy_flash_active;
+
+        if (vt->vt.copy_flash_duration <= 0) {
+                XtpLog(XTP_LOG_DEBUG, "selection", "copy flash disabled");
+                return;
+        }
+        if (vt->vt.copy_flash_timer != (XtIntervalId)0)
+                XtRemoveTimeOut(vt->vt.copy_flash_timer);
+        vt->vt.copy_flash_active = True;
+        vt->vt.copy_flash_timer =
+            XtAppAddTimeOut(XtWidgetToApplicationContext((Widget)vt),
+                            (unsigned long)vt->vt.copy_flash_duration, CopyFlashExpired, vt);
+        XtpLog(XTP_LOG_INFO, "selection", "copy flash %s duration=%d ms color=%s",
+               restart ? "restart" : "start", vt->vt.copy_flash_duration,
+               vt->vt.copy_flash_has_color ? vt->vt.copy_flash_color_name : "unselected");
+        RepaintCopyFlash(vt);
+}
+
+void
+VtCancelCopyFlash(Vt100Rec *vt, const char *reason)
+{
+        if (!vt->vt.copy_flash_active)
+                return;
+        if (vt->vt.copy_flash_timer != (XtIntervalId)0) {
+                XtRemoveTimeOut(vt->vt.copy_flash_timer);
+                vt->vt.copy_flash_timer = (XtIntervalId)0;
+        }
+        vt->vt.copy_flash_active = False;
+        XtpLog(XTP_LOG_INFO, "selection", "copy flash cancelled reason=%s", reason);
+        RepaintCopyFlash(vt);
 }
 
 /* Overlay-only repaints (hover hints) wait for release, which then redraws fully. */

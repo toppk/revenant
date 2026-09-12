@@ -182,6 +182,12 @@ typedef struct
         String answerback_string;
         int cursor_on_time;
         int cursor_off_time;
+        int copy_flash_duration;
+        String copy_flash_color_name;
+        Boolean copy_flash_has_color;
+        uint8_t copy_flash_rgb[3];
+        XtIntervalId copy_flash_timer;
+        Boolean copy_flash_active;
         Boolean scroll_bar;
         Boolean right_scroll_bar;
         Boolean scroll_key;
@@ -347,6 +353,8 @@ Boolean VtLocalKeyActionOwnsEvent(Vt100Rec *vt, const XKeyEvent *event, Boolean 
 int VtTerminalX(Vt100Rec *vt);
 void VtEraseLastCursor(Vt100Rec *vt);
 void VtReleaseBoxStipples(Vt100Rec *vt);
+void VtStartCopyFlash(Vt100Rec *vt);
+void VtCancelCopyFlash(Vt100Rec *vt, const char *reason);
 void VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int row,
                   XtpCursorShape shape);
 void VtStopCursorBlink(Vt100Rec *vt);

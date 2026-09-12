@@ -54,6 +54,8 @@ vt100	cursorBar	CursorBar	boolean	false		Start with a bar cursor instead of a bl
 vt100	answerbackString	AnswerbackString	string			Text sent verbatim to the application when it writes ENQ (0x05). The default is empty, which sends nothing.
 vt100	cursorOnTime	CursorOnTime	integer	600		Milliseconds a blinking cursor remains visible.
 vt100	cursorOffTime	CursorOffTime	integer	300		Milliseconds a blinking cursor remains hidden.
+vt100	copyFlashDuration	CopyFlashDuration	integer	0		Milliseconds that text just copied by a selection gesture flashes before returning to the ordinary selection highlight. 0 disables the flash. A new selection, losing or replacing the selection, and an application's OSC 52 write never start or extend it; the copied bytes are unchanged.
+vt100	copyFlashColor	CopyFlashColor	color			Background color of copied cells while copyFlashDuration runs. Empty by default, which shows the copied cells in their unselected colors for the flash instead.
 application	termName	TermName	string	xterm-256color		Terminal name placed in the child's TERM and reported for an XTGETTCAP TN query, so both always agree; -tn sets it. Names over 128 bytes still set TERM but leave TN unanswered.
 application	pipeCommandOutput	PipeCommandOutput	string			Shell command started by pipe-command-output() (Ctrl+Shift+G by default) with the last completed command's output on its stdin, in the shell's last reported directory. Unset by default; the output is data and is never executed.
 application	menuLocale	MenuLocale	string	C		Locale under which the popup menus are created, so bitmap menu fonts work on UTF-8 desktops without charset warnings.

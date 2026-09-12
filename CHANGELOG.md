@@ -10,6 +10,15 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Flash text after copying it. The new `copyFlashDuration` resource, in
+  milliseconds and 0 (off) by default, briefly marks the cells a selection
+  gesture has just copied to PRIMARY or CLIPBOARD. `copyFlashColor` paints
+  them on a chosen color; without it they show their unselected colors for
+  the flash. The copied bytes and selection ownership are unchanged. A new
+  selection, another client taking the selection, or an application
+  replacing it ends the flash at once, a repeated copy starts a new one,
+  application OSC 52 writes never flash, and a synchronized-output batch
+  never shows a partial flash.
 - Draw box-drawing and block-element characters from the cell geometry.
   U+2500 through U+259F are rasterized as exact rectangles inside their own
   cell, so lines, corners, tees, double lines, dashes, arcs, diagonals,

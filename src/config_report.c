@@ -89,6 +89,8 @@ static const ResourceProbe resource_probes[] = {
     {"xterm.debug", "XTerm.Debug"},
     {"xterm.vt100.background", "XTerm.VT100.Background"},
     {"xterm.vt100.backgroundOpacity", "XTerm.VT100.BackgroundOpacity"},
+    {"xterm.vt100.copyFlashDuration", "XTerm.VT100.CopyFlashDuration"},
+    {"xterm.vt100.copyFlashColor", "XTerm.VT100.CopyFlashColor"},
     {"xterm.vt100.foreground", "XTerm.VT100.Foreground"},
     {"xterm.vt100.font", "XTerm.VT100.Font"},
     {"xterm.vt100.font1", "XTerm.VT100.Font1"},

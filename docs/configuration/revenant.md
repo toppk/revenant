@@ -308,6 +308,27 @@ the wheel are encoded in its requested terminal protocol instead. Hold Shift
 to select or scroll locally while reporting is active. Ctrl+button 1, 2, and 3
 continue to open the Main Options, VT Options, and VT Fonts menus.
 
+### Copy feedback
+
+Revenant can flash the text you have just copied, so a copy is visible at a
+glance. `copyFlashDuration` is the flash length in milliseconds and is 0,
+off, by default. `copyFlashColor` paints the copied cells on that color for
+the flash; when it is empty they show their ordinary unselected colors
+instead:
+
+```
+XTerm*copyFlashDuration: 200
+XTerm*copyFlashColor: #FFD166
+```
+
+The flash follows copies made with the mouse to PRIMARY or, with
+`selectToClipboard`, CLIPBOARD, and the copied text is unchanged. Starting a
+new selection, another program taking the selection, or an application
+replacing it through OSC 52 ends the flash, and an application's OSC 52
+write never starts one. While an application holds synchronized output
+(mode 2026) the flash is not drawn, and the released frame shows only what
+is current.
+
 ## Word selection classes
 
 Double-click selection follows xterm's character-class model. Letters,

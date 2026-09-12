@@ -788,6 +788,22 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-copy-flash',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-copy-flash.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            window_alpha_test_tool.full_path(),
+            selection_test_tool.full_path(),
+            selection_reader_tool.full_path(),
+            selection_owner_tool.full_path(),
+            resize_test_tool.full_path(),
+        ],
+        timeout: 90,
+        is_parallel: false,
+    )
+    test(
         'xvfb-clipboard',
         find_program('sh'),
         args: [

@@ -665,6 +665,27 @@ function-pointer helper would lose the useful type check.
   full block joined to an arrow, inverse, selected and cursor-covered
   arrows, a heavier bold thin arrow, braille dot squares and counts, and
   that U+E0A0 and U+E0C0 are not drawn procedurally.
+- Copy feedback: `PublishSelection` in `vt_interaction.c` calls
+  `VtStartCopyFlash` when a selection gesture owned at least one atom; OSC
+  52 writes own atoms through `OwnSelectionText` directly and never reach
+  it. `VtStartCopyFlash` (`vt_widget.c`) sets `copy_flash_active` and arms,
+  or re-arms, one Xt timer for `copyFlashDuration` milliseconds; a zero
+  duration logs `copy flash disabled`. While the flash is active
+  `MakeVisualCell` draws selected cells on `copyFlashColor`, parsed once to
+  RGB and allocated through the color cache, or skips the selection swap
+  when no color is set. Start, expiry and cancellation repaint through
+  `RepaintCopyFlash`, which defers to `VtDeferSynchronizedRedraw` under mode
+  2026 and otherwise invalidates the frame for a full redraw, because a
+  flash changes colors on rows libghostty does not mark dirty.
+  `VtCancelCopyFlash` runs when a select-start or start-extend gesture
+  begins, when `RemoveOwnedSelection` drops the last highlighted atom
+  (another client's SelectionClear, an OSC 52 clear), and when an OSC 52
+  write replaces the highlighted atom; `Destroy` removes the timer.
+  `xvfb-copy-flash` samples a copied cell's background under PRIMARY with a
+  color (flash, exact bytes, expiry, a replacing gesture whose earlier timer
+  never fires, another client taking PRIMARY), CLIPBOARD without a color, a
+  zero duration, OSC 52 writes and replacement, a resize during the flash, a
+  synchronized-output hold that never shows it, and teardown mid-flash.
 - Prompt navigation: the adapter keeps an index of OSC 133 prompt starts as
   libghostty tracked grid references. The feed observer already delimits
   OSC selectors and payload items for OSC 7 and the color queries; for
