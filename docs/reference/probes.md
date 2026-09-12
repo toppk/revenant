@@ -231,7 +231,7 @@ implemented; use `Co` for the existing Tcap permission check.
 | `unknown` | Send an unsupported APC; Revenant logs it as `unknown APC ignored` under `-debug` and never replies. |
 | `cwd --cwd /tmp` | Report an OSC 7 directory for a future consumer/debug check. |
 | `prompts` | Emit synthetic OSC 133 prompts and print a pass checklist for Ctrl+Shift+Up/Down navigation and both boundaries. |
-| `pipe` | Emit three synthetic command outputs; a future pipe action should capture only COMMAND-3-BEGIN through COMMAND-3-END. |
+| `pipe` | Emit three synthetic command outputs; Ctrl+Shift+G with `pipeCommandOutput` set should capture only COMMAND-3-BEGIN through COMMAND-3-END. |
 | `notify` | After three seconds to change focus, send OSC 9 and OSC 777 notifications; Revenant sets the WM_HINTS urgency flag while unfocused. |
 | `progress` | Cycle OSC 9;4 normal, error, indeterminate, paused and cleared states. |
 | `glyphs` | Inspect joined boxes/blocks, braille and Powerline at different fonts/sizes. |

@@ -71,14 +71,14 @@ main(int argc, char **argv)
              strcmp(argv[2], "ctrl-shift-up") != 0 && strcmp(argv[2], "ctrl-shift-down") != 0 &&
              strcmp(argv[2], "ctrl-shift-up-burst") != 0 &&
              strcmp(argv[2], "ctrl-shift-up-modifiers-first") != 0 &&
-             strcmp(argv[2], "ctrl-shift-up-press") != 0 && strcmp(argv[2], "alt-up") != 0 &&
-             strcmp(argv[2], "super-up") != 0 && strcmp(argv[2], "f1") != 0 &&
-             strcmp(argv[2], "f5") != 0 && strcmp(argv[2], "f12") != 0 &&
-             strcmp(argv[2], "f13") != 0 && strcmp(argv[2], "f13-cycle") != 0 &&
-             strcmp(argv[2], "home") != 0 && strcmp(argv[2], "delete") != 0 &&
-             strcmp(argv[2], "kp-1") != 0 && strcmp(argv[2], "app-kp-1") != 0 &&
-             strcmp(argv[2], "kp-enter") != 0 && strcmp(argv[2], "adiaeresis") != 0 &&
-             strcmp(argv[2], "compose-e-acute") != 0)) {
+             strcmp(argv[2], "ctrl-shift-up-press") != 0 && strcmp(argv[2], "ctrl-shift-g") != 0 &&
+             strcmp(argv[2], "alt-up") != 0 && strcmp(argv[2], "super-up") != 0 &&
+             strcmp(argv[2], "f1") != 0 && strcmp(argv[2], "f5") != 0 &&
+             strcmp(argv[2], "f12") != 0 && strcmp(argv[2], "f13") != 0 &&
+             strcmp(argv[2], "f13-cycle") != 0 && strcmp(argv[2], "home") != 0 &&
+             strcmp(argv[2], "delete") != 0 && strcmp(argv[2], "kp-1") != 0 &&
+             strcmp(argv[2], "app-kp-1") != 0 && strcmp(argv[2], "kp-enter") != 0 &&
+             strcmp(argv[2], "adiaeresis") != 0 && strcmp(argv[2], "compose-e-acute") != 0)) {
                 fprintf(stderr,
                         "usage: %s WINDOW-ID "
                         "{ctrl-i|tab|a-cycle|shift-a-cycle|ctrl-cycle|up-cycle|"
@@ -118,6 +118,9 @@ main(int argc, char **argv)
                 state = ShiftMask | ControlMask;
         } else if (strcmp(argv[2], "ctrl-shift-down") == 0) {
                 keysym = XK_Down;
+                state = ShiftMask | ControlMask;
+        } else if (strcmp(argv[2], "ctrl-shift-g") == 0) {
+                keysym = XK_g;
                 state = ShiftMask | ControlMask;
         } else if (strcmp(argv[2], "ctrl-shift-up-burst") == 0 ||
                    strcmp(argv[2], "ctrl-shift-up-modifiers-first") == 0 ||

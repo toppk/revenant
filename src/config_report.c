@@ -755,6 +755,19 @@ ReportResourceGroup(const ReportContext *context, const char *heading, const Res
 }
 
 static void
+ReportPipeCommandOutput(const ReportContext *context)
+{
+        static const ResourceSpec spec = {"xterm.pipeCommandOutput", "XTerm.PipeCommandOutput", ""};
+        Resolved resolved = ResolveResource(context, &spec);
+
+        PrintResolved("XTerm*pipeCommandOutput", "supported",
+                      "Command run by pipe-command-output() with the last command's output on "
+                      "its stdin; unset by default, so the action only logs.",
+                      &resolved);
+        free(resolved.value);
+}
+
+static void
 ReportTerminalName(const ReportContext *context)
 {
         static const ResourceSpec spec = {"xterm.termName", "XTerm.TermName",
@@ -833,10 +846,10 @@ KnownTranslationAction(const char *action)
                strcmp(action, "scroll-back") == 0 || strcmp(action, "scroll-forw") == 0 ||
                strcmp(action, "previous-prompt") == 0 || strcmp(action, "next-prompt") == 0 ||
                strcmp(action, "insert-seven-bit") == 0 || strcmp(action, "insert-eight-bit") == 0 ||
-               strcmp(action, "select-start") == 0 || strcmp(action, "select-extend") == 0 ||
-               strcmp(action, "select-end") == 0 || strcmp(action, "start-extend") == 0 ||
-               strcmp(action, "insert-selection") == 0 || strcmp(action, "mouse-press") == 0 ||
-               strcmp(action, "mouse-motion") == 0;
+               strcmp(action, "pipe-command-output") == 0 || strcmp(action, "select-start") == 0 ||
+               strcmp(action, "select-extend") == 0 || strcmp(action, "select-end") == 0 ||
+               strcmp(action, "start-extend") == 0 || strcmp(action, "insert-selection") == 0 ||
+               strcmp(action, "mouse-press") == 0 || strcmp(action, "mouse-motion") == 0;
 }
 
 static bool
@@ -988,7 +1001,7 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
         if (entry->scope == XTP_RESOURCE_APPLICATION) {
                 if (strcmp(name, "title") == 0 || strcmp(name, "iconName") == 0 ||
                     strcmp(name, "iconGeometry") == 0 || strcmp(name, "menuLocale") == 0 ||
-                    strcmp(name, "termName") == 0)
+                    strcmp(name, "termName") == 0 || strcmp(name, "pipeCommandOutput") == 0)
                         return "supported";
                 return "unsupported";
         }
@@ -1556,6 +1569,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
         ReportResourceGroup(&context, "Behavior and transitional features", behavior,
                             behavior_names, behavior_support, behavior_help, XtNumber(behavior));
         ReportTerminalName(&context);
+        ReportPipeCommandOutput(&context);
         ReportUpstreamCatalog(&context);
         ReportUpstreamAppDefaults();
         ReportToolkitCatalog(&context);

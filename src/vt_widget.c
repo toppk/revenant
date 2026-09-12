@@ -44,6 +44,7 @@ static XtActionsRec actions[] = {
     {"next-prompt", VtNextPromptAction},
     {"insert-seven-bit", VtInsertKeyAction},
     {"insert-eight-bit", VtInsertKeyAction},
+    {"pipe-command-output", VtPipeOutputAction},
     {"select-start", VtSelectStartAction},
     {"select-extend", VtSelectExtendAction},
     {"select-end", VtSelectEndAction},
@@ -68,6 +69,7 @@ static char translations[] = "Shift~Ctrl <KeyPress> KP_Add: larger-vt-font()\n"
                              "Shift <KeyPress> Next: scroll-forw(1,halfpage)\n"
                              "Ctrl Shift <KeyPress> Up: previous-prompt()\n"
                              "Ctrl Shift <KeyPress> Down: next-prompt()\n"
+                             "Ctrl Shift <KeyPress> g: pipe-command-output()\n"
                              "!Ctrl <Btn1Down>: popup-menu(mainMenu)\n"
                              "!Lock Ctrl <Btn1Down>: popup-menu(mainMenu)\n"
                              "!Lock Ctrl @Num_Lock <Btn1Down>: popup-menu(mainMenu)\n"
@@ -305,6 +307,8 @@ static XtResource resources[] = {
      OFFSET(popup_menu_callback), XtRCallback, NULL},
     {XtNpasteCallback, XtCPasteCallback, XtRCallback, sizeof(XtCallbackList),
      OFFSET(paste_callback), XtRCallback, NULL},
+    {XtNpipeOutputCallback, XtCPipeOutputCallback, XtRCallback, sizeof(XtCallbackList),
+     OFFSET(pipe_output_callback), XtRCallback, NULL},
     {XtNinputCallback, XtCInputCallback, XtRCallback, sizeof(XtCallbackList),
      OFFSET(input_callback), XtRCallback, NULL},
 };

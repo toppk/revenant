@@ -1,5 +1,6 @@
 #include "command_options.h"
 #include "menus.h"
+#include "pipe_command.h"
 #include "config_report.h"
 #include "diagnostics.h"
 #include "pty_process.h"
@@ -22,6 +23,7 @@
 
 #include <errno.h>
 #include <locale.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,6 +61,9 @@ typedef struct
         Boolean urgent;
         Boolean urgent_applied;
         unsigned int notifications;
+        /* pipeCommandOutput and the helper processes it has started. */
+        const char *pipe_command;
+        XtpPipeCommand *pipe_jobs;
 } App;
 
 typedef struct
@@ -82,6 +87,7 @@ typedef struct
 {
         String menu_locale;
         String term_name;
+        String pipe_command;
         String log_level;
         Boolean debug;
         Boolean report_config;
@@ -105,6 +111,15 @@ static XtResource application_resources[] = {
         XtOffsetOf(AppResources, term_name),
         XtRString,
         (XtPointer)XTP_TERM_NAME_DEFAULT,
+    },
+    {
+        "pipeCommandOutput",
+        "PipeCommandOutput",
+        XtRString,
+        sizeof(String),
+        XtOffsetOf(AppResources, pipe_command),
+        XtRImmediate,
+        NULL,
     },
     {
         "logLevel",
@@ -613,6 +628,88 @@ TerminalUnknownApc(const uint8_t *bytes, size_t length, bool truncated, void *cl
 
 /* Brings WM_HINTS to the desired state; a failure leaves the two flags apart so the next
  * notification or focus change retries instead of assuming success. */
+static void
+PipeJobDone(XtpPipeCommand *job, void *closure)
+{
+        App *app = closure;
+        XtpPipeCommand **link = &app->pipe_jobs;
+
+        while (*link != NULL && *link != job)
+                link = XtpPipeCommandLink(*link);
+        if (*link == job)
+                *link = *XtpPipeCommandLink(job);
+}
+
+/* The latest completed command is the prompt before the newest one; its output goes to the
+ * configured command's stdin as data, never to a shell as text. */
+static void
+PipeOutputRequested(Widget widget, XtPointer closure, XtPointer data)
+{
+        App *app = closure;
+        XtpTerminalScrollbar state;
+        XtpSemanticSpan span;
+        uint64_t newest;
+        uint64_t completed;
+        char *text = NULL;
+        size_t length = 0;
+        XtpPipeCommand *job;
+
+        (void)widget;
+        (void)data;
+        if (app->pipe_command == NULL || *app->pipe_command == '\0') {
+                XtpLog(XTP_LOG_INFO, "pipe", "pipeCommandOutput is unset; nothing to run");
+                return;
+        }
+        if (app->terminal == NULL || XtpTerminalGetScrollbar(app->terminal, &state) != 0) {
+                XtpLog(XTP_LOG_INFO, "pipe", "no terminal to pipe from");
+                return;
+        }
+        /* OSC 133 D names the command that finished; only a shell that never sends D gets the
+         * prompt before the newest one instead. */
+        if (XtpTerminalLastCompletedPrompt(app->terminal, &completed) != 0) {
+                if (XtpTerminalCommandEndSeen(app->terminal)) {
+                        XtpLog(XTP_LOG_INFO, "pipe",
+                               "the last completed command's prompt is no longer in history");
+                        return;
+                }
+                if (XtpTerminalFindPrompt(app->terminal, state.total, false, &newest) != 0) {
+                        XtpLog(XTP_LOG_INFO, "pipe",
+                               "no prompt marks in %llu rows; nothing to pipe",
+                               (unsigned long long)state.total);
+                        return;
+                }
+                if (XtpTerminalFindPrompt(app->terminal, newest, false, &completed) != 0) {
+                        XtpLog(XTP_LOG_INFO, "pipe",
+                               "no command has reported completion and only the prompt at row "
+                               "%llu is marked",
+                               (unsigned long long)newest);
+                        return;
+                }
+                XtpLog(XTP_LOG_INFO, "pipe",
+                       "no OSC 133 D seen; using the prompt before the newest one");
+        }
+        if (XtpTerminalCommandOutput(app->terminal, completed, &span) != 0) {
+                XtpLog(XTP_LOG_INFO, "pipe", "the last command at row %llu wrote no output",
+                       (unsigned long long)completed);
+                return;
+        }
+        if (XtpTerminalSpanText(app->terminal, &span, &text, &length) != 0) {
+                XtpLog(XTP_LOG_WARNING, "pipe", "cannot extract the output text");
+                return;
+        }
+        XtpLog(XTP_LOG_INFO, "pipe",
+               "piping command at row %llu rows=%llu-%llu bytes=%zu directory=%s",
+               (unsigned long long)completed, (unsigned long long)span.start_row,
+               (unsigned long long)span.end_row, length,
+               app->working_directory != NULL ? app->working_directory : "(inherited)");
+        job = XtpPipeCommandStart(app->context, app->pipe_command, app->working_directory, text,
+                                  length, PipeJobDone, app);
+        if (job == NULL)
+                return;
+        *XtpPipeCommandLink(job) = app->pipe_jobs;
+        app->pipe_jobs = job;
+}
+
 static void
 ApplyUrgency(App *app)
 {
@@ -1369,10 +1466,15 @@ WireApplication(App *app, const AppResources *resources)
         XtAddCallback(app->vt, XtNpopupMenuCallback, PopupRequested, app);
         XtAddCallback(app->vt, XtNpasteCallback, PasteReceived, app);
         XtAddCallback(app->vt, XtNinputCallback, EncodedInputReceived, app);
+        XtAddCallback(app->vt, XtNpipeOutputCallback, PipeOutputRequested, app);
         app->term_name = resources->term_name != NULL && *resources->term_name != '\0'
                              ? resources->term_name
                              : XTP_TERM_NAME_DEFAULT;
         XtpLog(XTP_LOG_INFO, "config", "termName=%s", app->term_name);
+        app->pipe_command = resources->pipe_command;
+        XtpLog(XTP_LOG_INFO, "config", "pipeCommandOutput=%s",
+               app->pipe_command != NULL && *app->pipe_command != '\0' ? app->pipe_command
+                                                                       : "(unset)");
         if (gethostname(app->hostname, sizeof(app->hostname)) != 0)
                 app->hostname[0] = '\0';
         app->hostname[sizeof(app->hostname) - 1U] = '\0';
@@ -1458,6 +1560,12 @@ DestroyApplication(App *app)
                 app->pty_input = (XtInputId)0;
         }
         StopWatchingPtyOutput(app);
+        while (app->pipe_jobs != NULL) {
+                XtpPipeCommand *job = app->pipe_jobs;
+
+                app->pipe_jobs = *XtpPipeCommandLink(job);
+                XtpPipeCommandAbandon(job);
+        }
         XtpPtyFree(app->pty);
         app->pty = NULL;
         if (app->vt != NULL)
@@ -1496,6 +1604,9 @@ main(int argc, char **argv)
         int status = EXIT_FAILURE;
         XrmDatabase command_database = NULL;
 
+        /* Helper pipes may close early; the write path reports EPIPE instead of dying. Every
+         * exec child restores the default. */
+        (void)signal(SIGPIPE, SIG_IGN);
         if (XtpScanCommandLine(argc, argv, &command_line) != 0) {
                 if (command_line.print_version)
                         XtpCommandPrintVersion(stdout);

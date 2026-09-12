@@ -137,6 +137,7 @@ widget_sources = files(
     'src/working_directory.c',
     'src/device_attributes.c',
     'src/urgency.c',
+    'src/pipe_command.c',
     'src/ops_list.c',
     'src/color_ops.c',
     'src/request_ops.c',
@@ -850,6 +851,18 @@ if build_with_ghostty and xvfb.found()
             xterm_plus.full_path(),
         ],
         timeout: 60,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-pipe-output',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-pipe-output.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            key_test_tool.full_path(),
+        ],
+        timeout: 120,
         is_parallel: false,
     )
     test(

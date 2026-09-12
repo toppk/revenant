@@ -308,6 +308,7 @@ func shellFixture(s *Session) {
 		s.osc(133, "C")
 		s.say("COMMAND-%d-BEGIN", i)
 		s.say("output with Unicode: café 界; literal shell text: $(do-not-execute)")
+		s.say("wrapped: " + strings.Repeat("w", 110))
 		// Enough output that the prompts leave a 24-row window, so navigation has somewhere to go.
 		for k := 1; k <= 8; k++ {
 			s.say("command-%d output line %d", i, k)

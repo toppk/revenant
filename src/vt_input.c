@@ -452,8 +452,8 @@ TranslationOwnsKey(const XKeyEvent *event)
         return false;
 }
 
-/* The default prompt-navigation gesture; whether a translation owns it is only known
- * after Xt has dispatched this event, so these keys are decided one tick later. */
+/* The default prompt-navigation and pipe gestures; whether a translation owns one is only
+ * known after Xt has dispatched this event, so these keys are decided one tick later. */
 static bool
 DeferredGestureKey(const XKeyEvent *event)
 {
@@ -463,7 +463,7 @@ DeferredGestureKey(const XKeyEvent *event)
             (event->state & (ShiftMask | ControlMask)) != (ShiftMask | ControlMask))
                 return false;
         physical = XLookupKeysym((XKeyEvent *)event, 0);
-        return physical == XK_Up || physical == XK_Down;
+        return physical == XK_Up || physical == XK_Down || physical == XK_g || physical == XK_G;
 }
 
 static void

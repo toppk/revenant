@@ -304,6 +304,21 @@ XtpTerminalFindPrompt(XtpTerminal *terminal, uint64_t from, bool forward, uint64
         return -1;
 }
 
+int
+XtpTerminalLastCompletedPrompt(XtpTerminal *terminal, uint64_t *row)
+{
+        (void)terminal;
+        (void)row;
+        return -1;
+}
+
+bool
+XtpTerminalCommandEndSeen(XtpTerminal *terminal)
+{
+        (void)terminal;
+        return false;
+}
+
 size_t
 XtpTerminalPromptMarks(XtpTerminal *terminal)
 {

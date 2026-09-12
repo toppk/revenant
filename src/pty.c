@@ -58,6 +58,9 @@ XtpPtySpawn(char *const argv[], const char *term_name, uint16_t columns, uint16_
                 return NULL;
         }
         if (pty->child == 0) {
+                /* The parent ignores SIGPIPE for its helper pipes; the shell expects the default.
+                 */
+                (void)signal(SIGPIPE, SIG_DFL);
                 (void)setenv(
                     "TERM",
                     term_name != NULL && *term_name != '\0' ? term_name : XTP_TERM_NAME_DEFAULT, 1);

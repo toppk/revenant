@@ -432,8 +432,9 @@ XTerm*vt100.translations: #override \n\
 
 Actions currently implemented include `insert-selection`, `select-end`,
 `set-select`, `scroll-back`, `scroll-forw`, `previous-prompt`, `next-prompt`,
-`insert-seven-bit`, `insert-eight-bit`, `larger-vt-font`, `smaller-vt-font`,
-`set-render-font`, and the popup actions. The report labels
+`pipe-command-output`, `insert-seven-bit`, `insert-eight-bit`,
+`larger-vt-font`, `smaller-vt-font`, `set-render-font`, and the popup
+actions. The report labels
 each action *supported* or *unsupported*.
 The [default VT bindings audit](../compatibility/default-bindings.md) accounts
 for every patch-411 group and records the remaining action-level gaps.
@@ -453,6 +454,22 @@ XTerm*fontMenu*font3*Label:   Small (6x10)
 The `termName` application resource (`-tn`) names the terminal for the child:
 it is exported as `TERM`, `xterm-256color` by default, and is also what an
 XTGETTCAP `TN` query reports, so programs that check both see one answer.
+
+`pipeCommandOutput` names a shell command for `pipe-command-output()`
+(Ctrl+Shift+G): the output of the last completed command, found through the
+shell's OSC 133 prompt marks, is written to that command's standard input,
+in the directory the shell last reported with OSC 7. It is unset by default.
+For example, to copy the last output to the clipboard:
+
+```xrdb
+XTerm*pipeCommandOutput: xclip -selection clipboard
+```
+
+The command receives the text on standard input, so a viewer needs a wrapper
+that saves that input to a file before opening a window on it. The text is
+only ever piped, never run, so shell-looking output stays inert. Anything
+the helper leaves running in its process group is terminated when Revenant
+exits; a helper that must outlive the terminal should detach with `setsid`.
 
 Menus are created under the `menuLocale` resource (default `C`) so bitmap
 menu fonts work on UTF-8 desktops without a `Missing charsets` warning, the

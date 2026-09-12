@@ -30,7 +30,6 @@ remove a row when its chunk is completed, preserving the feature IDs and evidenc
 | Chunk | Scope | TDN feature IDs |
 | --- | --- | --- |
 | V3 | OSC 22 pointer shape | [osc-22-pointer-shape](https://toppk.github.io/revenant/tdn/features/osc-22-pointer-shape/) |
-| S3 | Pipe last command output | [ui-pipe-command-output](https://toppk.github.io/revenant/tdn/features/ui-pipe-command-output/) |
 | S4 | Optional clear-to-prompt | [ui-clear-to-prompt](https://toppk.github.io/revenant/tdn/features/ui-clear-to-prompt/) |
 | N2 | Optional desktop notification adapter | [notification-desktop-delivery](https://toppk.github.io/revenant/tdn/features/notification-desktop-delivery/) |
 | N3 | Progress display | [osc-9-4-progress](https://toppk.github.io/revenant/tdn/features/osc-9-4-progress/), [ui-progress-indicator](https://toppk.github.io/revenant/tdn/features/ui-progress-indicator/) |

@@ -65,6 +65,18 @@ struct XtpTerminal
         size_t prompt_mark_capacity;
         bool prompt_mark_first_item;
         bool prompt_mark_pending;
+        /* Prompt of the command whose OSC 133 D arrived last; NULL until a D is seen. */
+        GhosttyTrackedGridRef completed_prompt;
+        bool command_end_seen;
+        /* An OSC 133 in flight whose first item may be D; offsets are feed-relative and the byte
+         * counts carry across feeds like the OSC 7 accounting. */
+        bool command_end_active;
+        bool command_end_first_item;
+        bool command_end_first_done;
+        size_t command_end_start;
+        size_t command_end_bytes;
+        size_t command_end_item_start;
+        size_t command_end_item_bytes;
         bool color_list_active;
         bool color_list_skipping;
         bool color_list_any_denied;

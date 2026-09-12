@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -653,6 +654,7 @@ OpenHttpUri(const uint8_t *uri, size_t length)
                 if (opener != 0)
                         _exit(0);
                 (void)setsid();
+                (void)signal(SIGPIPE, SIG_DFL);
                 execlp("xdg-open", "xdg-open", (const char *)uri, (char *)NULL);
                 _exit(127);
         }
@@ -1547,6 +1549,21 @@ VtNextPromptAction(Widget widget, XEvent *event, String *params, Cardinal *num_p
             !VtAcceptLocalKeyAction(vt, event, XTP_LOCAL_ACTION_NEXT_PROMPT))
                 return;
         (void)VtScrollToPrompt(vt, PromptActionCount(params, *num_params));
+}
+
+/* An explicit user action only; the application decides what runs and feeds it the text. */
+void
+VtPipeOutputAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        (void)params;
+        (void)num_params;
+        if (event != NULL && event->type == KeyPress &&
+            !VtAcceptLocalKeyAction(vt, event, XTP_LOCAL_ACTION_PIPE_OUTPUT))
+                return;
+        XtpLog(XTP_LOG_INFO, "pipe", "action pipe-command-output");
+        XtCallCallbacks(widget, XtNpipeOutputCallback, NULL);
 }
 
 /* xterm's default keypress actions: the raw key path already encodes the key, so binding

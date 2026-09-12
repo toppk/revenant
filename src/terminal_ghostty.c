@@ -17,6 +17,7 @@ typedef struct
 
 static void RecordPromptMark(XtpTerminal *terminal);
 static void FreePromptMarks(XtpTerminal *terminal);
+static void RecordCommandEnd(XtpTerminal *terminal);
 
 static const GhosttyKey key_map[XTP_KEY_COUNT] = {
     [XTP_KEY_UNIDENTIFIED] = GHOSTTY_KEY_UNIDENTIFIED,
@@ -986,6 +987,12 @@ FeedOscHeader(unsigned int selector, size_t offset, void *closure)
         if (selector == 133U) {
                 terminal->prompt_mark_first_item = true;
                 terminal->prompt_mark_pending = false;
+                terminal->command_end_active = true;
+                terminal->command_end_first_item = false;
+                terminal->command_end_first_done = false;
+                terminal->command_end_start = offset + 1U;
+                terminal->command_end_bytes = 0;
+                terminal->command_end_item_bytes = 0;
         }
         if (selector == 7U) {
                 /* Earlier controls in this feed must deliver their own pwd
@@ -1010,7 +1017,61 @@ FeedOscPayload(unsigned int selector, bool query, size_t offset, void *closure)
         if (selector == 133U && terminal->prompt_mark_first_item) {
                 terminal->prompt_mark_first_item = false;
                 terminal->prompt_mark_pending = feed->bytes[offset] == 'A';
+                terminal->command_end_first_item = feed->bytes[offset] == 'D';
+                terminal->command_end_item_start = offset;
+                terminal->command_end_item_bytes = 0;
         }
+}
+
+/* libghostty drops nonterminating C0 bytes from an OSC without storing them, so only bytes
+ * at or above 0x20 count toward an item's length or the capture limit. */
+static size_t
+OscPayloadBytes(const uint8_t *bytes, size_t start, size_t end)
+{
+        size_t count = 0;
+        size_t index;
+
+        for (index = start; index < end; ++index)
+                count += bytes[index] >= 0x20U;
+        return count;
+}
+
+/* The ';' closing the first item fixes its length; only a bare "D" counts as completion. */
+static void
+FeedOscItemEnd(size_t offset, void *closure)
+{
+        CursorBlinkFeed *feed = closure;
+        XtpTerminal *terminal = feed->terminal;
+
+        ColorOscItemEnd(offset, closure);
+        if (terminal->command_end_active && terminal->command_end_first_item &&
+            !terminal->command_end_first_done) {
+                terminal->command_end_first_done = true;
+                terminal->command_end_item_bytes +=
+                    OscPayloadBytes(feed->bytes, terminal->command_end_item_start, offset);
+        }
+}
+
+/* True only for an OSC 133 whose first item is exactly "D", which ended with BEL or ST rather
+ * than an abort, and whose payload (everything after "133;") fit the core's capture so
+ * libghostty acted on it. */
+static bool
+CommandEndAccepted(XtpTerminal *terminal, const CursorBlinkFeed *feed, size_t offset)
+{
+        uint8_t terminator = feed->bytes[offset];
+        size_t total = terminal->command_end_bytes;
+
+        if (!terminal->command_end_active || !terminal->command_end_first_item)
+                return false;
+        if (!terminal->command_end_first_done) {
+                terminal->command_end_first_done = true;
+                terminal->command_end_item_bytes +=
+                    OscPayloadBytes(feed->bytes, terminal->command_end_item_start, offset);
+        }
+        total += OscPayloadBytes(feed->bytes, terminal->command_end_start, offset);
+        return terminal->command_end_item_bytes == 1U &&
+               (terminator == 0x07U || terminator == 0x1bU || terminator == 0x9cU) &&
+               total <= XTP_GHOSTTY_OSC_CAPTURE_LIMIT;
 }
 
 /* libghostty drops an OSC whose payload overflows its fixed capture buffer
@@ -1029,6 +1090,17 @@ FeedOscEnd(size_t offset, void *closure)
                 terminal->prompt_mark_pending = false;
                 CursorBlinkBeforeChange(offset + 1U, feed);
                 RecordPromptMark(terminal);
+        }
+        if (terminal->command_end_active) {
+                bool accepted = CommandEndAccepted(terminal, feed, offset);
+
+                terminal->command_end_active = false;
+                if (accepted) {
+                        /* Protocol seen is a property of the shell, not of the row's survival. */
+                        terminal->command_end_seen = true;
+                        CursorBlinkBeforeChange(offset + 1U, feed);
+                        RecordCommandEnd(terminal);
+                }
         }
         if (!terminal->pwd_report_active)
                 return;
@@ -1367,13 +1439,23 @@ XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
                     .window_op = CursorBlinkWindowOp,
                     .osc_header = FeedOscHeader,
                     .osc_payload = FeedOscPayload,
-                    .osc_item_end = ColorOscItemEnd,
+                    .osc_item_end = FeedOscItemEnd,
                     .osc_end = FeedOscEnd,
                     .closure = &feed,
                 };
 
                 XtpLog(XTP_LOG_DEBUG, "terminal", "feed bytes=%zu", length);
                 XtpCursorBlinkObserverFeed(&terminal->cursor_blink, bytes, length, &effects);
+                if (terminal->command_end_active) {
+                        terminal->command_end_bytes +=
+                            OscPayloadBytes(bytes, terminal->command_end_start, length);
+                        terminal->command_end_start = 0;
+                        if (terminal->command_end_first_item && !terminal->command_end_first_done) {
+                                terminal->command_end_item_bytes += OscPayloadBytes(
+                                    bytes, terminal->command_end_item_start, length);
+                                terminal->command_end_item_start = 0;
+                        }
+                }
                 if (terminal->pwd_report_active) {
                         if (length > terminal->pwd_report_start)
                                 terminal->pwd_report_bytes += length - terminal->pwd_report_start;
@@ -1883,6 +1965,51 @@ RecordPromptMark(XtpTerminal *terminal)
         ++terminal->prompt_mark_count;
 }
 
+/* OSC 133 D belongs to the newest prompt's command; a tracked reference keeps that prompt's
+ * row so completion is known even before the shell prints the next prompt. */
+static void
+RecordCommandEnd(XtpTerminal *terminal)
+{
+        uint64_t row;
+        GhosttyPoint point = {GHOSTTY_POINT_TAG_SCREEN, {.coordinate = {0, 0}}};
+        GhosttyTrackedGridRef mark = NULL;
+
+        if (ScreenRows(terminal) == 0)
+                return;
+        CompactPromptMarks(terminal);
+        if (terminal->prompt_mark_count == 0 ||
+            !PromptMarkRow(terminal, terminal->prompt_mark_count - 1U, &row) || row > UINT32_MAX)
+                return;
+        point.value.coordinate.y = (uint32_t)row;
+        if (ghostty_terminal_grid_ref_track(terminal->handle, point, &mark) != GHOSTTY_SUCCESS)
+                return;
+        ghostty_tracked_grid_ref_free(terminal->completed_prompt);
+        terminal->completed_prompt = mark;
+}
+
+bool
+XtpTerminalCommandEndSeen(XtpTerminal *terminal)
+{
+        return terminal != NULL && terminal->command_end_seen;
+}
+
+int
+XtpTerminalLastCompletedPrompt(XtpTerminal *terminal, uint64_t *row)
+{
+        GhosttyPointCoordinate point;
+        uint64_t start;
+
+        if (terminal == NULL || row == NULL || terminal->completed_prompt == NULL ||
+            ScreenRows(terminal) == 0 ||
+            !ghostty_tracked_grid_ref_has_value(terminal->completed_prompt) ||
+            ghostty_tracked_grid_ref_point(terminal->completed_prompt, GHOSTTY_POINT_TAG_SCREEN,
+                                           &point) != GHOSTTY_SUCCESS ||
+            !PromptStartOf(terminal, point.y, &start))
+                return -1;
+        *row = start;
+        return 0;
+}
+
 size_t
 XtpTerminalPromptMarks(XtpTerminal *terminal)
 {
@@ -1897,6 +2024,8 @@ FreePromptMarks(XtpTerminal *terminal)
         free(terminal->prompt_marks);
         terminal->prompt_marks = NULL;
         terminal->prompt_mark_capacity = 0;
+        ghostty_tracked_grid_ref_free(terminal->completed_prompt);
+        terminal->completed_prompt = NULL;
 }
 
 int

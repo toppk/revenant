@@ -31,8 +31,8 @@ policy helpers and checked menu identity, but its menu remains insensitive and
 resources have no operational effect until OSC 50 is implemented. The pinned
 unknown-sequence callback is APC-only; it cannot supply OSC 50, OSC 22 or
 arbitrary CSI passthrough. Obtain a public hook rather than another escape
-parser. ENQ, underline attributes, startup cursor style, shell integration
-and notification urgency have no new xterm Ops family. Full Window Ops and Title Ops completion
+parser. ENQ, underline attributes, startup cursor style, shell integration,
+notification urgency and the output pipe have no new xterm Ops family. Full Window Ops and Title Ops completion
 checklists below still apply independently.
 TDN: `osc-50-font-set`, `osc-50-font-query`, `policy-font-ops`, `osc-22-pointer-shape`,
      `diagnostics-unknown-apc`.
@@ -529,6 +529,66 @@ function-pointer helper would lose the useful type check.
   reads the exact reply bytes through the real PTY for one write and for
   fragmented writes, with the expected DA2 number computed independently
   from Meson's version string.
+- Pipe command output: the application resource `pipeCommandOutput`
+  (unset by default) names a shell command; the widget's
+  `pipe-command-output()` action, bound to `Ctrl Shift <KeyPress> g` and
+  decided through the same deferred-gesture path as the prompt keys, only
+  fires the `XtNpipeOutputCallback`. Completion comes from OSC 133 D: the
+  feed observer accounts each OSC 133 across feed boundaries the way the
+  OSC 7 path does, counting only bytes at or above 0x20 because the core
+  drops nonterminating C0 bytes without storing them, and accepts it only
+  when its first item is exactly `D`,
+  it ended with BEL or ST rather than CAN or SUB, and its payload after
+  `133;` fit the core's 2048-byte capture (2048 accepted, 2049 dropped),
+  so libghostty acted on it; acceptance alone sets the "D seen" state,
+  then it flushes the sequence through the core and `RecordCommandEnd`
+  keeps a tracked reference to the newest prompt's row as the command
+  that finished,
+  exposed as `XtpTerminalLastCompletedPrompt` (resolved through the same
+  continuation rule; -1 before any D, after that prompt is pruned or reset
+  away, or on the alternate screen) alongside `XtpTerminalCommandEndSeen`.
+  The application uses that row; when it is unavailable but a D was seen
+  before, it reports that the completed command is no longer in history
+  and stops, and only a shell that has never sent D gets the prompt before
+  the newest one, with a log line saying so; then it calls
+  `XtpTerminalCommandOutput` and `XtpTerminalSpanText` for the text. `src/pipe_command.c` makes the write
+  end non-blocking and close-on-exec before forking and gives up cleanly
+  if that fails, forks `/bin/sh -c` in its own process group (verified with
+  `setpgid` or `getpgid`; without one only the direct child can be
+  signalled and that is logged) with the text on a pipe, runs it in the validated OSC 7 directory when one is retained
+  (a failed `chdir` exits 126 instead of running elsewhere), writes from
+  `XtAppAddInput` writability callbacks, reports EPIPE or a helper that
+  exited with text pending as "output pipe closed early", and reaps by
+  polling `waitpid` on a backing-off timer that retries EINTR, so the PTY
+  child's handling is untouched. The parent ignores SIGPIPE; the PTY child,
+  the pipe child, and the hyperlink launcher all restore the default before
+  exec. Jobs live in a list on the App and unlink themselves through a done
+  hook, but a job stays alive after its shell exits for as long as the
+  process group still has members (probed with `kill(-group, 0)`, safe
+  because a group id is reserved while any member lives), so background
+  descendants remain reachable; `DestroyApplication` abandons any job
+  still open by closing the pipe, sending SIGTERM to the group while it
+  has members, waiting up to a quarter second, then SIGKILL, and reaping
+  the leader, so neither the helper nor a descendant that ignores SIGTERM
+  outlives the terminal. A helper that must survive the terminal has to
+  leave the group with `setsid`. Without a group of its own only the
+  unreaped direct child is signalled, never a reaped pid. The captured text is never interpreted; the only command
+  that runs is the configured one. `xvfb-pipe-output` captures exactly
+  COMMAND-3-BEGIN through COMMAND-3-END from a three-command fixture with
+  Unicode, a 110-character wrapped line, and shell-looking text, first
+  before the shell prints its next prompt (so completion must come from D)
+  and again with the live prompt on screen, checks the helper's working
+  directory against the OSC 7 report, confirms the unset resource only
+  logs, drives a helper that exits without reading a 145 KB output to the
+  closed-early path, and exits after a helper shell has already exited
+  leaving a SIGTERM-ignoring `sleep` in its group, then confirms that
+  child is gone.
+  The self-test pins the D contract: none seen, D before any next prompt,
+  a running later command not moving it, CAN, SUB, `Dgarbage`, an oversized
+  report, the exact 2048/2049 payload boundary, NUL bytes inside the D item
+  whole and split across feeds, NULs interleaved at that boundary, a D
+  split across feeds inside its terminator, BEL and ST terminators, and
+  the alternate screen.
 - Prompt navigation: the adapter keeps an index of OSC 133 prompt starts as
   libghostty tracked grid references. The feed observer already delimits
   OSC selectors and payload items for OSC 7 and the color queries; for
@@ -1577,7 +1637,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 49 tests for each libghostty build
+The normal full matrix currently contains 50 tests for each libghostty build
 and 8 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

@@ -98,6 +98,7 @@ typedef enum
         XTP_LOCAL_ACTION_REPORT_FONT_ROUTING,
         XTP_LOCAL_ACTION_PREVIOUS_PROMPT,
         XTP_LOCAL_ACTION_NEXT_PROMPT,
+        XTP_LOCAL_ACTION_PIPE_OUTPUT,
 } LocalKeyAction;
 
 typedef struct
@@ -192,6 +193,7 @@ typedef struct
         XtCallbackList popup_menu_callback;
         XtCallbackList paste_callback;
         XtCallbackList input_callback;
+        XtCallbackList pipe_output_callback;
 
         GC gc;
         Widget scrollbar;
@@ -332,6 +334,7 @@ Boolean VtScrollViewportBy(Vt100Rec *vt, intptr_t rows);
 Boolean VtScrollToPrompt(Vt100Rec *vt, long count);
 void VtMarkPendingKeyOwned(Vt100Rec *vt, const XKeyEvent *event);
 void VtInsertKeyAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtPipeOutputAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 Boolean VtDeferSynchronizedRedraw(Vt100Rec *vt);
 void VtFreeOwnedSelections(Vt100Rec *vt);
 void VtResetEffectiveColors(Vt100Rec *vt);

@@ -484,6 +484,12 @@ int XtpTerminalSemanticRow(XtpTerminal *terminal, uint64_t row, XtpSemanticRow *
  * of OSC 133 marks rather than a row scan. A continuation run resolves to its primary row
  * or, when that row is gone, to the run's top row. -1 when there is none. */
 int XtpTerminalFindPrompt(XtpTerminal *terminal, uint64_t from, bool forward, uint64_t *row);
+/* Start row of the prompt whose command last reported completion with a well-formed OSC 133 D;
+ * -1 before any D, when that prompt was pruned or reset away, or on the alternate screen. */
+int XtpTerminalLastCompletedPrompt(XtpTerminal *terminal, uint64_t *row);
+/* Whether any well-formed OSC 133 D has ever been accepted, so callers can tell a shell that
+ * never reports completion from a completed prompt that is no longer available. */
+bool XtpTerminalCommandEndSeen(XtpTerminal *terminal);
 /* Prompt marks the backend currently stores, dead ones included; never compacts. Diagnostics. */
 size_t XtpTerminalPromptMarks(XtpTerminal *terminal);
 /* The core's command-output selection for the prompt starting at `prompt_start`: from the

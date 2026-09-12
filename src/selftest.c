@@ -3820,6 +3820,232 @@ SelfTestPromptNavigation(void)
                 }
                 XtpTerminalFree(small);
         }
+        stage = "OSC 133 D names the completed command before any next prompt";
+        {
+                XtpTerminal *done = XtpTerminalNewWithGraphemeWidth(20, 6, 8, 16, false);
+                uint64_t completed = 99;
+
+                stage = "D: nothing seen yet";
+                if (done == NULL || XtpTerminalSetScrollbackLines(done, 64) != 0 ||
+                    XtpTerminalLastCompletedPrompt(done, &completed) == 0 ||
+                    XtpTerminalCommandEndSeen(done)) {
+                        XtpTerminalFree(done);
+                        goto done;
+                }
+                SelfTestFeedText(done,
+                                 "\033]133;A\033\\$ \033]133;B\033\\one\r\n\033]133;C\033\\o1\r\n");
+                stage = "D: output without D";
+                if (XtpTerminalLastCompletedPrompt(done, &completed) == 0) {
+                        XtpTerminalFree(done);
+                        goto done;
+                }
+                SelfTestFeedText(done, "\033]133;D;0\033\\");
+                stage = "D: first D";
+                if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 || completed != 0) {
+                        XtpTerminalFree(done);
+                        goto done;
+                }
+                /* A later prompt with a running command leaves the answer at the finished one. */
+                SelfTestFeedText(done,
+                                 "\033]133;A\033\\$ \033]133;B\033\\two\r\n\033]133;C\033\\o2\r\n");
+                stage = "D: later running command";
+                if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 || completed != 0) {
+                        XtpTerminalFree(done);
+                        goto done;
+                }
+                SelfTestFeedText(done, "\033]133;D;1\033\\");
+                stage = "D: second D";
+                if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 || completed != 2) {
+                        XtpTerminalFree(done);
+                        goto done;
+                }
+                /* Rejected forms leave the answer at the last accepted D: aborts, a first item
+                 * other than a bare D, and a report past the core's capture limit. */
+                SelfTestFeedText(
+                    done, "\033]133;A\033\\$ \033]133;B\033\\three\r\n\033]133;C\033\\o3\r\n");
+                SelfTestFeedText(done, "\033]133;D\030\033]133;D;0\032\033]133;Dgarbage\033\\");
+                stage = "D: aborted and malformed forms";
+                if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 || completed != 2) {
+                        XtpTerminalFree(done);
+                        goto done;
+                }
+                {
+                        char *huge = malloc(XTP_UNKNOWN_APC_CAPTURE_LIMIT * 12U + 16U);
+                        size_t index;
+
+                        if (huge == NULL) {
+                                XtpTerminalFree(done);
+                                goto done;
+                        }
+                        memcpy(huge, "\033]133;D;", 9);
+                        for (index = 0; index < XTP_UNKNOWN_APC_CAPTURE_LIMIT * 12U; ++index)
+                                huge[9 + index] = 'x';
+                        memcpy(huge + 9 + index, "\033\\", 2);
+                        XtpTerminalFeed(done, (const uint8_t *)huge,
+                                        XTP_UNKNOWN_APC_CAPTURE_LIMIT * 12U + 11U);
+                        free(huge);
+                }
+                stage = "D: oversized report";
+                if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 || completed != 2) {
+                        XtpTerminalFree(done);
+                        goto done;
+                }
+                /* The capture limit counts the payload after "133;": exactly 2048 bytes is
+                 * accepted, one more is dropped by the core. Options after the exit code are
+                 * ignored by the core, so padding is a valid report. */
+                {
+                        static const char lead[] = "\033]133;D;0;aid=";
+                        /* The payload after "133;" is the lead minus its 6-byte introducer and NUL.
+                         */
+                        size_t pad = 2048U - (sizeof(lead) - 7U);
+                        char *report = malloc(sizeof(lead) + pad + 4U);
+                        size_t index;
+
+                        if (report == NULL) {
+                                XtpTerminalFree(done);
+                                goto done;
+                        }
+                        memcpy(report, lead, sizeof(lead) - 1U);
+                        for (index = 0; index < pad + 1U; ++index)
+                                report[sizeof(lead) - 1U + index] = 'p';
+                        memcpy(report + sizeof(lead) - 1U + pad + 1U, "\033\\", 2);
+                        /* 2049 payload bytes: rejected. */
+                        XtpTerminalFeed(done, (const uint8_t *)report,
+                                        sizeof(lead) - 1U + pad + 3U);
+                        stage = "D: 2049-byte payload rejected";
+                        if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 ||
+                            completed != 2) {
+                                free(report);
+                                XtpTerminalFree(done);
+                                goto done;
+                        }
+                        /* 2048 payload bytes: accepted, and it names prompt three. */
+                        memcpy(report + sizeof(lead) - 1U + pad, "\033\\", 2);
+                        XtpTerminalFeed(done, (const uint8_t *)report,
+                                        sizeof(lead) - 1U + pad + 2U);
+                        free(report);
+                        stage = "D: 2048-byte payload accepted";
+                        if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 ||
+                            completed != 4) {
+                                XtpTerminalFree(done);
+                                goto done;
+                        }
+                }
+                /* Nonterminating C0 bytes are dropped by the core, so they neither lengthen the
+                 * D item nor count toward the capture, whole or split across feeds. */
+                stage = "D: ignored C0 bytes inside the item";
+                {
+                        static const uint8_t nul_whole[] = "\033]133;D\0;0\033\\";
+                        static const uint8_t nul_head[] = "\033]133;D";
+                        static const uint8_t nul_mid[] = "\0\0";
+                        static const uint8_t nul_tail[] = ";0\033\\";
+                        static const char lead[] = "\033]133;D;0;aid=";
+                        size_t pad = 2048U - (sizeof(lead) - 7U);
+                        char *report = malloc(sizeof(lead) + pad * 2U + 4U);
+                        size_t index;
+                        size_t used;
+
+                        SelfTestFeedText(
+                            done,
+                            "\033]133;A\033\\$ \033]133;B\033\\five\r\n\033]133;C\033\\o5\r\n");
+                        XtpTerminalFeed(done, nul_whole, sizeof(nul_whole) - 1U);
+                        if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 ||
+                            completed != 6) {
+                                free(report);
+                                XtpTerminalFree(done);
+                                goto done;
+                        }
+                        SelfTestFeedText(
+                            done,
+                            "\033]133;A\033\\$ \033]133;B\033\\six\r\n\033]133;C\033\\o6\r\n");
+                        XtpTerminalFeed(done, nul_head, sizeof(nul_head) - 1U);
+                        XtpTerminalFeed(done, nul_mid, sizeof(nul_mid) - 1U);
+                        XtpTerminalFeed(done, nul_tail, sizeof(nul_tail) - 1U);
+                        if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 ||
+                            completed != 8) {
+                                free(report);
+                                XtpTerminalFree(done);
+                                goto done;
+                        }
+                        /* 2048 printable bytes interleaved with NULs are still accepted; one
+                         * more printable byte is not. */
+                        stage = "D: ignored C0 bytes near the capture boundary";
+                        if (report == NULL) {
+                                XtpTerminalFree(done);
+                                goto done;
+                        }
+                        SelfTestFeedText(
+                            done,
+                            "\033]133;A\033\\$ \033]133;B\033\\seven\r\n\033]133;C\033\\o7\r\n");
+                        memcpy(report, lead, sizeof(lead) - 1U);
+                        used = sizeof(lead) - 1U;
+                        for (index = 0; index < pad; ++index) {
+                                report[used++] = 'p';
+                                report[used++] = '\0';
+                        }
+                        report[used++] = 'p';
+                        memcpy(report + used, "\033\\", 2);
+                        XtpTerminalFeed(done, (const uint8_t *)report, used + 2U);
+                        if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 ||
+                            completed != 8) {
+                                free(report);
+                                XtpTerminalFree(done);
+                                goto done;
+                        }
+                        --used;
+                        memcpy(report + used, "\033\\", 2);
+                        XtpTerminalFeed(done, (const uint8_t *)report, used + 2U);
+                        free(report);
+                        if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 ||
+                            completed != 10) {
+                                XtpTerminalFree(done);
+                                goto done;
+                        }
+                }
+                /* A D split across feeds, including inside its terminator, still counts. */
+                SelfTestFeedText(
+                    done, "\033]133;A\033\\$ \033]133;B\033\\eight\r\n\033]133;C\033\\o8\r\n");
+                SelfTestFeedText(done, "\033]133");
+                SelfTestFeedText(done, ";D");
+                SelfTestFeedText(done, ";0\033");
+                SelfTestFeedText(done, "\\");
+                stage = "D: split across feeds";
+                if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 || completed != 12) {
+                        XtpTerminalFree(done);
+                        goto done;
+                }
+                SelfTestFeedText(
+                    done,
+                    "\033]133;A\033\\$ \033]133;B\033\\four\r\n\033]133;C\033\\o4\r\n\033]133;D\a");
+                stage = "D: BEL terminator";
+                if (XtpTerminalLastCompletedPrompt(done, &completed) != 0 || completed != 14 ||
+                    !XtpTerminalCommandEndSeen(done)) {
+                        XtpTerminalFree(done);
+                        goto done;
+                }
+                SelfTestFeedText(done, "\033[?1049h");
+                stage = "D: alternate screen";
+                if (XtpTerminalLastCompletedPrompt(done, &completed) == 0 ||
+                    !XtpTerminalCommandEndSeen(done)) {
+                        XtpTerminalFree(done);
+                        goto done;
+                }
+                XtpTerminalFree(done);
+                /* A D accepted while the alternate screen is active cannot retain a prompt but
+                 * still proves the shell reports completion. */
+                done = XtpTerminalNewWithGraphemeWidth(20, 6, 8, 16, false);
+                stage = "D: accepted on the alternate screen";
+                if (done == NULL) {
+                        goto done;
+                }
+                SelfTestFeedText(done, "\033[?1049h\033]133;D;0\033\\");
+                if (!XtpTerminalCommandEndSeen(done) ||
+                    XtpTerminalLastCompletedPrompt(done, &completed) == 0) {
+                        XtpTerminalFree(done);
+                        goto done;
+                }
+                XtpTerminalFree(done);
+        }
         stage = "no markers means no prompts";
         SelfTestFeedText(plain, "a\r\nb\r\nc\r\nd\r\ne\r\nf\r\ng\r\nh\r\n");
         if (XtpTerminalGetScrollbar(plain, &state) != 0 || state.total != 9 ||

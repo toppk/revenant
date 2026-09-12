@@ -11,6 +11,7 @@ previous-prompt	[count]	Scroll the viewport up to the start of the previous shel
 next-prompt	[count]	Scroll the viewport down to the start of the next OSC 133 prompt, with the same parameter as previous-prompt.
 insert-seven-bit		Deliver the key to the application through the normal input path instead of running a local action; binding it to a gesture such as Ctrl Shift <KeyPress> Up restores xterm's key delivery.
 insert-eight-bit		Same as insert-seven-bit; Revenant encodes the key from the current keyboard modes rather than from this choice.
+pipe-command-output		Send the output of the most recently completed shell command, found through its OSC 133 marks, to the pipeCommandOutput command's standard input, run in the last OSC 7 directory when one is known. Does nothing when that resource is unset or the command wrote nothing.
 larger-vt-font		Switch to the next larger configured font slot.
 smaller-vt-font		Switch to the next smaller configured font slot.
 set-render-font	[on|off|toggle]	Switch between the Xft and bitmap renderers.

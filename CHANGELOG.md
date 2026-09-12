@@ -10,6 +10,16 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Pipe the last command's output to a helper. The new `pipeCommandOutput`
+  resource names a shell command, unset by default, and the new
+  `pipe-command-output()` action (Ctrl+Shift+G) finds the most recently
+  completed prompt through its OSC 133 marks, extracts exactly that
+  command's output with wrapped lines joined and Unicode intact, and writes
+  it to the helper's standard input from the event loop without blocking.
+  The helper runs in the directory the shell last reported with OSC 7 when
+  one is known. Output is data only: nothing in it is ever executed. An
+  unset resource, a command that wrote nothing, a helper that stops reading,
+  and exiting while the helper still runs are all handled and logged.
 - Navigate between shell prompts. Ctrl+Shift+Up and Ctrl+Shift+Down run the
   new `previous-prompt()` and `next-prompt()` translation actions, which move
   the viewport to the start of the previous or next prompt that a shell has

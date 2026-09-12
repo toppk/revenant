@@ -21,6 +21,8 @@ typedef struct XtpTerminal XtpTerminal;
 #define XtCInputCallback "InputCallback"
 #define XtNsizeChangedCallback "sizeChangedCallback"
 #define XtCSizeChangedCallback "SizeChangedCallback"
+#define XtNpipeOutputCallback "pipeOutputCallback"
+#define XtCPipeOutputCallback "PipeOutputCallback"
 
 typedef struct
 {

@@ -436,6 +436,20 @@ Nothing is selected, executed, or cleared; command-output extraction and
 clear-to-prompt remain separate work, although the backend already exposes
 the core's cell-exact command-output selection for them.
 
+### Pipe the last command output
+
+xterm 411 has no such action; Ctrl+Shift+G reaches the application as a
+modified `g`. Revenant binds it to `pipe-command-output()`, which sends the
+output of the most recently completed OSC 133 command to the command named
+by the `pipeCommandOutput` resource over standard input, running it in the
+directory the shell last reported with OSC 7 when one is retained. The
+resource is unset by default, so the binding only logs until it is set;
+the output is data on a pipe and is never executed; the helper is started
+only by the explicit action, never by OSC 133 or OSC 7 arriving, and is
+terminated with the terminal if it is still running at exit; and the key
+can be returned to applications with the same `insert-seven-bit()`
+override as the prompt keys.
+
 ### Notification urgency (OSC 9, OSC 777)
 
 xterm 411 does not implement OSC 9 or OSC 777; both are discarded as
