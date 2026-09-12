@@ -467,8 +467,14 @@ alone so adjacent cells join without gaps. Shades are 2×2 stipples. The
 `font-linedrawing` menu entry, `+fbx`/`-fbx` (`+fbx` turns it on, as in
 xterm), and `set-font-linedrawing()` have xterm's names and meaning. A key
 bound to it, like every locally bound key, is decided one tick after Xt
-dispatches it and never reaches the application. Braille, Powerline and the legacy
-computing symbols are not drawn procedurally yet.
+dispatches it and never reaches the application.
+
+xterm has no braille or Powerline drawing; both come from the font.
+Revenant draws braille (U+2800–U+28FF) and the Powerline separators
+U+E0B0–U+E0BF from the cell under the same rules and the same switch, so
+`forceBoxChars` also covers them. Other private-use symbols, including the
+Powerline branch and lock icons and the Nerd Font flame separators, and the
+legacy computing symbols still come from the font.
 
 ### Notification urgency (OSC 9, OSC 777)
 

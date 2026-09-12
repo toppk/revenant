@@ -81,9 +81,11 @@ Revision 5 role, shaping, emoji, and general-fallback expansion applies only to
 `renderFont: true`; an existing xterm bitmap-font configuration may continue
 to use `renderFont: false` and the traditional bitmap resources unchanged.
 
-Both paths draw box-drawing (U+2500–U+257F) and block-element
-(U+2580–U+259F) characters from the cell geometry so that lines join across
-cells at any size, in bold, and under inverse video or selection. With Xft
+Both paths draw box-drawing (U+2500–U+257F), block-element
+(U+2580–U+259F) and braille (U+2800–U+28FF) characters and the Powerline
+separators U+E0B0–U+E0BF from the cell geometry so that lines and segments
+join across cells at any size, in bold, and under inverse video or
+selection. Other Powerline and Nerd Font symbols stay with the font. With Xft
 the primary face's own glyphs are used and the geometric drawing steps in
 only for characters the face lacks; the bitmap path always draws them.
 `forceBoxChars: true` (`+fbx`; `-fbx` turns it off, as in xterm) forces the geometric drawing for the whole

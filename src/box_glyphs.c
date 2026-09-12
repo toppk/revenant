@@ -169,10 +169,20 @@ static const uint8_t quadrants[10] = {
     QUAD_UR | QUAD_LL | QUAD_LR, /* 259F */
 };
 
+static XtpBoxGlyphRealloc box_realloc = realloc;
+
+void
+XtpBoxGlyphSetAllocator(XtpBoxGlyphRealloc allocator)
+{
+        box_realloc = allocator != NULL ? allocator : realloc;
+}
+
 bool
 XtpBoxGlyphCodepoint(uint32_t codepoint)
 {
-        return codepoint >= 0x2500U && codepoint <= 0x259FU;
+        return (codepoint >= 0x2500U && codepoint <= 0x259FU) ||
+               (codepoint >= 0x2800U && codepoint <= 0x28FFU) ||
+               (codepoint >= 0xE0B0U && codepoint <= 0xE0BFU);
 }
 
 bool
@@ -211,7 +221,7 @@ AddRect(XtpBoxGlyph *glyph, unsigned int x, unsigned int y, unsigned int width, 
                 return;
         if (glyph->count == glyph->capacity) {
                 size_t capacity = glyph->capacity == 0 ? 16U : glyph->capacity * 2U;
-                XtpBoxRect *grown = realloc(glyph->rects, capacity * sizeof(*grown));
+                XtpBoxRect *grown = box_realloc(glyph->rects, capacity * sizeof(*grown));
 
                 if (grown == NULL) {
                         glyph->failed = true;
@@ -483,8 +493,7 @@ PlanArc(uint32_t codepoint, unsigned int w, unsigned int h, unsigned int t, XtpB
         double cy;
         double half = (double)t / 2.0;
         unsigned int y;
-
-        uint8_t *row = malloc(w);
+        uint8_t *row = box_realloc(NULL, w);
 
         if (row == NULL) {
                 glyph->failed = true;
@@ -530,7 +539,7 @@ PlanDiagonal(uint32_t codepoint, unsigned int w, unsigned int h, unsigned int t,
         bool rising = codepoint != 0x2572U;
         double spread = (double)(t - 1U) / 2.0;
         unsigned int y;
-        uint8_t *row = malloc(w);
+        uint8_t *row = box_realloc(NULL, w);
 
         if (row == NULL) {
                 glyph->failed = true;
@@ -605,6 +614,169 @@ PlanBlock(uint32_t codepoint, unsigned int w, unsigned int h, XtpBoxGlyph *glyph
         }
 }
 
+/* Dot size and spacing follow Ghostty's braille sprite; false when dots would vanish. */
+static bool
+PlanBraille(uint32_t codepoint, unsigned int width, unsigned int height, XtpBoxGlyph *glyph)
+{
+        int w = (int)(width / 4U < height / 8U ? width / 4U : height / 8U);
+        int x_spacing = (int)(width / 4U);
+        int y_spacing = (int)(height / 8U);
+        int x_margin = x_spacing / 2;
+        int y_margin = y_spacing / 2;
+        int x_left = (int)width - 2 * x_margin - x_spacing - 2 * w;
+        int y_left = (int)height - 2 * y_margin - 3 * y_spacing - 4 * w;
+        int x[2];
+        int y[4];
+        unsigned int dot;
+
+        if (x_left >= 2 && y_left >= 4 && w == 0) {
+                w = 1;
+                x_left -= 2;
+                y_left -= 4;
+        }
+        if (w == 0)
+                return false;
+        if (x_left >= 2 && x_margin == 0) {
+                x_margin = 1;
+                x_left -= 2;
+        }
+        if (y_left >= 2 && y_margin == 0) {
+                y_margin = 1;
+                y_left -= 2;
+        }
+        if (x_left >= 1) {
+                x_spacing += 1;
+                x_left -= 1;
+        }
+        if (y_left >= 3) {
+                y_spacing += 1;
+                y_left -= 3;
+        }
+        if (x_left >= 2) {
+                x_margin += 1;
+                x_left -= 2;
+        }
+        if (y_left >= 2) {
+                y_margin += 1;
+                y_left -= 2;
+        }
+        if (x_left >= 2 && y_left >= 4)
+                w += 1;
+        x[0] = x_margin;
+        x[1] = x_margin + w + x_spacing;
+        y[0] = y_margin;
+        for (dot = 1; dot < 4; ++dot)
+                y[dot] = y[dot - 1] + w + y_spacing;
+        /* Bits 0-2 and 6 are the left column top to bottom; bits 3-5 and 7 the right. */
+        for (dot = 0; dot < 8; ++dot) {
+                static const uint8_t column[8] = {0, 0, 0, 1, 1, 1, 0, 1};
+                static const uint8_t row[8] = {0, 1, 2, 0, 1, 2, 3, 3};
+
+                if ((codepoint >> dot) & 1U)
+                        AddRect(glyph, (unsigned int)x[column[dot]], (unsigned int)y[row[dot]],
+                                (unsigned int)w, (unsigned int)w, width, height);
+        }
+        return true;
+}
+
+enum
+{
+        POWERLINE_TRIANGLE,
+        POWERLINE_ROUND,
+        POWERLINE_SLANT
+};
+
+/* Inked columns of row y measured from the flat side, at least one so segments join. */
+static unsigned int
+PowerlineExtent(unsigned int shape, unsigned int y, unsigned int w, unsigned int h)
+{
+        uint64_t extent;
+
+        if (shape == POWERLINE_SLANT) {
+                extent = ((uint64_t)w * (2U * (uint64_t)y + 1U) + 2U * (uint64_t)h - 1U) /
+                         (2U * (uint64_t)h);
+        } else {
+                uint64_t top = 2U * (uint64_t)y + 1U;
+                uint64_t bottom = 2U * (uint64_t)h - 2U * (uint64_t)y - 1U;
+                uint64_t edge = top < bottom ? top : bottom;
+
+                if (shape == POWERLINE_TRIANGLE) {
+                        extent = ((uint64_t)w * edge + h - 1U) / h;
+                } else {
+                        double d = (double)(h - edge) / (double)h;
+
+                        extent = (uint64_t)ceil((double)w * sqrt(1.0 - d * d) - 1e-9);
+                }
+        }
+        if (extent < 1U)
+                extent = 1U;
+        return extent > w ? w : (unsigned int)extent;
+}
+
+static void
+AddRowRun(XtpBoxGlyph *glyph, unsigned int x, unsigned int y, unsigned int width, bool mirror,
+          unsigned int w, unsigned int h)
+{
+        XtpBoxRect *last = glyph->count != 0 ? &glyph->rects[glyph->count - 1U] : NULL;
+
+        if (mirror)
+                x = w - x - width;
+        if (last != NULL && !glyph->failed && last->x == x && last->width == width &&
+            last->y + last->height == y) {
+                last->height += 1U;
+                return;
+        }
+        AddRect(glyph, x, y, width, 1U, w, h);
+}
+
+static void
+PlanPowerline(uint32_t codepoint, unsigned int w, unsigned int h, unsigned int t,
+              XtpBoxGlyph *glyph)
+{
+        unsigned int offset = codepoint - 0xE0B0U;
+        unsigned int shape;
+        bool mirror;
+        bool flip = false;
+        bool thin = false;
+        unsigned int y;
+
+        if (offset == 0x9U || offset == 0xFU) {
+                PlanDiagonal(0x2572U, w, h, t, glyph);
+                return;
+        }
+        if (offset == 0xBU || offset == 0xDU) {
+                PlanDiagonal(0x2571U, w, h, t, glyph);
+                return;
+        }
+        if (offset < 8U) {
+                shape = offset < 4U ? POWERLINE_TRIANGLE : POWERLINE_ROUND;
+                mirror = (offset & 2U) != 0;
+                thin = (offset & 1U) != 0;
+        } else {
+                shape = POWERLINE_SLANT;
+                mirror = offset == 0xAU || offset == 0xEU;
+                flip = offset >= 0xCU;
+        }
+        for (y = 0; y < h; ++y) {
+                unsigned int extent = PowerlineExtent(shape, flip ? h - 1U - y : y, w, h);
+                unsigned int start = 0;
+
+                /* A thin stroke overlaps its neighbor rows; the edge rows reach the flat side. */
+                if (thin) {
+                        unsigned int nearest = extent;
+
+                        if (y == 0 || y + 1U == h)
+                                nearest = 0;
+                        if (y > 0 && PowerlineExtent(shape, y - 1U, w, h) < nearest)
+                                nearest = PowerlineExtent(shape, y - 1U, w, h);
+                        if (y + 1U < h && PowerlineExtent(shape, y + 1U, w, h) < nearest)
+                                nearest = PowerlineExtent(shape, y + 1U, w, h);
+                        start = nearest > t ? nearest - t : 0;
+                }
+                AddRowRun(glyph, start, y, extent - start, mirror, w, h);
+        }
+}
+
 bool
 XtpBoxGlyphPlan(uint32_t codepoint, unsigned int width, unsigned int height, bool bold,
                 XtpBoxGlyph *glyph)
@@ -617,7 +789,12 @@ XtpBoxGlyphPlan(uint32_t codepoint, unsigned int width, unsigned int height, boo
         if (!XtpBoxGlyphCodepoint(codepoint) || width == 0 || height == 0)
                 return false;
         t = XtpBoxGlyphThickness(width, height, bold);
-        if (codepoint >= 0x2580U) {
+        if (codepoint >= 0xE0B0U) {
+                PlanPowerline(codepoint, width, height, t, glyph);
+        } else if (codepoint >= 0x2800U) {
+                if (!PlanBraille(codepoint, width, height, glyph))
+                        return false;
+        } else if (codepoint >= 0x2580U) {
                 PlanBlock(codepoint, width, height, glyph);
         } else if ((codepoint >= 0x2504U && codepoint <= 0x250BU) ||
                    (codepoint >= 0x254CU && codepoint <= 0x254FU)) {

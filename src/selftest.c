@@ -5093,6 +5093,360 @@ done:
         return result;
 }
 
+static unsigned int box_alloc_budget;
+
+static void *
+BoxFailingRealloc(void *pointer, size_t size)
+{
+        if (box_alloc_budget == 0)
+                return NULL;
+        --box_alloc_budget;
+        return realloc(pointer, size);
+}
+
+static Boolean
+BoxBounds(const uint8_t *mask, BoxSize size, unsigned int *left, unsigned int *top,
+          unsigned int *width, unsigned int *height)
+{
+        unsigned int right = 0;
+        unsigned int bottom = 0;
+        unsigned int x;
+        unsigned int y;
+
+        *left = size.width;
+        *top = size.height;
+        for (y = 0; y < size.height; ++y) {
+                for (x = 0; x < size.width; ++x) {
+                        if (mask[y * size.width + x] == 0)
+                                continue;
+                        *left = x < *left ? x : *left;
+                        *top = y < *top ? y : *top;
+                        right = x + 1U > right ? x + 1U : right;
+                        bottom = y + 1U > bottom ? y + 1U : bottom;
+                }
+        }
+        if (right == 0)
+                return False;
+        *width = right - *left;
+        *height = bottom - *top;
+        return True;
+}
+
+/* Returns the number of inked runs in row y, the first run's start and the last run's end. */
+static unsigned int
+BoxRowRuns(const uint8_t *mask, BoxSize size, unsigned int y, unsigned int *start,
+           unsigned int *end)
+{
+        const uint8_t *row = mask + y * size.width;
+        unsigned int runs = 0;
+        unsigned int x;
+
+        *start = 0;
+        *end = 0;
+        for (x = 0; x < size.width; ++x) {
+                if (row[x] == 0)
+                        continue;
+                if (x == 0 || row[x - 1U] == 0) {
+                        if (runs == 0)
+                                *start = x;
+                        ++runs;
+                }
+                *end = x + 1U;
+        }
+        return runs;
+}
+
+static Boolean
+BoxMirrored(const uint8_t *left, const uint8_t *right, BoxSize size, Boolean horizontal,
+            Boolean vertical)
+{
+        unsigned int x;
+        unsigned int y;
+
+        for (y = 0; y < size.height; ++y) {
+                for (x = 0; x < size.width; ++x) {
+                        unsigned int mx = horizontal ? size.width - 1U - x : x;
+                        unsigned int my = vertical ? size.height - 1U - y : y;
+
+                        if (left[y * size.width + x] != right[my * size.width + mx])
+                                return False;
+                }
+        }
+        return True;
+}
+
+static Boolean
+BoxSubset(const uint8_t *inner, const uint8_t *outer, BoxSize size)
+{
+        unsigned int index;
+
+        for (index = 0; index < size.width * size.height; ++index)
+                if (inner[index] && !outer[index])
+                        return False;
+        return True;
+}
+
+/* Solid rows are one run from the flat side; thin rows end on the solid outline and connect. */
+static Boolean
+BoxPowerlineRows(const uint8_t *solid, const uint8_t *thin, BoxSize size)
+{
+        unsigned int previous_start = 0;
+        unsigned int previous_end = 0;
+        unsigned int y;
+
+        for (y = 0; y < size.height; ++y) {
+                unsigned int start;
+                unsigned int end;
+                unsigned int thin_start;
+                unsigned int thin_end;
+
+                if (BoxRowRuns(solid, size, y, &start, &end) != 1 || start != 0)
+                        return False;
+                if (thin == NULL)
+                        continue;
+                if (BoxRowRuns(thin, size, y, &thin_start, &thin_end) != 1 || thin_end != end ||
+                    ((y == 0 || y + 1U == size.height) && thin_start != 0) ||
+                    (y != 0 && (thin_start > previous_end || previous_start > thin_end)))
+                        return False;
+                previous_start = thin_start;
+                previous_end = thin_end;
+        }
+        return True;
+}
+
+static Boolean
+BoxPowerlineBulge(const uint8_t *mask, BoxSize size)
+{
+        unsigned int middle = (size.height - 1U) / 2U;
+        unsigned int previous = 0;
+        unsigned int y;
+
+        if (!BoxMirrored(mask, mask, size, False, True))
+                return False;
+        for (y = 0; y <= middle; ++y) {
+                unsigned int start;
+                unsigned int end;
+
+                (void)BoxRowRuns(mask, size, y, &start, &end);
+                if (end < previous)
+                        return False;
+                previous = end;
+        }
+        return previous == size.width;
+}
+
+static int
+SelfTestProceduralGlyphs(void)
+{
+        static const BoxSize sizes[] = {{6, 13},  {9, 19}, {7, 14},   {5, 8},      {3, 6},
+                                        {10, 21}, {8, 16}, {24, 170}, {1030, 1100}};
+        static const struct
+        {
+                BoxSize size;
+                unsigned int dot;
+                unsigned int x[2];
+                unsigned int y[4];
+        } layouts[] = {{{6, 13}, 1, {1, 4}, {1, 4, 7, 10}}, {{9, 19}, 2, {1, 6}, {1, 6, 11, 16}}};
+        static const struct
+        {
+                uint32_t codepoint;
+                Boolean fits_one_allocation;
+        } failures[] = {{0x2500U, True},  {0x256DU, False}, {0x2573U, False}, {0x28FFU, True},
+                        {0xE0B0U, False}, {0xE0B5U, False}, {0xE0B9U, False}};
+        static const uint8_t dot_column[8] = {0, 0, 0, 1, 1, 1, 0, 1};
+        static const uint8_t dot_row[8] = {0, 1, 2, 0, 1, 2, 3, 3};
+        uint8_t *a = malloc(1030U * 1100U);
+        uint8_t *b = malloc(1030U * 1100U);
+        uint8_t *c = malloc(1030U * 1100U);
+        uint32_t codepoint = 0;
+        size_t size_index;
+        size_t index;
+        unsigned int bit;
+        XtpBoxGlyph glyph = {0};
+        int result = -1;
+
+        if (a == NULL || b == NULL || c == NULL)
+                goto done;
+        if (XtpBoxGlyphCodepoint(0x27FFU) || !XtpBoxGlyphCodepoint(0x2800U) ||
+            !XtpBoxGlyphCodepoint(0x28FFU) || XtpBoxGlyphCodepoint(0x2900U) ||
+            XtpBoxGlyphCodepoint(0xE0A0U) || XtpBoxGlyphCodepoint(0xE0AFU) ||
+            !XtpBoxGlyphCodepoint(0xE0B0U) || !XtpBoxGlyphCodepoint(0xE0BFU) ||
+            XtpBoxGlyphCodepoint(0xE0C0U) || XtpBoxGlyphCodepoint(0xE0D2U) ||
+            XtpBoxGlyphCodepoint(0xE0D4U) || !XtpBoxGlyphText("\xee\x82\xb0", 3, &codepoint) ||
+            codepoint != 0xE0B0U || !XtpBoxGlyphText("\xe2\xa3\xbf", 3, &codepoint) ||
+            codepoint != 0x28FFU)
+                goto done;
+        /* Braille declines when a dot would vanish, leaving the glyph empty. */
+        if (XtpBoxGlyphPlan(0x28FFU, 1, 8, false, &glyph) || glyph.rects != NULL ||
+            glyph.count != 0 || XtpBoxGlyphPlan(0x2801U, 2, 3, false, &glyph))
+                goto done;
+        /* Golden braille layouts at two odd cell sizes. */
+        for (index = 0; index < XtNumber(layouts); ++index) {
+                for (bit = 0; bit < 8; ++bit) {
+                        unsigned int left;
+                        unsigned int top;
+                        unsigned int width;
+                        unsigned int height;
+
+                        if (!BoxMask(0x2800U | (1U << bit), layouts[index].size, False, a, NULL) ||
+                            !BoxBounds(a, layouts[index].size, &left, &top, &width, &height) ||
+                            left != layouts[index].x[dot_column[bit]] ||
+                            top != layouts[index].y[dot_row[bit]] || width != layouts[index].dot ||
+                            height != layouts[index].dot ||
+                            BoxInk(a, layouts[index].size) != width * height)
+                                goto done;
+                }
+        }
+        for (size_index = 0; size_index < XtNumber(sizes); ++size_index) {
+                BoxSize size = sizes[size_index];
+                unsigned int cells = size.width * size.height;
+                unsigned int dot_x[8];
+                unsigned int dot_y[8];
+                unsigned int dot = 0;
+                unsigned int pattern;
+
+                /* Braille: blank is empty, each bit is one equal square in its column and row. */
+                if (!BoxMask(0x2800U, size, False, a, NULL) || BoxInk(a, size) != 0)
+                        goto done;
+                memset(c, 0, cells);
+                for (bit = 0; bit < 8; ++bit) {
+                        unsigned int width;
+                        unsigned int height;
+
+                        if (!BoxMask(0x2800U | (1U << bit), size, False, a, NULL) ||
+                            !BoxBounds(a, size, &dot_x[bit], &dot_y[bit], &width, &height) ||
+                            width != height || BoxInk(a, size) != width * height ||
+                            (bit != 0 && width != dot))
+                                goto done;
+                        dot = width;
+                        for (index = 0; index < cells; ++index)
+                                c[index] |= a[index];
+                }
+                if (dot_x[0] != dot_x[1] || dot_x[0] != dot_x[2] || dot_x[0] != dot_x[6] ||
+                    dot_x[3] != dot_x[4] || dot_x[3] != dot_x[5] || dot_x[3] != dot_x[7] ||
+                    dot_x[3] < dot_x[0] + dot + 1U || dot_y[0] != dot_y[3] ||
+                    dot_y[1] != dot_y[4] || dot_y[2] != dot_y[5] || dot_y[6] != dot_y[7] ||
+                    dot_y[1] < dot_y[0] + dot || dot_y[2] < dot_y[1] + dot ||
+                    dot_y[6] < dot_y[2] + dot)
+                        goto done;
+                if (size.height >= 8 && dot_y[1] == dot_y[0] + dot)
+                        goto done;
+                if (size.height >= 10 && (dot_y[0] == 0 || dot_y[6] + dot >= size.height))
+                        goto done;
+                if (size.width >= 5 && (dot_x[0] == 0 || dot_x[3] + dot >= size.width))
+                        goto done;
+                if (!BoxMask(0x28FFU, size, False, a, NULL) || memcmp(a, c, cells) != 0 ||
+                    !BoxMask(0x28FFU, size, True, b, NULL) || memcmp(a, b, cells) != 0)
+                        goto done;
+                /* Every pattern inks exactly its own dots. */
+                for (pattern = 0; cells <= 50000U && pattern < 256U; ++pattern) {
+                        unsigned int count = 0;
+
+                        if (!BoxMask(0x2800U + pattern, size, False, a, NULL))
+                                goto done;
+                        for (bit = 0; bit < 8; ++bit) {
+                                Boolean set = (pattern >> bit) & 1U;
+
+                                count += set ? 1U : 0U;
+                                if ((a[dot_y[bit] * size.width + dot_x[bit]] != 0) != set)
+                                        goto done;
+                        }
+                        if (BoxInk(a, size) != count * dot * dot)
+                                goto done;
+                }
+
+                /* Powerline: every supported symbol plans inside the cell and has ink. */
+                for (codepoint = 0xE0B0U; codepoint <= 0xE0BFU; ++codepoint) {
+                        if (!BoxMask(codepoint, size, False, a, &glyph) || BoxInk(a, size) == 0)
+                                goto done;
+                        for (index = 0; index < glyph.count; ++index)
+                                if (glyph.rects[index].x + glyph.rects[index].width > size.width ||
+                                    glyph.rects[index].y + glyph.rects[index].height > size.height)
+                                        goto done;
+                        XtpBoxGlyphFree(&glyph);
+                }
+                /* Arrows fill every row from the flat side, bulge to the tip, and ignore bold. */
+                if (!BoxMask(0xE0B0U, size, False, a, NULL) ||
+                    !BoxMask(0xE0B1U, size, False, b, NULL) || !BoxPowerlineRows(a, b, size) ||
+                    !BoxPowerlineBulge(a, size) || !BoxMask(0xE0B0U, size, True, c, NULL) ||
+                    memcmp(a, c, cells) != 0 || !BoxMask(0xE0B2U, size, False, c, NULL) ||
+                    !BoxMirrored(a, c, size, True, False) ||
+                    !BoxMask(0xE0B3U, size, False, c, NULL) ||
+                    !BoxMirrored(b, c, size, True, False) ||
+                    !BoxMask(0xE0B1U, size, True, c, NULL) || !BoxSubset(b, c, size))
+                        goto done;
+                /* Half circles contain the arrow and follow the same row rules. */
+                if (!BoxMask(0xE0B4U, size, False, c, NULL) || !BoxSubset(a, c, size) ||
+                    !BoxMask(0xE0B5U, size, False, b, NULL) || !BoxPowerlineRows(c, b, size) ||
+                    !BoxPowerlineBulge(c, size) || !BoxMask(0xE0B6U, size, False, a, NULL) ||
+                    !BoxMirrored(c, a, size, True, False) ||
+                    !BoxMask(0xE0B7U, size, False, a, NULL) ||
+                    !BoxMirrored(b, a, size, True, False))
+                        goto done;
+                /* Slants widen downward to a full last row; the other three are its reflections. */
+                if (!BoxMask(0xE0B8U, size, False, a, NULL) || !BoxPowerlineRows(a, NULL, size))
+                        goto done;
+                {
+                        unsigned int previous = 0;
+                        unsigned int y;
+
+                        for (y = 0; y < size.height; ++y) {
+                                unsigned int start;
+                                unsigned int end;
+
+                                (void)BoxRowRuns(a, size, y, &start, &end);
+                                if (end < previous)
+                                        goto done;
+                                previous = end;
+                        }
+                        if (previous != size.width)
+                                goto done;
+                }
+                if (!BoxMask(0xE0BAU, size, False, b, NULL) ||
+                    !BoxMirrored(a, b, size, True, False) ||
+                    !BoxMask(0xE0BCU, size, False, b, NULL) ||
+                    !BoxMirrored(a, b, size, False, True) ||
+                    !BoxMask(0xE0BEU, size, False, b, NULL) || !BoxMirrored(a, b, size, True, True))
+                        goto done;
+                /* Separator lines are the box-drawing diagonals. */
+                if (!BoxMask(0x2572U, size, False, a, NULL) ||
+                    !BoxMask(0xE0B9U, size, False, b, NULL) || memcmp(a, b, cells) != 0 ||
+                    !BoxMask(0xE0BFU, size, False, b, NULL) || memcmp(a, b, cells) != 0 ||
+                    !BoxMask(0x2571U, size, False, a, NULL) ||
+                    !BoxMask(0xE0BBU, size, False, b, NULL) || memcmp(a, b, cells) != 0 ||
+                    !BoxMask(0xE0BDU, size, False, b, NULL) || memcmp(a, b, cells) != 0)
+                        goto done;
+        }
+        /* An allocation failure declines the plan and releases everything it took. */
+        for (index = 0; index < XtNumber(failures); ++index) {
+                bool planned;
+
+                for (bit = 0; bit < 2; ++bit) {
+                        box_alloc_budget = bit;
+                        XtpBoxGlyphSetAllocator(BoxFailingRealloc);
+                        planned =
+                            XtpBoxGlyphPlan(failures[index].codepoint, 24, 170, false, &glyph);
+                        XtpBoxGlyphSetAllocator(NULL);
+                        if (planned != (bit == 1 && failures[index].fits_one_allocation))
+                                goto done;
+                        if (!planned && (glyph.rects != NULL || glyph.count != 0 || glyph.failed))
+                                goto done;
+                        XtpBoxGlyphFree(&glyph);
+                }
+                if (!XtpBoxGlyphPlan(failures[index].codepoint, 24, 170, false, &glyph))
+                        goto done;
+                XtpBoxGlyphFree(&glyph);
+        }
+        result = 0;
+done:
+        XtpBoxGlyphSetAllocator(NULL);
+        XtpBoxGlyphFree(&glyph);
+        free(a);
+        free(b);
+        free(c);
+        return result;
+}
+
 typedef int (*SelfTestCaseFn)(void);
 
 typedef struct
@@ -5127,6 +5481,7 @@ XtpSelfTest(void)
             {"title stack", SelfTestTitleStack},
             {"emoji-presentation", SelfTestEmojiPresentation},
             {"box-glyphs", SelfTestBoxGlyphs},
+            {"braille and Powerline glyphs", SelfTestProceduralGlyphs},
             {"Unicode Script=Han", SelfTestUnicodeScript},
             {"font-chain", SelfTestFontChain},
             {"font-metrics", SelfTestFontMetrics},

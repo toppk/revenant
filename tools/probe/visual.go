@@ -26,10 +26,16 @@ func pointer(s *Session) {
 }
 func glyphs(s *Session) {
 	s.page("Glyph samples")
-	for _, line := range []string{"┌────────┬────────┐  ╔════════╦════════╗", "│ normal │ boxes  │  ║ double ║ boxes  ║", "├────────┼────────┤  ╠════════╬════════╣", "└────────┴────────┘  ╚════════╩════════╝", "▁▂▃▄▅▆▇█ ▉▊▋▌▍▎▏ ▀▄▌▐░▒▓█", "⠁⠃⠇⠏⠟⠿⡿⣿ ⣿⣿⣿⣿⣿⣿⣿⣿", "  branch  status "} {
+	for _, line := range []string{"┌────────┬────────┐  ╔════════╦════════╗", "│ normal │ boxes  │  ║ double ║ boxes  ║", "├────────┼────────┤  ╠════════╬════════╣", "└────────┴────────┘  ╚════════╩════════╝", "▁▂▃▄▅▆▇█ ▉▊▋▌▍▎▏ ▀▄▌▐░▒▓█"} {
 		s.say("%s", line)
 	}
-	s.say("Check joins at multiple sizes, bitmap/Xft, bold, and forceBoxChars off/on.")
+	s.cleanup(func() { s.send(esc + "[0m") })
+	s.say("%s", "Braille dots 1-8: ⠁⠂⠄⠈⠐⠠⡀⢀  full ⣿  columns ⡇⢸  blank [⠀]  graph ⣀⣤⣶⣿⣷⣦⣄⣀")
+	s.say("%s", "Powerline U+E0B0-U+E0BF: \ue0b0\ue0b1\ue0b2\ue0b3 \ue0b4\ue0b5\ue0b6\ue0b7 \ue0b8\ue0b9\ue0ba\ue0bb \ue0bc\ue0bd\ue0be\ue0bf")
+	s.say("%s", esc+"[30;42m main "+esc+"[32;44m\ue0b0"+esc+"[30;44m status "+esc+"[34;41m\ue0b4"+esc+"[30;41m warn "+esc+"[31;49m\ue0b8"+esc+"[0m  "+esc+"[35;49m\ue0b2"+esc+"[30;45m right \ue0b3 end "+esc+"[0;35m\ue0b4"+esc+"[0m")
+	s.say("%s", "Font-owned, outside the drawn range: \ue0a0 \ue0a2 \ue0c0 \ue0d2")
+	s.say("Check joins at multiple sizes, bitmap/Xft, bold, inverse, selection and the cursor, and forceBoxChars off/on.")
+	s.say("Braille dots are equal squares in two columns; Powerline shapes span the cell height and meet segment colors without a seam.")
 	s.pause()
 }
 func copyFixture(s *Session) {

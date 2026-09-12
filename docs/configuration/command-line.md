@@ -40,7 +40,7 @@ inventory; an option not shown there is not silently accepted.
 | `-fs size` | `vt100.faceSize` | Xft point size |
 | `-fd pattern` | `vt100.faceNameDoublesize` | Xft face for wide text and emoji fallback |
 | `-fe pattern` | `vt100.faceNameEmoji` | Preferred Xft face for emoji presentation |
-| `+fbx` / `-fbx` | `vt100.forceBoxChars` true / false | Draw box and block characters from the cell geometry instead of the font (xterm's polarity: `+fbx` turns it on) |
+| `+fbx` / `-fbx` | `vt100.forceBoxChars` true / false | Draw box, block, braille and Powerline characters from the cell geometry instead of the font (xterm's polarity: `+fbx` turns it on) |
 
 ## Colours, window, geometry
 

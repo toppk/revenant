@@ -110,7 +110,7 @@ configured and forced policy.
 | fontescape | Font from OSC 50 | OSC 50 ignored, not forwarded | Needs unknown-OSC passthrough | BLOCKED |
 | fontsel | Font from PRIMARY | None | Small after Roadmap #4 | ROADMAP |
 | allow-bold-fonts | Real bold faces | None; bold flag in `XtpRenderCell` | Renderer toggle | READY |
-| font-linedrawing | Internal box glyphs | None | Toggles `forceBoxChars`; cell-geometry rasterizer for U+2500–U+259F | DONE |
+| font-linedrawing | Internal box glyphs | None | Toggles `forceBoxChars`; cell-geometry rasterizer for U+2500–U+259F, braille and Powerline separators | DONE |
 | font-packed | Min glyph width for bitmap fonts | None | Cell-metric choice | ROADMAP |
 | font-doublesize | DECDHL/DECDWL | Not in Ghostty | Blocked upstream | BLOCKED |
 | font-loadable | DECDLD soft fonts | Not in Ghostty | Blocked, unused | BLOCKED |

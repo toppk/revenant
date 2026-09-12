@@ -622,9 +622,22 @@ function-pointer helper would lose the useful type check.
   reach the child, and `+fbx`/`-fbx` set the resource with xterm's
   polarity (plus turns it on). Plans allocate their rectangle list on the
   heap, so arcs and diagonals stay complete at any cell size; if an
-  allocation fails the cell falls back to the font glyph with a warning. Braille and Powerline are deliberately
-  not in the range; G2 should add planners to the same module and extend
-  `XtpBoxGlyphCodepoint`. The `box-glyphs` self-test checks every code
+  allocation fails the cell falls back to the font glyph with a warning.
+  The same module plans braille, U+2800–U+28FF, with Ghostty's dot layout
+  (dot size `min(width / 4, height / 8)`, leftover pixels spent on margins,
+  then spacing, then dot size); it declines when a dot would vanish, so a
+  one-pixel-wide cell uses the font, and bold does not change the dots. It
+  plans Powerline U+E0B0–U+E0BF only. Arrows, half circles and slants are
+  per-row runs from the flat side, at least one pixel on every row so a
+  segment's background meets the glyph, merged into taller rectangles when
+  consecutive rows match; the thin variants keep a run of the line
+  thickness inside the solid outline, overlapping the neighbor rows and
+  reaching the flat side on the first and last rows; the slash separators
+  reuse the U+2571/U+2572 diagonals. The draw decision, colors, cursor,
+  route log and `forceBoxChars` switch are shared with box drawing, and the
+  rest of the private-use area (U+E0A0–U+E0AF, U+E0C0 onward) stays with
+  the font. `XtpBoxGlyphSetAllocator` lets the self-test fail allocations.
+  The `box-glyphs` self-test checks every code
   point at six cell sizes for staying inside the cell, the light band
   geometry and column/row identity across cells, cross = union of the two
   lines, corner and tee arms reaching the correct edges, heavy containing
@@ -641,6 +654,17 @@ function-pointer helper would lose the useful type check.
   rows and separators from the bottom of the font menu. A final case binds
   F12 to `set-font-linedrawing(toggle)` with a raw child reporting Kitty
   releases and checks two toggles, four owned events and no bytes.
+  The `braille and Powerline glyphs` self-test checks golden dot layouts at
+  6×13 and 9×19; equal square dots in their columns and rows, with gaps
+  and margins, at nine cell sizes up to 1030×1100; the dots of every
+  braille pattern; one run per row from the flat side, vertical symmetry,
+  containment and reflections for each Powerline shape; bold; the diagonal
+  separators; and plans that decline and free everything after zero or one
+  successful allocation. A second `xvfb-box-glyphs` scene checks, under Xft
+  at 16 and 9 points and on the bitmap path, exact arrow ink and bounds, a
+  full block joined to an arrow, inverse, selected and cursor-covered
+  arrows, a heavier bold thin arrow, braille dot squares and counts, and
+  that U+E0A0 and U+E0C0 are not drawn procedurally.
 - Prompt navigation: the adapter keeps an index of OSC 133 prompt starts as
   libghostty tracked grid references. The feed observer already delimits
   OSC selectors and payload items for OSC 7 and the color queries; for
@@ -827,9 +851,10 @@ function-pointer helper would lose the useful type check.
   mode 2027. Reproducible font fixtures and Xvfb tests cover routing, shaping,
   ink paths, and format behavior. General text now shares the positioned-run
   and clipping path without changing backend-owned cell widths, and SGR italic
-  selects a real italic or oblique face when one is available. Box-drawing
-  and block-element characters are rasterized from the cell geometry when
-  the primary face lacks them, on the bitmap path, or under `forceBoxChars`.
+  selects a real italic or oblique face when one is available. Box-drawing,
+  block-element, braille and Powerline separator characters are rasterized
+  from the cell geometry when the primary face lacks them, on the bitmap
+  path, or under `forceBoxChars`.
 - Application-selected DECSCUSR block, underline, and bar cursor presentation,
   including cursor-shape-only repaint coverage. Blinking variants and DEC mode
   12 use an Xt timer with xterm's `cursorOnTime` and `cursorOffTime` defaults;

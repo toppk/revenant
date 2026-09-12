@@ -35,6 +35,22 @@ printf '\033]2;box-ready\007'
 while ! test -d "$1"; do sleep 0.05; done
 SCENE
 
+# Row 0: a right arrow, a blank, a full block joined to a right arrow, a blank, a left arrow.
+# Row 1: an inverse right arrow, a blank, a bold thin arrow, a blank, a thin arrow.
+# Row 2: full braille, dot 1, the left dot column and blank braille, each a cell apart.
+# Row 3: U+E0A0 and U+E0C0, outside the drawn range.
+# Row 4: a right arrow under the visible cursor.
+cat >"$test_dir/scene2.sh" <<'SCENE'
+printf '\033[2J\033[H'
+printf '\356\202\260 \342\226\210\356\202\260 \356\202\262\r\n'
+printf '\033[7m\356\202\260\033[27m \033[1m\356\202\261\033[22m \356\202\261\r\n'
+printf '\342\243\277 \342\240\201 \342\241\207 \342\240\200\r\n'
+printf '\356\202\240 \356\203\200\r\n'
+printf '\356\202\260\033[5;1H\033[?25h'
+printf '\033]2;box-ready\007'
+while ! test -d "$1"; do sleep 0.05; done
+SCENE
+
 fail()
 {
     echo "$case_name: $1" >&2
@@ -58,7 +74,7 @@ start_case()
         -xrm 'xterm.vt100.cursorColor: #000000' \
         -xrm 'xterm.vt100.systemFallback: false' \
         -xrm 'XTerm*fontMenu*font: fixed' -xrm 'XTerm*fontMenu*vertSpace: 0' \
-        "$@" -e sh "$test_dir/scene.sh" "$done_dir" >"$test_dir/$case_name.out" 2>"$log" &
+        "$@" -e sh "$test_dir/${scene:-scene}.sh" "$done_dir" >"$test_dir/$case_name.out" 2>"$log" &
     terminal_pid=$!
     xtp_wait_for_title "$log" box-ready "$case_name scene"
     window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$log" | tail -1)
@@ -195,4 +211,89 @@ kill "$terminal_pid" 2>/dev/null || true
 wait "$terminal_pid" 2>/dev/null || true
 terminal_pid=
 
-echo "box and block glyphs join across cells under Xft, forced Xft and bitmap rendering"
+# Ink of U+E0B0, mirroring the planner's per-row extent.
+triangle_ink()
+{
+    total=0
+    row=0
+    while test "$row" -lt "$ch"
+    do
+        edge=$((2 * row + 1))
+        test $((2 * ch - 2 * row - 1)) -ge "$edge" || edge=$((2 * ch - 2 * row - 1))
+        extent=$(((cw * edge + ch - 1) / ch))
+        test "$extent" -ge 1 || extent=1
+        test "$extent" -le "$cw" || extent=$cw
+        total=$((total + extent))
+        row=$((row + 1))
+    done
+    echo "$total"
+}
+
+expect_exact()
+{
+    result=$(sample "$1" "$2" "$3")
+    case $result in
+        *" ink=$4 "*" bounds=$5") ;;
+        *) fail "$6 expected ink=$4 bounds=$5" "$result" ;;
+    esac
+}
+
+expect_braille_powerline()
+{
+    for base in E0B0 E0B1 E0B2 28FF 2801 2847 2800
+    do
+        grep -q "route base=U+$base width=1 presentation=none role=box" "$log" ||
+            fail "U+$base was not drawn procedurally"
+    done
+    for base in E0A0 E0C0
+    do
+        grep -q "route base=U+$base .*role=box" "$log" && fail "U+$base is outside the drawn range"
+    done
+    tri=$(triangle_ink)
+    expect_exact 0 0 1 "$tri" "0,0,$cw,$ch" "right arrow"
+    result=$(sample 1 0 1)
+    case $result in
+        class=blank*) ;;
+        *) fail "the blank cell after the right arrow received ink" "$result" ;;
+    esac
+    expect_exact 2 0 2 $((cw * ch + tri)) "0,0,$((2 * cw)),$ch" "full block joined to the right arrow"
+    expect_exact 5 0 1 "$tri" "0,0,$cw,$ch" "left arrow"
+    expect_ink 0 1 $((cw * ch - tri)) "inverse right arrow"
+    thin=$(ink_of "$(sample 4 1 1)")
+    bold=$(ink_of "$(sample 2 1 1)")
+    test "$thin" -gt 0 && test "$thin" -lt "$tri" || fail "thin arrow ink $thin is not inside the solid arrow $tri"
+    test "$bold" -gt "$thin" || fail "bold thin arrow ink $bold is not heavier than $thin"
+    result=$(sample 2 2 1)
+    dot_w=$(printf '%s\n' "$result" | sed -n 's/.*bounds=[0-9]*,[0-9]*,\([0-9]*\),[0-9]*$/\1/p')
+    dot_h=$(printf '%s\n' "$result" | sed -n 's/.*bounds=[0-9]*,[0-9]*,[0-9]*,\([0-9]*\)$/\1/p')
+    test -n "$dot_w" && test "$dot_w" = "$dot_h" && test "$(ink_of "$result")" = $((dot_w * dot_h)) ||
+        fail "braille dot 1 is not a filled square" "$result"
+    expect_ink 0 2 $((8 * dot_w * dot_w)) "full braille cell"
+    expect_ink 4 2 $((4 * dot_w * dot_w)) "left braille column"
+    expect_ink 0 4 $((cw * ch - tri)) "block cursor over the right arrow"
+}
+
+# Braille and Powerline: the fixture face has neither, so Xft draws them procedurally by default.
+scene=scene2
+cursor_args="-xrm xterm.vt100.cursorColor:#FF0000 -xrm xterm.vt100.alwaysHighlight:true -xrm xterm.vt100.cursorBlink:false"
+# shellcheck disable=SC2086
+start_case braille-powerline-xft -fa 'DejaVu Sans Mono:rgba=none' -fs 16 \
+    -xrm 'xterm.vt100.renderFont: true' $cursor_args
+expect_braille_powerline
+"$sender" "$window" $((4 + 5 * cw + cw / 2)) $((4 + ch / 2)) $((4 + 6 * cw + cw / 2)) $((4 + ch / 2)) >/dev/null
+xtp_wait_for_log "$log" 'publish source=SELECT' 'powerline selection'
+expect_ink 5 0 $((cw * ch - tri)) "selected left arrow"
+stop_case
+
+# shellcheck disable=SC2086
+start_case braille-powerline-small -fa 'DejaVu Sans Mono:rgba=none' -fs 9 \
+    -xrm 'xterm.vt100.renderFont: true' $cursor_args
+expect_braille_powerline
+stop_case
+
+# shellcheck disable=SC2086
+start_case braille-powerline-bitmap -fn fixed -xrm 'xterm.vt100.renderFont: false' $cursor_args
+expect_braille_powerline
+stop_case
+
+echo "box, block, braille and Powerline glyphs join across cells under Xft, forced Xft and bitmap rendering"

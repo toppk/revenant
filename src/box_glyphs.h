@@ -30,6 +30,10 @@ typedef struct
         XtpBoxShade shade;
 } XtpBoxGlyph;
 
+typedef void *(*XtpBoxGlyphRealloc)(void *pointer, size_t size);
+
+/* NULL restores realloc; the self-test injects allocation failures. */
+void XtpBoxGlyphSetAllocator(XtpBoxGlyphRealloc allocator);
 bool XtpBoxGlyphCodepoint(uint32_t codepoint);
 bool XtpBoxGlyphText(const char *text, size_t length, uint32_t *codepoint_out);
 unsigned int XtpBoxGlyphThickness(unsigned int width, unsigned int height, bool bold);

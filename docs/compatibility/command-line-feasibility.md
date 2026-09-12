@@ -110,7 +110,7 @@ The two original structural gaps are complete:
 | `-fw` / `-fwb fontname` | Bitmap wide and wide-bold fonts | Renderer | Needs wide-cell bitmap drawing | ROADMAP #5 |
 | `-fc fontmenu` | Start on a named font-menu slot | Font slot code exists | Look up slot by name at startup | READY |
 | `-/+fbb` | `freeBoldBox`: skip bold/normal metric comparison | Renderer | Only meaningful once `-fb` exists | ROADMAP #5 |
-| `-/+fbx` | `forceBoxChars`: internal line-drawing glyphs | Renderer | Cell-geometry rasterizer for U+2500–U+259F shared with the `font-linedrawing` menu entry | DONE |
+| `-/+fbx` | `forceBoxChars`: internal line-drawing glyphs | Renderer | Cell-geometry rasterizer for U+2500–U+259F, braille and Powerline separators, shared with the `font-linedrawing` menu entry | DONE |
 | `-fx fontname` | XIM fontset | Input method | Pass fontset to the XIM preedit style | READY |
 | `-sh number` | `scaleHeight` | Renderer cell metrics | Multiply ascent+descent; simple | READY |
 | `-/+bdc` | `colorBDMode` | Renderer palette | Roadmap #5 palette work | ROADMAP #5 |

@@ -25,6 +25,17 @@ artifacts take their version from the tag, not from the development version in
   one event-loop tick after Xt dispatches it, so a key bound to any local
   action, not only the default prompt gestures, is kept from the
   application together with its release.
+- Draw braille and Powerline separators from the cell geometry. Every
+  braille pattern, U+2800 through U+28FF, is drawn as equal square dots in
+  two columns of four, and U+E0B0 through U+E0BF, the Powerline arrows,
+  half circles, slants and their thin outlines, span the full cell height
+  so segments meet their neighbors' colors without a seam. They follow the
+  box-drawing rules: Xft keeps the primary face's own glyphs, the bitmap
+  path and `forceBoxChars` always draw them, and bold, inverse video,
+  selection and the block cursor color them like text. Other Powerline and
+  Nerd Font symbols, such as the branch icon U+E0A0 and the flame
+  separators, stay with the font, as does braille in a cell too narrow for
+  a visible dot.
 - Pipe the last command's output to a helper. The new `pipeCommandOutput`
   resource names a shell command, unset by default, and the new
   `pipe-command-output()` action (Ctrl+Shift+G) finds the most recently
