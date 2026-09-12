@@ -38,7 +38,7 @@ existing ID; its parent is complete only after all three.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| Rendering and selection | G2; U1; U2 → U3 | G2 reuses the landed G1 drawing module; U3 needs U2 search model. |
+| Selection | U1; U2 → U3 | U3 needs the U2 search model. |
 | Progress | N3 | Independent of desktop delivery; select the UI surface before coding. |
 | API-dependent | V3, F1, M1 | Public OSC hooks for V3/F1; effective mouse tracking API for M1. |
 | Graphics series | K1 → K2a limits → K2b temp files → K2c shared memory; K3/K4 after K1 | Keep resource limits, transport, placeholders and scheduling separate. |
@@ -95,17 +95,6 @@ conflicting ownership even within the same batch.
       paused/clear states, bounds, reset/exit, and no corruption of title stack
       or title reports. Stop: no launcher protocol or notification dependency.
       TDN: `osc-9-4-progress`, `ui-progress-indicator`.
-
-## G: Procedural glyphs
-
-- [ ] **G2 — Braille and Powerline.** Extend the `src/box_glyphs.c` planner
-      and `XtpBoxGlyphCodepoint` range that G1 landed.
-      Probe: `just probe text-braille-drawing text-glyphs`; repeat via
-      `just probe text-powerline-drawing text-glyphs` . Add deterministic dot/triangle pixel
-      tests at odd cell sizes.
-      Define supported codepoint ranges and per-family fallback explicitly.
-      Stop: no wholesale substitution of symbol fonts.
-      TDN: `text-braille-drawing`, `text-powerline-drawing`.
 
 ## U: Selection polish and search
 

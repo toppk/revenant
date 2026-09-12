@@ -82,7 +82,6 @@ commands, cleanup and limitations.
 | V: text/cursor presentation | `text-underline`, `text-cursor`, `input-pointer` | SGR underline color, startup text cursor, and OSC 22 pointer each have separate state. |
 | S: shell integration | `shell-cwd`, `shell-prompts`, `shell-pipe` | Retain cwd, navigate semantic prompts, then pipe a semantic output range on a user action. |
 | N: notifications | `notifications-urgency`, `notifications-progress` | Urgency first; optional notification adapter and progress UI are separate. |
-| G: procedural glyphs | `text-glyphs` | Box/block rendering first, braille/Powerline later. |
 | U: copy/search | `selection-copy`, `selection-search` | Copy flash; search model; search UI are independent review units. |
 | K: graphics | `graphics-static` | Initial fixture covers static inline RGBA only. Extend it for media, placeholders and animation as those chunks land. |
 | M/F: permission completion | `input-mouse`, `font-query`, `font-set` | Mouse named exceptions and OSC 50 remain feature work. |

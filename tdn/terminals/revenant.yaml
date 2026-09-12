@@ -313,3 +313,26 @@ features:
     evidence:
     - kind: test
       url: https://github.com/toppk/revenant/blob/7421d5bd57a1756913cd486ed2daf86ffaeae748/tests/xvfb-box-glyphs.sh
+  text-braille-drawing:
+    status: supported
+    as-of: git:aefafe60bcdbbe7f239636a5387218574b7d2ffe
+    notes: U+2800-U+28FF are drawn as equal square dots in two columns of four, sized and spaced from the cell,
+      when the primary Xft face lacks the pattern, on the bitmap path, or under forceBoxChars; a cell too narrow
+      for a visible dot uses the font, and bold, inverse video, selection and the cursor color dots like text.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/aefafe60bcdbbe7f239636a5387218574b7d2ffe/tests/xvfb-box-glyphs.sh
+  text-powerline-drawing:
+    status: supported
+    as-of: git:aefafe60bcdbbe7f239636a5387218574b7d2ffe
+    notes: Only U+E0B0-U+E0BF (arrows, half circles, slants, their thin outlines and slash separators) are drawn
+      from the cell geometry, spanning the full cell height so segment colors join, under the box-drawing
+      font-first rule and forceBoxChars; U+E0A0-U+E0AF, U+E0C0 onward and other Nerd Font symbols stay with the
+      font.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/aefafe60bcdbbe7f239636a5387218574b7d2ffe/tests/xvfb-box-glyphs.sh
