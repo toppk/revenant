@@ -38,7 +38,7 @@ existing ID; its parent is complete only after all three.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| Selection | U1; U2 → U3 | U3 needs the U2 search model. |
+| Selection | U2 → U3 | U3 needs the U2 search model. |
 | Progress | N3 | Independent of desktop delivery; select the UI surface before coding. |
 | API-dependent | V3, F1, M1 | Public OSC hooks for V3/F1; effective mouse tracking API for M1. |
 | Graphics series | K1 → K2a limits → K2b temp files → K2c shared memory; K3/K4 after K1 | Keep resource limits, transport, placeholders and scheduling separate. |
@@ -97,15 +97,6 @@ conflicting ownership even within the same batch.
       TDN: `osc-9-4-progress`, `ui-progress-indicator`.
 
 ## U: Selection polish and search
-
-- [ ] **U1 — Copy-highlight flash.** Add duration/color resources, timer and
-      overlay triggered by successful user copy. Owner: selection/drawing.
-      Probe: `just probe selection-copy-feedback selection-copy` . No Ops family. Accept: exact
-      paste contents unchanged,
-      expiry, repeated copy, selection loss, redraw/resize, zero duration,
-      synchronized-output hold and widget teardown. Stop: no clipboard policy
-      changes or flash triggered by an application's OSC 52 write.
-      TDN: `selection-copy-feedback`.
 
 - [ ] **U2 — Search model and navigation.** Add bounded incremental search
       across logical scrollback lines, match ranges and next/previous APIs.

@@ -336,3 +336,15 @@ features:
     evidence:
     - kind: test
       url: https://github.com/toppk/revenant/blob/aefafe60bcdbbe7f239636a5387218574b7d2ffe/tests/xvfb-box-glyphs.sh
+  selection-copy-feedback:
+    status: supported
+    as-of: git:8fac827f73fa280d52ab317de672639e7efd258e
+    notes: copyFlashDuration (milliseconds, 0 disables and is the default) flashes the cells a selection gesture
+      just copied to PRIMARY or CLIPBOARD, on copyFlashColor or in their unselected colors; copied bytes are
+      unchanged, a new gesture, selection loss or an OSC 52 replacement ends it, OSC 52 writes never start it,
+      and synchronized-output holds never show it.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/8fac827f73fa280d52ab317de672639e7efd258e/tests/xvfb-copy-flash.sh
