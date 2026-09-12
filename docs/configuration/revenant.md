@@ -81,6 +81,16 @@ Revision 5 role, shaping, emoji, and general-fallback expansion applies only to
 `renderFont: true`; an existing xterm bitmap-font configuration may continue
 to use `renderFont: false` and the traditional bitmap resources unchanged.
 
+Both paths draw box-drawing (U+2500–U+257F) and block-element
+(U+2580–U+259F) characters from the cell geometry so that lines join across
+cells at any size, in bold, and under inverse video or selection. With Xft
+the primary face's own glyphs are used and the geometric drawing steps in
+only for characters the face lacks; the bitmap path always draws them.
+`forceBoxChars: true` (`+fbx`; `-fbx` turns it off, as in xterm) forces the geometric drawing for the whole
+range, the font menu's **Line-Drawing Characters** entry toggles it at
+runtime, and `set-font-linedrawing(on|off|toggle)` does the same from a
+key binding; turning it off returns to the font's glyphs at once.
+
 With Xft, name the face the fontconfig way and give sizes in points:
 
 ```xrdb
@@ -433,8 +443,8 @@ XTerm*vt100.translations: #override \n\
 Actions currently implemented include `insert-selection`, `select-end`,
 `set-select`, `scroll-back`, `scroll-forw`, `previous-prompt`, `next-prompt`,
 `pipe-command-output`, `insert-seven-bit`, `insert-eight-bit`,
-`larger-vt-font`, `smaller-vt-font`, `set-render-font`, and the popup
-actions. The report labels
+`larger-vt-font`, `smaller-vt-font`, `set-render-font`,
+`set-font-linedrawing`, and the popup actions. The report labels
 each action *supported* or *unsupported*.
 The [default VT bindings audit](../compatibility/default-bindings.md) accounts
 for every patch-411 group and records the remaining action-level gaps.

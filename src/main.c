@@ -1041,6 +1041,8 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_FONT_OPS, XtpVtAllowFontOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TCAP_OPS, XtpVtAllowTcapOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_MOUSE_OPS, XtpVtAllowMouseOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_FONT_LINEDRAWING,
+                           XtpVtForceBoxChars(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_KEY, XtpVtScrollKey(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SCROLL_TTY_OUTPUT,
                            XtpVtScrollTtyOutput(app->vt));
@@ -1191,6 +1193,10 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
         case XTP_MENU_ITEM_RENDER_FONT:
                 if (!XtpVtSetRenderFont(app->vt, !XtpVtUsingXft(app->vt)))
                         XBell(app->display, 0);
+                return;
+        case XTP_MENU_ITEM_FONT_LINEDRAWING:
+                XtpVtSetForceBoxChars(app->vt, !XtpVtForceBoxChars(app->vt));
+                XtpMenusSetChecked(&app->menus, menu_item, XtpVtForceBoxChars(app->vt));
                 return;
         case XTP_MENU_ITEM_FONT_DEFAULT:
                 SelectFont(app, 0);
@@ -1486,6 +1492,8 @@ WireApplication(App *app, const AppResources *resources)
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_FONT_OPS, XtpVtAllowFontOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TCAP_OPS, XtpVtAllowTcapOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_MOUSE_OPS, XtpVtAllowMouseOps(app->vt));
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_FONT_LINEDRAWING,
+                           XtpVtForceBoxChars(app->vt));
         XtpMenusSetScrollbar(&app->menus, XtpVtScrollbarVisible(app->vt));
         XtpMenusSetRenderFont(&app->menus, XtpVtUsingXft(app->vt), XtpVtXftAvailable(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_SELECT_TO_CLIPBOARD,

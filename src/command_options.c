@@ -52,6 +52,8 @@ XrmOptionDescRec XtpCommandOptions[] = {
     {"+bc", "*vt100.cursorBlink", XrmoptionNoArg, (XPointer) "false"},
     {"-uc", "*vt100.cursorUnderLine", XrmoptionNoArg, (XPointer) "true"},
     {"+uc", "*vt100.cursorUnderLine", XrmoptionNoArg, (XPointer) "false"},
+    {"-fbx", "*vt100.forceBoxChars", XrmoptionNoArg, (XPointer) "false"},
+    {"+fbx", "*vt100.forceBoxChars", XrmoptionNoArg, (XPointer) "true"},
     {"-barc", "*vt100.cursorBar", XrmoptionNoArg, (XPointer) "true"},
     {"+barc", "*vt100.cursorBar", XrmoptionNoArg, (XPointer) "false"},
     {"-bcf", "*vt100.cursorOffTime", XrmoptionSepArg, NULL},

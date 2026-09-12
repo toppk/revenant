@@ -33,7 +33,6 @@ remove a row when its chunk is completed, preserving the feature IDs and evidenc
 | S4 | Optional clear-to-prompt | [ui-clear-to-prompt](https://toppk.github.io/revenant/tdn/features/ui-clear-to-prompt/) |
 | N2 | Optional desktop notification adapter | [notification-desktop-delivery](https://toppk.github.io/revenant/tdn/features/notification-desktop-delivery/) |
 | N3 | Progress display | [osc-9-4-progress](https://toppk.github.io/revenant/tdn/features/osc-9-4-progress/), [ui-progress-indicator](https://toppk.github.io/revenant/tdn/features/ui-progress-indicator/) |
-| G1 | Box and block glyphs | [text-box-drawing](https://toppk.github.io/revenant/tdn/features/text-box-drawing/), [text-block-drawing](https://toppk.github.io/revenant/tdn/features/text-block-drawing/), [resource-force-box-chars](https://toppk.github.io/revenant/tdn/features/resource-force-box-chars/) |
 | G2 | Braille and Powerline | [text-braille-drawing](https://toppk.github.io/revenant/tdn/features/text-braille-drawing/), [text-powerline-drawing](https://toppk.github.io/revenant/tdn/features/text-powerline-drawing/) |
 | U1 | Copy-highlight flash | [selection-copy-feedback](https://toppk.github.io/revenant/tdn/features/selection-copy-feedback/) |
 | U2 | Search model and navigation | [search-scrollback-literal](https://toppk.github.io/revenant/tdn/features/search-scrollback-literal/) |

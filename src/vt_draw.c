@@ -1,5 +1,7 @@
 #include "vt_widgetP.h"
 
+#include "box_glyphs.h"
+
 #include "font_metrics.h"
 #include "font_router.h"
 #include "font_role.h"
@@ -290,10 +292,13 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
                                      ? visual.foreground
                                      : RenderOpaqueColor(vt, cell->underline_color, True);
         if (drawable) {
+                Boolean procedural =
+                    !vt->vt.use_xft && XtpBoxGlyphText(cell->utf8, cell->utf8_length, NULL);
+
                 for (index = 0; index < cell->utf8_length; ++index) {
                         unsigned char byte = (unsigned char)cell->utf8[index];
 
-                        if (byte < 0x20U || (!vt->vt.use_xft && byte >= 0x7fU)) {
+                        if (byte < 0x20U || (!vt->vt.use_xft && !procedural && byte >= 0x7fU)) {
                                 drawable = False;
                                 break;
                         }
@@ -538,6 +543,123 @@ DrawText(Vt100Rec *vt, Pixel pixel, int x, int baseline, const char *text, size_
                         vt->vt.font_universe->color_glyphs, NULL, NULL);
 }
 
+static Pixmap
+BoxShadeStipple(Vt100Rec *vt, XtpBoxShade shade)
+{
+        static const char patterns[3][2] = {{0x01, 0x00}, {0x01, 0x02}, {0x03, 0x02}};
+        Widget widget = (Widget)vt;
+        size_t index = (size_t)shade - 1U;
+
+        if (shade == XTP_BOX_SHADE_NONE || index >= XtNumber(vt->vt.box_stipples))
+                return None;
+        if (vt->vt.box_stipples[index] == None)
+                vt->vt.box_stipples[index] = XCreateBitmapFromData(
+                    XtDisplay(widget), XtWindow(widget), patterns[index], 2, 2);
+        return vt->vt.box_stipples[index];
+}
+
+void
+VtReleaseBoxStipples(Vt100Rec *vt)
+{
+        size_t index;
+
+        for (index = 0; index < XtNumber(vt->vt.box_stipples); ++index) {
+                if (vt->vt.box_stipples[index] != None)
+                        XFreePixmap(XtDisplay((Widget)vt), vt->vt.box_stipples[index]);
+                vt->vt.box_stipples[index] = None;
+        }
+}
+
+static Boolean
+ProceduralBoxGlyph(Vt100Rec *vt, const char *text, size_t length, Boolean bold, Boolean italic,
+                   uint32_t *codepoint)
+{
+        XftFont *font;
+
+        if (!XtpBoxGlyphText(text, length, codepoint))
+                return False;
+        if (vt->vt.force_box_chars || !vt->vt.use_xft)
+                return True;
+        font = VtFontRoleStyle(vt, XTP_FONT_ROLE_PRIMARY, vt->vt.current_font, bold, italic);
+        return font == NULL || !XftCharExists(XtDisplay((Widget)vt), font, *codepoint);
+}
+
+static Boolean
+PlanBoxGlyph(Vt100Rec *vt, const char *text, size_t length, Boolean bold, Boolean italic,
+             const XRectangle *area, XtpBoxGlyph *glyph, uint32_t *codepoint)
+{
+        if (!ProceduralBoxGlyph(vt, text, length, bold, italic, codepoint))
+                return False;
+        if (XtpBoxGlyphPlan(*codepoint, area->width, area->height, bold, glyph))
+                return True;
+        XtpLog(XTP_LOG_WARNING, "font", "box glyph U+%04X plan failed at %ux%u; using the font",
+               *codepoint, (unsigned int)area->width, (unsigned int)area->height);
+        return False;
+}
+
+static void
+PaintBoxGlyphInk(Vt100Rec *vt, Pixel foreground, const XRectangle *area, XtpBoxGlyph *glyph)
+{
+        Widget widget = (Widget)vt;
+        Display *display = XtDisplay(widget);
+        Drawable drawable = XtWindow(widget);
+        size_t index;
+
+        XSetForeground(display, vt->vt.gc, foreground);
+        for (index = 0; index < glyph->count; index += 1024U) {
+                XRectangle rects[1024];
+                size_t batch = glyph->count - index < 1024U ? glyph->count - index : 1024U;
+                size_t slot;
+
+                for (slot = 0; slot < batch; ++slot) {
+                        const XtpBoxRect *rect = &glyph->rects[index + slot];
+
+                        rects[slot].x = (short)(area->x + (int)rect->x);
+                        rects[slot].y = (short)(area->y + (int)rect->y);
+                        rects[slot].width = (unsigned short)rect->width;
+                        rects[slot].height = (unsigned short)rect->height;
+                }
+                XFillRectangles(display, drawable, vt->vt.gc, rects, (int)batch);
+        }
+        if (glyph->shade != XTP_BOX_SHADE_NONE) {
+                Pixmap stipple = BoxShadeStipple(vt, glyph->shade);
+
+                if (stipple != None) {
+                        XSetStipple(display, vt->vt.gc, stipple);
+                        XSetFillStyle(display, vt->vt.gc, FillStippled);
+                        XFillRectangle(display, drawable, vt->vt.gc, area->x, area->y, area->width,
+                                       area->height);
+                        XSetFillStyle(display, vt->vt.gc, FillSolid);
+                }
+        }
+}
+
+static void
+PaintBoxGlyph(Vt100Rec *vt, const VisualCell *style, const XRectangle *area, XtpBoxGlyph *glyph)
+{
+        Widget widget = (Widget)vt;
+        Display *display = XtDisplay(widget);
+
+        if (!SetTextClip(vt, area, NULL)) {
+                XtpBoxGlyphFree(glyph);
+                return;
+        }
+        if (vt->vt.use_xft && VtFontEnsureXftDraw(vt)) {
+                XftColor background = CachedXftColor(vt, style->background);
+
+                XRenderFillRectangle(display, PictOpSrc, XftDrawPicture(vt->vt.font_universe->draw),
+                                     &background.color, area->x, area->y, area->width,
+                                     area->height);
+        } else {
+                XSetForeground(display, vt->vt.gc, style->background);
+                XFillRectangle(display, XtWindow(widget), vt->vt.gc, area->x, area->y, area->width,
+                               area->height);
+        }
+        PaintBoxGlyphInk(vt, style->foreground, area, glyph);
+        XtpBoxGlyphFree(glyph);
+        ClearTextClip(vt);
+}
+
 static void
 DrawDeterministicTofu(Vt100Rec *vt, Pixel foreground, const XRectangle *area)
 {
@@ -755,7 +877,21 @@ DrawVisualCell(Vt100Rec *vt, const VisualCell *cell, unsigned int column, unsign
                 uint32_t base = 0;
                 XtpEmojiStyle style = XTP_EMOJI_STYLE_NONE;
                 XtpGlyphRun run = {0};
+                XtpBoxGlyph box = {0};
 
+                if (PlanBoxGlyph(vt, cell->text, cell->text_length, cell->bold, cell->italic, &area,
+                                 &box, &base)) {
+                        PaintBoxGlyph(vt, cell, &area, &box);
+                        if (XtpLogEnabled(XTP_LOG_DEBUG))
+                                XtpLog(XTP_LOG_DEBUG, "font",
+                                       "route base=U+%04X width=%u presentation=none role=box "
+                                       "glyphs=0 file=(procedural) index=0 bold=%s italic=%s "
+                                       "slant=none positioned=false",
+                                       base, columns, cell->bold ? "true" : "false",
+                                       cell->italic ? "true" : "false");
+                        DrawDecorations(vt, cell, &area);
+                        return;
+                }
                 if (cell->text_length != 0)
                         image[0] = cell->text[0];
                 if (vt->vt.use_xft)
@@ -796,7 +932,8 @@ ComplexTextCell(Vt100Rec *vt, const VisualCell *cell)
 {
         XtpEmojiClusterStyle cluster;
 
-        if (cell == NULL || cell->width == 0 || cell->text_length <= 1)
+        if (cell == NULL || cell->width == 0 || cell->text_length <= 1 ||
+            XtpBoxGlyphText(cell->text, cell->text_length, NULL))
                 return False;
         cluster = XtpEmojiResolveClusterStyle(cell->text, cell->text_length,
                                               vt->vt.font_universe->emoji_presentation);
@@ -1061,6 +1198,9 @@ VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int ro
                 unsigned int width = VtSlotWidth(vt, vt->vt.current_font);
                 unsigned int height = VtSlotHeight(vt, vt->vt.current_font);
                 XRectangle area;
+                XRectangle glyph_area;
+                XtpBoxGlyph box = {0};
+                uint32_t box_codepoint = 0;
                 int x = VtTerminalX(vt) + (int)column * (int)width;
                 int y = (int)vt->vt.internal_border + (int)row * (int)height;
 
@@ -1068,6 +1208,7 @@ VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int ro
                 area.y = (short)y;
                 area.width = (unsigned short)width;
                 area.height = (unsigned short)height;
+                glyph_area = area;
                 if (!SetTextClip(vt, &area, NULL))
                         return;
                 if (shape == XTP_CURSOR_SHAPE_BLOCK &&
@@ -1075,8 +1216,14 @@ VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int ro
                         XSetForeground(XtDisplay(widget), vt->vt.gc, vt->vt.cursor_fill);
                         XFillRectangle(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x, y, width,
                                        height);
-                        if (vt->vt.cursor_text_length != 0) {
-                                XRectangle glyph_area = area;
+                        glyph_area.width = (unsigned short)(vt->vt.cursor_width * width);
+                        if (vt->vt.cursor_text_length != 0 &&
+                            PlanBoxGlyph(vt, vt->vt.cursor_text, vt->vt.cursor_text_length,
+                                         vt->vt.cursor_bold, vt->vt.cursor_italic, &glyph_area,
+                                         &box, &box_codepoint)) {
+                                PaintBoxGlyphInk(vt, vt->vt.cursor_text_color, &glyph_area, &box);
+                                XtpBoxGlyphFree(&box);
+                        } else if (vt->vt.cursor_text_length != 0) {
                                 uint32_t base = 0;
                                 XtpEmojiStyle style = XTP_EMOJI_STYLE_NONE;
                                 XtpGlyphRun run = {0};
@@ -1088,7 +1235,6 @@ VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int ro
                                               vt->vt.cursor_italic, NULL, &base, &style, &run)
                                         : NULL;
 
-                                glyph_area.width = (unsigned short)(vt->vt.cursor_width * width);
                                 DrawTextClipped(vt, vt->vt.cursor_text_color, x,
                                                 y + VtSlotAscent(vt, vt->vt.current_font),
                                                 vt->vt.cursor_text, vt->vt.cursor_text_length,

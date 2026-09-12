@@ -1,5 +1,6 @@
 #include "selftest.h"
 
+#include "box_glyphs.h"
 #include "char_class.h"
 #include "cursor_blink.h"
 #include "device_attributes.h"
@@ -4791,6 +4792,307 @@ done:
         return result;
 }
 
+typedef struct
+{
+        unsigned int width;
+        unsigned int height;
+} BoxSize;
+
+static Boolean
+BoxMask(uint32_t codepoint, BoxSize size, Boolean bold, uint8_t *mask, XtpBoxGlyph *glyph_out)
+{
+        XtpBoxGlyph glyph = {0};
+
+        if (!XtpBoxGlyphPlan(codepoint, size.width, size.height, bold, &glyph))
+                return False;
+        XtpBoxGlyphRasterize(&glyph, size.width, size.height, mask);
+        if (glyph_out != NULL)
+                *glyph_out = glyph;
+        else
+                XtpBoxGlyphFree(&glyph);
+        return True;
+}
+
+static unsigned int
+BoxInk(const uint8_t *mask, BoxSize size)
+{
+        unsigned int total = 0;
+        unsigned int index;
+
+        for (index = 0; index < size.width * size.height; ++index)
+                total += mask[index];
+        return total;
+}
+
+static Boolean
+BoxSameColumns(const uint8_t *mask, BoxSize size, unsigned int left, unsigned int right)
+{
+        unsigned int y;
+
+        for (y = 0; y < size.height; ++y)
+                if (mask[y * size.width + left] != mask[y * size.width + right])
+                        return False;
+        return True;
+}
+
+static Boolean
+BoxSameRows(const uint8_t *mask, BoxSize size, unsigned int top, unsigned int bottom)
+{
+        return memcmp(mask + top * size.width, mask + bottom * size.width, size.width) == 0;
+}
+
+static Boolean
+BoxPartition(const uint8_t *left, const uint8_t *right, BoxSize size)
+{
+        unsigned int index;
+
+        for (index = 0; index < size.width * size.height; ++index)
+                if (left[index] + right[index] != 1)
+                        return False;
+        return True;
+}
+
+static int
+SelfTestBoxGlyphs(void)
+{
+        static const BoxSize sizes[] = {{6, 13},  {9, 19}, {10, 20},  {7, 14},
+                                        {24, 48}, {5, 8},  {24, 170}, {1030, 1100}};
+        static const uint32_t partitions[][2] = {
+            {0x2580U, 0x2584U}, {0x258CU, 0x2590U}, {0x2598U, 0x259FU}, {0x259DU, 0x2599U},
+            {0x2596U, 0x259CU}, {0x2597U, 0x259BU}, {0x259AU, 0x259EU}};
+        uint8_t *a = malloc(1030U * 1100U);
+        uint8_t *b = malloc(1030U * 1100U);
+        uint8_t *c = malloc(1030U * 1100U);
+        uint32_t codepoint = 0;
+        size_t size_index;
+        unsigned int x;
+        unsigned int y;
+        XtpBoxGlyph glyph = {0};
+        int result = -1;
+
+        if (a == NULL || b == NULL || c == NULL)
+                goto done;
+        if (XtpBoxGlyphCodepoint(0x24FFU) || !XtpBoxGlyphCodepoint(0x2500U) ||
+            !XtpBoxGlyphCodepoint(0x259FU) || XtpBoxGlyphCodepoint(0x25A0U) ||
+            !XtpBoxGlyphText("\xe2\x94\x80", 3, &codepoint) || codepoint != 0x2500U ||
+            XtpBoxGlyphText("\xe2\x94\x80\xcc\x81", 5, NULL) || XtpBoxGlyphText("a", 1, NULL) ||
+            XtpBoxGlyphText("\xe2\x94", 2, NULL) || XtpBoxGlyphText("", 0, NULL) ||
+            XtpBoxGlyphPlan(0x2500U, 0, 13, false, &glyph) ||
+            XtpBoxGlyphPlan(0x25A0U, 9, 19, false, &glyph))
+                goto done;
+        if (XtpBoxGlyphThickness(6, 13, false) != 1 || XtpBoxGlyphThickness(6, 13, true) != 2 ||
+            XtpBoxGlyphThickness(24, 48, false) != 3 || XtpBoxGlyphThickness(24, 48, true) != 4 ||
+            XtpBoxGlyphThickness(24, 170, false) != 3 || XtpBoxGlyphThickness(9, 170, false) != 1)
+                goto done;
+        for (size_index = 0; size_index < XtNumber(sizes); ++size_index) {
+                BoxSize size = sizes[size_index];
+                unsigned int thickness = XtpBoxGlyphThickness(size.width, size.height, false);
+                unsigned int band0 = (size.height - thickness) / 2U;
+                unsigned int index;
+                size_t rect;
+
+                /* Every glyph plans, stays inside the cell and is not blank. */
+                for (codepoint = 0x2500U; codepoint <= 0x259FU; ++codepoint) {
+                        if (!BoxMask(codepoint, size, False, a, &glyph) || BoxInk(a, size) == 0)
+                                goto done;
+                        for (rect = 0; rect < glyph.count; ++rect) {
+                                if (glyph.rects[rect].x + glyph.rects[rect].width > size.width ||
+                                    glyph.rects[rect].y + glyph.rects[rect].height > size.height)
+                                        goto done;
+                        }
+                        if ((glyph.shade != XTP_BOX_SHADE_NONE) !=
+                            (codepoint >= 0x2591U && codepoint <= 0x2593U))
+                                goto done;
+                        XtpBoxGlyphFree(&glyph);
+                }
+                /* Light horizontal: one full-width band of the light thickness. */
+                if (!BoxMask(0x2500U, size, False, a, NULL))
+                        goto done;
+                for (y = 0; y < size.height; ++y)
+                        for (x = 0; x < size.width; ++x)
+                                if (a[y * size.width + x] !=
+                                    (y >= band0 && y < band0 + thickness ? 1U : 0U))
+                                        goto done;
+                if (!BoxSameColumns(a, size, 0, size.width - 1U))
+                        goto done;
+                /* Light vertical: the same rule turned, joining top to bottom. */
+                if (!BoxMask(0x2502U, size, False, b, NULL) ||
+                    !BoxSameRows(b, size, 0, size.height - 1U) ||
+                    BoxInk(b, size) != thickness * size.height)
+                        goto done;
+                /* Cross is exactly the union; corners and tees are subsets that reach the edges. */
+                if (!BoxMask(0x253CU, size, False, c, NULL))
+                        goto done;
+                for (index = 0; index < size.width * size.height; ++index)
+                        if (c[index] != (a[index] | b[index]))
+                                goto done;
+                {
+                        static const uint32_t joins[] = {0x250CU, 0x2510U, 0x2514U, 0x2518U,
+                                                         0x251CU, 0x2524U, 0x252CU, 0x2534U};
+                        size_t join;
+
+                        for (join = 0; join < XtNumber(joins); ++join) {
+                                Boolean right = joins[join] == 0x250CU || joins[join] == 0x2514U ||
+                                                joins[join] == 0x251CU || joins[join] == 0x252CU ||
+                                                joins[join] == 0x2534U;
+                                Boolean left = joins[join] == 0x2510U || joins[join] == 0x2518U ||
+                                               joins[join] == 0x2524U || joins[join] == 0x252CU ||
+                                               joins[join] == 0x2534U;
+                                Boolean down = joins[join] == 0x250CU || joins[join] == 0x2510U ||
+                                               joins[join] == 0x251CU || joins[join] == 0x2524U ||
+                                               joins[join] == 0x252CU;
+                                Boolean up = joins[join] == 0x2514U || joins[join] == 0x2518U ||
+                                             joins[join] == 0x251CU || joins[join] == 0x2524U ||
+                                             joins[join] == 0x2534U;
+
+                                if (!BoxMask(joins[join], size, False, c, NULL))
+                                        goto done;
+                                for (index = 0; index < size.width * size.height; ++index)
+                                        if (c[index] && !(a[index] | b[index]))
+                                                goto done;
+                                if (BoxSameColumns(c, size, size.width - 1U, size.width - 1U) &&
+                                    (right != (c[band0 * size.width + size.width - 1U] != 0) ||
+                                     left != (c[band0 * size.width] != 0)))
+                                        goto done;
+                                if (down != (c[(size.height - 1U) * size.width +
+                                               (size.width - thickness) / 2U] != 0) ||
+                                    up != (c[(size.width - thickness) / 2U] != 0))
+                                        goto done;
+                        }
+                }
+                /* Heavy is a thicker centered band containing the light one. */
+                if (!BoxMask(0x2501U, size, False, c, NULL) ||
+                    BoxInk(c, size) != 2U * thickness * size.width ||
+                    !BoxSameColumns(c, size, 0, size.width - 1U))
+                        goto done;
+                for (index = 0; index < size.width * size.height; ++index)
+                        if (a[index] && !c[index])
+                                goto done;
+                /* Bold adds one pixel of thickness. */
+                if (!BoxMask(0x2500U, size, True, c, NULL) ||
+                    BoxInk(c, size) != (thickness + 1U) * size.width)
+                        goto done;
+                /* Double lines: two bands with a gap, joining a double corner exactly. */
+                if (size.height >= 13) {
+                        unsigned int rows = 0;
+
+                        if (!BoxMask(0x2550U, size, False, a, NULL) ||
+                            !BoxSameColumns(a, size, 0, size.width - 1U))
+                                goto done;
+                        for (y = 0; y < size.height; ++y)
+                                rows += a[y * size.width];
+                        if (rows != 2U * thickness ||
+                            a[((size.height - 3U * thickness) / 2U + thickness) * size.width] != 0)
+                                goto done;
+                        if (!BoxMask(0x2554U, size, False, b, NULL) ||
+                            !BoxMask(0x2551U, size, False, c, NULL))
+                                goto done;
+                        for (y = 0; y < size.height; ++y)
+                                if (b[y * size.width + size.width - 1U] != a[y * size.width])
+                                        goto done;
+                        if (memcmp(b + (size.height - 1U) * size.width, c, size.width) != 0)
+                                goto done;
+                        /* A single line crosses a double pair without a gap. */
+                        if (!BoxMask(0x256AU, size, False, b, NULL) ||
+                            !BoxMask(0x2502U, size, False, c, NULL))
+                                goto done;
+                        for (index = 0; index < size.width * size.height; ++index)
+                                if (c[index] && !b[index])
+                                        goto done;
+                }
+                /* Blocks partition the cell, eighths grow monotonically, full block fills. */
+                if (!BoxMask(0x2588U, size, False, a, NULL) ||
+                    BoxInk(a, size) != size.width * size.height)
+                        goto done;
+                for (index = 0; index < XtNumber(partitions); ++index) {
+                        if (!BoxMask(partitions[index][0], size, False, b, NULL) ||
+                            !BoxMask(partitions[index][1], size, False, c, NULL) ||
+                            !BoxPartition(b, c, size))
+                                goto done;
+                }
+                if (size.height >= 8 && size.width >= 8) {
+                        unsigned int previous = 0;
+
+                        for (codepoint = 0x2581U; codepoint <= 0x2588U; ++codepoint) {
+                                unsigned int ink;
+
+                                if (!BoxMask(codepoint, size, False, b, NULL))
+                                        goto done;
+                                ink = BoxInk(b, size);
+                                if (ink <= previous || ink % size.width != 0 ||
+                                    b[(size.height - 1U) * size.width] == 0)
+                                        goto done;
+                                previous = ink;
+                        }
+                        previous = size.width * size.height + 1U;
+                        for (codepoint = 0x2589U; codepoint <= 0x258FU; ++codepoint) {
+                                unsigned int ink;
+
+                                if (!BoxMask(codepoint, size, False, b, NULL))
+                                        goto done;
+                                ink = BoxInk(b, size);
+                                if (ink >= previous || ink % size.height != 0 || b[0] == 0)
+                                        goto done;
+                                previous = ink;
+                        }
+                }
+                /* Shades approximate one, two and three quarters. */
+                for (codepoint = 0x2591U; codepoint <= 0x2593U; ++codepoint) {
+                        unsigned int ink;
+                        unsigned int expected;
+
+                        if (!BoxMask(codepoint, size, False, b, &glyph) || glyph.count != 0)
+                                goto done;
+                        XtpBoxGlyphFree(&glyph);
+                        ink = BoxInk(b, size);
+                        expected = size.width * size.height * (codepoint - 0x2590U) / 4U;
+                        if (ink + size.width + size.height < expected ||
+                            ink > expected + size.width + size.height)
+                                goto done;
+                }
+                /* Dashes keep the light band but leave gaps; vertical dashes likewise. */
+                if (!BoxMask(0x2504U, size, False, b, NULL) || BoxInk(b, size) == 0 ||
+                    BoxInk(b, size) >= thickness * size.width)
+                        goto done;
+                for (y = 0; y < size.height; ++y)
+                        if ((y < band0 || y >= band0 + thickness) && b[y * size.width] != 0)
+                                goto done;
+                if (!BoxMask(0x250AU, size, False, b, NULL) || BoxInk(b, size) == 0 ||
+                    BoxInk(b, size) >= thickness * size.height)
+                        goto done;
+                /* Arcs reach their two edges and leave the opposite corner empty. */
+                if (!BoxMask(0x256DU, size, False, b, NULL) ||
+                    b[(size.height - 1U) * size.width + (size.width - thickness) / 2U] == 0 ||
+                    b[band0 * size.width + size.width - 1U] == 0 || b[0] != 0 ||
+                    b[size.width - 1U] != 0 || b[(size.height - 1U) * size.width] != 0)
+                        goto done;
+                if (!BoxMask(0x2570U, size, False, b, NULL) ||
+                    b[(size.width - thickness) / 2U] == 0 ||
+                    b[band0 * size.width + size.width - 1U] == 0 ||
+                    b[size.height * size.width - 1U] != 0)
+                        goto done;
+                /* Diagonals run corner to corner; the cross is their union. */
+                if (!BoxMask(0x2572U, size, False, a, NULL) || a[0] == 0 ||
+                    a[size.height * size.width - 1U] == 0 || a[size.width - 1U] != 0)
+                        goto done;
+                if (!BoxMask(0x2571U, size, False, b, NULL) || b[size.width - 1U] == 0 ||
+                    b[(size.height - 1U) * size.width] == 0 || b[0] != 0)
+                        goto done;
+                if (!BoxMask(0x2573U, size, False, c, NULL))
+                        goto done;
+                for (index = 0; index < size.width * size.height; ++index)
+                        if (c[index] != (a[index] | b[index]))
+                                goto done;
+        }
+        result = 0;
+done:
+        XtpBoxGlyphFree(&glyph);
+        free(a);
+        free(b);
+        free(c);
+        return result;
+}
+
 typedef int (*SelfTestCaseFn)(void);
 
 typedef struct
@@ -4824,6 +5126,7 @@ XtpSelfTest(void)
             {"window-ops policy", SelfTestWindowOps},
             {"title stack", SelfTestTitleStack},
             {"emoji-presentation", SelfTestEmojiPresentation},
+            {"box-glyphs", SelfTestBoxGlyphs},
             {"Unicode Script=Han", SelfTestUnicodeScript},
             {"font-chain", SelfTestFontChain},
             {"font-metrics", SelfTestFontMetrics},

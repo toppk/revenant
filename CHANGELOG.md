@@ -10,6 +10,21 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Draw box-drawing and block-element characters from the cell geometry.
+  U+2500 through U+259F are rasterized as exact rectangles inside their own
+  cell, so lines, corners, tees, double lines, dashes, arcs, diagonals,
+  half and eighth blocks, quadrants and shades join pixel-for-pixel with
+  their neighbors at every font size, in bold, under inverse video and
+  selection, and never spill into the next cell. With Xft the primary face
+  keeps its own glyphs and the procedural drawing is used only for
+  characters the face lacks; the bitmap path, which previously showed `?`,
+  always draws them. The new `forceBoxChars` resource (`+fbx` on, `-fbx` off), the
+  font menu's Line-Drawing Characters entry, and the `set-font-linedrawing()`
+  action force the procedural drawing for the whole range, and switching
+  it off returns to the font's glyphs immediately. Every key is now decided
+  one event-loop tick after Xt dispatches it, so a key bound to any local
+  action, not only the default prompt gestures, is kept from the
+  application together with its release.
 - Pipe the last command's output to a helper. The new `pipeCommandOutput`
   resource names a shell command, unset by default, and the new
   `pipe-command-output()` action (Ctrl+Shift+G) finds the most recently

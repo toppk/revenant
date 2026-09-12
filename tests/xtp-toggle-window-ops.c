@@ -56,8 +56,10 @@ main(int argc, char **argv)
 
         if (argc < 2 || argc > 3 ||
             (argc == 3 && strcmp(argv[2], "title") != 0 && strcmp(argv[2], "color") != 0 &&
-             strcmp(argv[2], "mouse") != 0 && strcmp(argv[2], "tcap") != 0)) {
-                fprintf(stderr, "usage: %s SHELL-WINDOW [title|color|mouse|tcap]\n", argv[0]);
+             strcmp(argv[2], "mouse") != 0 && strcmp(argv[2], "tcap") != 0 &&
+             strcmp(argv[2], "linedrawing") != 0)) {
+                fprintf(stderr, "usage: %s SHELL-WINDOW [title|color|mouse|tcap|linedrawing]\n",
+                        argv[0]);
                 return EXIT_FAILURE;
         }
         errno = 0;
@@ -110,18 +112,26 @@ main(int argc, char **argv)
         event.xmotion.window = menu;
         event.xmotion.x = attrs.width / 2;
         event.xmotion.y = attrs.height - 5;
-        /* The policy fixtures pin the menu to fixed with vertSpace=0.
-         * Title/Tcap/Mouse/Color Ops sit 1/2/3/5 rows above Window Ops. */
+        /* Menu font is fixed with vertSpace 0; count rows and separators up from Window Ops. */
         if (argc == 3) {
                 XFontStruct *font = XLoadQueryFont(display, "fixed");
+                int row_height;
+                int separator_height;
+                int rows = strcmp(argv[2], "linedrawing") == 0 ? 13
+                           : strcmp(argv[2], "color") == 0     ? 5
+                           : strcmp(argv[2], "mouse") == 0     ? 3
+                           : strcmp(argv[2], "tcap") == 0      ? 2
+                                                               : 1;
 
                 if (font == NULL)
                         return EXIT_FAILURE;
-                event.xmotion.y -=
-                    (font->ascent + font->descent) * (strcmp(argv[2], "color") == 0   ? 5
-                                                      : strcmp(argv[2], "mouse") == 0 ? 3
-                                                      : strcmp(argv[2], "tcap") == 0  ? 2
-                                                                                      : 1);
+                row_height = font->ascent + font->descent;
+                separator_height = ((int)attrs.height - 25 * row_height) / 3;
+                if (separator_height < 0)
+                        separator_height = 0;
+                event.xmotion.y -= row_height * rows;
+                if (rows == 13)
+                        event.xmotion.y -= 2 * separator_height;
                 XFreeFont(display, font);
         }
         event.xmotion.x_root = attrs.x + event.xmotion.x;

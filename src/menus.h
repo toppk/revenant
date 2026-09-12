@@ -41,6 +41,7 @@ typedef enum
         XTP_MENU_ITEM_FONT_5,
         XTP_MENU_ITEM_FONT_6,
         XTP_MENU_ITEM_FONT_7,
+        XTP_MENU_ITEM_FONT_LINEDRAWING,
         XTP_MENU_ITEM_RENDER_FONT,
 } XtpMenuItem;
 

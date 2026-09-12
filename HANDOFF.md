@@ -532,7 +532,7 @@ function-pointer helper would lose the useful type check.
 - Pipe command output: the application resource `pipeCommandOutput`
   (unset by default) names a shell command; the widget's
   `pipe-command-output()` action, bound to `Ctrl Shift <KeyPress> g` and
-  decided through the same deferred-gesture path as the prompt keys, only
+  decided through the same deferred key path as the prompt keys, only
   fires the `XtNpipeOutputCallback`. Completion comes from OSC 133 D: the
   feed observer accounts each OSC 133 across feed boundaries the way the
   OSC 7 path does, counting only bytes at or above 0x20 because the core
@@ -589,6 +589,58 @@ function-pointer helper would lose the useful type check.
   whole and split across feeds, NULs interleaved at that boundary, a D
   split across feeds inside its terminator, BEL and ST terminators, and
   the alternate screen.
+- Box and block glyphs: `src/box_glyphs.c` turns one U+2500–U+259F code
+  point plus a cell size and the bold flag into a list of rectangles and a
+  shade level, with no X dependency. Line thickness is `height / 16`, capped
+  at `width / 8` for tall narrow cells, at least one pixel and one more when
+  bold; heavy is twice light; double
+  lines are two light strips a strip apart. Every arm is a band centered
+  with `(size - thickness) / 2`, so a band depends only on the cell size
+  and thickness and joins the neighbor's band exactly; arms run from the
+  cell edge through the junction strip of the perpendicular arms, and the
+  double-line rules give the outer strip the far stop and the inner strip
+  the near stop so double corners, tees and crosses meet cleanly. Dashes
+  leave a gap at each cell edge, arcs and diagonals are rasterized per
+  row, and shades are 2×2 stipples (one, two or three pixels of four)
+  drawn with `FillStippled` from lazily created bitmaps that `Destroy`
+  frees. `vt_draw.c` decides per cell in `ProceduralBoxGlyph`: procedural
+  when `forceBoxChars` is set, always on the bitmap path (whose
+  `MakeVisualCell` now keeps these code points instead of `?`), and on the
+  Xft path when the primary face for the cell's bold/italic style lacks the
+  character (`XftCharExists`), so a fallback face never draws a box glyph
+  with foreign metrics. A box cell is never grouped for shaping. The cell
+  is painted as background fill plus `XFillRectangles` on the widget GC
+  under the same clip as text, using the `VisualCell` colors, so inverse,
+  selection, faint and default-background opacity behave exactly as for
+  text; the block cursor draws the glyph in the cursor text color over
+  the fill, and decorations (underline, strikethrough) are unchanged. The
+  route log line says `role=box file=(procedural)`. `XtpVtSetForceBoxChars`
+  invalidates the frame and redraws, logging `box glyphs font-first ->
+  forced` (or back); the font menu's `font-linedrawing` entry is an active
+  checked item, `set-font-linedrawing(on|off|toggle)` is an action with
+  its own `LocalKeyAction` identity so a bound key and its release never
+  reach the child, and `+fbx`/`-fbx` set the resource with xterm's
+  polarity (plus turns it on). Plans allocate their rectangle list on the
+  heap, so arcs and diagonals stay complete at any cell size; if an
+  allocation fails the cell falls back to the font glyph with a warning. Braille and Powerline are deliberately
+  not in the range; G2 should add planners to the same module and extend
+  `XtpBoxGlyphCodepoint`. The `box-glyphs` self-test checks every code
+  point at six cell sizes for staying inside the cell, the light band
+  geometry and column/row identity across cells, cross = union of the two
+  lines, corner and tee arms reaching the correct edges, heavy containing
+  light, bold thickness, double-line strip count and corner continuity,
+  a single line crossing a double pair without a gap, block partitions
+  (upper/lower, left/right, quadrant complements), monotone eighths,
+  shade densities, dash gaps, arc endpoints and diagonal corners.
+  `xvfb-box-glyphs` samples pixels under Xft (menu toggle on, then a
+  selection, then toggle off), under `+fbx` at 24 points, and under the
+  bitmap path: one continuous band across two cells with the expected
+  bounds, a full block, an empty neighbor, half blocks in normal, inverse
+  and selected colors, bold and double thickness, and shade densities.
+  `xtp-toggle-window-ops WINDOW linedrawing` picks the entry by counting
+  rows and separators from the bottom of the font menu. A final case binds
+  F12 to `set-font-linedrawing(toggle)` with a raw child reporting Kitty
+  releases and checks two toggles, four owned events and no bytes.
 - Prompt navigation: the adapter keeps an index of OSC 133 prompt starts as
   libghostty tracked grid references. The feed observer already delimits
   OSC selectors and payload items for OSC 7 and the color queries; for
@@ -638,10 +690,13 @@ function-pointer helper would lose the useful type check.
   `prompt navigation direction=… from=… to=…`, and scrolls with the usual
   render scheduling. `previous-prompt()`/`next-prompt()` take an optional
   count and `Ctrl Shift <KeyPress> Up/Down` are the default translations.
-  Whether that gesture is translation-owned is decided after Xt has
-  dispatched the event: the raw key path appends Ctrl+Shift+Up/Down to an
-  unbounded pending list and a zero-delay timeout either drops it or
-  encodes it normally. Bursts queue without limit (Xt drains queued X
+  Whether a key is translation-owned is decided after Xt has dispatched
+  the event: the raw key path appends every press, repeat and release it
+  does not already own to an unbounded pending list, and a zero-delay
+  timeout either drops it or encodes it normally (G1 generalized this from
+  the Ctrl+Shift+Up/Down/G set to all keys, so any action that calls
+  `VtAcceptLocalKeyAction` keeps its key from the child under any
+  binding). Bursts queue without limit (Xt drains queued X
   events before due timers, so a burst arrives whole), and an allocation
   failure drops the key rather than delivering a bound gesture. A local
   action marks its pending press owned directly (`VtMarkPendingKeyOwned`)
@@ -772,7 +827,9 @@ function-pointer helper would lose the useful type check.
   mode 2027. Reproducible font fixtures and Xvfb tests cover routing, shaping,
   ink paths, and format behavior. General text now shares the positioned-run
   and clipping path without changing backend-owned cell widths, and SGR italic
-  selects a real italic or oblique face when one is available.
+  selects a real italic or oblique face when one is available. Box-drawing
+  and block-element characters are rasterized from the cell geometry when
+  the primary face lacks them, on the bitmap path, or under `forceBoxChars`.
 - Application-selected DECSCUSR block, underline, and bar cursor presentation,
   including cursor-shape-only repaint coverage. Blinking variants and DEC mode
   12 use an Xt timer with xterm's `cursorOnTime` and `cursorOffTime` defaults;

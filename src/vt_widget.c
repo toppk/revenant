@@ -25,6 +25,8 @@ static Boolean SetValues(Widget current, Widget request, Widget new_widget, ArgL
 static void LargerFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void SmallerFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void SetRenderFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+static void SetFontLineDrawingAction(Widget widget, XEvent *event, String *params,
+                                     Cardinal *num_params);
 static void SetSelectAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void ReportFontRoutingAction(Widget widget, XEvent *event, String *params,
                                     Cardinal *num_params);
@@ -35,6 +37,7 @@ static XtActionsRec actions[] = {
     {"larger-vt-font", LargerFontAction},
     {"smaller-vt-font", SmallerFontAction},
     {"set-render-font", SetRenderFontAction},
+    {"set-font-linedrawing", SetFontLineDrawingAction},
     {"set-select", SetSelectAction},
     {"report-font-routing", ReportFontRoutingAction},
     {"popup-menu", PopupMenuAction},
@@ -254,6 +257,8 @@ static XtResource resources[] = {
      XtRImmediate, (XtPointer)False},
     {"cursorBar", "CursorBar", XtRBoolean, sizeof(Boolean), OFFSET(cursor_bar), XtRImmediate,
      (XtPointer)False},
+    {"forceBoxChars", "ForceBoxChars", XtRBoolean, sizeof(Boolean), OFFSET(force_box_chars),
+     XtRImmediate, (XtPointer)False},
     {"answerbackString", "AnswerbackString", XtRString, sizeof(String), OFFSET(answerback_string),
      XtRString, (XtPointer) ""},
     {"cursorOnTime", "CursorOnTime", XtRInt, sizeof(int), OFFSET(cursor_on_time), XtRImmediate,
@@ -1056,6 +1061,7 @@ Destroy(Widget widget)
                 XtRemoveTimeOut(vt->vt.cursor_blink_timer);
         VtDestroyInput(vt);
         ReleaseGc(widget);
+        VtReleaseBoxStipples(vt);
         VtFontUniverseClose(vt);
         XtpFontRoutingReportDestroy(vt->vt.font_routing_report);
         free(vt->vt.frame_cells);
@@ -1506,6 +1512,21 @@ SetRenderFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_
 }
 
 static void
+SetFontLineDrawingAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
+{
+        Boolean enabled = XtpVtForceBoxChars(widget);
+
+        if (!VtAcceptLocalKeyAction(VtAsRecord(widget), event, XTP_LOCAL_ACTION_FONT_LINEDRAWING))
+                return;
+        if (!ParseToggleParam(enabled, params, *num_params, &enabled)) {
+                XtpLog(XTP_LOG_WARNING, "font", "set-font-linedrawing expects on, off, or toggle");
+                XBell(XtDisplay(widget), 0);
+                return;
+        }
+        XtpVtSetForceBoxChars(widget, enabled);
+}
+
+static void
 SetSelectAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
 {
         Boolean enabled = XtpVtSelectToClipboard(widget);
@@ -1690,6 +1711,27 @@ XtpVtSetBackgroundOpacityPercent(Widget widget, unsigned int percent)
                vt->vt.background_alpha);
         XtpVtRedraw(widget);
         return True;
+}
+
+Boolean
+XtpVtForceBoxChars(Widget widget)
+{
+        return VtAsRecord(widget)->vt.force_box_chars;
+}
+
+void
+XtpVtSetForceBoxChars(Widget widget, Boolean enabled)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        enabled = enabled ? True : False;
+        if (enabled == vt->vt.force_box_chars)
+                return;
+        XtpLog(XTP_LOG_INFO, "font", "box glyphs %s -> %s",
+               vt->vt.force_box_chars ? "forced" : "font-first", enabled ? "forced" : "font-first");
+        vt->vt.force_box_chars = enabled;
+        VtInvalidateFrame(vt);
+        XtpVtRedraw(widget);
 }
 
 Boolean

@@ -115,6 +115,7 @@ util_dep = cc.find_library('util')
 m_dep = cc.find_library('m')
 
 widget_sources = files(
+    'src/box_glyphs.c',
     'src/char_class.c',
     'src/cursor_blink.c',
     'src/diagnostics.c',
@@ -675,6 +676,22 @@ if build_with_ghostty and xvfb.found()
             meson.current_source_dir() / 'font-fixtures-stage',
         ],
         timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-box-glyphs',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-box-glyphs.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            window_ink_test_tool.full_path(),
+            window_ops_test_tool.full_path(),
+            selection_test_tool.full_path(),
+            key_test_tool.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 60,
         is_parallel: false,
     )
     test(

@@ -120,7 +120,7 @@ static const MenuSpec font_specs[] = {
     INERT("fontsel"),
     LINE("line1"),
     INERT("allow-bold-fonts"),
-    INERT("font-linedrawing"),
+    ACTIVE("font-linedrawing", XTP_MENU_ITEM_FONT_LINEDRAWING),
     INERT("font-packed"),
     INERT("font-doublesize"),
     INERT("font-loadable"),

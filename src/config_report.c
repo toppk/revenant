@@ -842,6 +842,7 @@ KnownTranslationAction(const char *action)
 {
         return strcmp(action, "larger-vt-font") == 0 || strcmp(action, "smaller-vt-font") == 0 ||
                strcmp(action, "set-render-font") == 0 || strcmp(action, "set-select") == 0 ||
+               strcmp(action, "set-font-linedrawing") == 0 ||
                strcmp(action, "report-font-routing") == 0 || strcmp(action, "popup-menu") == 0 ||
                strcmp(action, "scroll-back") == 0 || strcmp(action, "scroll-forw") == 0 ||
                strcmp(action, "previous-prompt") == 0 || strcmp(action, "next-prompt") == 0 ||
@@ -1014,20 +1015,21 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "internalBorder") == 0 || strcmp(name, "alwaysHighlight") == 0 ||
             strcmp(name, "cursorBlink") == 0 || strcmp(name, "cursorOnTime") == 0 ||
             strcmp(name, "cursorUnderLine") == 0 || strcmp(name, "cursorBar") == 0 ||
-            strcmp(name, "answerbackString") == 0 || strcmp(name, "cursorOffTime") == 0 ||
-            strcmp(name, "cursorBlinkXOR") == 0 || strcmp(name, "saveLines") == 0 ||
-            strcmp(name, "scrollBar") == 0 || strcmp(name, "scrollBarBorder") == 0 ||
-            strcmp(name, "rightScrollBar") == 0 || strcmp(name, "scrollKey") == 0 ||
-            strcmp(name, "scrollTtyOutput") == 0 || strcmp(name, "selectToClipboard") == 0 ||
-            strcmp(name, "multiClickTime") == 0 || strcmp(name, "charClass") == 0 ||
-            strcmp(name, "renderFont") == 0 || strcmp(name, "faceName") == 0 ||
-            strcmp(name, "faceNameDoublesize") == 0 || strcmp(name, "faceNameEmoji") == 0 ||
-            strcmp(name, "faceNameHan") == 0 || strcmp(name, "boldFont") == 0 ||
-            strcmp(name, "wideBoldFont") == 0 || strcmp(name, "boldColors") == 0 ||
-            strcmp(name, "emojiPresentation") == 0 || strcmp(name, "graphemeWidth") == 0 ||
-            strcmp(name, "colorGlyphs") == 0 || strcmp(name, "limitFontsets") == 0 ||
-            strcmp(name, "limitFontHeight") == 0 || strcmp(name, "limitFontWidth") == 0 ||
-            strncmp(name, "faceSize", 8) == 0 || ansi_palette)
+            strcmp(name, "forceBoxChars") == 0 || strcmp(name, "answerbackString") == 0 ||
+            strcmp(name, "cursorOffTime") == 0 || strcmp(name, "cursorBlinkXOR") == 0 ||
+            strcmp(name, "saveLines") == 0 || strcmp(name, "scrollBar") == 0 ||
+            strcmp(name, "scrollBarBorder") == 0 || strcmp(name, "rightScrollBar") == 0 ||
+            strcmp(name, "scrollKey") == 0 || strcmp(name, "scrollTtyOutput") == 0 ||
+            strcmp(name, "selectToClipboard") == 0 || strcmp(name, "multiClickTime") == 0 ||
+            strcmp(name, "charClass") == 0 || strcmp(name, "renderFont") == 0 ||
+            strcmp(name, "faceName") == 0 || strcmp(name, "faceNameDoublesize") == 0 ||
+            strcmp(name, "faceNameEmoji") == 0 || strcmp(name, "faceNameHan") == 0 ||
+            strcmp(name, "boldFont") == 0 || strcmp(name, "wideBoldFont") == 0 ||
+            strcmp(name, "boldColors") == 0 || strcmp(name, "emojiPresentation") == 0 ||
+            strcmp(name, "graphemeWidth") == 0 || strcmp(name, "colorGlyphs") == 0 ||
+            strcmp(name, "limitFontsets") == 0 || strcmp(name, "limitFontHeight") == 0 ||
+            strcmp(name, "limitFontWidth") == 0 || strncmp(name, "faceSize", 8) == 0 ||
+            ansi_palette)
                 return "supported";
         if (strcmp(name, "allowColorOps") == 0 || strcmp(name, "disallowedColorOps") == 0 ||
             strcmp(name, "allowTitleOps") == 0 || strcmp(name, "allowWindowOps") == 0 ||

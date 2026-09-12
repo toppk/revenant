@@ -110,7 +110,7 @@ configured and forced policy.
 | fontescape | Font from OSC 50 | OSC 50 ignored, not forwarded | Needs unknown-OSC passthrough | BLOCKED |
 | fontsel | Font from PRIMARY | None | Small after Roadmap #4 | ROADMAP |
 | allow-bold-fonts | Real bold faces | None; bold flag in `XtpRenderCell` | Renderer toggle | READY |
-| font-linedrawing | Internal box glyphs | None | Box-glyph rasteriser; medium | ROADMAP |
+| font-linedrawing | Internal box glyphs | None | Toggles `forceBoxChars`; cell-geometry rasterizer for U+2500–U+259F | DONE |
 | font-packed | Min glyph width for bitmap fonts | None | Cell-metric choice | ROADMAP |
 | font-doublesize | DECDHL/DECDWL | Not in Ghostty | Blocked upstream | BLOCKED |
 | font-loadable | DECDLD soft fonts | Not in Ghostty | Blocked, unused | BLOCKED |
@@ -154,7 +154,7 @@ record "Tek 4014 not planned" in the [xterm differences ledger](drift.md).
    poponbell; utf8-title; delete-is-del; and logging.
 2. Slice B, ride the roadmap: scrollbar family with #2; selection policies
    and fontsel with #4; named Mouse Ops exceptions;
-   allow-bold-fonts, font-linedrawing, font-packed with #5.
+   allow-bold-fonts and font-packed with #5.
 3. Slice C, screen-dump family: one styled-text walker unlocks print,
    print-immediate, print-on-error, dump-html, dump-svg.
 4. Upstream asks, by value: unknown OSC/CSI passthrough (fontescape,

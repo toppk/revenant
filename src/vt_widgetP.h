@@ -99,6 +99,7 @@ typedef enum
         XTP_LOCAL_ACTION_PREVIOUS_PROMPT,
         XTP_LOCAL_ACTION_NEXT_PROMPT,
         XTP_LOCAL_ACTION_PIPE_OUTPUT,
+        XTP_LOCAL_ACTION_FONT_LINEDRAWING,
 } LocalKeyAction;
 
 typedef struct
@@ -177,6 +178,7 @@ typedef struct
         Boolean cursor_blink_xor;
         Boolean cursor_underline;
         Boolean cursor_bar;
+        Boolean force_box_chars;
         String answerback_string;
         int cursor_on_time;
         int cursor_off_time;
@@ -196,6 +198,7 @@ typedef struct
         XtCallbackList pipe_output_callback;
 
         GC gc;
+        Pixmap box_stipples[3];
         Widget scrollbar;
         XFontStruct *fonts[XTP_FONT_SLOTS];
         Boolean owned[XTP_FONT_SLOTS];
@@ -343,6 +346,7 @@ Boolean VtLocalKeyActionOwnsEvent(Vt100Rec *vt, const XKeyEvent *event, Boolean 
 
 int VtTerminalX(Vt100Rec *vt);
 void VtEraseLastCursor(Vt100Rec *vt);
+void VtReleaseBoxStipples(Vt100Rec *vt);
 void VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int row,
                   XtpCursorShape shape);
 void VtStopCursorBlink(Vt100Rec *vt);

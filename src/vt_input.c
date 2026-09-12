@@ -452,20 +452,6 @@ TranslationOwnsKey(const XKeyEvent *event)
         return false;
 }
 
-/* The default prompt-navigation and pipe gestures; whether a translation owns one is only
- * known after Xt has dispatched this event, so these keys are decided one tick later. */
-static bool
-DeferredGestureKey(const XKeyEvent *event)
-{
-        KeySym physical;
-
-        if (event == NULL ||
-            (event->state & (ShiftMask | ControlMask)) != (ShiftMask | ControlMask))
-                return false;
-        physical = XLookupKeysym((XKeyEvent *)event, 0);
-        return physical == XK_Up || physical == XK_Down || physical == XK_g || physical == XK_G;
-}
-
 static void
 DeferredKey(XtPointer closure, XtIntervalId *id)
 {
@@ -489,8 +475,7 @@ DeferredKey(XtPointer closure, XtIntervalId *id)
         free(pending);
 }
 
-/* Bursts queue without limit; if memory runs out the key is dropped rather than delivered,
- * because a locally bound gesture must never reach the application. */
+/* Ownership is known only after Xt dispatches the event; bursts queue unbounded, OOM drops. */
 static void
 DeferKey(Vt100Rec *vt, XKeyEvent *event, XtpKeyAction action)
 {
@@ -632,13 +617,11 @@ InputEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_di
                 if (VtLocalKeyActionOwnsEvent(vt, &event->xkey, event->type == KeyRelease)) {
                         XtpLog(XTP_LOG_DEBUG, "input", "key %s owned by local Xt action",
                                KeyActionName(action));
-                } else if (DeferredGestureKey(&event->xkey)) {
-                        DeferKey(vt, &event->xkey, action);
                 } else if (TranslationOwnsKey(&event->xkey)) {
                         XtpLog(XTP_LOG_DEBUG, "input", "key %s reserved for Xt translation",
                                KeyActionName(action));
                 } else {
-                        KeyEvent(vt, &event->xkey, action);
+                        DeferKey(vt, &event->xkey, action);
                 }
         }
 }

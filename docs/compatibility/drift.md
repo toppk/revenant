@@ -450,6 +450,26 @@ terminated with the terminal if it is still running at exit; and the key
 can be returned to applications with the same `insert-seven-bit()`
 override as the prompt keys.
 
+### Box and block glyphs
+
+xterm draws its own line-drawing characters only for the VT100 special
+graphics set (and a few DEC technical characters), when `forceBoxChars`
+is set or the font lacks the glyph, with lines `fontHeight / 16` pixels
+thick (`/ 12` when bold); every other Unicode box or block character comes
+from the font, and its bitmap path shows only what the bitmap font has.
+Revenant draws all of U+2500–U+257F and U+2580–U+259F itself: with Xft
+only when the primary face lacks the character or `forceBoxChars` is set,
+and always on the bitmap path, which previously showed `?` for them. The
+thickness rule is xterm's for light lines (capped at an eighth of the cell
+width), bold adds one pixel, heavy is
+twice light, and every stroke is a rectangle placed from the cell size
+alone so adjacent cells join without gaps. Shades are 2×2 stipples. The
+`font-linedrawing` menu entry, `+fbx`/`-fbx` (`+fbx` turns it on, as in
+xterm), and `set-font-linedrawing()` have xterm's names and meaning. A key
+bound to it, like every locally bound key, is decided one tick after Xt
+dispatches it and never reaches the application. Braille, Powerline and the legacy
+computing symbols are not drawn procedurally yet.
+
 ### Notification urgency (OSC 9, OSC 777)
 
 xterm 411 does not implement OSC 9 or OSC 777; both are discarded as
