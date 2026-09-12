@@ -325,7 +325,7 @@ func notify(s *Session) {
 	s.wait(3 * time.Second)
 	s.osc(9, "probe OSC 9 notification")
 	s.osc(777, "notify;probe;Manual OSC 777 notification")
-	s.say("Requests sent. Inspect urgency/delivery and focus behavior.")
+	s.say("Requests sent. While unfocused the window's WM_HINTS urgency flag should be set (xprop -id WINDOW WM_HINTS); focusing it should clear the flag.")
 	s.pause()
 }
 func progress(s *Session) {

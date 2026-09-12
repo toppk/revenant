@@ -33,7 +33,6 @@ remove a row when its chunk is completed, preserving the feature IDs and evidenc
 | S2 | Prompt navigation | [osc-133-prompt-marks](https://toppk.github.io/revenant/tdn/features/osc-133-prompt-marks/), [ui-prompt-navigation](https://toppk.github.io/revenant/tdn/features/ui-prompt-navigation/) |
 | S3 | Pipe last command output | [ui-pipe-command-output](https://toppk.github.io/revenant/tdn/features/ui-pipe-command-output/) |
 | S4 | Optional clear-to-prompt | [ui-clear-to-prompt](https://toppk.github.io/revenant/tdn/features/ui-clear-to-prompt/) |
-| N1 | Desktop notification callback to urgency | [osc-9-notification](https://toppk.github.io/revenant/tdn/features/osc-9-notification/), [osc-777-notification](https://toppk.github.io/revenant/tdn/features/osc-777-notification/), [notification-x11-urgency](https://toppk.github.io/revenant/tdn/features/notification-x11-urgency/) |
 | N2 | Optional desktop notification adapter | [notification-desktop-delivery](https://toppk.github.io/revenant/tdn/features/notification-desktop-delivery/) |
 | N3 | Progress display | [osc-9-4-progress](https://toppk.github.io/revenant/tdn/features/osc-9-4-progress/), [ui-progress-indicator](https://toppk.github.io/revenant/tdn/features/ui-progress-indicator/) |
 | G1 | Box and block glyphs | [text-box-drawing](https://toppk.github.io/revenant/tdn/features/text-box-drawing/), [text-block-drawing](https://toppk.github.io/revenant/tdn/features/text-block-drawing/), [resource-force-box-chars](https://toppk.github.io/revenant/tdn/features/resource-force-box-chars/) |

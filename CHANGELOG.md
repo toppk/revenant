@@ -10,6 +10,12 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Raise the X11 urgency hint for application notifications. An OSC 9 or
+  OSC 777 `notify` request that arrives while the window is unfocused sets
+  `XUrgencyHint` in WM_HINTS, leaving every other hint field alone, and the
+  next focus-in clears it; a request while focused only logs. Title and body
+  are recorded in the `-debug` log. No desktop notification is delivered,
+  no permission setting applies, and no D-Bus or helper process is involved.
 - Log unsupported Application Program Commands. Every completed APC that
   libghostty does not implement (anything other than Kitty graphics and the
   glyph protocol) is recorded under `-debug` as `unknown APC ignored` with

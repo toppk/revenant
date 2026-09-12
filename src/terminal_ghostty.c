@@ -427,6 +427,33 @@ UnknownSequenceEffectPointer(void)
         return pointer;
 }
 
+static void
+DesktopNotificationEffect(GhosttyTerminal handle, void *userdata,
+                          const GhosttyTerminalDesktopNotification *notification)
+{
+        XtpTerminal *terminal = userdata;
+
+        (void)handle;
+        if (terminal == NULL || notification == NULL || terminal->effects.notification == NULL ||
+            notification->size < sizeof(*notification))
+                return;
+        terminal->effects.notification(notification->title.ptr, notification->title.len,
+                                       notification->body.ptr, notification->body.len,
+                                       terminal->effects.closure);
+}
+
+static const void *
+DesktopNotificationEffectPointer(void)
+{
+        GhosttyTerminalDesktopNotificationFn function = DesktopNotificationEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
 static const void *
 EnquiryEffectPointer(void)
 {
@@ -1276,7 +1303,9 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_UNKNOWN_MAX_BYTES,
                                  &unknown_apc_limit) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_UNKNOWN_SEQUENCE,
-                                 UnknownSequenceEffectPointer()) != GHOSTTY_SUCCESS) {
+                                 UnknownSequenceEffectPointer()) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_DESKTOP_NOTIFICATION,
+                                 DesktopNotificationEffectPointer()) != GHOSTTY_SUCCESS) {
                 FreeHandles(terminal);
                 free(terminal);
                 return NULL;

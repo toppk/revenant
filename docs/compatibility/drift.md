@@ -406,6 +406,26 @@ This callback is APC-only. Unsupported OSC and CSI controls remain invisible
 to Revenant, which is an upstream API limitation rather than a place for a
 second escape parser; OSC 22 and OSC 50 stay on that upstream ask.
 
+### Notification urgency (OSC 9, OSC 777)
+
+xterm 411 does not implement OSC 9 or OSC 777; both are discarded as
+unknown OSCs. Its only urgency mechanism is `bellIsUrgent`, which sets
+`XUrgencyHint` on BEL while the window lacks focus (`setXUrgency` in
+`misc.c`); Revenant's menu still lists that entry as inert. Revenant instead
+applies the same hint for application notifications: an OSC 9 (iTerm2 form,
+empty title) or OSC 777 `notify;title;body` request that arrives while the
+terminal widget is unfocused sets `XUrgencyHint` in the shell's WM_HINTS,
+reading and writing back the existing hints so input, state, and group
+fields are untouched, and the next focus-in clears the bit. A request while
+focused is logged only. Title and body appear in the `-debug` log; nothing
+is displayed, no permission setting gates it, and no D-Bus, libnotify, or
+helper process is involved. Valid ConEmu OSC 9 forms such as `9;4;0`
+progress are separate protocols in the core; an incomplete or invalid
+ConEmu shape (`9;4`, `9;4;`, `9;4;5`) is treated by libghostty as iTerm2
+notification text and does reach this path, since suppressing it would
+also suppress legitimate notifications. Delivering the text as a desktop
+notification is a separate optional adapter.
+
 ### Compositor-backed background opacity
 
 Revenant adds a `backgroundOpacity` resource, expressed as a number from `0.0`

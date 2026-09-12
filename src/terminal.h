@@ -353,6 +353,9 @@ typedef struct
         void (*working_directory_dropped)(size_t length, void *closure);
         /* A completed APC the core does not implement, borrowed; truncated marks a capture cut. */
         void (*unknown_apc)(const uint8_t *bytes, size_t length, bool truncated, void *closure);
+        /* OSC 9 / OSC 777 notification; both strings are borrowed and the title may be empty. */
+        void (*notification)(const uint8_t *title, size_t title_length, const uint8_t *body,
+                             size_t body_length, void *closure);
         void *closure;
 } XtpTerminalEffects;
 

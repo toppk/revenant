@@ -136,6 +136,7 @@ widget_sources = files(
     'src/window_ops.c',
     'src/working_directory.c',
     'src/device_attributes.c',
+    'src/urgency.c',
     'src/ops_list.c',
     'src/color_ops.c',
     'src/request_ops.c',
@@ -354,6 +355,13 @@ hover_test_tool = executable(
 selection_owner_tool = executable(
     'xtp-own-selection',
     'tests/xtp-own-selection.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
+urgency_test_tool = executable(
+    'xtp-wm-urgency',
+    'tests/xtp-wm-urgency.c',
     dependencies: x11_dep,
     install: false,
 )
@@ -842,6 +850,18 @@ if build_with_ghostty and xvfb.found()
             xterm_plus.full_path(),
         ],
         timeout: 60,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-notification-urgency',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-notification-urgency.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            urgency_test_tool.full_path(),
+        ],
+        timeout: 90,
         is_parallel: false,
     )
     test(

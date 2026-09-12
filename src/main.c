@@ -6,6 +6,7 @@
 #include "selftest.h"
 #include "terminal.h"
 #include "title_stack.h"
+#include "urgency.h"
 #include "version.h"
 #include "vt_widget.h"
 #include "welcome.h"
@@ -51,6 +52,13 @@ typedef struct
         /* Last validated OSC 7 directory for future consumers; NULL when unknown. */
         char *working_directory;
         char hostname[256];
+        /* Terminal-widget focus as last reported by X; urgency only matters while unfocused. */
+        Boolean focused;
+        /* Desired WM urgency, and what WM_HINTS last accepted; they differ after a failed update.
+         */
+        Boolean urgent;
+        Boolean urgent_applied;
+        unsigned int notifications;
 } App;
 
 typedef struct
@@ -603,6 +611,60 @@ TerminalUnknownApc(const uint8_t *bytes, size_t length, bool truncated, void *cl
                           bytes, length);
 }
 
+/* Brings WM_HINTS to the desired state; a failure leaves the two flags apart so the next
+ * notification or focus change retries instead of assuming success. */
+static void
+ApplyUrgency(App *app)
+{
+        if (app->urgent == app->urgent_applied)
+                return;
+        if (app->shell == NULL || !XtIsRealized(app->shell)) {
+                XtpLog(XTP_LOG_INFO, "shell", "urgency hint pending=%s until the window exists",
+                       app->urgent ? "set" : "clear");
+                return;
+        }
+        if (!XtpUrgencyApply(app->display, XtWindow(app->shell), app->urgent != False)) {
+                XtpLog(XTP_LOG_WARNING, "shell", "urgency hint not applied: WM_HINTS unavailable");
+                return;
+        }
+        app->urgent_applied = app->urgent;
+        XtpLog(XTP_LOG_INFO, "shell", "urgency hint %s", app->urgent ? "set" : "cleared");
+}
+
+static void
+TerminalNotification(const uint8_t *title, size_t title_length, const uint8_t *body,
+                     size_t body_length, void *closure)
+{
+        App *app = closure;
+
+        ++app->notifications;
+        XtpLog(XTP_LOG_INFO, "shell", "notification received count=%u focus=%s title-bytes=%zu",
+               app->notifications, app->focused ? "in" : "out", title_length);
+        if (title_length != 0)
+                XtpLogBytePreview(XTP_LOG_INFO, "shell", "notification title", title, title_length);
+        XtpLogBytePreview(XTP_LOG_INFO, "shell", "notification body", body, body_length);
+        if (app->focused)
+                return;
+        app->urgent = True;
+        ApplyUrgency(app);
+}
+
+static void
+FocusEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch)
+{
+        App *app = closure;
+
+        (void)widget;
+        (void)continue_dispatch;
+        if (event->type == FocusIn) {
+                app->focused = True;
+                app->urgent = False;
+                ApplyUrgency(app);
+        } else if (event->type == FocusOut) {
+                app->focused = False;
+        }
+}
+
 static void
 TerminalCursorBlinkReset(void *closure)
 {
@@ -794,6 +856,7 @@ ApplyTerminalEffects(App *app)
             .working_directory_changed = TerminalWorkingDirectory,
             .working_directory_dropped = TerminalWorkingDirectoryDropped,
             .unknown_apc = TerminalUnknownApc,
+            .notification = TerminalNotification,
             .closure = app,
         };
 
@@ -1362,6 +1425,8 @@ RealizeApplication(App *app)
                app->depth, app->argb_visual ? "true" : "false", app->background_alpha);
         UpdateGeometry(app);
         XtSetKeyboardFocus(app->shell, app->vt);
+        XtAddEventHandler(app->vt, FocusChangeMask, False, FocusEvent, app);
+        ApplyUrgency(app);
         app->wm_delete_window = XInternAtom(app->display, "WM_DELETE_WINDOW", False);
         (void)XSetWMProtocols(app->display, XtWindow(app->shell), &app->wm_delete_window, 1);
         XtAddEventHandler(app->shell, StructureNotifyMask, True, ShellEvent, app);

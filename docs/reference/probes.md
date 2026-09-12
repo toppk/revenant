@@ -232,7 +232,7 @@ implemented; use `Co` for the existing Tcap permission check.
 | `cwd --cwd /tmp` | Report an OSC 7 directory for a future consumer/debug check. |
 | `prompts` | Emit synthetic OSC 133 prompts for future previous/next actions. |
 | `pipe` | Emit three synthetic command outputs; a future pipe action should capture only COMMAND-3-BEGIN through COMMAND-3-END. |
-| `notify` | After three seconds to change focus, send OSC 9 and OSC 777 notifications. |
+| `notify` | After three seconds to change focus, send OSC 9 and OSC 777 notifications; Revenant sets the WM_HINTS urgency flag while unfocused. |
 | `progress` | Cycle OSC 9;4 normal, error, indeterminate, paused and cleared states. |
 | `glyphs` | Inspect joined boxes/blocks, braille and Powerline at different fonts/sizes. |
 | `copy` | Select sample text and check a future copy-highlight flash and paste contents. |

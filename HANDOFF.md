@@ -31,8 +31,8 @@ policy helpers and checked menu identity, but its menu remains insensitive and
 resources have no operational effect until OSC 50 is implemented. The pinned
 unknown-sequence callback is APC-only; it cannot supply OSC 50, OSC 22 or
 arbitrary CSI passthrough. Obtain a public hook rather than another escape
-parser. ENQ, underline attributes, startup cursor style and shell integration
-have no new xterm Ops family. Full Window Ops and Title Ops completion
+parser. ENQ, underline attributes, startup cursor style, shell integration
+and notification urgency have no new xterm Ops family. Full Window Ops and Title Ops completion
 checklists below still apply independently.
 TDN: `osc-50-font-set`, `osc-50-font-query`, `policy-font-ops`, `osc-22-pointer-shape`,
      `diagnostics-unknown-apc`.
@@ -529,6 +529,39 @@ function-pointer helper would lose the useful type check.
   reads the exact reply bytes through the real PTY for one write and for
   fragmented writes, with the expected DA2 number computed independently
   from Meson's version string.
+- Notification urgency: libghostty's desktop-notification callback (OSC 9
+  iTerm2 form with an empty title, OSC 777 `notify;title;body`) reaches the
+  application through the backend-neutral `notification` effect. The
+  application logs `notification received count=<n> focus=<in|out>` plus
+  byte previews of the title and body, and when the terminal widget is
+  unfocused it sets `XUrgencyHint` through `XtpUrgencyApply`
+  (`src/urgency.c`), which reads WM_HINTS, flips only that bit, and writes
+  it back so Xt's input, state, and group hints survive. Focus is tracked by
+  a second `FocusChangeMask` handler on the VT widget, mirroring the
+  widget's own notion; the next focus-in clears the hint. Repeated
+  notifications log but do not rewrite the hint; a notification before
+  realization is kept as pending state and applied right after
+  `XtRealizeWidget`; desired and applied urgency are tracked separately so
+  a failed WM_HINTS update is retried on the next notification or focus
+  change rather than latched; the Xvfb test seeds every WM_HINTS field
+  with distinctive values first and requires all of them back unchanged; after `DestroyApplication` the shell pointer is NULL
+  and the effect cannot fire because the terminal is freed first. Valid
+  ConEmu OSC 9 forms, including complete `9;4;<state>` progress reports,
+  are separate protocols in the core; libghostty deliberately treats an
+  incomplete or invalid ConEmu shape (`9;4`, `9;4;`, `9;4;5`) as iTerm2
+  notification text, so those bodies do arrive here and can set urgency.
+  They are not suppressed because that would also drop legitimate iTerm2
+  text; the self-test pins both sides of that line. The `notification effect` self-test pins OSC 9 and
+  OSC 777 decoding with both terminators, byte-by-byte delivery, neighbors
+  with a CPR reply, UTF-8 and empty bodies, valid ConEmu forms staying
+  silent while incomplete ones notify, malformed OSC 777, PTY silence, and
+  the null-effect path. `xvfb-notification-urgency` drives a
+  child through four notifications while `xtp-wm-urgency` moves X focus and
+  reads WM_HINTS externally: unfocused sets the hint with every other field
+  equal to the baseline, a repeat leaves it set once, focus-in clears it,
+  a focused request never sets it, unfocus-then-notify sets it again with
+  a CPR reply intact, and exiting with the hint set is clean. Desktop
+  delivery stays a separate optional adapter (N2).
 - Unknown APC diagnostics: the adapter sets libghostty's unknown-sequence
   callback with `XTP_UNKNOWN_APC_CAPTURE_LIMIT` (256) retained bytes and
   forwards APC-tagged reports through the backend-neutral `unknown_apc`
@@ -1458,7 +1491,7 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 47 tests for each libghostty build
+The normal full matrix currently contains 48 tests for each libghostty build
 and 8 for the stub build. One of those is `internal-branding`, which scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build

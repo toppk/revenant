@@ -3512,6 +3512,139 @@ done:
         return result;
 }
 
+typedef struct
+{
+        unsigned int calls;
+        char title[64];
+        char body[64];
+        size_t title_length;
+        size_t body_length;
+        SelfTestPtyCapture pty;
+} SelfTestNotificationHarness;
+
+static void
+SelfTestNotificationPty(const uint8_t *bytes, size_t length, void *closure)
+{
+        SelfTestNotificationHarness *harness = closure;
+
+        SelfTestCapturePty(bytes, length, &harness->pty);
+}
+
+static void
+SelfTestNotificationEffect(const uint8_t *title, size_t title_length, const uint8_t *body,
+                           size_t body_length, void *closure)
+{
+        SelfTestNotificationHarness *harness = closure;
+
+        ++harness->calls;
+        harness->title_length = title_length;
+        harness->body_length = body_length;
+        memset(harness->title, 0, sizeof(harness->title));
+        memset(harness->body, 0, sizeof(harness->body));
+        if (title_length < sizeof(harness->title))
+                memcpy(harness->title, title, title_length);
+        if (body_length < sizeof(harness->body))
+                memcpy(harness->body, body, body_length);
+}
+
+static bool
+SelfTestNotificationIs(const SelfTestNotificationHarness *harness, unsigned int calls,
+                       const char *title, const char *body)
+{
+        return harness->calls == calls && harness->title_length == strlen(title) &&
+               strcmp(harness->title, title) == 0 && harness->body_length == strlen(body) &&
+               strcmp(harness->body, body) == 0;
+}
+
+static int
+SelfTestNotificationEffectDelivery(void)
+{
+        XtpTerminal *terminal;
+        SelfTestNotificationHarness harness = {0};
+        SelfTestRowCapture rows;
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestNotificationPty,
+            .notification = SelfTestNotificationEffect,
+            .closure = &harness,
+        };
+        const char *stage = "setup";
+        size_t index;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        stage = "OSC 9 delivers the body with an empty title";
+        SelfTestFeedText(terminal, "\033]9;hello\033\\");
+        if (!SelfTestNotificationIs(&harness, 1, "", "hello"))
+                goto done;
+        stage = "OSC 777 delivers title and body with a BEL terminator";
+        SelfTestFeedText(terminal, "\033]777;notify;Title;Body\a");
+        if (!SelfTestNotificationIs(&harness, 2, "Title", "Body"))
+                goto done;
+        stage = "byte-by-byte feeding delivers the same notification";
+        {
+                static const char split[] = "\033]777;notify;Sp;lit\033\\";
+
+                for (index = 0; split[index] != '\0'; ++index)
+                        XtpTerminalFeed(terminal, (const uint8_t *)split + index, 1);
+        }
+        if (!SelfTestNotificationIs(&harness, 3, "Sp", "lit"))
+                goto done;
+        stage = "surrounding text and a CPR query survive";
+        SelfTestFeedText(terminal, "\033[H\033[2Jab\033]9;mid\033\\cd\033[6n");
+        if (!SelfTestNotificationIs(&harness, 4, "", "mid") ||
+            SelfTestRowCaptureRender(terminal, &rows) != 0 || !SelfTestRowIs(&rows, 0, "abcd") ||
+            !SelfTestPtyEqualsText(&harness.pty, "\033[1;5R"))
+                goto done;
+        harness.pty = (SelfTestPtyCapture){0};
+        stage = "UTF-8 passes through unchanged";
+        SelfTestFeedText(terminal, "\033]777;notify;caf\xc3\xa9;\xe2\x9c\x93 ok\033\\");
+        if (!SelfTestNotificationIs(&harness, 5, "caf\xc3\xa9", "\xe2\x9c\x93 ok"))
+                goto done;
+        stage = "an empty body is still delivered";
+        SelfTestFeedText(terminal, "\033]9;\033\\");
+        if (!SelfTestNotificationIs(&harness, 6, "", ""))
+                goto done;
+        stage = "valid ConEmu OSC 9 forms and progress are not notifications";
+        SelfTestFeedText(terminal, "\033]9;4;1;50\033\\\033]9;1;10\033\\\033]9;4;0\033\\");
+        if (harness.calls != 6)
+                goto done;
+        /* The core falls incomplete ConEmu shapes back to iTerm2 text; they must not be suppressed.
+         */
+        stage = "incomplete ConEmu shapes are iTerm2 notifications";
+        SelfTestFeedText(terminal, "\033]9;4\033\\");
+        if (!SelfTestNotificationIs(&harness, 7, "", "4"))
+                goto done;
+        SelfTestFeedText(terminal, "\033]9;4;\033\\\033]9;4;5\033\\");
+        if (!SelfTestNotificationIs(&harness, 9, "", "4;5"))
+                goto done;
+        stage = "malformed OSC 777 is dropped";
+        SelfTestFeedText(terminal, "\033]777;notify;NoBody\033\\\033]777;other;a;b\033\\");
+        if (harness.calls != 9)
+                goto done;
+        stage = "nothing is written to the PTY";
+        if (harness.pty.used != 0)
+                goto done;
+        stage = "without an effect the backend stays quiet";
+        effects.notification = NULL;
+        XtpTerminalSetEffects(terminal, &effects);
+        SelfTestFeedText(terminal, "\033]9;ignored\033\\\033[5n");
+        if (harness.calls != 9 || !SelfTestPtyEqualsText(&harness.pty, "\033[0n"))
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "notification mismatch stage=%s calls=%u title=\"%s\" body=\"%s\" pty=%zu",
+                       stage, harness.calls, harness.title, harness.body, harness.pty.used);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
 static int
 SelfTestStartupCursorShape(void)
 {
@@ -4184,6 +4317,7 @@ XtpSelfTest(void)
             {"device attributes", SelfTestDeviceAttributes},
             {"device attributes evidence", SelfTestDeviceAttributesEvidence},
             {"unknown APC", SelfTestUnknownApc},
+            {"notification effect", SelfTestNotificationEffectDelivery},
             {"working directory decode", SelfTestWorkingDirectoryDecode},
             {"working directory effect", SelfTestWorkingDirectoryEffectDelivery},
             {"color-ops policy", SelfTestColorOpsPolicy},
