@@ -34,7 +34,7 @@ EOF
 
 log=$test_dir/log
 HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
-    "$terminal" -debug -e sh "$script" >"$test_dir/out" 2>"$log" &
+    "$terminal" -debug -e bash "$script" >"$test_dir/out" 2>"$log" &
 terminal_pid=$!
 xtp_wait_for_log "$log" "startup: event loop starting" "startup"
 window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$log" | tail -1)
