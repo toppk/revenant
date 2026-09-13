@@ -38,7 +38,6 @@ existing ID; its parent is complete only after all three.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| Selection | U3 | Uses the landed U2 search model. |
 | Progress | N3 | Independent of desktop delivery; select the UI surface before coding. |
 | API-dependent | V3, F1, M1 | Public OSC hooks for V3/F1; effective mouse tracking API for M1. |
 | Graphics series | K1 → K2a limits → K2b temp files → K2c shared memory; K3/K4 after K1 | Keep resource limits, transport, placeholders and scheduling separate. |
@@ -95,16 +94,6 @@ conflicting ownership even within the same batch.
       paused/clear states, bounds, reset/exit, and no corruption of title stack
       or title reports. Stop: no launcher protocol or notification dependency.
       TDN: `osc-9-4-progress`, `ui-progress-indicator`.
-
-## U: Selection polish and search
-
-- [ ] **U3 — Search UI and bindings.** Depends on U2. Add Athena overlay,
-      incremental query, next/previous, Enter copies match to PRIMARY, Escape
-      restores viewport.
-      Probe: `just probe ui-search-overlay selection-search`. No Ops family. Accept: keyboard
-      focus, empty/missing matches, wrapped highlight, input while output
-      arrives, resize, selection ownership and viewport restoration.
-      TDN: `ui-search-overlay`, `search-copy-match`.
 
 ## K: Kitty graphics (separate series)
 

@@ -349,14 +349,37 @@ features:
     - kind: test
       url: https://github.com/toppk/revenant/blob/8fac827f73fa280d52ab317de672639e7efd258e/tests/xvfb-copy-flash.sh
   search-scrollback-literal:
-    status: partial
-    as-of: git:f81f10849f2dc81cc8254450d543120ec712772c
-    notes: Backend search model only; the interactive search bar arrives separately. Literal codepoint matching on
-      whole grapheme clusters across soft-wrapped primary-screen lines, overlaps included, in bounded steps;
-      matches follow scrolling, eviction and reflow, overwritten matches are dropped, and the alternate screen
-      is declined.
+    status: supported
+    as-of: git:3c1d6645fca28238ecd7529b33ae7e71955a04d9
+    notes: Literal codepoint search on whole grapheme clusters across soft-wrapped primary-screen lines, overlaps
+      included, in bounded steps, now reachable through the search overlay; matches follow scrolling, eviction
+      and reflow, overwritten matches are dropped when navigated, and the alternate screen is declined.
     review: reviewed
-    checked: '2026-09-12'
+    checked: '2026-09-13'
     evidence:
     - kind: test
-      url: https://github.com/toppk/revenant/blob/f81f10849f2dc81cc8254450d543120ec712772c/src/selftest.c
+      url: https://github.com/toppk/revenant/blob/3c1d6645fca28238ecd7529b33ae7e71955a04d9/tests/xvfb-search.sh
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/3c1d6645fca28238ecd7529b33ae7e71955a04d9/src/selftest.c
+  ui-search-overlay:
+    status: supported
+    as-of: git:3c1d6645fca28238ecd7529b33ae7e71955a04d9
+    notes: Ctrl+Shift+F or start-search() opens an Athena overlay with incremental literal search; visible matches,
+      including ones across soft wraps, are highlighted, Up/Down and F3 navigate with wrapping, the overlay owns
+      every key so none reach the application, output keeps the view on the same text, and Escape restores the
+      starting viewport.
+    review: reviewed
+    checked: '2026-09-13'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/3c1d6645fca28238ecd7529b33ae7e71955a04d9/tests/xvfb-search.sh
+  search-copy-match:
+    status: supported
+    as-of: git:3c1d6645fca28238ecd7529b33ae7e71955a04d9
+    notes: Enter copies the active match to PRIMARY with soft wraps joined, closes the search and leaves the viewport
+      at the match; the copy owns PRIMARY without a selection highlight.
+    review: reviewed
+    checked: '2026-09-13'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/3c1d6645fca28238ecd7529b33ae7e71955a04d9/tests/xvfb-search.sh
