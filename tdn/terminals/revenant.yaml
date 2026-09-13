@@ -348,3 +348,15 @@ features:
     evidence:
     - kind: test
       url: https://github.com/toppk/revenant/blob/8fac827f73fa280d52ab317de672639e7efd258e/tests/xvfb-copy-flash.sh
+  search-scrollback-literal:
+    status: partial
+    as-of: git:f81f10849f2dc81cc8254450d543120ec712772c
+    notes: Backend search model only; the interactive search bar arrives separately. Literal codepoint matching on
+      whole grapheme clusters across soft-wrapped primary-screen lines, overlaps included, in bounded steps;
+      matches follow scrolling, eviction and reflow, overwritten matches are dropped, and the alternate screen
+      is declined.
+    review: reviewed
+    checked: '2026-09-12'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/f81f10849f2dc81cc8254450d543120ec712772c/src/selftest.c

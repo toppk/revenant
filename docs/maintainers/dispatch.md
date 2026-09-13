@@ -33,9 +33,6 @@ remove a row when its chunk is completed, preserving the feature IDs and evidenc
 | S4 | Optional clear-to-prompt | [ui-clear-to-prompt](https://toppk.github.io/revenant/tdn/features/ui-clear-to-prompt/) |
 | N2 | Optional desktop notification adapter | [notification-desktop-delivery](https://toppk.github.io/revenant/tdn/features/notification-desktop-delivery/) |
 | N3 | Progress display | [osc-9-4-progress](https://toppk.github.io/revenant/tdn/features/osc-9-4-progress/), [ui-progress-indicator](https://toppk.github.io/revenant/tdn/features/ui-progress-indicator/) |
-| G2 | Braille and Powerline | [text-braille-drawing](https://toppk.github.io/revenant/tdn/features/text-braille-drawing/), [text-powerline-drawing](https://toppk.github.io/revenant/tdn/features/text-powerline-drawing/) |
-| U1 | Copy-highlight flash | [selection-copy-feedback](https://toppk.github.io/revenant/tdn/features/selection-copy-feedback/) |
-| U2 | Search model and navigation | [search-scrollback-literal](https://toppk.github.io/revenant/tdn/features/search-scrollback-literal/) |
 | U3 | Search UI and bindings | [ui-search-overlay](https://toppk.github.io/revenant/tdn/features/ui-search-overlay/), [search-copy-match](https://toppk.github.io/revenant/tdn/features/search-copy-match/) |
 | K1 | Static inline image rendering | [apc-kitty-static-images](https://toppk.github.io/revenant/tdn/features/apc-kitty-static-images/) |
 | K2 | Media and byte limits | [kitty-graphics-storage-limit](https://toppk.github.io/revenant/tdn/features/kitty-graphics-storage-limit/), [kitty-graphics-command-limit](https://toppk.github.io/revenant/tdn/features/kitty-graphics-command-limit/), [apc-kitty-temp-file-transfer](https://toppk.github.io/revenant/tdn/features/apc-kitty-temp-file-transfer/), [apc-kitty-shared-memory](https://toppk.github.io/revenant/tdn/features/apc-kitty-shared-memory/) |
@@ -82,7 +79,7 @@ commands, cleanup and limitations.
 | V: text/cursor presentation | `text-underline`, `text-cursor`, `input-pointer` | SGR underline color, startup text cursor, and OSC 22 pointer each have separate state. |
 | S: shell integration | `shell-cwd`, `shell-prompts`, `shell-pipe` | Retain cwd, navigate semantic prompts, then pipe a semantic output range on a user action. |
 | N: notifications | `notifications-urgency`, `notifications-progress` | Urgency first; optional notification adapter and progress UI are separate. |
-| U: search | `selection-search` | Build the search model before the interactive search UI. |
+| U: search | `selection-search` | Build the interactive search UI over the landed search model. |
 | K: graphics | `graphics-static` | Initial fixture covers static inline RGBA only. Extend it for media, placeholders and animation as those chunks land. |
 | M/F: permission completion | `input-mouse`, `font-query`, `font-set` | Mouse named exceptions and OSC 50 remain feature work. |
 

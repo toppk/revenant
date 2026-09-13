@@ -38,7 +38,7 @@ existing ID; its parent is complete only after all three.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| Selection | U2 → U3 | U3 needs the U2 search model. |
+| Selection | U3 | Uses the landed U2 search model. |
 | Progress | N3 | Independent of desktop delivery; select the UI surface before coding. |
 | API-dependent | V3, F1, M1 | Public OSC hooks for V3/F1; effective mouse tracking API for M1. |
 | Graphics series | K1 → K2a limits → K2b temp files → K2c shared memory; K3/K4 after K1 | Keep resource limits, transport, placeholders and scheduling separate. |
@@ -97,17 +97,6 @@ conflicting ownership even within the same batch.
       TDN: `osc-9-4-progress`, `ui-progress-indicator`.
 
 ## U: Selection polish and search
-
-- [ ] **U2 — Search model and navigation.** Add bounded incremental search
-      across logical scrollback lines, match ranges and next/previous APIs.
-      Owner: backend/history helper with focused tests.
-      Supporting fixture: `just probe search-scrollback-literal selection-search`
-      supplies input data; no interactive search exists until U3. Accept: Unicode,
-      soft wraps, eviction, cancellation and responsiveness under PTY output.
-      Stop: no regex engine or Athena overlay in this chunk.
-      TDN: `search-scrollback-literal`.
-      Probe gap: fixture only until U3 provides the interactive UI. Prove U2
-      through model tests; do not count printed search text as acceptance.
 
 - [ ] **U3 — Search UI and bindings.** Depends on U2. Add Athena overlay,
       incremental query, next/previous, Enter copies match to PRIMARY, Escape
