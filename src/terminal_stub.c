@@ -335,6 +335,79 @@ XtpTerminalCommandOutput(XtpTerminal *terminal, uint64_t prompt_start, XtpSemant
         return -1;
 }
 
+XtpTerminalSearch *
+XtpTerminalSearchNew(XtpTerminal *terminal)
+{
+        (void)terminal;
+        return NULL;
+}
+
+void
+XtpTerminalSearchFree(XtpTerminalSearch *search)
+{
+        (void)search;
+}
+
+int
+XtpTerminalSearchSetQuery(XtpTerminalSearch *search, const char *utf8, size_t length)
+{
+        (void)search;
+        (void)utf8;
+        (void)length;
+        return -1;
+}
+
+XtpSearchState
+XtpTerminalSearchStep(XtpTerminalSearch *search, size_t row_budget)
+{
+        (void)search;
+        (void)row_budget;
+        return XTP_SEARCH_IDLE;
+}
+
+XtpSearchState
+XtpTerminalSearchState(XtpTerminalSearch *search)
+{
+        (void)search;
+        return XTP_SEARCH_IDLE;
+}
+
+void
+XtpTerminalSearchCancel(XtpTerminalSearch *search)
+{
+        (void)search;
+}
+
+size_t
+XtpTerminalSearchMatches(XtpTerminalSearch *search, bool *truncated)
+{
+        (void)search;
+        if (truncated != NULL)
+                *truncated = false;
+        return 0;
+}
+
+uint64_t
+XtpTerminalSearchRowsScanned(XtpTerminalSearch *search)
+{
+        (void)search;
+        return 0;
+}
+
+int
+XtpTerminalSearchNavigate(XtpTerminalSearch *search, uint64_t row, uint16_t column, bool forward,
+                          XtpSemanticSpan *match, bool *wrapped)
+{
+        (void)search;
+        (void)row;
+        (void)column;
+        (void)forward;
+        (void)match;
+        if (wrapped != NULL)
+                *wrapped = false;
+        return -1;
+}
+
 int
 XtpTerminalSpanText(XtpTerminal *terminal, const XtpSemanticSpan *span, char **text, size_t *length)
 {

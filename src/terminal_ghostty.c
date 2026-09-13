@@ -1772,6 +1772,12 @@ ScreenRows(XtpTerminal *terminal)
         return state.total;
 }
 
+uint64_t
+XtpGhosttyScreenRows(XtpTerminal *terminal)
+{
+        return ScreenRows(terminal);
+}
+
 static bool
 ScreenRowRef(XtpTerminal *terminal, uint64_t row, GhosttyGridRef *ref)
 {

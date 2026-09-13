@@ -500,6 +500,42 @@ int XtpTerminalCommandOutput(XtpTerminal *terminal, uint64_t prompt_start, XtpSe
  * the caller frees *text. */
 int XtpTerminalSpanText(XtpTerminal *terminal, const XtpSemanticSpan *span, char **text,
                         size_t *length);
+/* Literal primary-screen search; HANDOFF.md describes the matching and invalidation rules. */
+typedef struct XtpTerminalSearch XtpTerminalSearch;
+
+typedef enum
+{
+        XTP_SEARCH_IDLE,
+        XTP_SEARCH_RUNNING,
+        XTP_SEARCH_COMPLETE,
+        /* The alternate screen is active; the search resumes when it ends. */
+        XTP_SEARCH_UNAVAILABLE,
+        /* A scan allocation or core call failed; matches already found stay usable. */
+        XTP_SEARCH_ERROR,
+} XtpSearchState;
+
+/* Matches kept per query, newest first; more set the truncated flag. */
+#define XTP_SEARCH_MATCH_LIMIT 4096U
+/* Rows of one soft-wrapped line searched together; longer lines are split. */
+#define XTP_SEARCH_LINE_ROW_LIMIT 256U
+
+/* NULL on the stub backend or allocation failure; free it before the terminal. */
+XtpTerminalSearch *XtpTerminalSearchNew(XtpTerminal *terminal);
+void XtpTerminalSearchFree(XtpTerminalSearch *search);
+/* Restarts and reads the active screen at once; -1 on bad UTF-8, no memory or alt screen. */
+int XtpTerminalSearchSetQuery(XtpTerminalSearch *search, const char *utf8, size_t length);
+/* Scans older rows: at most row_budget plus one wrapped line's rest; 0 does nothing. */
+XtpSearchState XtpTerminalSearchStep(XtpTerminalSearch *search, size_t row_budget);
+XtpSearchState XtpTerminalSearchState(XtpTerminalSearch *search);
+/* Stops the scan and drops the query and its matches. */
+void XtpTerminalSearchCancel(XtpTerminalSearch *search);
+/* Live matches after dropping evicted ones. */
+size_t XtpTerminalSearchMatches(XtpTerminalSearch *search, bool *truncated);
+/* Rows examined since the query was set; diagnostics. */
+uint64_t XtpTerminalSearchRowsScanned(XtpTerminalSearch *search);
+/* Nearest match starting after or before a screen cell, wrapping; changed matches are dropped. */
+int XtpTerminalSearchNavigate(XtpTerminalSearch *search, uint64_t row, uint16_t column,
+                              bool forward, XtpSemanticSpan *match, bool *wrapped);
 XtpSelectionResult XtpTerminalSelectionStart(XtpTerminal *terminal, uint16_t column, uint16_t row,
                                              double surface_x, double surface_y, uint64_t time_ns,
                                              XtpSelectionUnit unit, bool repeat);

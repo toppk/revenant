@@ -105,4 +105,7 @@ struct XtpTerminal
         size_t answerback_length;
 };
 
+/* Primary-screen rows including scrollback; 0 on the alternate screen. */
+uint64_t XtpGhosttyScreenRows(XtpTerminal *terminal);
+
 #endif

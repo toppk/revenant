@@ -686,6 +686,52 @@ function-pointer helper would lose the useful type check.
   never fires, another client taking PRIMARY), CLIPBOARD without a color, a
   zero duration, OSC 52 writes and replacement, a resize during the flash, a
   synchronized-output hold that never shows it, and teardown mid-flash.
+- Scrollback search model (no UI until U3): `XtpTerminalSearch` in
+  `terminal.h` searches the primary screen for a literal UTF-8 query.
+  `search_match.c` is backend-neutral: the query becomes codepoints with a
+  Knuth-Morris-Pratt failure table, `XtpSearchFindAll` reports every
+  occurrence, overlaps included, only when both ends fall on grapheme-cluster
+  boundaries, and `XtpSearchPick` chooses the nearest start strictly after or
+  before a cell in a descending array, wrapping to the first or last match.
+  There is no case folding or Unicode normalization, so precomposed é and
+  e+U+0301 are different queries. `terminal_ghostty_search.c` scans newest
+  first. A tracked reference marks the bottom row of the next logical line;
+  the line extends upward through rows whose WRAP flag is set, up to
+  `XTP_SEARCH_LINE_ROW_LIMIT` rows (a longer line is split, and a match
+  across the split is missed). Cells become units: empty cells read as
+  spaces, spacer cells are skipped, and trailing spaces of the last row are
+  trimmed. Each match is stored as tracked start and end cells.
+  `XtpTerminalSearchSetQuery` reads the active screen at once, at most its
+  height plus the rest of one wrapped line, because only those rows can
+  still be written; history rows cannot, so the results describe the text
+  present when the query was set. Later output stays out: new rows arrive
+  below the fixed boundary, and an overwrite of a row already read is caught
+  by navigation's re-check. The one gap is a resize that pulls unread history
+  back into the active screen before a step reaches it.
+  If that immediate scan fails, the setter returns -1 and the search stays
+  in `XTP_SEARCH_ERROR`; `XtpSearchSetAllocator` lets the self-test fail
+  the scan's first allocation.
+  `XtpTerminalSearchStep` then examines at most its row budget plus the rest
+  of one wrapped line, and a zero budget does nothing, so a caller can
+  interleave PTY reads.
+  Tracked references follow scrolling, eviction and reflow: a dead cursor
+  completes the scan, `XtpTerminalSearchMatches` drops dead matches, and
+  `XtpTerminalSearchNavigate` re-reads the chosen match and drops it when its
+  text no longer spells the query, as after an overwrite. Matches are capped
+  at `XTP_SEARCH_MATCH_LIMIT`, keeping the newest and setting the truncated
+  flag. The alternate screen has no history: setting a query there fails,
+  and a running search reports `XTP_SEARCH_UNAVAILABLE`, keeping its state,
+  until the primary screen returns. The stub backend returns no search
+  object. A reflow in the middle of a scan can make a split long line report
+  a match twice; only lines longer than the row limit are affected. The
+  `search matching` self-test covers the matcher and navigation order;
+  `scrollback search` covers text written after the query is set, an
+  overwrite after it, an allocation failure in the immediate scan, a zero budget, empty and invalid queries, wide characters,
+  combining clusters, overlaps, matches across a soft wrap including a wide
+  character pushed to the next row, reflow narrower and wider, an
+  overwritten match, the alternate screen mid-scan, eviction of finished
+  matches, a 20,000-row history scanned in 256-row steps with output fed
+  between steps, cancellation, the match limit, and eviction during a scan.
 - Prompt navigation: the adapter keeps an index of OSC 133 prompt starts as
   libghostty tracked grid references. The feed observer already delimits
   OSC selectors and payload items for OSC 7 and the color queries; for

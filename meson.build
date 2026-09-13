@@ -129,6 +129,7 @@ widget_sources = files(
     'src/glyph_cairo.c',
     'src/glyph_shape.c',
     'src/menus.c',
+    'src/search_match.c',
     'src/sme_slider.c',
     'src/terminal.c',
     'src/title_stack.c',
@@ -206,7 +207,11 @@ if build_with_ghostty
         build_by_default: true,
     )
 
-    terminal_sources += files('src/terminal_ghostty.c', 'src/terminal_ghostty_selection.c')
+    terminal_sources += files(
+        'src/terminal_ghostty.c',
+        'src/terminal_ghostty_search.c',
+        'src/terminal_ghostty_selection.c',
+    )
     terminal_link_sources += ghostty_archive
     terminal_compile_args += [
         '-DGHOSTTY_STATIC',
