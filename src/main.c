@@ -1259,8 +1259,12 @@ PtyReady(XtPointer closure, int *source, XtInputId *input_id)
 
                 if (amount > 0) {
                         XtpLogBytePreview(XTP_LOG_DEBUG, "pty", "read", buffer, (size_t)amount);
-                        if (XtpTerminalFeedOutput(app->terminal, buffer, (size_t)amount,
-                                                  XtpVtScrollTtyOutput(app->vt) != False) != 0)
+                        if ((XtpVtSearchActive(app->vt)
+                                 ? XtpTerminalFeedOutputPinned(app->terminal, buffer,
+                                                               (size_t)amount)
+                                 : XtpTerminalFeedOutput(app->terminal, buffer, (size_t)amount,
+                                                         XtpVtScrollTtyOutput(app->vt) != False)) !=
+                            0)
                                 XtpLog(XTP_LOG_WARNING, "scrollback",
                                        "cannot preserve tty-output viewport policy");
                         total += (size_t)amount;

@@ -91,6 +91,8 @@ void XtpVtSetScrollbar(Widget widget, Boolean visible);
 Boolean XtpVtScrollKey(Widget widget);
 void XtpVtSetScrollKey(Widget widget, Boolean enabled);
 Boolean XtpVtScrollTtyOutput(Widget widget);
+/* While true the search overlay owns keys and output does not move the viewport. */
+Boolean XtpVtSearchActive(Widget widget);
 void XtpVtSetScrollTtyOutput(Widget widget, Boolean enabled);
 Boolean XtpVtSelectToClipboard(Widget widget);
 void XtpVtSetSelectToClipboard(Widget widget, Boolean enabled);

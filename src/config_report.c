@@ -849,10 +849,11 @@ KnownTranslationAction(const char *action)
                strcmp(action, "scroll-back") == 0 || strcmp(action, "scroll-forw") == 0 ||
                strcmp(action, "previous-prompt") == 0 || strcmp(action, "next-prompt") == 0 ||
                strcmp(action, "insert-seven-bit") == 0 || strcmp(action, "insert-eight-bit") == 0 ||
-               strcmp(action, "pipe-command-output") == 0 || strcmp(action, "select-start") == 0 ||
-               strcmp(action, "select-extend") == 0 || strcmp(action, "select-end") == 0 ||
-               strcmp(action, "start-extend") == 0 || strcmp(action, "insert-selection") == 0 ||
-               strcmp(action, "mouse-press") == 0 || strcmp(action, "mouse-motion") == 0;
+               strcmp(action, "pipe-command-output") == 0 || strcmp(action, "start-search") == 0 ||
+               strcmp(action, "select-start") == 0 || strcmp(action, "select-extend") == 0 ||
+               strcmp(action, "select-end") == 0 || strcmp(action, "start-extend") == 0 ||
+               strcmp(action, "insert-selection") == 0 || strcmp(action, "mouse-press") == 0 ||
+               strcmp(action, "mouse-motion") == 0;
 }
 
 static bool

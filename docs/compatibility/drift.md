@@ -476,6 +476,13 @@ U+E0B0–U+E0BF from the cell under the same rules and the same switch, so
 Powerline branch and lock icons and the Nerd Font flame separators, and the
 legacy computing symbols still come from the font.
 
+### Scrollback search
+
+xterm has no search. Revenant adds `start-search()`, bound by default to
+Ctrl+Shift+F like Ghostty and Kitty, with a literal incremental search bar;
+while it is open it owns every key, and Enter copies the active match to
+PRIMARY. There is no regular-expression search.
+
 ### Copy feedback
 
 xterm has no copy feedback. Revenant adds `copyFlashDuration` and

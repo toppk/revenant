@@ -48,6 +48,82 @@ SendKeyCycle(Display *display, Window target, KeySym keysym, unsigned int state,
         return 0;
 }
 
+/* The keysym's own shift level on its keycode, so text types as the display maps it. */
+static unsigned int
+ShiftStateFor(Display *display, KeySym keysym)
+{
+        KeyCode keycode = XKeysymToKeycode(display, keysym);
+        int per_keycode = 0;
+        KeySym *mapping;
+        unsigned int state = 0;
+
+        if (keycode == 0)
+                return 0;
+        mapping = XGetKeyboardMapping(display, keycode, 1, &per_keycode);
+        if (mapping != NULL) {
+                if (per_keycode > 1 && mapping[0] != keysym && mapping[1] == keysym)
+                        state = ShiftMask;
+                XFree(mapping);
+        }
+        return state;
+}
+
+static int
+SendGeneric(int argc, char **argv)
+{
+        Display *display;
+        Window target;
+        Window root;
+        Window parent;
+        Window *children = NULL;
+        unsigned int child_count = 0;
+        int status = EXIT_SUCCESS;
+
+        if (ParseWindow(argv[1], &target) != 0) {
+                fprintf(stderr, "%s: invalid X11 window id: %s\n", argv[0], argv[1]);
+                return EXIT_FAILURE;
+        }
+        display = XOpenDisplay(NULL);
+        if (display == NULL) {
+                fprintf(stderr, "%s: cannot open display\n", argv[0]);
+                return EXIT_FAILURE;
+        }
+        if (XQueryTree(display, target, &root, &parent, &children, &child_count) != 0 &&
+            child_count != 0)
+                target = children[0];
+        if (children != NULL)
+                XFree(children);
+        if (strcmp(argv[2], "keysym") == 0) {
+                KeySym keysym = XStringToKeysym(argv[3]);
+                unsigned int state = 0;
+
+                if (argc == 5 && strstr(argv[4], "ctrl") != NULL)
+                        state |= ControlMask;
+                if (argc == 5 && strstr(argv[4], "shift") != NULL)
+                        state |= ShiftMask;
+                if (keysym == NoSymbol || SendKeyCycle(display, target, keysym, state, 0) != 0)
+                        status = EXIT_FAILURE;
+        } else {
+                const unsigned char *text = (const unsigned char *)argv[3];
+
+                for (; *text != '\0' && status == EXIT_SUCCESS; ++text) {
+                        KeySym keysym = (KeySym)*text;
+
+                        if (*text < 0x20U || *text > 0x7eU ||
+                            SendKeyCycle(display, target, keysym, ShiftStateFor(display, keysym),
+                                         0) != 0)
+                                status = EXIT_FAILURE;
+                }
+        }
+        XSync(display, False);
+        if (status == EXIT_SUCCESS)
+                printf("sent %s %s to 0x%lx\n", argv[2], argv[3], target);
+        else
+                fprintf(stderr, "%s: cannot send %s %s\n", argv[0], argv[2], argv[3]);
+        XCloseDisplay(display);
+        return status;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -62,6 +138,9 @@ main(int argc, char **argv)
         KeyCode keycode;
         XEvent event = {0};
 
+        if ((argc == 4 || argc == 5) &&
+            (strcmp(argv[2], "keysym") == 0 || (strcmp(argv[2], "text") == 0 && argc == 4)))
+                return SendGeneric(argc, argv);
         if (argc != 3 ||
             (strcmp(argv[2], "ctrl-i") != 0 && strcmp(argv[2], "tab") != 0 &&
              strcmp(argv[2], "a-cycle") != 0 && strcmp(argv[2], "shift-a-cycle") != 0 &&

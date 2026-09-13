@@ -64,7 +64,8 @@ Ctrl+Shift+Up and Ctrl+Shift+Down are a second intentional extension: they
 run `previous-prompt()` and `next-prompt()`, the same keys Ghostty binds for
 prompt jumps, and are translation-owned so the modified arrows are not also
 sent to the application. Ctrl+Shift+G runs `pipe-command-output()` on the
-same terms. Shift+Up and Shift+Down alone still reach the
+same terms, and Ctrl+Shift+F runs `start-search()`, whose search bar then
+owns every key until it closes. Shift+Up and Shift+Down alone still reach the
 application. Ownership is decided per event after Xt has run the
 translations, so an override that binds the gesture to xterm's
 `insert-seven-bit()` (accepted as a no-op that leaves the key to the input

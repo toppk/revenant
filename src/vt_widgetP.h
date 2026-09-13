@@ -65,6 +65,8 @@ typedef struct
 #define XTP_RECENT_KEY_ACTIONS 16
 #define XTP_SCROLL_RENDER_DELAY_MS 8
 #define XTP_SYNC_OUTPUT_TIMEOUT_MS 1000
+/* Search query bytes the overlay accepts. */
+#define XTP_SEARCH_QUERY_CAPACITY 256U
 #define XTP_SELECTION_AUTOSCROLL_MS 15
 
 typedef enum
@@ -100,6 +102,7 @@ typedef enum
         XTP_LOCAL_ACTION_NEXT_PROMPT,
         XTP_LOCAL_ACTION_PIPE_OUTPUT,
         XTP_LOCAL_ACTION_FONT_LINEDRAWING,
+        XTP_LOCAL_ACTION_START_SEARCH,
 } LocalKeyAction;
 
 typedef struct
@@ -188,6 +191,23 @@ typedef struct
         uint8_t copy_flash_rgb[3];
         XtIntervalId copy_flash_timer;
         Boolean copy_flash_active;
+        XtpTerminalSearch *search;
+        Boolean search_active;
+        Boolean search_unavailable;
+        char search_query[XTP_SEARCH_QUERY_CAPACITY];
+        size_t search_query_length;
+        XtpTerminalCellMark *search_active_mark;
+        XtpTerminalCellMark *search_viewport_mark;
+        Boolean search_viewport_at_bottom;
+        XtIntervalId search_timer;
+        Widget search_overlay;
+        Widget search_label;
+        uint64_t search_frame_top;
+        Boolean search_have_span;
+        XtpSemanticSpan search_span;
+        /* Room for every retained match, so no visible one goes unhighlighted. */
+        XtpSemanticSpan *search_visible;
+        size_t search_visible_count;
         Boolean scroll_bar;
         Boolean right_scroll_bar;
         Boolean scroll_key;
@@ -355,6 +375,17 @@ void VtEraseLastCursor(Vt100Rec *vt);
 void VtReleaseBoxStipples(Vt100Rec *vt);
 void VtStartCopyFlash(Vt100Rec *vt);
 void VtCancelCopyFlash(Vt100Rec *vt, const char *reason);
+void VtStartSearchAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+void VtSearchKey(Vt100Rec *vt, KeySym keysym, unsigned int state, const char *text, size_t length,
+                 Time time);
+void VtSearchPrepareFrame(Vt100Rec *vt);
+unsigned int VtSearchCellHighlight(const Vt100Rec *vt, uint16_t row, uint16_t column);
+void VtSearchResized(Vt100Rec *vt);
+void VtSearchTerminalChanged(Vt100Rec *vt);
+void VtSearchDestroy(Vt100Rec *vt);
+Boolean VtPublishSearchMatch(Vt100Rec *vt, const uint8_t *text, size_t length, Time time);
+Boolean VtScrollViewportToRow(Vt100Rec *vt, uint64_t row);
+Boolean VtScrollViewportToEnd(Vt100Rec *vt);
 void VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int row,
                   XtpCursorShape shape);
 void VtStopCursorBlink(Vt100Rec *vt);

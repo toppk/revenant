@@ -709,6 +709,12 @@ SelfTestScrollTtyOutput(void)
             after.offset <= before.offset ||
             SelfTestRowsBelow(&after) != SelfTestRowsBelow(&before))
                 goto done;
+        /* Pinned output keeps the same text at the top of the viewport. */
+        if (XtpTerminalGetScrollbar(terminal, &before) != 0 ||
+            XtpTerminalFeedOutputPinned(terminal, (const uint8_t *)"pinned\r\n", 8) != 0 ||
+            XtpTerminalGetScrollbar(terminal, &after) != 0 || after.total <= before.total ||
+            after.offset != before.offset)
+                goto done;
         if (XtpTerminalScrollTo(terminal, 2) != 0 ||
             XtpTerminalFeedOutput(terminal, (const uint8_t *)"bottom\r\n", 8, true) != 0 ||
             XtpTerminalGetScrollbar(terminal, &after) != 0 ||
@@ -5632,6 +5638,9 @@ SelfTestScrollbackSearch(void)
         XtpTerminal *deep = NULL;
         XtpTerminalSearch *search = NULL;
         XtpTerminalSearch *deep_search = NULL;
+        XtpTerminalCellMark *mark = NULL;
+        uint64_t mark_row = 0;
+        uint16_t mark_column = 0;
         XtpTerminalScrollbar bar = {0};
         XtpSemanticSpan span = {0};
         bool wrapped = false;
@@ -5736,6 +5745,20 @@ SelfTestScrollbackSearch(void)
             !SelfTestSearchSpanAt(&span, 5, 0, 5, 1))
                 goto done;
 
+        stage = "visible matches in a row range";
+        {
+                XtpSemanticSpan spans[4];
+
+                if (XtpTerminalSearchVisible(search, 0, 0, spans, 4) != 2 ||
+                    !SelfTestSearchSpanAt(&spans[0], 0, 5, 0, 6) ||
+                    !SelfTestSearchSpanAt(&spans[1], 0, 10, 0, 11) ||
+                    XtpTerminalSearchVisible(search, 1, 5, spans, 4) != 1 ||
+                    !SelfTestSearchSpanAt(&spans[0], 5, 0, 5, 1) ||
+                    XtpTerminalSearchVisible(search, 0, 5, spans, 1) != 1 ||
+                    XtpTerminalSearchVisible(search, 6, 9, spans, 4) != 0)
+                        goto done;
+        }
+
         stage = "grapheme clusters match literally and whole";
         if (!SelfTestSearchFor(search, "\xc3\xa9", 1) ||
             XtpTerminalSearchNavigate(search, 0, 0, true, &span, NULL) != 0 ||
@@ -5759,6 +5782,9 @@ SelfTestScrollbackSearch(void)
             !SelfTestSearchSpanAt(&span, 4, 18, 5, 1))
                 goto done;
 
+        mark = XtpTerminalMarkCell(terminal, 2, 17);
+        if (mark == NULL)
+                goto done;
         stage = "reflow keeps matches on their text";
         if (!SelfTestSearchFor(search, "NEEDLE", 1) ||
             XtpTerminalResize(terminal, 10, 6, 8, 16) != 0 ||
@@ -5769,6 +5795,13 @@ SelfTestScrollbackSearch(void)
             !SelfTestSearchSpanAt(&span, 2, 17, 2, 22) ||
             XtpTerminalSearchMatches(search, NULL) != 1)
                 goto done;
+
+        stage = "cell marks follow reflow";
+        if (XtpTerminalMarkPosition(mark, &mark_row, &mark_column) != 0 || mark_row != 2 ||
+            mark_column != 17)
+                goto done;
+        XtpTerminalMarkFree(mark);
+        mark = NULL;
 
         stage = "overwritten matches are dropped";
         SelfTestFeedText(terminal, "\033[2J\033[Hfind me here");
@@ -5781,6 +5814,9 @@ SelfTestScrollbackSearch(void)
 
         stage = "alternate screen";
         SelfTestFeedText(terminal, "\r\nalt target\r\n\033[?1049h");
+        mark = XtpTerminalMarkCell(terminal, 0, 0);
+        if (mark != NULL)
+                goto done;
         if (XtpTerminalSearchSetQuery(search, "target", 6) == 0 ||
             XtpTerminalSearchState(search) != XTP_SEARCH_IDLE)
                 goto done;
@@ -5806,8 +5842,15 @@ SelfTestScrollbackSearch(void)
             SelfTestRunSearch(search, 16) != XTP_SEARCH_COMPLETE ||
             XtpTerminalSearchMatches(search, NULL) == 0)
                 goto done;
+        mark = XtpTerminalMarkCell(terminal, 0, 0);
+        if (mark == NULL)
+                goto done;
         for (index = 0; index < 10000; ++index)
                 SelfTestFeedText(terminal, "---\r\n");
+        if (XtpTerminalMarkPosition(mark, &mark_row, &mark_column) == 0)
+                goto done;
+        XtpTerminalMarkFree(mark);
+        mark = NULL;
         if (XtpTerminalSearchMatches(search, NULL) != 0 ||
             XtpTerminalSearchNavigate(search, 0, 0, true, &span, NULL) == 0)
                 goto done;
@@ -5906,6 +5949,7 @@ done:
         if (result != 0)
                 XtpLog(XTP_LOG_ERROR, "self-test", "scrollback search stage failed: %s", stage);
         XtpSearchSetAllocator(NULL);
+        XtpTerminalMarkFree(mark);
         XtpTerminalSearchFree(deep_search);
         XtpTerminalSearchFree(search);
         if (deep != NULL)

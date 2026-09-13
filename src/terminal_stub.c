@@ -408,6 +408,42 @@ XtpTerminalSearchNavigate(XtpTerminalSearch *search, uint64_t row, uint16_t colu
         return -1;
 }
 
+size_t
+XtpTerminalSearchVisible(XtpTerminalSearch *search, uint64_t first_row, uint64_t last_row,
+                         XtpSemanticSpan *spans, size_t capacity)
+{
+        (void)search;
+        (void)first_row;
+        (void)last_row;
+        (void)spans;
+        (void)capacity;
+        return 0;
+}
+
+XtpTerminalCellMark *
+XtpTerminalMarkCell(XtpTerminal *terminal, uint64_t row, uint16_t column)
+{
+        (void)terminal;
+        (void)row;
+        (void)column;
+        return NULL;
+}
+
+int
+XtpTerminalMarkPosition(const XtpTerminalCellMark *mark, uint64_t *row, uint16_t *column)
+{
+        (void)mark;
+        (void)row;
+        (void)column;
+        return -1;
+}
+
+void
+XtpTerminalMarkFree(XtpTerminalCellMark *mark)
+{
+        (void)mark;
+}
+
 int
 XtpTerminalSpanText(XtpTerminal *terminal, const XtpSemanticSpan *span, char **text, size_t *length)
 {

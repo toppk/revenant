@@ -54,7 +54,8 @@ func searchFixture(s *Session) {
 		s.say("row %03d %s", n, value)
 	}
 	s.say("%sWRAPPED-NEEDLE", strings.Repeat("x", max(1, width-4)))
-	s.say("Search FIND-ME, café, a missing string, WRAPPED-NEEDLE. Check next/previous and Escape.")
+	s.say("Press Ctrl+Shift+F; search FIND-ME, café, a missing string and WRAPPED-NEEDLE.")
+	s.say("Up/Down move between matches, Enter copies the match to PRIMARY, Escape restores the viewport.")
 	s.pause()
 }
 func links(s *Session) {

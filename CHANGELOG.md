@@ -10,10 +10,15 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
-- Add the scrollback search model the upcoming search bar will use. It finds
-  literal text across soft-wrapped lines in bounded steps, and its matches
-  stay on their text through scrolling, eviction and resizing. There is no
-  user-visible change yet.
+- Search the scrollback. Ctrl+Shift+F, or the new `start-search()` action,
+  opens a search bar over the bottom of the window. Typing finds the literal
+  text across soft-wrapped lines as you type, highlights every visible match
+  and scrolls to the nearest one above the view; Up and Down (or Shift+F3 and
+  F3) move to older and newer matches, wrapping at the ends. Enter copies the
+  active match to PRIMARY with its wraps joined and closes the bar, and
+  Escape closes it and returns to where the search started. While the bar is
+  open every key belongs to it, output keeps the view on the same text, and
+  results stay those of the text present when the query was typed.
 - Flash text after copying it. The new `copyFlashDuration` resource, in
   milliseconds and 0 (off) by default, briefly marks the cells a selection
   gesture has just copied to PRIMARY or CLIPBOARD. `copyFlashColor` paints

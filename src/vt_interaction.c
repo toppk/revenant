@@ -1798,3 +1798,12 @@ XtpVtClipboardRead(Widget widget, XtpClipboardTarget target, uint8_t **bytes, si
                            : XTP_CLIPBOARD_UNAVAILABLE;
         return FetchSelectionSync(vt, source.atom, bytes, length);
 }
+
+/* An accepted search match owns PRIMARY like any explicit copy, without a highlight. */
+Boolean
+VtPublishSearchMatch(Vt100Rec *vt, const uint8_t *text, size_t length, Time time)
+{
+        if (time == CurrentTime)
+                time = SelectionRequestTime(vt);
+        return OwnSelectionText(vt, "SEARCH", XA_PRIMARY, text, length, False, time);
+}

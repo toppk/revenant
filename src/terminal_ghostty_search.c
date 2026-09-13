@@ -536,3 +536,77 @@ XtpTerminalSearchNavigate(XtpTerminalSearch *search, uint64_t row, uint16_t colu
                 return 0;
         }
 }
+
+size_t
+XtpTerminalSearchVisible(XtpTerminalSearch *search, uint64_t first_row, uint64_t last_row,
+                         XtpSemanticSpan *spans, size_t capacity)
+{
+        size_t index;
+        size_t written = 0;
+
+        if (search == NULL || spans == NULL || capacity == 0 ||
+            XtpGhosttyScreenRows(search->terminal) == 0)
+                return 0;
+        /* Stored newest first, so walking backward yields ascending positions. */
+        for (index = search->match_count; index > 0 && written < capacity; --index) {
+                const SearchMatch *match = &search->matches[index - 1U];
+                GhosttyPointCoordinate start;
+                GhosttyPointCoordinate end;
+
+                if (!TrackedPoint(match->start, &start) || !TrackedPoint(match->end, &end))
+                        continue;
+                if (start.y > last_row)
+                        break;
+                if (end.y < first_row)
+                        continue;
+                spans[written].start_row = start.y;
+                spans[written].start_column = start.x;
+                spans[written].end_row = end.y;
+                spans[written].end_column = end.x;
+                ++written;
+        }
+        return written;
+}
+
+struct XtpTerminalCellMark
+{
+        GhosttyTrackedGridRef ref;
+};
+
+XtpTerminalCellMark *
+XtpTerminalMarkCell(XtpTerminal *terminal, uint64_t row, uint16_t column)
+{
+        XtpTerminalCellMark *mark;
+
+        if (terminal == NULL || XtpGhosttyScreenRows(terminal) == 0)
+                return NULL;
+        mark = calloc(1, sizeof(*mark));
+        if (mark == NULL)
+                return NULL;
+        if (!TrackPoint(terminal, row, column, &mark->ref)) {
+                free(mark);
+                return NULL;
+        }
+        return mark;
+}
+
+int
+XtpTerminalMarkPosition(const XtpTerminalCellMark *mark, uint64_t *row, uint16_t *column)
+{
+        GhosttyPointCoordinate point;
+
+        if (mark == NULL || row == NULL || column == NULL || !TrackedPoint(mark->ref, &point))
+                return -1;
+        *row = point.y;
+        *column = point.x;
+        return 0;
+}
+
+void
+XtpTerminalMarkFree(XtpTerminalCellMark *mark)
+{
+        if (mark == NULL)
+                return;
+        FreeTracked(&mark->ref);
+        free(mark);
+}

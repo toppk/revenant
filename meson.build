@@ -148,6 +148,7 @@ widget_sources = files(
     'src/vt_draw.c',
     'src/vt_input.c',
     'src/vt_interaction.c',
+    'src/vt_search.c',
     'src/vt_widget.c',
     'src/x11_opacity.c',
 )
@@ -790,6 +791,21 @@ if build_with_ghostty and xvfb.found()
             shift_click_test_tool.full_path(),
         ],
         timeout: 30,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-search',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-search.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            key_test_tool.full_path(),
+            selection_reader_tool.full_path(),
+            window_alpha_test_tool.full_path(),
+            resize_test_tool.full_path(),
+        ],
+        timeout: 120,
         is_parallel: false,
     )
     test(

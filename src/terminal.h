@@ -427,6 +427,8 @@ void XtpTerminalFree(XtpTerminal *terminal);
 void XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length);
 int XtpTerminalFeedOutput(XtpTerminal *terminal, const uint8_t *bytes, size_t length,
                           bool scroll_tty_output);
+/* Keeps the viewport on the same text while output arrives, as a search needs. */
+int XtpTerminalFeedOutputPinned(XtpTerminal *terminal, const uint8_t *bytes, size_t length);
 int XtpTerminalResize(XtpTerminal *terminal, uint16_t columns, uint16_t rows, uint32_t cell_width,
                       uint32_t cell_height);
 int XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *closure,
@@ -536,6 +538,18 @@ uint64_t XtpTerminalSearchRowsScanned(XtpTerminalSearch *search);
 /* Nearest match starting after or before a screen cell, wrapping; changed matches are dropped. */
 int XtpTerminalSearchNavigate(XtpTerminalSearch *search, uint64_t row, uint16_t column,
                               bool forward, XtpSemanticSpan *match, bool *wrapped);
+/* Live matches touching screen rows first..last, oldest first; returns the count written. */
+size_t XtpTerminalSearchVisible(XtpTerminalSearch *search, uint64_t first_row, uint64_t last_row,
+                                XtpSemanticSpan *spans, size_t capacity);
+
+/* A primary-screen cell followed through scrolling, eviction and reflow. */
+typedef struct XtpTerminalCellMark XtpTerminalCellMark;
+
+/* NULL on the stub backend, the alternate screen, a cell off the screen or no memory. */
+XtpTerminalCellMark *XtpTerminalMarkCell(XtpTerminal *terminal, uint64_t row, uint16_t column);
+/* -1 once the marked cell was evicted. */
+int XtpTerminalMarkPosition(const XtpTerminalCellMark *mark, uint64_t *row, uint16_t *column);
+void XtpTerminalMarkFree(XtpTerminalCellMark *mark);
 XtpSelectionResult XtpTerminalSelectionStart(XtpTerminal *terminal, uint16_t column, uint16_t row,
                                              double surface_x, double surface_y, uint64_t time_ns,
                                              XtpSelectionUnit unit, bool repeat);

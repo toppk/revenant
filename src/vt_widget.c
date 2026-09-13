@@ -48,6 +48,7 @@ static XtActionsRec actions[] = {
     {"insert-seven-bit", VtInsertKeyAction},
     {"insert-eight-bit", VtInsertKeyAction},
     {"pipe-command-output", VtPipeOutputAction},
+    {"start-search", VtStartSearchAction},
     {"select-start", VtSelectStartAction},
     {"select-extend", VtSelectExtendAction},
     {"select-end", VtSelectEndAction},
@@ -73,6 +74,7 @@ static char translations[] = "Shift~Ctrl <KeyPress> KP_Add: larger-vt-font()\n"
                              "Ctrl Shift <KeyPress> Up: previous-prompt()\n"
                              "Ctrl Shift <KeyPress> Down: next-prompt()\n"
                              "Ctrl Shift <KeyPress> g: pipe-command-output()\n"
+                             "Ctrl Shift <KeyPress> f: start-search()\n"
                              "!Ctrl <Btn1Down>: popup-menu(mainMenu)\n"
                              "!Lock Ctrl <Btn1Down>: popup-menu(mainMenu)\n"
                              "!Lock Ctrl @Num_Lock <Btn1Down>: popup-menu(mainMenu)\n"
@@ -639,6 +641,12 @@ VtScrollToPrompt(Vt100Rec *vt, long count)
         return ScrollViewportTo(vt, from);
 }
 
+Boolean
+VtScrollViewportToRow(Vt100Rec *vt, uint64_t row)
+{
+        return ScrollViewportTo(vt, row);
+}
+
 static Boolean
 ScrollViewportToBottom(Vt100Rec *vt)
 {
@@ -660,6 +668,12 @@ ScrollViewportToBottom(Vt100Rec *vt)
                         return False;
         }
         return True;
+}
+
+Boolean
+VtScrollViewportToEnd(Vt100Rec *vt)
+{
+        return ScrollViewportToBottom(vt);
 }
 
 static void
@@ -1090,6 +1104,7 @@ Destroy(Widget widget)
                 XtRemoveTimeOut(vt->vt.copy_flash_timer);
                 XtpLog(XTP_LOG_INFO, "selection", "copy flash cancelled reason=teardown");
         }
+        VtSearchDestroy(vt);
         VtDestroyInput(vt);
         ReleaseGc(widget);
         VtReleaseBoxStipples(vt);
@@ -1144,6 +1159,7 @@ ResizeWidget(Widget widget)
                vt->core.height > vertical ? vt->core.height - vertical : 0, columns, rows,
                vt->vt.columns, vt->vt.rows, XtIsRealized(widget) ? "true" : "false",
                vt->vt.suppress_grid_resize ? "true" : "false");
+        VtSearchResized(vt);
         if (!XtIsRealized(widget) || vt->vt.suppress_grid_resize)
                 return;
         if (columns < 1U)
@@ -2130,6 +2146,8 @@ XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
 {
         Vt100Rec *vt = VtAsRecord(widget);
 
+        if (vt->vt.terminal != terminal)
+                VtSearchTerminalChanged(vt);
         vt->vt.terminal = terminal;
         CancelSynchronizedOutputTimer(vt);
         vt->vt.sync_output_held = 0;

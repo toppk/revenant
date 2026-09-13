@@ -329,6 +329,26 @@ write never starts one. While an application holds synchronized output
 (mode 2026) the flash is not drawn, and the released frame shows only what
 is current.
 
+### Search
+
+Ctrl+Shift+F opens a search bar over the bottom of the window. Type to find
+text in the scrollback: the search is literal, matching exactly what you
+type, including across lines the terminal wrapped, and it updates as you
+type. Every visible match is highlighted like a selection and the active
+match is drawn in the cursor color. The nearest match above the view becomes
+active first; Up and Down (or Shift+F3 and F3) move to older and newer
+matches and wrap around at the ends. Backspace edits the query, Enter copies
+the active match to PRIMARY and closes the bar, and Escape closes it and
+returns to where the search started.
+
+While the bar is open every key belongs to it, so nothing you type reaches
+the application, and output that arrives keeps the view on the same text.
+The results describe the text that was there when the query was typed. The
+alternate screen, used by full-screen programs, has no scrollback and cannot
+be searched. Bind `start-search()` to another key through `translations`; the
+bar's appearance follows ordinary Athena resources such as
+`XTerm*searchOverlay*font`.
+
 ## Word selection classes
 
 Double-click selection follows xterm's character-class model. Letters,
@@ -465,7 +485,7 @@ XTerm*vt100.translations: #override \n\
 
 Actions currently implemented include `insert-selection`, `select-end`,
 `set-select`, `scroll-back`, `scroll-forw`, `previous-prompt`, `next-prompt`,
-`pipe-command-output`, `insert-seven-bit`, `insert-eight-bit`,
+`pipe-command-output`, `start-search`, `insert-seven-bit`, `insert-eight-bit`,
 `larger-vt-font`, `smaller-vt-font`, `set-render-font`,
 `set-font-linedrawing`, and the popup actions. The report labels
 each action *supported* or *unsupported*.

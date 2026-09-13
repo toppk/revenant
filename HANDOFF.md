@@ -686,7 +686,57 @@ function-pointer helper would lose the useful type check.
   never fires, another client taking PRIMARY), CLIPBOARD without a color, a
   zero duration, OSC 52 writes and replacement, a resize during the flash, a
   synchronized-output hold that never shows it, and teardown mid-flash.
-- Scrollback search model (no UI until U3): `XtpTerminalSearch` in
+- Search overlay: `vt_search.c` drives the model from the widget.
+  `start-search()` (Ctrl+Shift+F, with its own `LocalKeyAction` identity)
+  creates an override-redirect `searchOverlay` popup holding an Athena
+  Label, placed over the bottom-left of the terminal and moved on shell
+  ConfigureNotify and widget resize; keyboard focus never leaves the
+  terminal. While `search_active` is set, `InputEvent` hands every key press
+  to `VtSearchKey`, clears Xt's continue-dispatch flag so no translation
+  action also runs, and records the keycode as owned, so neither the press
+  nor its later release reaches the child even when Escape or Enter closes
+  the search first. Typing appends UTF-8, Backspace removes one codepoint,
+  and each change calls `XtpTerminalSearchSetQuery`, then scans in
+  2,048-row steps from a zero-delay timer (every 250 ms while the alternate
+  screen suspends it). The active match is a `XtpTerminalCellMark` on its
+  start cell, resolved by navigating backward from the next cell, so it
+  survives reflow and eviction and disappears if its text changes; the
+  first one is the nearest match above the bottom of the viewport where the
+  search began; a candidate that only wrapped to a newer match is ignored
+  until the scan completes, because the newest-first scan may still find an
+  older one. A query the alternate screen refuses is retried every 250 ms and
+  applied once the primary screen returns. Previous or next navigation that
+  would wrap while the scan runs rings the bell and waits, like the first
+  pick. Moving to a match outside the view centres it. If publishing PRIMARY
+  fails, Enter rings the bell and the search stays open. An input method
+  commit longer than the 128-byte buffer is looked up again at its full size;
+  one that does not fit the query is refused with a bell.
+  `VtRenderTerminal` calls `VtSearchPrepareFrame` before each render to
+  collect the visible spans (`XtpTerminalSearchVisible` into a buffer sized
+  for `XTP_SEARCH_MATCH_LIMIT`, so every retained match can be drawn; a cell
+  bisects them, since their starts and ends both ascend) and the active span; `MakeVisualCell` draws
+  other matches in selection colors and the active one on the cursor color.
+  Every search change invalidates the frame and redraws, deferring under
+  mode 2026 like the copy flash. Enter copies `XtpTerminalSpanText` of the
+  active match through `VtPublishSearchMatch`, which owns PRIMARY without a
+  highlight (logged as source SEARCH), then closes without moving the view.
+  Escape closes and returns to the bottom, or to a cell mark on the starting
+  viewport's top row (the oldest row if that was evicted). While a search is
+  open the PTY loop uses `XtpTerminalFeedOutputPinned`, which marks the
+  viewport's top cell before feeding and scrolls back to it, instead of the
+  xterm policy that keeps the distance from the bottom. Visible-match
+  highlights are not re-verified per frame, so an overwritten match stays
+  highlighted until navigation or a query change drops it. `xvfb-search`
+  uses a 40x10 grid set through `columns`/`rows` (`-geometry` did not set
+  the grid in this harness) and samples cell backgrounds for a wrapped
+  highlight, other matches, navigation with wrapping and scrolling, an
+  empty and a missing query, output that must not move the view, a resize,
+  Escape restoring the bottom, Enter copying the wrapped match to PRIMARY,
+  a screen of 360 single-character matches highlighted to the last row,
+  a raw Kitty-release child that receives nothing during the search, and a
+  key that reaches it afterwards. `xtp-send-key` gained `keysym NAME
+  [ctrl-shift]` and `text STRING` modes.
+- Scrollback search model: `XtpTerminalSearch` in
   `terminal.h` searches the primary screen for a literal UTF-8 query.
   `search_match.c` is backend-neutral: the query becomes codepoints with a
   Knuth-Morris-Pratt failure table, `XtpSearchFindAll` reports every

@@ -559,12 +559,50 @@ SetFocus(Vt100Rec *vt, Boolean focused)
 }
 
 static void
+SearchKeyPress(Vt100Rec *vt, XKeyEvent *xkey)
+{
+        char text[128];
+        char *committed = NULL;
+        KeySym keysym = NoSymbol;
+        Status status = XLookupNone;
+        int length;
+
+        if (vt->vt.input_context != NULL) {
+                length = Xutf8LookupString(vt->vt.input_context, xkey, text, (int)sizeof(text),
+                                           &keysym, &status);
+                /* A long input method commit is read again at the size it needs. */
+                if (status == XBufferOverflow && length > 0) {
+                        committed = malloc((size_t)length);
+                        if (committed != NULL)
+                                length = Xutf8LookupString(vt->vt.input_context, xkey, committed,
+                                                           length, &keysym, &status);
+                        if (committed == NULL || status == XBufferOverflow) {
+                                XtpLog(XTP_LOG_WARNING, "search",
+                                       "input method commit bytes=%d could not be read", length);
+                                status = XLookupNone;
+                        }
+                }
+        } else {
+                length = XLookupString(xkey, text, (int)sizeof(text), &keysym, NULL);
+                status = length > 0 ? XLookupBoth : XLookupKeySym;
+                if (KeysymCodepoint(keysym) >= 0x80U) {
+                        length = EncodeCodepoint(KeysymCodepoint(keysym), text);
+                        status = XLookupBoth;
+                }
+        }
+        if (status != XLookupChars && status != XLookupBoth)
+                length = 0;
+        VtSearchKey(vt, keysym, xkey->state, committed != NULL ? committed : text,
+                    length > 0 ? (size_t)length : 0U, xkey->time);
+        free(committed);
+}
+
+static void
 InputEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch)
 {
         Vt100Rec *vt = closure;
 
         (void)widget;
-        (void)continue_dispatch;
         if (event->type == FocusIn) {
                 XtpLog(XTP_LOG_DEBUG, "input", "focus in event-window=0x%lx ic-focus-window=0x%lx",
                        event->xfocus.window, vt->vt.input_window);
@@ -613,6 +651,18 @@ InputEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_di
                 } else {
                         action = XTP_KEY_ACTION_PRESS;
                         SetKeycode(vt->vt.pressed_keycodes, event->xkey.keycode, true);
+                }
+                if (vt->vt.search_active) {
+                        /* A key pressed while searching keeps its release after Escape or Enter. */
+                        SetKeycode(vt->vt.owned_keycodes, event->xkey.keycode,
+                                   event->type == KeyPress);
+                        /* Xt must not also run a translation action for a search key. */
+                        *continue_dispatch = False;
+                        if (event->type == KeyPress)
+                                SearchKeyPress(vt, &event->xkey);
+                        XtpLog(XTP_LOG_DEBUG, "input", "key %s owned by search",
+                               KeyActionName(action));
+                        return;
                 }
                 if (VtLocalKeyActionOwnsEvent(vt, &event->xkey, event->type == KeyRelease)) {
                         XtpLog(XTP_LOG_DEBUG, "input", "key %s owned by local Xt action",

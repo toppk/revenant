@@ -288,6 +288,22 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
                             RgbPixel(vt, vt->vt.copy_flash_rgb[0], vt->vt.copy_flash_rgb[1],
                                      vt->vt.copy_flash_rgb[2]);
         }
+        /* Search matches look selected; the active match takes the cursor colors. */
+        if (vt->vt.search_active) {
+                unsigned int highlight = VtSearchCellHighlight(vt, cell->row, cell->column);
+
+                if (highlight == 2U) {
+                        visual.foreground = vt->vt.effective_opaque_background;
+                        visual.background = vt->vt.effective_cursor_color;
+                        translucent_background = False;
+                } else if (highlight == 1U && !cell->selected) {
+                        Pixel temporary = visual.foreground;
+
+                        visual.foreground = visual.background;
+                        visual.background = temporary;
+                        translucent_background = False;
+                }
+        }
         visual.opaque_background = visual.background;
         if (translucent_background)
                 visual.background = RenderBackgroundSurface(vt, visual.background);
@@ -1560,6 +1576,7 @@ VtRenderTerminal(Vt100Rec *vt, Boolean force_full)
 
         if (vt->vt.terminal == NULL)
                 return -1;
+        VtSearchPrepareFrame(vt);
         return XtpTerminalRender(vt->vt.terminal, &renderer, vt, force_full != False);
 }
 

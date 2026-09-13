@@ -56,6 +56,28 @@ XtpTerminalFeedOutput(XtpTerminal *terminal, const uint8_t *bytes, size_t length
         return 0;
 }
 
+int
+XtpTerminalFeedOutputPinned(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
+{
+        XtpTerminalScrollbar state;
+        XtpTerminalCellMark *mark = NULL;
+        uint64_t row = 0;
+        uint16_t column = 0;
+
+        if (terminal == NULL || (bytes == NULL && length != 0))
+                return -1;
+        if (XtpTerminalGetScrollbar(terminal, &state) == 0)
+                mark = XtpTerminalMarkCell(terminal, state.offset, 0);
+        if (mark == NULL)
+                return XtpTerminalFeedOutput(terminal, bytes, length, false);
+        XtpTerminalFeed(terminal, bytes, length);
+        /* An evicted top row leaves the oldest retained row in view. */
+        if (XtpTerminalMarkPosition(mark, &row, &column) != 0)
+                row = 0;
+        XtpTerminalMarkFree(mark);
+        return XtpTerminalScrollTo(terminal, row);
+}
+
 const char *
 XtpClipboardTargetName(XtpClipboardTarget target)
 {
