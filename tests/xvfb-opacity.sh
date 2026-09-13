@@ -516,3 +516,71 @@ fi
 kill "$terminal_pid"
 wait "$terminal_pid" 2>/dev/null || true
 terminal_pid=
+
+# The progress track is the translucent background, before and after a live opacity change;
+# the fill and the border stay opaque ink.
+progress_log=$test_dir/progress.log
+"$terminal" -debug +sb -fn fixed \
+    -xrm 'XTerm*backgroundOpacity: 0.64' \
+    -xrm 'xterm.vt100.background: #FFFFFF' \
+    -xrm 'xterm.vt100.foreground: #00FF00' \
+    -xrm 'xterm.vt100.internalBorder: 2' \
+    -xrm 'xterm.vt100.renderFont: false' \
+    -e sh -c 'printf "\033]9;4;1;50\033\\"; sleep 20' \
+    >"$test_dir/progress.out" 2>"$progress_log" &
+terminal_pid=$!
+wait_for_log "$progress_log" 'progress: state=set percent=50 shown=true' 'progress with background opacity'
+progress_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$progress_log" | tail -1)
+placed=$(grep 'progress: placed ' "$progress_log" | tail -1)
+px=$(printf '%s\n' "$placed" | sed -n 's/.* x=\([0-9]*\) .*/\1/p')
+py=$(printf '%s\n' "$placed" | sed -n 's/.* y=\([0-9]*\) .*/\1/p')
+pw=$(printf '%s\n' "$placed" | sed -n 's/.* width=\([0-9]*\) .*/\1/p')
+ph=$(printf '%s\n' "$placed" | sed -n 's/.* height=\([0-9]*\)$/\1/p')
+track_y=$((py + 1 + ph / 2))
+fill_pixel=$("$window_alpha" "$progress_window" --expose --argb $((px + 3)) "$track_y")
+track_pixel=$("$window_alpha" "$progress_window" --expose --argb $((px + pw - 1)) "$track_y")
+border_pixel=$("$window_alpha" "$progress_window" --expose --argb "$px" "$track_y")
+if test "$fill_pixel" != 0xff00ff00 || test "$track_pixel" != 0xa3a3a3a3 || \
+   test "$border_pixel" != 0xff00ff00
+then
+    echo "progress with opacity fill=$fill_pixel track=$track_pixel border=$border_pixel" >&2
+    sed -n '1,320p' "$progress_log" >&2
+    exit 1
+fi
+"$drag_slider" open "$progress_window" >/dev/null
+wait_for_log "$progress_log" 'opacity slider geometry' 'opacity slider with progress'
+slider_x=$(sed -n 's/.*opacity slider geometry x=\([0-9]*\) .*/\1/p' "$progress_log" | tail -1)
+slider_y=$(sed -n 's/.*opacity slider geometry .* y=\([0-9]*\) .*/\1/p' "$progress_log" | tail -1)
+slider_w=$(sed -n 's/.*opacity slider geometry .* width=\([0-9]*\) .*/\1/p' "$progress_log" | tail -1)
+slider_h=$(sed -n 's/.*opacity slider geometry .* height=\([0-9]*\).*/\1/p' "$progress_log" | tail -1)
+"$drag_slider" drag "$progress_window" $((slider_x + slider_w / 2)) $((slider_y + slider_h / 2)) >/dev/null
+wait_for_log "$progress_log" 'background opacity changed percent=' 'live opacity change with progress'
+percent=$(sed -n 's/.*background opacity changed percent=\([0-9][0-9]*\).*/\1/p' "$progress_log" | tail -1)
+expected_alpha=$((percent * 255 / 100))
+attempt=0
+while :
+do
+    track_pixel=$("$window_alpha" "$progress_window" --expose --argb $((px + pw - 1)) "$track_y")
+    track_alpha=$(( (track_pixel >> 24) & 255 ))
+    difference=$((track_alpha - expected_alpha))
+    test "$difference" -lt 0 && difference=$((-difference))
+    test "$difference" -le 2 && break
+    attempt=$((attempt + 1))
+    if test "$attempt" -ge 40
+    then
+        echo "progress track alpha $track_alpha after a $percent% opacity change" >&2
+        sed -n '1,360p' "$progress_log" >&2
+        exit 1
+    fi
+    sleep 0.05
+done
+fill_pixel=$("$window_alpha" "$progress_window" --expose --argb $((px + 3)) "$track_y")
+if test "$fill_pixel" != 0xff00ff00
+then
+    echo "progress fill became $fill_pixel after a live opacity change" >&2
+    sed -n '1,360p' "$progress_log" >&2
+    exit 1
+fi
+kill "$terminal_pid"
+wait "$terminal_pid" 2>/dev/null || true
+terminal_pid=

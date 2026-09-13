@@ -490,6 +490,15 @@ xterm has no copy feedback. Revenant adds `copyFlashDuration` and
 unchanged unless it is set. The flash follows only user selection gestures,
 never an application's OSC 52 write.
 
+### Progress reports (OSC 9;4)
+
+xterm 411 ignores OSC 9, including ConEmu's `9;4` progress form. Revenant
+draws the reported progress as a small bar in the top-right corner of the
+terminal for normal, error, paused and indeterminate states and removes it
+when the application clears it, on a full reset, or when the program exits.
+The indicator never touches the window title, the title stack or title
+reports, and needs no Window Ops permission.
+
 ### Notification urgency (OSC 9, OSC 777)
 
 xterm 411 does not implement OSC 9 or OSC 777; both are discarded as

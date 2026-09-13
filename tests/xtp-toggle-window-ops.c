@@ -53,15 +53,18 @@ main(int argc, char **argv)
         XWindowAttributes attrs;
         XEvent event = {0};
         int attempt;
+        int reverse_mode;
 
         if (argc < 2 || argc > 3 ||
             (argc == 3 && strcmp(argv[2], "title") != 0 && strcmp(argv[2], "color") != 0 &&
              strcmp(argv[2], "mouse") != 0 && strcmp(argv[2], "tcap") != 0 &&
-             strcmp(argv[2], "linedrawing") != 0)) {
-                fprintf(stderr, "usage: %s SHELL-WINDOW [title|color|mouse|tcap|linedrawing]\n",
+             strcmp(argv[2], "linedrawing") != 0 && strcmp(argv[2], "reverse") != 0)) {
+                fprintf(stderr,
+                        "usage: %s SHELL-WINDOW [title|color|mouse|tcap|linedrawing|reverse]\n",
                         argv[0]);
                 return EXIT_FAILURE;
         }
+        reverse_mode = argc == 3 && strcmp(argv[2], "reverse") == 0;
         errno = 0;
         shell = strtoul(argv[1], &end, 0);
         if (errno != 0 || end == argv[1] || *end != '\0' || shell == 0)
@@ -80,7 +83,7 @@ main(int argc, char **argv)
         event.xbutton.x = event.xbutton.y = 20;
         event.xbutton.x_root = event.xbutton.y_root = 20;
         event.xbutton.state = ControlMask;
-        event.xbutton.button = Button3;
+        event.xbutton.button = reverse_mode ? Button2 : Button3;
         event.xbutton.same_screen = True;
         (void)XSendEvent(display, terminal, True, ButtonPressMask, &event);
         XSync(display, False);
@@ -113,7 +116,7 @@ main(int argc, char **argv)
         event.xmotion.x = attrs.width / 2;
         event.xmotion.y = attrs.height - 5;
         /* Menu font is fixed with vertSpace 0; count rows and separators up from Window Ops. */
-        if (argc == 3) {
+        if (argc == 3 && !reverse_mode) {
                 XFontStruct *font = XLoadQueryFont(display, "fixed");
                 int row_height;
                 int separator_height;
@@ -134,9 +137,19 @@ main(int argc, char **argv)
                         event.xmotion.y -= 2 * separator_height;
                 XFreeFont(display, font);
         }
+        /* Reverse Video is the third row of the VT Options menu, counted from the top. */
+        if (reverse_mode) {
+                XFontStruct *font = XLoadQueryFont(display, "fixed");
+
+                if (font == NULL)
+                        return EXIT_FAILURE;
+                event.xmotion.y =
+                    (font->ascent + font->descent) * 2 + (font->ascent + font->descent) / 2;
+                XFreeFont(display, font);
+        }
         event.xmotion.x_root = attrs.x + event.xmotion.x;
         event.xmotion.y_root = attrs.y + event.xmotion.y;
-        event.xmotion.state = ControlMask | Button3Mask;
+        event.xmotion.state = ControlMask | (reverse_mode ? Button2Mask : Button3Mask);
         event.xmotion.same_screen = True;
         XWarpPointer(display, None, menu, 0, 0, 0, 0, event.xmotion.x, event.xmotion.y);
         XSync(display, False);
@@ -144,7 +157,7 @@ main(int argc, char **argv)
         XSync(display, False);
         Pause();
         event.xbutton.type = ButtonRelease;
-        event.xbutton.button = Button3;
+        event.xbutton.button = reverse_mode ? Button2 : Button3;
         (void)XSendEvent(display, menu, True, ButtonReleaseMask, &event);
         XSync(display, False);
         XCloseDisplay(display);

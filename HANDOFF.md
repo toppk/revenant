@@ -686,6 +686,44 @@ function-pointer helper would lose the useful type check.
   never fires, another client taking PRIMARY), CLIPBOARD without a color, a
   zero duration, OSC 52 writes and replacement, a resize during the flash, a
   synchronized-output hold that never shows it, and teardown mid-flash.
+- Progress indicator: libghostty's `GHOSTTY_TERMINAL_OPT_PROGRESS_REPORT`
+  callback becomes the `progress` effect (`XtpProgressState`, percent 0-100
+  or -1 when omitted, clamped) and `XtpVtSetProgress` in `vt_progress.c`.
+  libghostty itself reports a removal on RIS, so no reset hook is needed;
+  the PTY loop removes progress when the child's output ends. The indicator
+  is an Athena Simple child of the VT widget, created on the first report,
+  managed while progress is shown and unmanaged on removal, so it takes no
+  keyboard input. `VtLayoutProgress` runs from `LayoutScrollbar` (every
+  resize and scrollbar change) and places it in the top-right corner inside
+  the internal border, left of a right-hand scrollbar, a fifth of the widget
+  width clamped to 40-160 pixels and 6 pixels high with a 1-pixel border. It
+  draws in its own window with its own GC: the effective background pixel
+  (translucent under `backgroundOpacity`), then a
+  fill of `percent`% in the foreground color (set), red #E01B24 (error) or
+  amber #F5C211 (paused); error and paused without a value keep the last
+  reported percentage, 0 included, or fill when none was ever reported
+  (tracked separately from the value and forgotten on removal; libghostty
+  reports a bare `9;4;1` as 0%, so only the effect's -1 means none); the error and paused colors
+  are allocated once with the indicator and freed in `VtProgressDestroy`,
+  and a failed allocation draws in the current foreground instead; indeterminate moves a quarter-width
+  block every 120 ms. Because the indicator is a separate window it updates
+  while synchronized output holds the terminal frame, and the frame's own
+  drawing is clipped around it. New effective colors from OSC 10/11 or their
+  resets reach it only through `VtProgressColorsChanged`, which
+  `ApplyFrameColors` calls to update its background and border resources and
+  redraw the bar; the live opacity setter calls it too, and so does
+  `SetValues`, whose color reset can make the next frame match and skip
+  `ApplyFrameColors`. Nothing reaches the title path.
+  `xvfb-progress` steps a raw bash child through an error before any
+  percentage, 0% then error without a value, set, a foreground/background change and its reset checked on the
+  fill, the empty part and the border, a live reverse-video toggle each way,
+  error, paused,
+  indeterminate (animation and its stop), 150 clamped to 100, a value sent
+  inside a mode 2026 hold, a resize, clear, a title report and title-stack
+  pop checked against WM_NAME, RIS and exit, sampling the bar's first and
+  last inner pixels. `xvfb-opacity` adds a progress case under the fake
+  compositor: the track is the translucent background before and after a
+  live slider change while the fill and border stay opaque.
 - Search overlay: `vt_search.c` drives the model from the widget.
   `start-search()` (Ctrl+Shift+F, with its own `LocalKeyAction` identity)
   creates an override-redirect `searchOverlay` popup holding an Athena

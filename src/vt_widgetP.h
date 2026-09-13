@@ -208,6 +208,18 @@ typedef struct
         /* Room for every retained match, so no visible one goes unhighlighted. */
         XtpSemanticSpan *search_visible;
         size_t search_visible_count;
+        Widget progress_widget;
+        GC progress_gc;
+        XtpProgressState progress_state;
+        int progress_percent;
+        unsigned int progress_phase;
+        XtIntervalId progress_timer;
+        Boolean progress_have_percent;
+        /* Error then paused: pixels drawn, their colormap allocations, and whether each was made.
+         */
+        Pixel progress_status_pixels[2];
+        Pixel progress_status_allocations[2];
+        Boolean progress_status_allocated[2];
         Boolean scroll_bar;
         Boolean right_scroll_bar;
         Boolean scroll_key;
@@ -383,6 +395,9 @@ unsigned int VtSearchCellHighlight(const Vt100Rec *vt, uint16_t row, uint16_t co
 void VtSearchResized(Vt100Rec *vt);
 void VtSearchTerminalChanged(Vt100Rec *vt);
 void VtSearchDestroy(Vt100Rec *vt);
+void VtLayoutProgress(Vt100Rec *vt);
+void VtProgressDestroy(Vt100Rec *vt);
+void VtProgressColorsChanged(Vt100Rec *vt);
 Boolean VtPublishSearchMatch(Vt100Rec *vt, const uint8_t *text, size_t length, Time time);
 Boolean VtScrollViewportToRow(Vt100Rec *vt, uint64_t row);
 Boolean VtScrollViewportToEnd(Vt100Rec *vt);

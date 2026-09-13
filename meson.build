@@ -148,6 +148,7 @@ widget_sources = files(
     'src/vt_draw.c',
     'src/vt_input.c',
     'src/vt_interaction.c',
+    'src/vt_progress.c',
     'src/vt_search.c',
     'src/vt_widget.c',
     'src/x11_opacity.c',
@@ -932,6 +933,21 @@ if build_with_ghostty and xvfb.found()
             urgency_test_tool.full_path(),
         ],
         timeout: 150,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-progress',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-progress.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            window_alpha_test_tool.full_path(),
+            resize_test_tool.full_path(),
+            xprop.full_path(),
+            window_ops_test_tool.full_path(),
+        ],
+        timeout: 90,
         is_parallel: false,
     )
     test(

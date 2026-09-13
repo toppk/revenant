@@ -343,7 +343,9 @@ func notify(s *Session) {
 }
 func progress(s *Session) {
 	s.cleanup(func() { s.osc(9, "4;0") })
-	for _, state := range []string{"1;10", "1;60", "2;60", "3", "4;60", "0"} {
+	s.say("Inspect at 80x24: the terminal draws a small bar in the top-right corner, and the window title must not change.")
+	s.say("Error and paused without a value keep the last percentage; 150 is shown as a full bar.")
+	for _, state := range []string{"1;10", "1;60", "2", "2;30", "4", "4;80", "3", "1;150", "0"} {
 		s.osc(9, "4;"+state)
 		s.say("Requested progress state %s", state)
 		s.pause()

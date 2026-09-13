@@ -329,6 +329,15 @@ typedef enum
         XTP_TITLE_TARGET_WINDOW = 2,
 } XtpTitleTarget;
 
+typedef enum
+{
+        XTP_PROGRESS_REMOVE,
+        XTP_PROGRESS_SET,
+        XTP_PROGRESS_ERROR,
+        XTP_PROGRESS_INDETERMINATE,
+        XTP_PROGRESS_PAUSE,
+} XtpProgressState;
+
 typedef struct
 {
         void (*write_pty)(const uint8_t *bytes, size_t length, void *closure);
@@ -356,6 +365,8 @@ typedef struct
         /* OSC 9 / OSC 777 notification; both strings are borrowed and the title may be empty. */
         void (*notification)(const uint8_t *title, size_t title_length, const uint8_t *body,
                              size_t body_length, void *closure);
+        /* OSC 9;4 progress; libghostty also reports removal on RIS. Percent is 0-100 or -1. */
+        void (*progress)(XtpProgressState state, int percent, void *closure);
         void *closure;
 } XtpTerminalEffects;
 

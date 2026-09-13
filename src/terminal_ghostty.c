@@ -458,6 +458,58 @@ DesktopNotificationEffectPointer(void)
         return pointer;
 }
 
+static void
+ProgressReportEffect(GhosttyTerminal handle, void *userdata,
+                     const GhosttyTerminalProgressReport *report)
+{
+        XtpTerminal *terminal = userdata;
+        XtpProgressState state;
+        int percent;
+
+        (void)handle;
+        if (terminal == NULL || report == NULL || terminal->effects.progress == NULL ||
+            report->size < sizeof(*report))
+                return;
+        switch (report->state) {
+        case GHOSTTY_TERMINAL_PROGRESS_STATE_REMOVE:
+                state = XTP_PROGRESS_REMOVE;
+                break;
+        case GHOSTTY_TERMINAL_PROGRESS_STATE_SET:
+                state = XTP_PROGRESS_SET;
+                break;
+        case GHOSTTY_TERMINAL_PROGRESS_STATE_ERROR:
+                state = XTP_PROGRESS_ERROR;
+                break;
+        case GHOSTTY_TERMINAL_PROGRESS_STATE_INDETERMINATE:
+                state = XTP_PROGRESS_INDETERMINATE;
+                break;
+        case GHOSTTY_TERMINAL_PROGRESS_STATE_PAUSE:
+                state = XTP_PROGRESS_PAUSE;
+                break;
+        case GHOSTTY_TERMINAL_PROGRESS_STATE_MAX_VALUE:
+        default:
+                return;
+        }
+        percent = report->progress;
+        if (percent > 100)
+                percent = 100;
+        if (percent < -1)
+                percent = -1;
+        terminal->effects.progress(state, percent, terminal->effects.closure);
+}
+
+static const void *
+ProgressReportEffectPointer(void)
+{
+        GhosttyTerminalProgressReportFn function = ProgressReportEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
 static const void *
 EnquiryEffectPointer(void)
 {
@@ -1406,7 +1458,9 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_UNKNOWN_SEQUENCE,
                                  UnknownSequenceEffectPointer()) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_DESKTOP_NOTIFICATION,
-                                 DesktopNotificationEffectPointer()) != GHOSTTY_SUCCESS) {
+                                 DesktopNotificationEffectPointer()) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_PROGRESS_REPORT,
+                                 ProgressReportEffectPointer()) != GHOSTTY_SUCCESS) {
                 FreeHandles(terminal);
                 free(terminal);
                 return NULL;

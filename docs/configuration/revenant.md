@@ -402,6 +402,16 @@ metadata; Revenant requires no workaround. See the
 [Readline 8.3 resize regression](../reference/bash-readline-resize.md) for the
 source diagnosis, exact cursor-offset proof, and fixed-build validation.
 
+### Progress indicator
+
+Programs that report progress with OSC 9;4, as some build tools and package
+managers do, get a small bar in the top-right corner of the terminal. Normal
+progress fills in the foreground color, an error turns it red and a pause
+turns it amber; work of unknown length shows a moving block. The bar
+disappears when the program clears it, on a full reset, or when the program
+exits. It does not take keyboard focus, does not change the window title and
+needs no Window Ops permission.
+
 ## Cursor
 
 ```xrdb

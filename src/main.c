@@ -746,6 +746,15 @@ TerminalNotification(const uint8_t *title, size_t title_length, const uint8_t *b
         ApplyUrgency(app);
 }
 
+/* Progress stays apart from notifications and never touches the title. */
+static void
+TerminalProgress(XtpProgressState state, int percent, void *closure)
+{
+        App *app = closure;
+
+        XtpVtSetProgress(app->vt, state, percent);
+}
+
 static void
 FocusEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch)
 {
@@ -954,6 +963,7 @@ ApplyTerminalEffects(App *app)
             .working_directory_dropped = TerminalWorkingDirectoryDropped,
             .unknown_apc = TerminalUnknownApc,
             .notification = TerminalNotification,
+            .progress = TerminalProgress,
             .closure = app,
         };
 
@@ -1288,6 +1298,8 @@ PtyReady(XtPointer closure, int *source, XtInputId *input_id)
                         XtpLog(XTP_LOG_INFO, "pty", "read closed errno=%d", errno);
                 XtRemoveInput(*input_id);
                 app->pty_input = (XtInputId)0;
+                XtpLog(XTP_LOG_INFO, "progress", "cleared reason=exit");
+                XtpVtSetProgress(app->vt, XTP_PROGRESS_REMOVE, -1);
                 app->running = False;
         }
 }

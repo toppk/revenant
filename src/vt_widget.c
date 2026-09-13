@@ -477,6 +477,7 @@ LayoutScrollbar(Vt100Rec *vt)
         Dimension border;
         Position x;
 
+        VtLayoutProgress(vt);
         if (vt->vt.scrollbar == NULL || !vt->vt.scroll_bar)
                 return;
 
@@ -1105,6 +1106,7 @@ Destroy(Widget widget)
                 XtpLog(XTP_LOG_INFO, "selection", "copy flash cancelled reason=teardown");
         }
         VtSearchDestroy(vt);
+        VtProgressDestroy(vt);
         VtDestroyInput(vt);
         ReleaseGc(widget);
         VtReleaseBoxStipples(vt);
@@ -1276,6 +1278,8 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                 SwapDefaultColors(new_vt);
         NormalizeConfiguredColors(new_vt);
         VtResetEffectiveColors(new_vt);
+        /* The next frame may match these colors and skip ApplyFrameColors' own hook. */
+        VtProgressColorsChanged(new_vt);
         if (old_vt->vt.save_lines != new_vt->vt.save_lines && new_vt->vt.terminal != NULL &&
             XtpTerminalSetScrollbackLines(new_vt->vt.terminal, (size_t)new_vt->vt.save_lines) != 0)
                 XtpLog(XTP_LOG_ERROR, "scrollback", "cannot set history limit=%d",
@@ -1753,6 +1757,7 @@ XtpVtSetBackgroundOpacityPercent(Widget widget, unsigned int percent)
         }
         if (vt->vt.scrollbar != NULL)
                 XtVaSetValues(vt->vt.scrollbar, XtNbackground, background, NULL);
+        VtProgressColorsChanged(vt);
         VtInvalidateFrame(vt);
         XtpLog(XTP_LOG_INFO, "render", "background opacity changed percent=%u alpha=%u", percent,
                vt->vt.background_alpha);

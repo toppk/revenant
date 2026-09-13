@@ -93,6 +93,8 @@ void XtpVtSetScrollKey(Widget widget, Boolean enabled);
 Boolean XtpVtScrollTtyOutput(Widget widget);
 /* While true the search overlay owns keys and output does not move the viewport. */
 Boolean XtpVtSearchActive(Widget widget);
+/* Shows or hides the OSC 9;4 progress indicator; percent -1 means none was given. */
+void XtpVtSetProgress(Widget widget, XtpProgressState state, int percent);
 void XtpVtSetScrollTtyOutput(Widget widget, Boolean enabled);
 Boolean XtpVtSelectToClipboard(Widget widget);
 void XtpVtSetSelectToClipboard(Widget widget, Boolean enabled);

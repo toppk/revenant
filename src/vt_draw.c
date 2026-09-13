@@ -163,6 +163,7 @@ ApplyFrameColors(Vt100Rec *vt, const XtpRenderFrame *frame)
         if (vt->vt.scrollbar != NULL)
                 XtVaSetValues(vt->vt.scrollbar, XtNbackground, translucent, XtNforeground,
                               foreground, NULL);
+        VtProgressColorsChanged(vt);
         XtpLog(XTP_LOG_INFO, "render",
                "effective colors applied foreground=#%02x%02x%02x background=#%02x%02x%02x "
                "cursor=#%02x%02x%02x",

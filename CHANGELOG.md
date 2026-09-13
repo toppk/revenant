@@ -10,6 +10,15 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Show application progress. OSC 9;4 reports, as sent by tools such as
+  build systems and package managers, now draw a small bar in the top-right
+  corner of the terminal: normal progress in the foreground color, errors
+  in red and paused work in amber, both keeping the last percentage when the
+  application omits one, and indeterminate work as a moving block. Values
+  above 100 show a full bar. Clearing the report, a full reset or the
+  program exiting removes the bar. It never changes the window title, the
+  title stack or title reports, needs no Window Ops permission and is
+  independent of notifications.
 - Search the scrollback. Ctrl+Shift+F, or the new `start-search()` action,
   opens a search bar over the bottom of the window. Typing finds the literal
   text across soft-wrapped lines as you type, highlights every visible match
