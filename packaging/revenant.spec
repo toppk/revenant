@@ -25,6 +25,7 @@ BuildRequires:  pkgconfig(cairo) >= 1.18
 BuildRequires:  pkgconfig(cairo-ft) >= 1.18
 BuildRequires:  pkgconfig(cairo-xlib) >= 1.18
 BuildRequires:  pkgconfig(harfbuzz)
+BuildRequires:  pkgconfig(libnotify)
 # zig >= 0.16 must be on PATH; Fedora's packaged zig is not used.
 
 %description
@@ -33,7 +34,7 @@ interface and X resource contract while using libghostty-vt as its terminal
 core. It installs as revenant, with an xterm+ compatibility symlink.
 
 %build
-%meson -Dlibghostty=enabled -Dxvfb-tests=enabled -Dman=enabled -Drelease-version=%{version}
+%meson -Dlibghostty=enabled -Dlibnotify=enabled -Dxvfb-tests=enabled -Dman=enabled -Drelease-version=%{version}
 %meson_build
 
 %install

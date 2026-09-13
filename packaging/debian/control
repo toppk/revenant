@@ -16,7 +16,8 @@ Build-Depends: debhelper-compat (= 13),
                libxft-dev,
                libxrender-dev,
                libcairo2-dev,
-               libharfbuzz-dev
+               libharfbuzz-dev,
+               libnotify-dev
 Standards-Version: 4.6.2
 Homepage: https://github.com/toppk/revenant
 Rules-Requires-Root: no

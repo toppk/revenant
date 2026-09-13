@@ -13,6 +13,13 @@ option(
 )
 
 option(
+    'libnotify',
+    type: 'feature',
+    value: 'auto',
+    description: 'Enable desktop notifications via libnotify',
+)
+
+option(
     'profiling',
     type: 'boolean',
     value: false,

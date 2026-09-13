@@ -81,6 +81,16 @@ configure_file(
     configuration: version_configuration,
 )
 
+feature_configuration = configuration_data()
+libnotify_dep = dependency('libnotify', required: get_option('libnotify'))
+if libnotify_dep.found()
+    feature_configuration.set('HAVE_LIBNOTIFY', 1)
+endif
+configure_file(
+    output: 'config.h',
+    configuration: feature_configuration,
+)
+
 add_project_arguments(
     cc.get_supported_arguments(
         '-D_DEFAULT_SOURCE',
@@ -113,6 +123,25 @@ cairo_xlib_dep = dependency('cairo-xlib', version: '>= 1.18')
 harfbuzz_dep = dependency('harfbuzz')
 util_dep = cc.find_library('util')
 m_dep = cc.find_library('m')
+
+program_dependencies = [
+    x11_dep,
+    xt_dep,
+    xaw_dep,
+    xmu_dep,
+    fontconfig_dep,
+    xft_dep,
+    xrender_dep,
+    cairo_dep,
+    cairo_ft_dep,
+    cairo_xlib_dep,
+    harfbuzz_dep,
+    util_dep,
+    m_dep,
+]
+if libnotify_dep.found()
+    program_dependencies += libnotify_dep
+endif
 
 widget_sources = files(
     'src/box_glyphs.c',
@@ -232,21 +261,7 @@ xterm_plus = executable(
     include_directories: [
         include_directories('src'),
     ],
-    dependencies: [
-        x11_dep,
-        xt_dep,
-        xaw_dep,
-        xmu_dep,
-        fontconfig_dep,
-        xft_dep,
-        xrender_dep,
-        cairo_dep,
-        cairo_ft_dep,
-        cairo_xlib_dep,
-        harfbuzz_dep,
-        util_dep,
-        m_dep,
-    ],
+    dependencies: program_dependencies,
     c_args: terminal_compile_args,
     install: true,
 )
@@ -1120,6 +1135,7 @@ summary(
         'X resource instance': 'xterm',
         'libghostty-vt': build_with_ghostty,
         'libghostty source': ghostty_source_dir,
+        'desktop notifications (libnotify)': libnotify_dep.found(),
         'profiling frame pointers': get_option('profiling'),
         'font-key test tool': font_key_test_tool.full_path(),
         'key test tool': key_test_tool.full_path(),

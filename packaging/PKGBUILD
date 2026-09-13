@@ -6,7 +6,7 @@ pkgdesc='xterm-compatible X11 terminal emulator built on libghostty-vt'
 arch=(x86_64 aarch64)
 url='https://github.com/toppk/revenant'
 license=(MIT)
-depends=(libx11 libxt libxaw libxmu libxcb fontconfig libxft libxrender cairo harfbuzz)
+depends=(libx11 libxt libxaw libxmu libxcb fontconfig libxft libxrender cairo harfbuzz libnotify)
 makedepends=(meson ninja pkgconf python pandoc)
 checkdepends=(xorg-server-xvfb xorg-fonts-misc xorg-xprop xorg-xwininfo xorg-xrdb)
 options=(!debug)
@@ -14,7 +14,7 @@ options=(!debug)
 _source=${REVENANT_SOURCE:?set by packaging/build-arch}
 
 build() {
-    arch-meson "$_source" "$_source/build-arch" -Dlibghostty=enabled \
+    arch-meson "$_source" "$_source/build-arch" -Dlibghostty=enabled -Dlibnotify=enabled \
         -Dxvfb-tests=enabled -Dman=enabled -Drelease-version="$pkgver"
     meson compile -C "$_source/build-arch"
 }

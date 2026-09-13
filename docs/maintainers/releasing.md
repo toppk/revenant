@@ -156,7 +156,8 @@ then dispatches the workflow against that tag.
   the result and runs the same checks. The container needs
   `xorg-mkfontscale` and an explicit `mkfontdir` so Xvfb can serve the misc
   bitmap fonts.
-- Every build job installs Xvfb and the X bitmap fonts, pins fontTools, and
+- Every build job requires libnotify with `-Dlibnotify=enabled`, installs its
+  development package, installs Xvfb and the X bitmap fonts, pins fontTools, and
   stages the font fixtures with `tools/stage-font-fixtures`. Every packaging
   configuration passes `-Dxvfb-tests=enabled`, so Meson fails immediately if
   Xvfb or the libghostty backend is unavailable. After `meson test`, each path
