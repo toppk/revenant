@@ -38,7 +38,6 @@ existing ID; its parent is complete only after all three.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| Progress | N3 | Independent of desktop delivery; select the UI surface before coding. |
 | API-dependent | V3, F1, M1 | Public OSC hooks for V3/F1; effective mouse tracking API for M1. |
 | Graphics series | K1 → K2a limits → K2b temp files → K2c shared memory; K3/K4 after K1 | Keep resource limits, transport, placeholders and scheduling separate. |
 | Optional | S4 after S2; N2 after N1 | Decide clear semantics / notification adapter before implementation. |
@@ -86,14 +85,6 @@ conflicting ownership even within the same batch.
       TDN: `notification-desktop-delivery`.
       Probe gap: no case mapped to this slug yet. Add delivery/fake-sink coverage;
       the existing urgency fixture cannot establish adapter behavior or limits.
-
-- [ ] **N3 — Progress display.** Wire `OPT_PROGRESS_REPORT` for OSC 9;4;
-      choose an indicator consistent with the Athena UI (scrollbar or title).
-      Probe: `just probe ui-progress-indicator notifications-progress` . No Ops family. Accept:
-      normal/error/indeterminate/
-      paused/clear states, bounds, reset/exit, and no corruption of title stack
-      or title reports. Stop: no launcher protocol or notification dependency.
-      TDN: `osc-9-4-progress`, `ui-progress-indicator`.
 
 ## K: Kitty graphics (separate series)
 

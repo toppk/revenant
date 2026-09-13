@@ -114,6 +114,17 @@ features:
       url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/tests/xvfb-notification-urgency.sh
     - kind: test
       url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/src/selftest.c
+  osc-9-4-progress:
+    status: supported
+    as-of: git:e01f7b9333cf730f33bb73276a03c71a6a707182
+    notes: OSC 9;4 set, error, indeterminate, paused and remove reports reach the progress indicator; values above
+      100 clamp to 100, error and paused without a value keep the last percentage, and RIS and process exit
+      remove progress. Title properties, the title stack and title reports are unaffected.
+    review: reviewed
+    checked: '2026-09-13'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e01f7b9333cf730f33bb73276a03c71a6a707182/tests/xvfb-progress.sh
   osc-777-notification:
     status: partial
     as-of: git:87fdc41407fe2a096bd7f5d59456bfe61b7b80f9
@@ -138,6 +149,17 @@ features:
       url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/tests/xvfb-notification-urgency.sh
     - kind: source
       url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/src/urgency.c
+  ui-progress-indicator:
+    status: supported
+    as-of: git:e01f7b9333cf730f33bb73276a03c71a6a707182
+    notes: A non-focusable Athena bar in the terminal's top-right corner shows normal progress in the foreground
+      color, errors in red, paused work in amber and indeterminate work as a moving block; it follows resize,
+      updates during synchronized-output holds and stays visible without a scrollbar.
+    review: reviewed
+    checked: '2026-09-13'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/e01f7b9333cf730f33bb73276a03c71a6a707182/tests/xvfb-progress.sh
   csi-decscusr:
     status: partial
     as-of: git:e2b248588a26dc4cc7e6eaf5fa34286584d093ab
