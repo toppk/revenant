@@ -101,19 +101,32 @@ features:
       url: https://github.com/toppk/revenant/blob/ab0907105bf6a871ef473dfbc0e929c8ff6b4d11/tests/xvfb-unknown-apc.sh
     - kind: test
       url: https://github.com/toppk/revenant/blob/ab0907105bf6a871ef473dfbc0e929c8ff6b4d11/src/selftest.c
-  osc-9-notification:
-    status: partial
-    as-of: git:87fdc41407fe2a096bd7f5d59456bfe61b7b80f9
-    notes: iTerm2 form decoded with an empty title and the body as sent, logged, and mapped to X11 urgency while
-      unfocused. No desktop delivery. Valid ConEmu forms remain separate; incomplete or invalid ConEmu-shaped
-      payloads fall back to notification text in libghostty.
+  notification-desktop-delivery:
+    status: supported
+    as-of: git:9e0c8ca655865a6f081e20d0d5b598f5080740f3
+    notes: With libnotify compiled in, unfocused OSC 9 and OSC 777 requests are delivered to
+      org.freedesktop.Notifications with the application icon, escaped markup, U+FFFD for invalid and control
+      bytes, 256/1024-byte title/body limits, at most 5 attempts per 10 s, a 5 s failure backoff and recovery;
+      focused requests are logged only, urgency is unchanged, and builds without libnotify report unavailable.
     review: reviewed
-    checked: '2026-09-11'
+    checked: '2026-09-13'
     evidence:
     - kind: test
-      url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/tests/xvfb-notification-urgency.sh
+      url: https://github.com/toppk/revenant/blob/9e0c8ca655865a6f081e20d0d5b598f5080740f3/tests/xvfb-desktop-notification.sh
+  osc-9-notification:
+    status: supported
+    as-of: git:9e0c8ca655865a6f081e20d0d5b598f5080740f3
+    notes: iTerm2 form decoded with an empty title and the body as sent, logged, and mapped to X11 urgency while
+      unfocused. Builds with libnotify deliver it to the desktop while unfocused; builds without it retain logging
+      and urgency. Valid ConEmu forms remain separate; incomplete or invalid ConEmu-shaped payloads fall back to
+      notification text in libghostty.
+    review: reviewed
+    checked: '2026-09-13'
+    evidence:
     - kind: test
-      url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/src/selftest.c
+      url: https://github.com/toppk/revenant/blob/9e0c8ca655865a6f081e20d0d5b598f5080740f3/tests/xvfb-desktop-notification.sh
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/9e0c8ca655865a6f081e20d0d5b598f5080740f3/tests/xvfb-notification-urgency.sh
   osc-9-4-progress:
     status: supported
     as-of: git:e01f7b9333cf730f33bb73276a03c71a6a707182
@@ -126,17 +139,18 @@ features:
     - kind: test
       url: https://github.com/toppk/revenant/blob/e01f7b9333cf730f33bb73276a03c71a6a707182/tests/xvfb-progress.sh
   osc-777-notification:
-    status: partial
-    as-of: git:87fdc41407fe2a096bd7f5d59456bfe61b7b80f9
-    notes: notify;title;body is decoded, logged, and mapped to X11 urgency while unfocused. No desktop delivery;
-      other rxvt extensions are dropped by the core.
+    status: supported
+    as-of: git:9e0c8ca655865a6f081e20d0d5b598f5080740f3
+    notes: notify;title;body is decoded, logged, and mapped to X11 urgency while unfocused. Builds with libnotify
+      deliver it to the desktop while unfocused; builds without it retain logging and urgency. Other rxvt
+      extensions are dropped by the core.
     review: reviewed
-    checked: '2026-09-11'
+    checked: '2026-09-13'
     evidence:
     - kind: test
-      url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/tests/xvfb-notification-urgency.sh
+      url: https://github.com/toppk/revenant/blob/9e0c8ca655865a6f081e20d0d5b598f5080740f3/tests/xvfb-desktop-notification.sh
     - kind: test
-      url: https://github.com/toppk/revenant/blob/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9/src/selftest.c
+      url: https://github.com/toppk/revenant/blob/9e0c8ca655865a6f081e20d0d5b598f5080740f3/tests/xvfb-notification-urgency.sh
   notification-x11-urgency:
     status: supported
     as-of: git:87fdc41407fe2a096bd7f5d59456bfe61b7b80f9

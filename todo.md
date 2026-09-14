@@ -40,7 +40,7 @@ existing ID; its parent is complete only after all three.
 | --- | --- | --- |
 | API-dependent | V3, F1, M1 | Public OSC hooks for V3/F1; effective mouse tracking API for M1. |
 | Graphics series | K1 → K2a limits → K2b temp files → K2c shared memory; K3/K4 after K1 | Keep resource limits, transport, placeholders and scheduling separate. |
-| Optional | S4 after S2; N2 after N1 | Decide clear semantics / notification adapter before implementation. |
+| Optional | S4 after S2 | Decide clear semantics before implementation. |
 
 Shared-file collision rule: serialize edits to `main.c`, `vt_widget*`,
 `terminal_ghostty*`, `meson.build`, and resource tables when dispatching work
@@ -72,19 +72,6 @@ conflicting ownership even within the same batch.
       TDN: `ui-clear-to-prompt`.
       Probe gap: no case mapped to this slug yet. Add a clear-action scenario
       after defining the semantics; prompt markers alone do not verify clearing.
-
-## N: Notifications
-
-- [ ] **N2 — Optional desktop notification adapter.** Depends on N1 effect.
-      Choose configured executable or optional libnotify Meson feature; keep
-      the default build dependency-free.
-      Supporting fixture: `just probe osc-777-notification notifications-urgency`
-      plus a fake sink.
-      Accept: title/body passed as data, unavailable adapter, bounded/rate-
-      limited delivery and child cleanup. Stop: no hand-written D-Bus client.
-      TDN: `notification-desktop-delivery`.
-      Probe gap: no case mapped to this slug yet. Add delivery/fake-sink coverage;
-      the existing urgency fixture cannot establish adapter behavior or limits.
 
 ## K: Kitty graphics (separate series)
 
