@@ -6,7 +6,18 @@ opens the next development entry, and advances the source version. Release
 artifacts take their version from the tag, not from the development version in
 `meson.build`.
 
-## 0.7.0 — Unreleased
+## 0.8.0 — Unreleased
+
+### Other
+
+- Development changes will be recorded here.
+
+## 0.7.0 — 2026-09-14
+
+A broad daily-driver release: application notifications and progress,
+interactive scrollback search, shell-aware navigation and output piping,
+modern color and title controls, audited identity, and seamless procedural
+terminal graphics.
 
 ### Features
 
@@ -23,6 +34,9 @@ artifacts take their version from the tag, not from the development version in
   and the existing WM urgency hint is unchanged. `-report-config` states
   whether libnotify was compiled in and whether a notification service
   answers.
+  ([dd6d15d](https://github.com/toppk/revenant/commit/dd6d15d379f2fc7b83ded5d803b4a5caf72e0fa7),
+  [9e0c8ca](https://github.com/toppk/revenant/commit/9e0c8ca655865a6f081e20d0d5b598f5080740f3),
+  [9dfa887](https://github.com/toppk/revenant/commit/9dfa88719b97daf657c6d1cc1d24ba3f48705936))
 - Show application progress. OSC 9;4 reports, as sent by tools such as
   build systems and package managers, now draw a small bar in the top-right
   corner of the terminal: normal progress in the foreground color, errors
@@ -32,6 +46,8 @@ artifacts take their version from the tag, not from the development version in
   program exiting removes the bar. It never changes the window title, the
   title stack or title reports, needs no Window Ops permission and is
   independent of notifications.
+  ([e01f7b9](https://github.com/toppk/revenant/commit/e01f7b9333cf730f33bb73276a03c71a6a707182),
+  [efa1b9b](https://github.com/toppk/revenant/commit/efa1b9bb6b81e7b904b02a01d98bb9b1c5b02dbb))
 - Search the scrollback. Ctrl+Shift+F, or the new `start-search()` action,
   opens a search bar over the bottom of the window. Typing finds the literal
   text across soft-wrapped lines as you type, highlights every visible match
@@ -41,6 +57,10 @@ artifacts take their version from the tag, not from the development version in
   Escape closes it and returns to where the search started. While the bar is
   open every key belongs to it, output keeps the view on the same text, and
   results stay those of the text present when the query was typed.
+  ([f81f108](https://github.com/toppk/revenant/commit/f81f10849f2dc81cc8254450d543120ec712772c),
+  [a92e5a1](https://github.com/toppk/revenant/commit/a92e5a1de4589be0d710f74872058b58815c493a),
+  [3c1d664](https://github.com/toppk/revenant/commit/3c1d6645fca28238ecd7529b33ae7e71955a04d9),
+  [0552f1c](https://github.com/toppk/revenant/commit/0552f1cda137ab3527d42951f744fff39cf8d98f))
 - Flash text after copying it. The new `copyFlashDuration` resource, in
   milliseconds and 0 (off) by default, briefly marks the cells a selection
   gesture has just copied to PRIMARY or CLIPBOARD. `copyFlashColor` paints
@@ -50,6 +70,8 @@ artifacts take their version from the tag, not from the development version in
   replacing it ends the flash at once, a repeated copy starts a new one,
   application OSC 52 writes never flash, and a synchronized-output batch
   never shows a partial flash.
+  ([8fac827](https://github.com/toppk/revenant/commit/8fac827f73fa280d52ab317de672639e7efd258e),
+  [dcf46b9](https://github.com/toppk/revenant/commit/dcf46b9812a25f3f5e7e285bb9c5ef8793b04346))
 - Draw box-drawing and block-element characters from the cell geometry.
   U+2500 through U+259F are rasterized as exact rectangles inside their own
   cell, so lines, corners, tees, double lines, dashes, arcs, diagonals,
@@ -65,6 +87,9 @@ artifacts take their version from the tag, not from the development version in
   one event-loop tick after Xt dispatches it, so a key bound to any local
   action, not only the default prompt gestures, is kept from the
   application together with its release.
+  ([7421d5b](https://github.com/toppk/revenant/commit/7421d5bd57a1756913cd486ed2daf86ffaeae748),
+  [4b7af26](https://github.com/toppk/revenant/commit/4b7af26d535535f5f69279c437f6d2cfc8514e01),
+  [83204b0](https://github.com/toppk/revenant/commit/83204b0f83baacd359c094ce0dd5ca7c34692b5b))
 - Draw braille and Powerline separators from the cell geometry. Every
   braille pattern, U+2800 through U+28FF, is drawn as equal square dots in
   two columns of four, and U+E0B0 through U+E0BF, the Powerline arrows,
@@ -75,12 +100,16 @@ artifacts take their version from the tag, not from the development version in
   selection and the block cursor color them like text. Other Powerline and
   Nerd Font symbols, such as the branch icon U+E0A0, stay with the font, as does braille in a cell too narrow for
   a visible dot.
+  ([aefafe6](https://github.com/toppk/revenant/commit/aefafe60bcdbbe7f239636a5387218574b7d2ffe),
+  [e7b3d91](https://github.com/toppk/revenant/commit/e7b3d914041adb412451343d8dff17e64a9b0f99))
 - Extend procedural drawing to DEC scan lines, terminal corner triangles,
   Powerline flame separators U+E0D2/U+E0D4, Symbols for Legacy Computing,
   and the selected Unicode 16 Legacy Computing Supplement ranges used for
   separated quadrants and sextants, circle pieces, octants, and sixteenth
   blocks. They share the box-drawing routing and switch. U+1FB93, unrelated
   symbols, and private-use additions stay with the font.
+  ([d4941b5](https://github.com/toppk/revenant/commit/d4941b5402123004e2fa1126c529ad6c8b1a2451),
+  [152469c](https://github.com/toppk/revenant/commit/152469c13b75ffee52fcbad8efb44e494953f317))
 - Pipe the last command's output to a helper. The new `pipeCommandOutput`
   resource names a shell command, unset by default, and the new
   `pipe-command-output()` action (Ctrl+Shift+G) finds the most recently
@@ -91,6 +120,9 @@ artifacts take their version from the tag, not from the development version in
   one is known. Output is data only: nothing in it is ever executed. An
   unset resource, a command that wrote nothing, a helper that stops reading,
   and exiting while the helper still runs are all handled and logged.
+  ([1f99bd0](https://github.com/toppk/revenant/commit/1f99bd0f0844e453df54beb598b4845744e09d9c),
+  [b4e798f](https://github.com/toppk/revenant/commit/b4e798f8511edffe96fe1f1b971634097ead9830),
+  [7c7fd93](https://github.com/toppk/revenant/commit/7c7fd93fb9129c546f249f5e3c57018356463ce8))
 - Navigate between shell prompts. Ctrl+Shift+Up and Ctrl+Shift+Down run the
   new `previous-prompt()` and `next-prompt()` translation actions, which move
   the viewport to the start of the previous or next prompt that a shell has
@@ -102,18 +134,24 @@ artifacts take their version from the tag, not from the development version in
   search. Binding the keys to xterm's `insert-seven-bit()` restores their
   delivery to applications. The backend also exposes the core's cell-exact
   command-output selection and its text for later output extraction.
+  ([75abb48](https://github.com/toppk/revenant/commit/75abb483ab7796e70f4e8348c3c5d2bab98b1e98),
+  [0df3987](https://github.com/toppk/revenant/commit/0df3987d647292e90fd5910d9a22a2fcf437c067))
 - Raise the X11 urgency hint for application notifications. An OSC 9 or
   OSC 777 `notify` request that arrives while the window is unfocused sets
   `XUrgencyHint` in WM_HINTS, leaving every other hint field alone, and the
   next focus-in clears it; a request while focused only logs. Title and body
   are recorded in the `-debug` log. No desktop notification is delivered,
   no permission setting applies, and no D-Bus or helper process is involved.
+  ([87fdc41](https://github.com/toppk/revenant/commit/87fdc41407fe2a096bd7f5d59456bfe61b7b80f9),
+  [2b8d4ba](https://github.com/toppk/revenant/commit/2b8d4ba60353644b58a460cf946db2a53f22ca00))
 - Log unsupported Application Program Commands. Every completed APC that
   libghostty does not implement (anything other than Kitty graphics and the
   glyph protocol) is recorded under `-debug` as `unknown APC ignored` with
   up to 256 payload bytes and a truncation flag; nothing is answered and
   surrounding output is unaffected. Unsupported OSC and CSI controls are
   still not visible, which remains an upstream libghostty limitation.
+  ([ab09071](https://github.com/toppk/revenant/commit/ab0907105bf6a871ef473dfbc0e929c8ff6b4d11),
+  [8fbfdb7](https://github.com/toppk/revenant/commit/8fbfdb7b68eb8161ebdeaf81c521cf8cbda3337c))
 - Answer device-attribute queries with an audited identity instead of
   libghostty's default. DA1 reports `CSI ? 62 ; 6 ; 21 ; 22 c` (VT220 level
   with selective erase, left/right margins, and ANSI color, each backed by a
@@ -121,52 +159,65 @@ artifacts take their version from the tag, not from the development version in
   from the Revenant version, and DA3 keeps the all-zero unit ID. Sixel,
   ReGIS, 132-column, locator, and rectangular-editing codes are not claimed;
   XTVERSION still names the product. The manual probe decodes the replies.
+  ([fd6dee5](https://github.com/toppk/revenant/commit/fd6dee5cbec31ee19ed4be6514e63fc08088b123),
+  [6dbedbd](https://github.com/toppk/revenant/commit/6dbedbdad33f661fdf170a4df69d5e4d3d645516))
 - Track the shell's working directory from OSC 7 reports. The `file://` URI
   is percent-decoded and kept only when it names an existing local directory
   on this host; reports for other hosts, other URI schemes, malformed escapes,
   or missing directories clear the retained path instead, as do reports
   longer than libghostty's 2048-byte OSC limit. Nothing acts on the path
   yet, and the terminal's own working directory never changes.
+  ([e2b2485](https://github.com/toppk/revenant/commit/e2b248588a26dc4cc7e6eaf5fa34286584d093ab))
 - Add the `termName` resource and `-tn` option. The configured name (default
   `xterm-256color`) becomes the child's `TERM` and the answer to an XTGETTCAP
   `TN` query, so the two can no longer disagree; the reply still obeys Tcap
   Ops, and `-report-config` shows the effective name.
+  ([cf5ae7c](https://github.com/toppk/revenant/commit/cf5ae7c91d69bcecd750a461b9d0100df75ad833))
 - Answer ENQ with xterm's `answerbackString` resource. The string is sent
   verbatim for every ENQ (0x05) the application writes; the default is empty
   and sends nothing.
+  ([6c5d166](https://github.com/toppk/revenant/commit/6c5d166d194e48b4e11fe1861a653718be3cd9e7))
 - Honor the startup cursor shape resources. `cursorUnderLine` (`-uc`) starts
   with an underline cursor and `cursorBar` (`-barc`) with a bar, underline
   winning when both are set. An application's DECSCUSR request overrides the
   startup shape, and `CSI 0 SP q` or a full reset returns to it; the blink
   policy is untouched.
+  ([b4a41b1](https://github.com/toppk/revenant/commit/b4a41b191b933c68903103eddbff7ed6a452d81b))
 - Activate **Allow Mouse Ops** and **Allow Tcap Ops** in the Ctrl+right-click
   menu. Mouse Ops gates mouse/focus reporting; Tcap Ops gates XTGETTCAP
   replies with `disallowedTcapOps` exceptions. Prepare Font Ops resources and
   policy helpers while keeping its menu entry disabled until OSC 50 exists.
   Add `probe-features.py` with 18 manual fixtures and a maintainer dispatch
   guide for the remaining feature work.
+  ([e5a42da](https://github.com/toppk/revenant/commit/e5a42da5bce5f674ad13820c2074bce5926be3f4))
 - Paint colored underlines. SGR 58 selects an indexed or 24-bit underline
   color for every underline style, SGR 59 returns to the text color, and the
   color survives inverse video, selection, and translucent backgrounds in
   both the bitmap and Xft renderers.
+  ([2ba4bfa](https://github.com/toppk/revenant/commit/2ba4bfa554851f356ee5ccff5a5e18042376b000))
 - Render dynamic colors. OSC 10, 11, and 12 now repaint the default
   foreground, background, and cursor immediately, OSC 110, 111, and 112
   restore the configured X resources, and queries report the displayed
   colors. Explicit SGR colors, reverse video, and opacity keep their rules.
+  ([9d97a91](https://github.com/toppk/revenant/commit/9d97a91dc951397f68c396fb14bbbe2e015686e7))
 - Report the color scheme: `CSI ? 996 n` answers light or dark from the
   displayed background, and mode 2031 sends `CSI ? 997 ; Ps n` whenever a
   color change flips the scheme.
+  ([9d97a91](https://github.com/toppk/revenant/commit/9d97a91dc951397f68c396fb14bbbe2e015686e7))
 - Activate **Allow Color Ops** in the Ctrl+right-click menu, with
   `allowColorOps` defaulting to true, and honor xterm's `disallowedColorOps`
   list when it is off: `SetColor` gates OSC 10-19 sets and 110-119 resets,
   `GetColor` their queries, and `GetAnsiColor` OSC 4/5 queries, while
   ordinary palette writes stay ungated. Add `tools/probe-dynamic-colors.py`
   for manual foreground, background, cursor, and scheme checks.
+  ([9d97a91](https://github.com/toppk/revenant/commit/9d97a91dc951397f68c396fb14bbbe2e015686e7))
 
 - Activate **Allow Title Ops** in the Ctrl+right-click menu, with the
   `allowTitleOps` resource defaulting to true. Turning it off blocks
   application title changes and applying saved labels on pop; title reports
   and stack permissions remain controlled separately by Window Ops.
+  ([d890a24](https://github.com/toppk/revenant/commit/d890a248c0a4d887ff96fafbe94280fb9631f1c9),
+  [9f2a51a](https://github.com/toppk/revenant/commit/9f2a51aa4e6138ea6ead74830bdce0b9b0315da6))
 - Support the XTWINOPS title stack and title reports. `CSI 22 ; Ps t` saves
   and `CSI 23 ; Ps t` restores the window title and icon name through xterm's
   ten-entry ring, including direct slot access; `CSI 20 t` and `CSI 21 t`
@@ -174,6 +225,8 @@ artifacts take their version from the tag, not from the development version in
   consult the Window Ops policy (`PushTitle`, `PopTitle`, `GetIconTitle`,
   `GetWinTitle`, or xterm's numbers 20-23) and the live **Allow Window Ops**
   toggle; xterm's defaults leave the stack available and the reports silent.
+  ([d890a24](https://github.com/toppk/revenant/commit/d890a248c0a4d887ff96fafbe94280fb9631f1c9),
+  [9f2a51a](https://github.com/toppk/revenant/commit/9f2a51aa4e6138ea6ead74830bdce0b9b0315da6))
 - Support OSC 52 selection access with xterm's permission model. Applications
   can set or clear `CLIPBOARD`, `PRIMARY`, or the `SELECT` name, and query them,
   through the existing X11 selection machinery. The new `allowWindowOps` and
@@ -182,12 +235,15 @@ artifacts take their version from the tag, not from the development version in
   encoded payload. A denied query stays unanswered, as in xterm. The
   Ctrl+right-click **Allow Window Ops** toggle changes selection permissions
   immediately and restores the configured restrictions when turned off.
+  ([62966be](https://github.com/toppk/revenant/commit/62966bef12e1462fdb822d23d8ce834b45997c2a),
+  [bcc82f4](https://github.com/toppk/revenant/commit/bcc82f444bfa715b9eb5d1063026216068bab4d0))
 - Honor synchronized output (DEC private mode 2026): dirty updates are held
   while an application batches a redraw and painted once it releases the mode,
   so batched redraws no longer tear. A one-second timeout releases and resets
   a batch the application never closes. An expose during a hold repaints the
   last complete frame; a resize repaints the current state at the new grid
   while keeping the mode set and the pending update intact.
+  ([192b7e4](https://github.com/toppk/revenant/commit/192b7e4087e984f2163c3f441d3a324f2738caba))
 
 ### Tools
 
@@ -204,19 +260,41 @@ artifacts take their version from the tag, not from the development version in
   Standardize inspection on Space/Enter to continue and q/Escape to exit a test
   with cleanup; add F2 selection mode for copying menu text directly;
   document the input-capture and text-editor exceptions.
+  ([db672d4](https://github.com/toppk/revenant/commit/db672d41a158f57a63908e5fc9f1af416a57af85))
 
 ### Documentation
 
+- Document the control-string family and its ECMA-48 and DEC structure,
+  including ESC and CSI anatomy, terminator history, tmux passthrough, and
+  Kitty unscroll.
+  ([48335cb](https://github.com/toppk/revenant/commit/48335cbfb1c0d8cfd8c917be85a02f1505271c48))
 - Give TDN features stable identifiers and specification references. Store
   compatibility in independently maintained terminal YAML files, and generate
   feature pages, comparison filters, profile tables, and a JSON export from
   the same data. Preserve imported claims as unverified and retain evidence.
+  ([1a8a295](https://github.com/toppk/revenant/commit/1a8a2957fdd0501fc2e7fe8b92f2149c3f3ebecf))
+
+### Other
+
+- Advance the immutable libghostty input to
+  `0c2a290d3a3e2a599be3a43435d778a5896667ee`, from upstream's unreleased 1.4
+  development branch.
+  ([4c3ada3](https://github.com/toppk/revenant/commit/4c3ada357efd50141e8bf24596bcc95877279d8d))
+- Require the complete no-skip suite before release bookkeeping and make
+  packaging tests portable across shells, notification worker scheduling,
+  libnotify icon encodings, host-name tools, container init behavior, and
+  kernels that coalesce PTY reads.
+  ([4547b04](https://github.com/toppk/revenant/commit/4547b0487cfbb5798c12e7db21ba552f371b10a2),
+  [01600a4](https://github.com/toppk/revenant/commit/01600a43adfbca29e9642fd0a7f2271a714bf87c),
+  [2a74ce4](https://github.com/toppk/revenant/commit/2a74ce4133b3cca161eb9fc6a77e6fe532cbbb66),
+  [479265b](https://github.com/toppk/revenant/commit/479265b2a5b8b3ea9f5cb851994c9ac4a5902417))
 
 ### Bug fixes
 
 - Map `-geometry` to the application shell only, as the X Toolkit does, and
   keep popup menus from inheriting a loose `*geometry` value; a terminal
   started with `-geometry` no longer shows tiny, unusable menus.
+  ([d890a24](https://github.com/toppk/revenant/commit/d890a248c0a4d887ff96fafbe94280fb9631f1c9))
 
 ## 0.6.1 — 2026-09-06
 
