@@ -53,13 +53,10 @@ and VTE, so that lines connect exactly. xterm draws line-drawing characters
 itself when the font lacks them. Nerd Font private-use glyphs beyond the
 Powerline range come from the font.
 
-Compatibility is tracked separately for DEC scan lines
-(`text-dec-scanline-drawing`), terminal-oriented geometric pieces
-(`text-geometric-terminal-drawing`), Symbols for Legacy Computing
-(`text-legacy-computing-drawing`), and the Unicode 16 Legacy Computing
-Supplement (`text-legacy-computing-supplement-drawing`). The last two are
-families of assigned ranges rather than a claim that every code point in their
-enclosing Unicode blocks is synthesized.
+TDN tracks the implementation technique as `text-procedural-glyphs`. Each
+terminal record names its exact procedural ranges, because terminals divide
+DEC scan lines, geometric pieces, Symbols for Legacy Computing, its Unicode 16
+supplement, and private-use glyphs differently.
 
 ## Bidirectional text
 

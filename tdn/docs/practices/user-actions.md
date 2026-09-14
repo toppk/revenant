@@ -123,11 +123,8 @@ versus font glyphs for every supported range.
 
 ### Procedural terminal glyph families
 
-Feature IDs: `text-dec-scanline-drawing`,
-`text-geometric-terminal-drawing`, `text-legacy-computing-drawing`, and
-`text-legacy-computing-supplement-drawing`. These distinguish DEC scan lines,
-terminal-oriented geometric pieces, Symbols for Legacy Computing, and its
-Unicode 16 supplement so terminals can report each family independently.
+Feature ID: `text-procedural-glyphs`. A terminal's assessment note lists the
+exact ranges it draws procedurally, since the boundary differs by emulator.
 
 ### Retain selection ownership
 

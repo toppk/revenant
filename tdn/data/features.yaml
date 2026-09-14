@@ -3388,38 +3388,8 @@ features:
     specifications:
     - revenant-feature-designs
     labels: []
-  text-dec-scanline-drawing:
-    title: Procedural DEC scan-line drawing
-    kind: feature
-    category: practices
-    pages:
-    - text/rendering.md
-    - practices/user-actions.md
-    specifications:
-    - unicode-ucd
-    labels: []
-  text-geometric-terminal-drawing:
-    title: Procedural terminal geometric shapes
-    kind: feature
-    category: practices
-    pages:
-    - text/rendering.md
-    - practices/user-actions.md
-    specifications:
-    - unicode-ucd
-    labels: []
-  text-legacy-computing-drawing:
-    title: Procedural Symbols for Legacy Computing
-    kind: feature
-    category: practices
-    pages:
-    - text/rendering.md
-    - practices/user-actions.md
-    specifications:
-    - unicode-ucd
-    labels: []
-  text-legacy-computing-supplement-drawing:
-    title: Procedural Legacy Computing Supplement
+  text-procedural-glyphs:
+    title: Procedural glyph rendering
     kind: feature
     category: practices
     pages:

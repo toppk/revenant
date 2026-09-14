@@ -340,15 +340,15 @@ features:
       url: https://github.com/toppk/revenant/blob/7421d5bd57a1756913cd486ed2daf86ffaeae748/tests/xvfb-box-glyphs.sh
   resource-force-box-chars:
     status: supported
-    as-of: git:7421d5bd57a1756913cd486ed2daf86ffaeae748
-    notes: forceBoxChars (+fbx enables, -fbx disables), the font menu's font-linedrawing entry and
-      set-font-linedrawing() force procedural drawing for U+2500-U+259F; turning it off returns to the face's own
-      glyphs at once. The bitmap path draws these ranges procedurally regardless.
+    as-of: git:d4941b5402123004e2fa1126c529ad6c8b1a2451
+    notes: forceBoxChars (+fbx enables, -fbx disables), the Procedural Glyphs menu entry (internally
+      font-linedrawing) and set-font-linedrawing() force every supported procedural range; turning it off returns
+      to the primary face's glyph where present. The bitmap path draws the supported ranges procedurally.
     review: reviewed
-    checked: '2026-09-12'
+    checked: '2026-09-13'
     evidence:
     - kind: test
-      url: https://github.com/toppk/revenant/blob/7421d5bd57a1756913cd486ed2daf86ffaeae748/tests/xvfb-box-glyphs.sh
+      url: https://github.com/toppk/revenant/blob/d4941b5402123004e2fa1126c529ad6c8b1a2451/tests/xvfb-box-glyphs.sh
   text-braille-drawing:
     status: supported
     as-of: git:aefafe60bcdbbe7f239636a5387218574b7d2ffe
@@ -362,16 +362,28 @@ features:
       url: https://github.com/toppk/revenant/blob/aefafe60bcdbbe7f239636a5387218574b7d2ffe/tests/xvfb-box-glyphs.sh
   text-powerline-drawing:
     status: supported
-    as-of: git:aefafe60bcdbbe7f239636a5387218574b7d2ffe
-    notes: Only U+E0B0-U+E0BF (arrows, half circles, slants, their thin outlines and slash separators) are drawn
-      from the cell geometry, spanning the full cell height so segment colors join, under the box-drawing
-      font-first rule and forceBoxChars; U+E0A0-U+E0AF, U+E0C0 onward and other Nerd Font symbols stay with the
-      font.
+    as-of: git:d4941b5402123004e2fa1126c529ad6c8b1a2451
+    notes: U+E0B0-U+E0BF plus U+E0D2 and U+E0D4 are drawn from cell geometry, spanning the full cell height so
+      segment colors join, under the primary-font-first rule and forceBoxChars; other Powerline and Nerd Font
+      symbols stay with the font.
     review: reviewed
-    checked: '2026-09-12'
+    checked: '2026-09-13'
     evidence:
     - kind: test
-      url: https://github.com/toppk/revenant/blob/aefafe60bcdbbe7f239636a5387218574b7d2ffe/tests/xvfb-box-glyphs.sh
+      url: https://github.com/toppk/revenant/blob/d4941b5402123004e2fa1126c529ad6c8b1a2451/tests/xvfb-box-glyphs.sh
+  text-procedural-glyphs:
+    status: supported
+    as-of: git:d4941b5402123004e2fa1126c529ad6c8b1a2451
+    notes: 'Procedural ranges: U+23BA-U+23BD; U+2500-U+259F; U+25E2-U+25E5; U+25F8-U+25FA; U+25FF;
+      U+2800-U+28FF; U+E0B0-U+E0BF; U+E0D2; U+E0D4; U+1CC1B-U+1CC1E; U+1CC21-U+1CC3F;
+      U+1CD00-U+1CDE5; U+1CE00-U+1CE01; U+1CE0B-U+1CE0C; U+1CE16-U+1CE19; U+1CE51-U+1CE8F;
+      U+1CE90-U+1CEAF; U+1FB00-U+1FB92; U+1FB94-U+1FBAF; U+1FBBD-U+1FBBF; U+1FBCE-U+1FBEF.
+      The primary Xft face wins unless forceBoxChars is enabled; bitmap rendering always uses the procedural path.'
+    review: reviewed
+    checked: '2026-09-13'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/d4941b5402123004e2fa1126c529ad6c8b1a2451/tests/xvfb-box-glyphs.sh
   selection-copy-feedback:
     status: supported
     as-of: git:8fac827f73fa280d52ab317de672639e7efd258e

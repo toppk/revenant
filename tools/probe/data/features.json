@@ -74,44 +74,8 @@
     "sequence": ""
   },
   {
-    "id": "text-dec-scanline-drawing",
-    "title": "Procedural DEC scan-line drawing",
-    "breadcrumb": [
-      "Text, emoji and rendering",
-      "Glyphs"
-    ],
-    "specifications": [
-      "unicode-ucd"
-    ],
-    "sequence": ""
-  },
-  {
-    "id": "text-geometric-terminal-drawing",
-    "title": "Procedural terminal geometric shapes",
-    "breadcrumb": [
-      "Text, emoji and rendering",
-      "Glyphs"
-    ],
-    "specifications": [
-      "unicode-ucd"
-    ],
-    "sequence": ""
-  },
-  {
-    "id": "text-legacy-computing-drawing",
-    "title": "Procedural Symbols for Legacy Computing",
-    "breadcrumb": [
-      "Text, emoji and rendering",
-      "Glyphs"
-    ],
-    "specifications": [
-      "unicode-ucd"
-    ],
-    "sequence": ""
-  },
-  {
-    "id": "text-legacy-computing-supplement-drawing",
-    "title": "Procedural Legacy Computing Supplement",
+    "id": "text-procedural-glyphs",
+    "title": "Procedural glyph rendering",
     "breadcrumb": [
       "Text, emoji and rendering",
       "Glyphs"
