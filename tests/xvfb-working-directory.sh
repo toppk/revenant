@@ -40,7 +40,7 @@ then
     echo "the oversized fixture is only ${#long_uri} bytes" >&2
     exit 1
 fi
-host=$(hostname)
+host=$(uname -n)
 
 # The child records the terminal's cwd before and after the reports so the
 # test can prove the terminal process never follows the shell.

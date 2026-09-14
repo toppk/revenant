@@ -97,7 +97,7 @@ MethodCall(GDBusConnection *connection, const gchar *sender, const gchar *path,
 
                 g_variant_get(parameters, "(&su&s&s&s@as@a{sv}i)", &application, &replaces, &icon,
                               &summary, &body, &actions, &hints, &timeout);
-                /* libnotify sends a named icon as an image hint rather than app_icon. */
+                /* libnotify may send a named icon here or as an image hint. */
                 if (!g_variant_lookup(hints, "image-path", "&s", &image))
                         (void)g_variant_lookup(hints, "image_path", "&s", &image);
                 fprintf(record, "notify at=%" G_GINT64_FORMAT " app=%s icon=%s image=%s summary=",

@@ -143,7 +143,7 @@ xtp_wait_for_log "$log" "command exited pid=" "closed-pipe helper exit"
 finish_terminal closed-pipe
 
 # Teardown: the helper shell exits at once, leaving a background child that
-# ignores SIGTERM in its process group; the child must be gone afterwards.
+# ignores SIGTERM in its process group; the child must no longer be running afterwards.
 start_terminal teardown -xrm "XTerm*pipeCommandOutput: trap '' TERM; sleep 30 & echo \$! > '$test_dir/helper-pid'"
 "$sender" "$window" ctrl-shift-g >/dev/null
 xtp_wait_for_log "$log" "command exited pid=" "teardown leader exit"
@@ -157,10 +157,13 @@ done
 finish_terminal teardown
 grep -q -F "command killed group=" "$log" || { echo "teardown did not kill the helper group" >&2; exit 1; }
 sleep 0.2
-if kill -0 "$(cat "$test_dir/helper-pid")" 2>/dev/null
+helper_pid=$(cat "$test_dir/helper-pid")
+if kill -0 "$helper_pid" 2>/dev/null
 then
-    echo "the helper's child survived teardown" >&2
-    exit 1
+    # Minimal container PID 1 processes may leave an adopted child as a zombie.
+    # That still proves the process-group kill stopped it; the parent cannot reap a grandchild.
+    state=$(awk '{print $3}' "/proc/$helper_pid/stat" 2>/dev/null || true)
+    test "$state" = Z || { echo "the helper's child survived teardown (state=$state)" >&2; exit 1; }
 fi
 
 echo "pipe-command-output sends exactly the last command's output to the configured helper in the reported directory"

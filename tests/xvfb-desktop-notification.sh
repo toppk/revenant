@@ -303,7 +303,10 @@ wait_records 1
 line=$(record 1)
 app=$(field "$line" app)
 test -n "$app" || fail "the notification carried no application name" "$line"
-test "$(field "$line" image)" = "$app" || fail "the notification did not use the application icon" "$line"
+icon=$(field "$line" icon)
+image=$(field "$line" image)
+test "$icon" = "$app" || test "$image" = "$app" ||
+    fail "the notification did not use the application icon" "$line"
 test "$(field "$line" summary)" = "$(hex "$app")" || fail "an untitled request did not use the application label" "$line"
 test "$(field "$line" body)" = "$(hex 'Grüße ✓ &lt;b&gt;data&lt;/b&gt;')" ||
     fail "the OSC 9 body was not delivered exactly with its markup escaped" "$line"

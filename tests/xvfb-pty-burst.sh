@@ -28,7 +28,12 @@ then
 fi
 terminal_pid=
 
-grep -E -q 'pty: drained reads=([2-9]|[1-9][0-9]+) bytes=' "$test_dir/log"
+if ! grep -E -q 'pty: drained reads=[1-9][0-9]* bytes=' "$test_dir/log"
+then
+    echo "PTY burst produced no completed drain" >&2
+    sed -n '1,160p' "$test_dir/log" >&2
+    exit 1
+fi
 updates=$(grep -c 'render: dirty update requested' "$test_dir/log")
 if test "$updates" -ne 2
 then
@@ -38,4 +43,4 @@ then
     exit 1
 fi
 
-echo "split PTY burst drained before rendering"
+echo "PTY burst drained before rendering, whether split or coalesced by the kernel"

@@ -15,7 +15,8 @@ write_all("\r\n".join(old_rows).encode())
 time.sleep(0.25)
 
 # Model a Rich Live refresh: erase every row first, emit enough styling bytes
-# to cross the Linux PTY's 4095-byte read boundary, then write the replacement.
+# to commonly cross a PTY packet boundary, then write the replacement. Kernels
+# may still coalesce the refresh into one read.
 erase = b"\r" + b"\x1b[2K\x1b[1A" * 23 + b"\x1b[2K"
 padding = b"\x1b[0m" * 1000
 new_rows = [f"NEW FRAME {row:02d}".ljust(80) for row in range(24)]
