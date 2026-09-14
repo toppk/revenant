@@ -528,6 +528,7 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
         String face_name = NULL;
         String emoji_name = NULL;
         String face_size = NULL;
+        Boolean force_box_chars = False;
         FontMatch primary;
         FontMatch emoji;
         FontMatch cjk;
@@ -553,7 +554,7 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
                 memset(&system_name, 0, sizeof(system_name));
         hints = PackagesFor(&release);
         XtVaGetValues(vt, "faceName", &face_name, "faceNameEmoji", &emoji_name, "faceSize",
-                      &face_size, NULL);
+                      &face_size, "forceBoxChars", &force_box_chars, NULL);
         configured_face_size = ResourceValue(database, application_name, application_class,
                                              "faceSize", "FaceSize", resource, sizeof(resource));
         configured_font = ResourceValue(database, application_name, application_class, "font",
@@ -620,6 +621,17 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
                 emoji.found ? emoji.family : "not found");
         fprintf(stream, "  [%s] CJK coverage: %s\n", cjk.found ? "ok" : "recommend",
                 cjk.found ? cjk.family : "not found");
+        fprintf(stream, "  [%s] Procedural glyphs: %s\n", force_box_chars ? "ok" : "recommend",
+                force_box_chars ? "forced for supported ranges" : "font glyphs preferred");
+
+        if (!force_box_chars)
+                fprintf(stream,
+                        "\nSeamless terminal graphics\n"
+                        "  Font glyphs can leave gaps between adjacent box, block, and legacy\n"
+                        "  computing characters. Add this to ~/.Xresources, then run\n"
+                        "  `xrdb -merge ~/.Xresources`:\n\n"
+                        "    %s*vt100.forceBoxChars: true\n",
+                        clean_application_class);
 
         if (needs_readable_font) {
                 fprintf(stream,

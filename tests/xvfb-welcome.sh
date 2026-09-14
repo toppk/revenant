@@ -49,6 +49,8 @@ grep -q '^Readable starter resources$' "$bare_report"
 grep -q '^    XTerm\*renderFont: true$' "$bare_report"
 grep -q '^    XTerm\*faceName: monospace$' "$bare_report"
 grep -q '^    XTerm\*faceSize: 13$' "$bare_report"
+grep -q '^Seamless terminal graphics$' "$bare_report"
+grep -q '^    XTerm\*vt100.forceBoxChars: true$' "$bare_report"
 grep -q '^Color palettes$' "$bare_report"
 grep -q 'https://terminal.love/' "$bare_report"
 grep -q 'ready for Xresources by default' "$bare_report"
@@ -73,7 +75,7 @@ HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null \
     XFILESEARCHPATH="$test_dir/app-defaults/%N" \
     TERM_PROGRAM="$program" TERM_PROGRAM_VERSION=test-host \
     "$fixture_root/run" cjk-emoji "$terminal" -fa 'x:fixed, xft:DejaVu Sans Mono' \
-    -fe 'Noto Color Emoji' -fs 13 -welcome \
+    -fe 'Noto Color Emoji' -fs 13 -xrm 'XTerm*vt100.forceBoxChars: true' -welcome \
     >"$configured_report" 2>"$test_dir/configured-log"
 
 if ! grep -q '\[ok\] Renderer: xft' "$configured_report"
@@ -86,6 +88,12 @@ grep -q '^  \[ok\] Primary scalable font: DejaVu Sans Mono (faceSize applies)$' 
     "$configured_report"
 grep -q '\[ok\] Color emoji coverage: Noto Color Emoji' "$configured_report"
 grep -q '\[ok\] Relevant xterm/XTerm server settings: found' "$configured_report"
+grep -q '^  \[ok\] Procedural glyphs: forced for supported ranges$' "$configured_report"
+if grep -q '^Seamless terminal graphics$' "$configured_report"
+then
+    echo "configured welcome report still recommended procedural glyphs" >&2
+    exit 1
+fi
 grep -q 'Advanced rendering sample withheld: output=redirected' "$configured_report"
 grep -q "^  host-terminal: $program test-host$" "$configured_report"
 if grep -q '^Readable starter resources$' "$configured_report"
