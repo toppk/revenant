@@ -90,7 +90,9 @@ do
     i=$((i + 1))
 done
 step queued
-i=0
+osc9 'stalled 0'
+step stalled-first
+i=1
 while test "$i" -lt 5
 do
     osc9 "stalled $i"
@@ -451,8 +453,10 @@ start_daemon --hold
 go queued
 
 # A stalled call cannot bunch calls: queued and new requests are gated when they are sent.
-ready stalled
+ready stalled-first
 wait_record 'stalled 0' accepted
+go stalled-first
+ready stalled
 xtp_wait_for_log "$log" 'notification received count=33 ' 'stalled requests'
 sleep 11
 kill -USR1 "$aux_pid"
