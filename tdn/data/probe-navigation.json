@@ -117,6 +117,7 @@
         "osc-9-notification",
         "osc-777-notification",
         "notification-x11-urgency",
+        "notification-desktop-delivery",
         "osc-9-4-progress",
         "ui-progress-indicator"
       ]

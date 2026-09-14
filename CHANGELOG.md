@@ -10,6 +10,19 @@ artifacts take their version from the tag, not from the development version in
 
 ### Features
 
+- Deliver OSC 9 and OSC 777 notifications to the desktop. Builds with
+  libnotify, which release packages require, now show an unfocused
+  terminal's notification requests through the desktop's notification
+  service, with the application icon and the program name standing in for a
+  missing title. Titles and bodies are passed as data: invalid UTF-8 and
+  control bytes are replaced, markup is escaped, and they are cut at 256 and
+  1024 bytes. At most five notifications are attempted in ten seconds, a
+  failed delivery pauses attempts for five seconds, and delivery recovers
+  once a notification service is available again. Requests made while the
+  terminal is focused are only logged, delivery never blocks the terminal,
+  and the existing WM urgency hint is unchanged. `-report-config` states
+  whether libnotify was compiled in and whether a notification service
+  answers.
 - Show application progress. OSC 9;4 reports, as sent by tools such as
   build systems and package managers, now draw a small bar in the top-right
   corner of the terminal: normal progress in the foreground color, errors

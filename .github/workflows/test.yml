@@ -49,7 +49,8 @@ jobs:
           sudo apt-get install -y clang meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
-            xvfb xfonts-base x11-utils x11-xserver-utils rpm2cpio cpio unzip curl fontconfig
+            libnotify-dev dbus xvfb xfonts-base x11-utils x11-xserver-utils \
+            rpm2cpio cpio unzip curl fontconfig
       - name: Restore staged font fixtures
         id: fixtures
         uses: actions/cache@v6
@@ -86,17 +87,19 @@ jobs:
           ~/.local/bin/clang-format --dry-run --Werror src/*.[ch] tests/*.c
       - name: Run the complete suite with GCC
         run: |
-          CC=gcc meson setup build-gcc -Dlibghostty=enabled -Dxvfb-tests=enabled
+          CC=gcc meson setup build-gcc \
+            -Dlibghostty=enabled -Dlibnotify=enabled -Dxvfb-tests=enabled
           meson compile -C build-gcc
           meson test -C build-gcc --print-errorlogs
       - name: Run the complete suite with Clang
         run: |
-          CC=clang meson setup build-clang -Dlibghostty=enabled -Dxvfb-tests=enabled
+          CC=clang meson setup build-clang \
+            -Dlibghostty=enabled -Dlibnotify=enabled -Dxvfb-tests=enabled
           meson compile -C build-clang
           meson test -C build-clang --print-errorlogs
       - name: Run the stub-backend suite
         run: |
-          CC=gcc meson setup build-stub -Dlibghostty=disabled
+          CC=gcc meson setup build-stub -Dlibghostty=disabled -Dlibnotify=disabled
           meson compile -C build-stub
           meson test -C build-stub --print-errorlogs
 
@@ -111,7 +114,8 @@ jobs:
           sudo apt-get install -y clang meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
-            xvfb xfonts-base x11-utils x11-xserver-utils rpm2cpio cpio unzip curl fontconfig
+            libnotify-dev dbus xvfb xfonts-base x11-utils x11-xserver-utils \
+            rpm2cpio cpio unzip curl fontconfig
       - name: Restore staged font fixtures
         id: fixtures
         uses: actions/cache@v6
@@ -145,7 +149,7 @@ jobs:
       - name: Configure the AddressSanitizer build
         run: |
           CC=clang meson setup build-asan \
-            -Dlibghostty=enabled -Dxvfb-tests=enabled \
+            -Dlibghostty=enabled -Dlibnotify=enabled -Dxvfb-tests=enabled \
             -Db_sanitize=address -Db_lundef=false
       - run: meson compile -C build-asan
       - name: Run the complete suite under AddressSanitizer

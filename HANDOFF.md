@@ -686,6 +686,57 @@ function-pointer helper would lose the useful type check.
   never fires, another client taking PRIMARY), CLIPBOARD without a color, a
   zero duration, OSC 52 writes and replacement, a resize during the flash, a
   synchronized-output hold that never shows it, and teardown mid-flash.
+- Desktop notifications: `notification_policy.c` (widget sources, so the
+  self-test and helpers link it without libnotify) holds the pure rules: a
+  gate allowing `XTP_NOTIFY_RATE_BURST` (5) attempts in any
+  `XTP_NOTIFY_RATE_WINDOW_MS` (10,000 ms) sliding window, counted when an
+  attempt is allowed, with `XTP_NOTIFY_FAILURE_BACKOFF_MS` (5,000 ms) after a
+  failure and a first-denial flag so rate limiting and backoff each log once
+  per period; and text preparation that decodes UTF-8, replaces invalid
+  bytes, NUL, C0, DEL and C1 with U+FFFD, turns newline and tab into a space
+  in titles, cuts at `XTP_NOTIFY_TITLE_LIMIT` (256) or
+  `XTP_NOTIFY_BODY_LIMIT` (1,024) bytes on a codepoint boundary, and escapes
+  `& < > " '` when asked. `desktop_notification.c` (program sources only)
+  includes `config.h`. Without `HAVE_LIBNOTIFY` it logs once that desktop
+  notifications are not compiled in. With it, `TerminalNotification` in
+  `main.c` applies urgency first and then calls `XtpDesktopNotify`, which
+  logs and drops focused requests, copies the borrowed spans into prepared
+  text (logging truncation and replacement by size only), and queues at most
+  four requests for a delivery thread started on the first request, dropping
+  a request that finds the queue full. The thread checks the gate as it takes
+  each request, immediately before calling libnotify, so requests queued
+  before a failure fall under its backoff and a stalled call cannot bunch
+  attempts past the burst. That thread is the only caller of libnotify
+  while the terminal runs, because `notify_notification_show` is synchronous
+  and a hung daemon must not stall the PTY: it initializes libnotify lazily,
+  asks the server's capabilities once per successful period and escapes the
+  body only for `body-markup` servers (summaries are never markup), uses the
+  program name as icon and as the summary of an untitled request, shows and
+  unrefs each notification, and reports success or failure to the gate
+  (failure logged once when a failing period begins, recovery logged once).
+  Any failure calls `notify_uninit`, because libnotify's cached proxy only
+  follows a restarted daemon through signals that this loopless thread never
+  dispatches; a `ServiceUnknown` or `NameHasNoOwner` error retries once at
+  once with a fresh proxy.
+  `DestroyApplication` stops the thread, joins it when idle so it can call
+  `notify_uninit`, and otherwise leaves a busy thread and its state alone
+  rather than waiting out a D-Bus timeout at exit. `-report-config` ends with
+  a section saying whether libnotify is compiled in and, if so, the running
+  daemon's name and version or that none answers. `xvfb-desktop-notification`
+  runs in compiled mode under `dbus-run-session` against
+  `xtp-fake-notifications`, a GIO `org.freedesktop.Notifications` that
+  records each request with its arrival time as hex fields, can reject, and
+  can hold calls unanswered until SIGUSR1: exact Unicode, escaped markup,
+  OSC 9 and OSC 777, empty title and body, focus suppression, control and
+  invalid bytes, both limits, a rate-limited burst reported once, rejection,
+  backoff, recovery, a missing daemon, requests queued behind a failing call
+  dropped by its backoff, a call stalled past the window with no more than
+  five calls arriving in any ten seconds, urgency throughout, no title or
+  progress changes, the report lines (including a one-second limit against a
+  daemon that never answers) and a clean stop. Without
+  libnotify the same script checks that three requests log, set urgency and
+  report unavailable once. The `notification policy` self-test covers the
+  gate and text rules.
 - Progress indicator: libghostty's `GHOSTTY_TERMINAL_OPT_PROGRESS_REPORT`
   callback becomes the `progress` effect (`XtpProgressState`, percent 0-100
   or -1 when omitted, clamped) and `XtpVtSetProgress` in `vt_progress.c`.

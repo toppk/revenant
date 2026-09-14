@@ -29,7 +29,7 @@ Feature ID: `notification-x11-urgency`. Application notification requests set WM
 
 ### Desktop notification delivery
 
-Feature ID: `notification-desktop-delivery`. Optional configured executable or library adapter delivers title/body as data, with bounded rate and child lifetime.
+Feature ID: `notification-desktop-delivery`. Optional libnotify delivery of OSC 9/777 titles and bodies as escaped, bounded data while unfocused, with a rate limit, failure backoff, recovery and unchanged urgency.
 
 ### Progress indicator
 

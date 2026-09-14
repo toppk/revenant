@@ -459,6 +459,18 @@
     "sequence": ""
   },
   {
+    "id": "notification-desktop-delivery",
+    "title": "Desktop notification delivery",
+    "breadcrumb": [
+      "Window and desktop",
+      "Notifications and progress"
+    ],
+    "specifications": [
+      "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
     "id": "osc-9-4-progress",
     "title": "OSC 9;4 progress",
     "breadcrumb": [

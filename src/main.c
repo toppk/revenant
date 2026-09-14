@@ -2,6 +2,7 @@
 #include "menus.h"
 #include "pipe_command.h"
 #include "config_report.h"
+#include "desktop_notification.h"
 #include "diagnostics.h"
 #include "pty_process.h"
 #include "selftest.h"
@@ -61,6 +62,8 @@ typedef struct
         Boolean urgent;
         Boolean urgent_applied;
         unsigned int notifications;
+        /* Optional libnotify delivery; it never blocks and never touches urgency or titles. */
+        XtpDesktopNotifier *notifier;
         /* pipeCommandOutput and the helper processes it has started. */
         const char *pipe_command;
         XtpPipeCommand *pipe_jobs;
@@ -740,10 +743,13 @@ TerminalNotification(const uint8_t *title, size_t title_length, const uint8_t *b
         if (title_length != 0)
                 XtpLogBytePreview(XTP_LOG_INFO, "shell", "notification title", title, title_length);
         XtpLogBytePreview(XTP_LOG_INFO, "shell", "notification body", body, body_length);
-        if (app->focused)
-                return;
-        app->urgent = True;
-        ApplyUrgency(app);
+        if (!app->focused) {
+                app->urgent = True;
+                ApplyUrgency(app);
+        }
+        /* Urgency is already applied, so a refused or failed delivery cannot suppress it. */
+        (void)XtpDesktopNotify(app->notifier, title, title_length, body, body_length,
+                               app->focused != False);
 }
 
 /* Progress stays apart from notifications and never touches the title. */
@@ -1489,6 +1495,7 @@ WireApplication(App *app, const AppResources *resources)
         XtAddCallback(app->vt, XtNpasteCallback, PasteReceived, app);
         XtAddCallback(app->vt, XtNinputCallback, EncodedInputReceived, app);
         XtAddCallback(app->vt, XtNpipeOutputCallback, PipeOutputRequested, app);
+        app->notifier = XtpDesktopNotifierNew();
         app->term_name = resources->term_name != NULL && *resources->term_name != '\0'
                              ? resources->term_name
                              : XTP_TERM_NAME_DEFAULT;
@@ -1594,6 +1601,8 @@ DestroyApplication(App *app)
         app->pty = NULL;
         if (app->vt != NULL)
                 XtpVtSetTerminal(app->vt, NULL);
+        XtpDesktopNotifierFree(app->notifier);
+        app->notifier = NULL;
         XtpTitleStackClear(&app->title_stack);
         ForgetWorkingDirectory(app);
         if (app->terminal != NULL) {
@@ -1696,6 +1705,7 @@ main(int argc, char **argv)
         if (resources.report_config) {
                 XtpReportConfig(app.display, app.vt, command_database,
                                 command_line.application_name, command_line.application_class);
+                XtpDesktopNotificationReport(stdout);
                 status = EXIT_SUCCESS;
                 goto done;
         }

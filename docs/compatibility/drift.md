@@ -499,6 +499,16 @@ when the application clears it, on a full reset, or when the program exits.
 The indicator never touches the window title, the title stack or title
 reports, and needs no Window Ops permission.
 
+### Desktop notification delivery (OSC 9, OSC 777)
+
+xterm has no desktop notifications. When Revenant is built with libnotify,
+as its release packages are, an OSC 9 or OSC 777 request that arrives while
+the terminal is unfocused is also shown through the desktop notification
+service, with the title and body treated as escaped, bounded text and a
+limit of five notifications in ten seconds. Requests made while focused are
+logged only. Builds without libnotify keep the urgency behavior below and
+nothing else.
+
 ### Notification urgency (OSC 9, OSC 777)
 
 xterm 411 does not implement OSC 9 or OSC 777; both are discarded as

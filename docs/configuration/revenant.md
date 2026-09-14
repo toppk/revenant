@@ -412,6 +412,25 @@ disappears when the program clears it, on a full reset, or when the program
 exits. It does not take keyboard focus, does not change the window title and
 needs no Window Ops permission.
 
+### Desktop notifications
+
+Programs can ask for a desktop notification with OSC 9 or OSC 777, as some
+shells and long-running tools do when a job finishes. When Revenant was
+built with libnotify, a request that arrives while the terminal is not
+focused appears through your desktop's notification service. A request made
+while you are using the terminal is only logged. The window's urgency hint
+is set either way while unfocused.
+
+The notification shows the program's text exactly as data: markup is not
+interpreted, unreadable bytes are replaced, and very long titles and bodies
+are shortened. To keep a noisy program from flooding the desktop, at most
+five notifications are shown in any ten seconds, and if the notification
+service fails, Revenant waits a few seconds before trying again. There is
+nothing to configure, and no Window Ops permission is involved.
+`revenant -report-config` tells you whether desktop notifications were built
+in and whether a notification service is answering; it waits at most a second
+for the service to reply.
+
 ## Cursor
 
 ```xrdb

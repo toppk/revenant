@@ -1,6 +1,7 @@
 #include "selftest.h"
 
 #include "box_glyphs.h"
+#include "notification_policy.h"
 #include "search_match.h"
 #include "char_class.h"
 #include "cursor_blink.h"
@@ -5959,6 +5960,97 @@ done:
         return result;
 }
 
+static bool
+SelfTestNotifyTextIs(const char *input, size_t length, size_t limit, bool multiline,
+                     const char *expected, size_t expected_length, bool truncated, bool replaced)
+{
+        XtpNotifyText text;
+        bool same;
+
+        if (!XtpNotifyTextPrepare((const uint8_t *)input, length, limit, multiline, &text))
+                return false;
+        same = text.length == expected_length &&
+               memcmp(text.text, expected, expected_length) == 0 &&
+               text.text[text.length] == '\0' && text.truncated == truncated &&
+               text.replaced == replaced;
+        XtpNotifyTextFree(&text);
+        return same;
+}
+
+static int
+SelfTestNotificationPolicy(void)
+{
+        XtpNotifyGate gate;
+        bool first = false;
+        unsigned int index;
+        char *escaped;
+        bool same;
+
+        /* Five attempts pass; later ones in the window are limited and reported once. */
+        memset(&gate, 0, sizeof(gate));
+        for (index = 0; index < XTP_NOTIFY_RATE_BURST; ++index)
+                if (XtpNotifyGateCheck(&gate, 1000U + index, &first) != XTP_NOTIFY_GATE_ALLOW ||
+                    first)
+                        return -1;
+        if (XtpNotifyGateCheck(&gate, 2000U, &first) != XTP_NOTIFY_GATE_RATE_LIMITED || !first ||
+            XtpNotifyGateCheck(&gate, 2001U, &first) != XTP_NOTIFY_GATE_RATE_LIMITED || first)
+                return -1;
+        /* The window slides from the oldest recorded attempt. */
+        if (XtpNotifyGateCheck(&gate, 1000U + XTP_NOTIFY_RATE_WINDOW_MS - 1U, &first) !=
+                XTP_NOTIFY_GATE_RATE_LIMITED ||
+            XtpNotifyGateCheck(&gate, 1000U + XTP_NOTIFY_RATE_WINDOW_MS, &first) !=
+                XTP_NOTIFY_GATE_ALLOW ||
+            XtpNotifyGateCheck(&gate, 1000U + XTP_NOTIFY_RATE_WINDOW_MS, &first) !=
+                XTP_NOTIFY_GATE_RATE_LIMITED ||
+            !first)
+                return -1;
+        /* A failure denies attempts until its backoff passes; the denial is reported once. */
+        memset(&gate, 0, sizeof(gate));
+        if (!XtpNotifyGateFailed(&gate, 50000U) ||
+            XtpNotifyGateCheck(&gate, 50001U, &first) != XTP_NOTIFY_GATE_BACKOFF || !first ||
+            XtpNotifyGateCheck(&gate, 50002U, &first) != XTP_NOTIFY_GATE_BACKOFF || first ||
+            XtpNotifyGateCheck(&gate, 50000U + XTP_NOTIFY_FAILURE_BACKOFF_MS, &first) !=
+                XTP_NOTIFY_GATE_ALLOW ||
+            XtpNotifyGateFailed(&gate, 56000U) ||
+            XtpNotifyGateCheck(&gate, 56001U, &first) != XTP_NOTIFY_GATE_BACKOFF || !first ||
+            !XtpNotifyGateSucceeded(&gate) || XtpNotifyGateSucceeded(&gate) ||
+            XtpNotifyGateCheck(&gate, 56002U, &first) != XTP_NOTIFY_GATE_ALLOW ||
+            !XtpNotifyGateFailed(&gate, 57000U))
+                return -1;
+        /* Text: exact Unicode, replacement of invalid and control bytes, lines and limits. */
+        if (!SelfTestNotifyTextIs("Gr\xc3\xbc\xc3\x9f"
+                                  "e \xe2\x9c\x93",
+                                  11, 256, false,
+                                  "Gr\xc3\xbc\xc3\x9f"
+                                  "e \xe2\x9c\x93",
+                                  11, false, false) ||
+            !SelfTestNotifyTextIs("", 0, 256, false, "", 0, false, false) ||
+            !SelfTestNotifyTextIs("a\xff"
+                                  "b",
+                                  3, 256, false,
+                                  "a\xef\xbf\xbd"
+                                  "b",
+                                  5, false, true) ||
+            !SelfTestNotifyTextIs("a\0b", 3, 256, true,
+                                  "a\xef\xbf\xbd"
+                                  "b",
+                                  5, false, true) ||
+            !SelfTestNotifyTextIs("a\x01\x7f\xc2\x85", 5, 256, true,
+                                  "a\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd", 10, false, true) ||
+            !SelfTestNotifyTextIs("one\ntwo\tx", 9, 256, false, "one two x", 9, false, false) ||
+            !SelfTestNotifyTextIs("one\ntwo\tx", 9, 256, true, "one\ntwo\tx", 9, false, false) ||
+            !SelfTestNotifyTextIs("a\xc3\xa9\xe2\x82\xac", 6, 5, false, "a\xc3\xa9", 3, true,
+                                  false) ||
+            !SelfTestNotifyTextIs("abcde", 5, 5, false, "abcde", 5, false, false) ||
+            !SelfTestNotifyTextIs("\xe2\x82", 2, 256, false, "\xef\xbf\xbd\xef\xbf\xbd", 6, false,
+                                  true))
+                return -1;
+        escaped = XtpNotifyEscapeMarkup("<b>&'\"x", 7);
+        same = escaped != NULL && strcmp(escaped, "&lt;b&gt;&amp;&apos;&quot;x") == 0;
+        free(escaped);
+        return same ? 0 : -1;
+}
+
 typedef int (*SelfTestCaseFn)(void);
 
 typedef struct
@@ -5995,6 +6087,7 @@ XtpSelfTest(void)
             {"box-glyphs", SelfTestBoxGlyphs},
             {"braille and Powerline glyphs", SelfTestProceduralGlyphs},
             {"search matching", SelfTestSearchMatch},
+            {"notification policy", SelfTestNotificationPolicy},
             {"Unicode Script=Han", SelfTestUnicodeScript},
             {"font-chain", SelfTestFontChain},
             {"font-metrics", SelfTestFontMetrics},

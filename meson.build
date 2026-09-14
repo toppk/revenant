@@ -82,7 +82,8 @@ configure_file(
 )
 
 feature_configuration = configuration_data()
-libnotify_dep = dependency('libnotify', required: get_option('libnotify'))
+libnotify_dep = dependency('libnotify', required: get_option('libnotify'),
+                           include_type: 'system')
 if libnotify_dep.found()
     feature_configuration.set('HAVE_LIBNOTIFY', 1)
 endif
@@ -158,6 +159,7 @@ widget_sources = files(
     'src/glyph_cairo.c',
     'src/glyph_shape.c',
     'src/menus.c',
+    'src/notification_policy.c',
     'src/search_match.c',
     'src/sme_slider.c',
     'src/terminal.c',
@@ -186,6 +188,7 @@ widget_sources = files(
 sources = files(
     'src/command_options.c',
     'src/config_report.c',
+    'src/desktop_notification.c',
     'src/main.c',
     'src/pty.c',
     'src/selftest.c',
@@ -389,6 +392,16 @@ urgency_test_tool = executable(
     dependencies: x11_dep,
     install: false,
 )
+
+# libnotify builds get a GIO stand-in for org.freedesktop.Notifications to deliver to.
+if libnotify_dep.found()
+    fake_notifications_tool = executable(
+        'xtp-fake-notifications',
+        'tests/xtp-fake-notifications.c',
+        dependencies: dependency('gio-2.0', include_type: 'system'),
+        install: false,
+    )
+endif
 
 window_ops_test_tool = executable(
     'xtp-toggle-window-ops',
@@ -965,6 +978,42 @@ if build_with_ghostty and xvfb.found()
         timeout: 90,
         is_parallel: false,
     )
+    if libnotify_dep.found()
+        dbus_run_session = find_program('dbus-run-session', required: xvfb_tests_option)
+        if dbus_run_session.found()
+            test(
+                'xvfb-desktop-notification',
+                dbus_run_session,
+                args: [
+                    '--',
+                    find_program('sh').full_path(),
+                    files('tests/xvfb-desktop-notification.sh'),
+                    xvfb.full_path(),
+                    xterm_plus.full_path(),
+                    urgency_test_tool.full_path(),
+                    fake_notifications_tool.full_path(),
+                    'compiled',
+                ],
+                timeout: 120,
+                is_parallel: false,
+            )
+        endif
+    else
+        test(
+            'xvfb-desktop-notification',
+            find_program('sh'),
+            args: [
+                files('tests/xvfb-desktop-notification.sh'),
+                xvfb.full_path(),
+                xterm_plus.full_path(),
+                urgency_test_tool.full_path(),
+                'none',
+                'absent',
+            ],
+            timeout: 60,
+            is_parallel: false,
+        )
+    endif
     test(
         'xvfb-notification-urgency',
         find_program('sh'),

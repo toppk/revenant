@@ -341,6 +341,17 @@ func notify(s *Session) {
 	s.say("Requests sent. While unfocused the window's WM_HINTS urgency flag should be set (xprop -id WINDOW WM_HINTS); focusing it should clear the flag.")
 	s.pause()
 }
+func desktopNotify(s *Session) {
+	s.say("Switch focus away; requests are sent after three seconds.")
+	s.wait(3 * time.Second)
+	s.osc(9, "probe desktop notification: Grüße ✓ <b>not bold</b>")
+	s.osc(777, "notify;Probe title ✓;Body with <i>markup</i> & an ampersand")
+	s.say("Requests sent. Expect two desktop notifications (subject to the rate limit) showing the markup as literal text.")
+	s.pause()
+	s.say("With the terminal focused, a request is sent now; it should log but not appear.")
+	s.osc(9, "probe focused request: this should not appear")
+	s.pause()
+}
 func progress(s *Session) {
 	s.cleanup(func() { s.osc(9, "4;0") })
 	s.say("Inspect at 80x24: the terminal draws a small bar in the top-right corner, and the window title must not change.")
