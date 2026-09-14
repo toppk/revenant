@@ -129,7 +129,7 @@
 *fontMenu*fontsel*Label:	Selection
 !fontescape and fontsel overridden by application
 *fontMenu*allow-bold-fonts*Label:  Bold Fonts
-*fontMenu*font-linedrawing*Label:  Line-Drawing Characters
+*fontMenu*font-linedrawing*Label:  Procedural Glyphs
 *fontMenu*font-doublesize*Label: Doublesized Characters
 *fontMenu*font-loadable*Label:	VT220 Soft Fonts
 *fontMenu*font-packed*Label:	Packed Font

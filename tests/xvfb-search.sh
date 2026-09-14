@@ -274,7 +274,7 @@ send keysym F5
 send keysym g ctrl-shift
 send keysym Up ctrl-shift
 sleep 0.5
-grep -q 'box glyphs font-first -> forced' "$log" && fail "a translated action ran during the search"
+grep -q 'procedural glyphs font-first -> forced' "$log" && fail "a translated action ran during the search"
 grep -q 'action pipe-command-output' "$log" && fail "Ctrl+Shift+G ran pipe-command-output during the search"
 send keysym Escape
 wait_count 'search: closed reason=escape restore-viewport=true' 2
@@ -319,7 +319,7 @@ do
 done
 
 send keysym F5
-xtp_wait_for_log "$log" 'box glyphs font-first -> forced' 'translation after the search closed'
+xtp_wait_for_log "$log" 'procedural glyphs font-first -> forced' 'translation after the search closed'
 
 : >"$control/done"
 wait "$terminal_pid" 2>/dev/null || true

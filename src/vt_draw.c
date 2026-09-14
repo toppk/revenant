@@ -614,8 +614,9 @@ PlanBoxGlyph(Vt100Rec *vt, const char *text, size_t length, Boolean bold, Boolea
                 return False;
         if (XtpBoxGlyphPlan(*codepoint, area->width, area->height, bold, glyph))
                 return True;
-        XtpLog(XTP_LOG_WARNING, "font", "box glyph U+%04X not planned at %ux%u; using the font",
-               *codepoint, (unsigned int)area->width, (unsigned int)area->height);
+        XtpLog(XTP_LOG_WARNING, "font",
+               "procedural glyph U+%04X not planned at %ux%u; using the font", *codepoint,
+               (unsigned int)area->width, (unsigned int)area->height);
         return False;
 }
 

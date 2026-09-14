@@ -1779,7 +1779,7 @@ XtpVtSetForceBoxChars(Widget widget, Boolean enabled)
         enabled = enabled ? True : False;
         if (enabled == vt->vt.force_box_chars)
                 return;
-        XtpLog(XTP_LOG_INFO, "font", "box glyphs %s -> %s",
+        XtpLog(XTP_LOG_INFO, "font", "procedural glyphs %s -> %s",
                vt->vt.force_box_chars ? "forced" : "font-first", enabled ? "forced" : "font-first");
         vt->vt.force_box_chars = enabled;
         VtInvalidateFrame(vt);

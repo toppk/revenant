@@ -1,5 +1,7 @@
 #include "box_glyphs.h"
 
+#include "procedural_glyphs.h"
+
 #include "utf8.h"
 
 #include <math.h>
@@ -182,7 +184,8 @@ XtpBoxGlyphCodepoint(uint32_t codepoint)
 {
         return (codepoint >= 0x2500U && codepoint <= 0x259FU) ||
                (codepoint >= 0x2800U && codepoint <= 0x28FFU) ||
-               (codepoint >= 0xE0B0U && codepoint <= 0xE0BFU);
+               (codepoint >= 0xE0B0U && codepoint <= 0xE0BFU) ||
+               XtpProceduralExtendedCodepoint(codepoint);
 }
 
 bool
@@ -789,7 +792,19 @@ XtpBoxGlyphPlan(uint32_t codepoint, unsigned int width, unsigned int height, boo
         if (!XtpBoxGlyphCodepoint(codepoint) || width == 0 || height == 0)
                 return false;
         t = XtpBoxGlyphThickness(width, height, bold);
-        if (codepoint >= 0xE0B0U) {
+        if (XtpProceduralExtendedCodepoint(codepoint)) {
+                uint8_t *mask = box_realloc(NULL, (size_t)width * height);
+                unsigned int y;
+
+                if (mask == NULL) {
+                        glyph->failed = true;
+                } else {
+                        XtpProceduralExtendedRasterize(codepoint, width, height, t, mask);
+                        for (y = 0; y < height; ++y)
+                                AddRuns(glyph, mask + (size_t)y * width, y, width, height);
+                        free(mask);
+                }
+        } else if (codepoint >= 0xE0B0U) {
                 PlanPowerline(codepoint, width, height, t, glyph);
         } else if (codepoint >= 0x2800U) {
                 if (!PlanBraille(codepoint, width, height, glyph))

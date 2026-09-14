@@ -146,6 +146,7 @@ endif
 
 widget_sources = files(
     'src/box_glyphs.c',
+    'src/procedural_glyphs.c',
     'src/char_class.c',
     'src/cursor_blink.c',
     'src/diagnostics.c',

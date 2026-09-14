@@ -450,7 +450,7 @@ terminated with the terminal if it is still running at exit; and the key
 can be returned to applications with the same `insert-seven-bit()`
 override as the prompt keys.
 
-### Box and block glyphs
+### Procedural terminal glyphs
 
 xterm draws its own line-drawing characters only for the VT100 special
 graphics set (and a few DEC technical characters), when `forceBoxChars`
@@ -469,12 +469,21 @@ xterm), and `set-font-linedrawing()` have xterm's names and meaning. A key
 bound to it, like every locally bound key, is decided one tick after Xt
 dispatches it and never reaches the application.
 
-xterm has no braille or Powerline drawing; both come from the font.
-Revenant draws braille (U+2800–U+28FF) and the Powerline separators
-U+E0B0–U+E0BF from the cell under the same rules and the same switch, so
-`forceBoxChars` also covers them. Other private-use symbols, including the
-Powerline branch and lock icons and the Nerd Font flame separators, and the
-legacy computing symbols still come from the font.
+xterm has no braille, Powerline, or legacy-computing drawing; those come from
+the font. Revenant applies the same routing and `forceBoxChars` switch to
+Braille (U+2800–U+28FF), Powerline U+E0B0–U+E0BF plus the flame separators
+U+E0D2/U+E0D4, DEC scan lines U+23BA–U+23BD, the terminal-oriented geometric
+triangles U+25E2–U+25E5 and U+25F8–U+25FA/U+25FF, Symbols for Legacy Computing
+U+1FB00–U+1FB92, U+1FB94–U+1FB9B, U+1FB9C–U+1FBAF,
+U+1FBBD–U+1FBBF, and U+1FBCE–U+1FBEF, and selected standardized ranges from
+the Unicode 16 supplement: U+1CC1B–U+1CC1E, U+1CC21–U+1CC3F,
+U+1CD00–U+1CDE5, U+1CE00–U+1CE01, U+1CE0B–U+1CE0C,
+U+1CE16–U+1CE19, U+1CE51–U+1CE8F, and U+1CE90–U+1CEAF. U+1FB93 is
+unassigned and remains font-owned. Ordinary geometric symbols such as U+25B0,
+other Powerline and Nerd Font symbols, and Ghostty's private U+F5D0–U+F60D
+range also remain font-owned. The visible menu label is **Procedural Glyphs**;
+the xterm-compatible `font-linedrawing` item name, action, resource, and
+`+fbx`/`-fbx` options are unchanged.
 
 ### Scrollback search
 

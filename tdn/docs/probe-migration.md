@@ -137,6 +137,7 @@ query/set and cursor inspection/style cycling into separate checks.
 | `python3 tools/probe-features.py notify` | `just probe osc-9-notification notifications-urgency` | Focus away before delivery, urgency/notification, focus to clear. | Pending |
 | `python3 tools/probe-features.py progress` | `just probe osc-9-4-progress notifications-progress` | Progress states and clear on exit. | Pending |
 | `python3 tools/probe-features.py glyphs` | `just probe text-box-drawing text-glyphs` | Box, block, braille and powerline joining. | Pending |
+| No legacy equivalent | `just probe text-box-drawing text-procedural-union` | Visual decision catalog grouped by purpose: meaningful constructions followed by compact code-point sheets. | New Go probe |
 | `python3 tools/probe-features.py copy` | `just probe selection-copy-feedback selection-copy` | Manually select/copy; feedback and exact pasted text. | Pending |
 | `python3 tools/probe-features.py search` | `just probe search-scrollback-literal selection-search` | Repeated, Unicode and wrapped matches, navigation and viewport restoration. | Pending |
 | `python3 tools/probe-features.py graphics` | `just probe apc-kitty-static-images graphics-static` | Four-color inline image, clipping/scroll/resize, deletion of only the probe's image. | Pending |

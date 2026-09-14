@@ -51,6 +51,18 @@ printf '\033]2;box-ready\007'
 while ! test -d "$1"; do sleep 0.05; done
 SCENE
 
+# Representatives from the standardized legacy-computing, supplement,
+# geometric, DEC scan-line and extended Powerline ranges.
+cat >"$test_dir/scene3.sh" <<'SCENE'
+printf '\033[2J\033[H\033[?25l'
+printf '\360\237\254\200\360\237\254\273\360\237\255\260\360\237\256\234\360\237\256\257\360\237\257\250\r\n'
+printf '\360\234\264\200\360\234\267\245\360\234\260\241\360\234\260\257\360\234\260\265\360\234\271\221\r\n'
+printf '\360\234\272\217\360\234\272\220\360\234\272\237\342\216\272\342\227\242\342\227\270\r\n'
+printf '\356\203\222\356\203\224\r\n'
+printf '\033]2;box-ready\007'
+while ! test -d "$1"; do sleep 0.05; done
+SCENE
+
 fail()
 {
     echo "$case_name: $1" >&2
@@ -145,7 +157,7 @@ grep -q 'route base=U+2500 width=1 presentation=none role=primary' "$log" ||
     fail "the Xft path did not route U+2500 to the primary face by default"
 grep -q 'route base=U+2500 .*role=box' "$log" && fail "box glyphs were procedural before the toggle"
 "$toggle" "$window" linedrawing >/dev/null
-xtp_wait_for_log "$log" 'box glyphs font-first -> forced' 'menu toggle on'
+xtp_wait_for_log "$log" 'procedural glyphs font-first -> forced' 'menu toggle on'
 xtp_wait_for_log "$log" 'route base=U+2588 width=1 presentation=none role=box' 'procedural redraw'
 expect_procedural
 "$sender" "$window" $((4 + cw / 2)) $((4 + 2 * ch + ch / 2)) \
@@ -153,7 +165,7 @@ expect_procedural
 xtp_wait_for_log "$log" 'publish source=SELECT' 'selection'
 expect_ink 0 2 $((cw * (ch - ch / 2))) "selected upper half block"
 "$toggle" "$window" linedrawing >/dev/null
-xtp_wait_for_log "$log" 'box glyphs forced -> font-first' 'menu toggle off'
+xtp_wait_for_log "$log" 'procedural glyphs forced -> font-first' 'menu toggle off'
 before=$(grep -c 'route base=U+2588 width=1 presentation=none role=primary' "$log" || true)
 sample 2 0 1 >/dev/null
 after=$(grep -c 'route base=U+2588 width=1 presentation=none role=primary' "$log" || true)
@@ -168,13 +180,46 @@ test "$t" -ge 2 || fail "the 24 point cell is too small to scale line thickness"
 expect_procedural
 stop_case
 
+# The extended standardized ranges share the same forcing and paint path.
+scene=scene3
+start_case extended-fallback -fa 'DejaVu Sans Mono:rgba=none' -fs 16 \
+    -xrm 'xterm.vt100.renderFont: true'
+grep -q 'route base=U+1CC21 .*role=box' "$log" ||
+    fail "a missing extended glyph did not use procedural fallback"
+stop_case
+start_case extended +fbx -fa 'DejaVu Sans Mono:rgba=none' -fs 16 \
+    -xrm 'xterm.vt100.renderFont: true'
+for codepoint in 1FB00 1FB3B 1FB70 1FB9C 1FBAF 1FBE8 1CD00 1CDE5 \
+    1CC21 1CC2F 1CC35 1CE51 1CE8F 1CE90 1CE9F 23BA 25E2 25F8 E0D2 E0D4
+do
+    grep -q "route base=U+$codepoint .*role=box" "$log" ||
+        fail "U+$codepoint did not use procedural drawing"
+done
+row=0
+while test "$row" -lt 4
+do
+    columns=6
+    test "$row" -lt 3 || columns=2
+    column=0
+    while test "$column" -lt "$columns"
+    do
+        result=$(sample "$column" "$row" 1)
+        test "$(ink_of "$result")" -gt 0 ||
+            fail "extended glyph at $column,$row was blank" "$result"
+        column=$((column + 1))
+    done
+    row=$((row + 1))
+done
+stop_case
+scene=scene
+
 # The bitmap path always draws these ranges procedurally.
 start_case bitmap -fn fixed -xrm 'xterm.vt100.renderFont: false'
 grep -q 'route base=U+2500 width=1 presentation=none role=box' "$log" ||
     fail "the bitmap path did not draw U+2500 procedurally"
 expect_procedural
 "$toggle" "$window" linedrawing >/dev/null
-xtp_wait_for_log "$log" 'box glyphs font-first -> forced' 'bitmap menu toggle'
+xtp_wait_for_log "$log" 'procedural glyphs font-first -> forced' 'bitmap menu toggle'
 expect_procedural
 stop_case
 
@@ -200,9 +245,9 @@ done
 sleep 0.2
 window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$log" | tail -1)
 "$keys" "$window" f12 >/dev/null
-xtp_wait_for_log "$log" 'box glyphs font-first -> forced' 'key binding toggle on'
+xtp_wait_for_log "$log" 'procedural glyphs font-first -> forced' 'key binding toggle on'
 "$keys" "$window" f12 >/dev/null
-xtp_wait_for_log "$log" 'box glyphs forced -> font-first' 'key binding toggle off'
+xtp_wait_for_log "$log" 'procedural glyphs forced -> font-first' 'key binding toggle off'
 sleep 0.7
 test ! -s "$test_dir/keys" || fail "the bound key reached the application" "$(od -An -c "$test_dir/keys")"
 owned=$(grep -c 'owned by local Xt action' "$log" || true)

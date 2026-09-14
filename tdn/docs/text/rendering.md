@@ -46,12 +46,20 @@ has the glyph. Two consequences matter to applications:
 ## Synthesized glyphs
 
 Box drawing (U+2500–U+257F), block elements (U+2580–U+259F), Braille
-(U+2800–U+28FF), Powerline (U+E0B0–U+E0BF), and some legacy computing symbols
-(U+1FB00–U+1FBFF) are drawn by the emulator rather than the font in kitty,
+(U+2800–U+28FF), Powerline, and standardized legacy-computing symbols are
+drawn by the emulator rather than the font in kitty,
 WezTerm, foot, Ghostty, Alacritty (`builtin_box_drawing`), Windows Terminal,
 and VTE, so that lines connect exactly. xterm draws line-drawing characters
 itself when the font lacks them. Nerd Font private-use glyphs beyond the
 Powerline range come from the font.
+
+Compatibility is tracked separately for DEC scan lines
+(`text-dec-scanline-drawing`), terminal-oriented geometric pieces
+(`text-geometric-terminal-drawing`), Symbols for Legacy Computing
+(`text-legacy-computing-drawing`), and the Unicode 16 Legacy Computing
+Supplement (`text-legacy-computing-supplement-drawing`). The last two are
+families of assigned ranges rather than a claim that every code point in their
+enclosing Unicode blocks is synthesized.
 
 ## Bidirectional text
 
@@ -99,6 +107,7 @@ printf '😀🎉\n'                       # color emoji
 - [terminal-wg bidi specification](https://gitlab.freedesktop.org/terminal-wg/specifications)
 - [HarfBuzz](https://harfbuzz.github.io/)
 - [xterm manual](https://invisible-island.net/xterm/manpage/xterm.html)
+- [Unicode Character Database](https://www.unicode.org/ucd/)
 
 ## Background-relative faint text
 

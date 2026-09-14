@@ -20,7 +20,11 @@
         "text-box-drawing",
         "text-block-drawing",
         "text-braille-drawing",
-        "text-powerline-drawing"
+        "text-powerline-drawing",
+        "text-dec-scanline-drawing",
+        "text-geometric-terminal-drawing",
+        "text-legacy-computing-drawing",
+        "text-legacy-computing-supplement-drawing"
       ]
     },
     {

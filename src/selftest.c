@@ -5279,8 +5279,8 @@ SelfTestProceduralGlyphs(void)
             !XtpBoxGlyphCodepoint(0x28FFU) || XtpBoxGlyphCodepoint(0x2900U) ||
             XtpBoxGlyphCodepoint(0xE0A0U) || XtpBoxGlyphCodepoint(0xE0AFU) ||
             !XtpBoxGlyphCodepoint(0xE0B0U) || !XtpBoxGlyphCodepoint(0xE0BFU) ||
-            XtpBoxGlyphCodepoint(0xE0C0U) || XtpBoxGlyphCodepoint(0xE0D2U) ||
-            XtpBoxGlyphCodepoint(0xE0D4U) || !XtpBoxGlyphText("\xee\x82\xb0", 3, &codepoint) ||
+            XtpBoxGlyphCodepoint(0xE0C0U) || !XtpBoxGlyphCodepoint(0xE0D2U) ||
+            !XtpBoxGlyphCodepoint(0xE0D4U) || !XtpBoxGlyphText("\xee\x82\xb0", 3, &codepoint) ||
             codepoint != 0xE0B0U || !XtpBoxGlyphText("\xe2\xa3\xbf", 3, &codepoint) ||
             codepoint != 0x28FFU)
                 goto done;
@@ -5452,6 +5452,107 @@ done:
         free(a);
         free(b);
         free(c);
+        return result;
+}
+
+static int
+SelfTestExtendedProceduralGlyphs(void)
+{
+        static const struct
+        {
+                uint32_t first;
+                uint32_t last;
+        } ranges[] = {{0x23BAU, 0x23BDU},   {0x25E2U, 0x25E5U},   {0x25F8U, 0x25FAU},
+                      {0x25FFU, 0x25FFU},   {0xE0D2U, 0xE0D2U},   {0xE0D4U, 0xE0D4U},
+                      {0x1CC1BU, 0x1CC1EU}, {0x1CC21U, 0x1CC3FU}, {0x1CD00U, 0x1CDE5U},
+                      {0x1CE00U, 0x1CE01U}, {0x1CE0BU, 0x1CE0CU}, {0x1CE16U, 0x1CE19U},
+                      {0x1CE51U, 0x1CE8FU}, {0x1CE90U, 0x1CEAFU}, {0x1FB00U, 0x1FB92U},
+                      {0x1FB94U, 0x1FBAFU}, {0x1FBBDU, 0x1FBBFU}, {0x1FBCEU, 0x1FBEFU}};
+        static const uint32_t excluded[] = {
+            0x23B9U,  0x23BEU,  0x25B0U,  0x25E1U,  0x25E6U,  0x25F7U,  0x25FBU,  0x25FEU,
+            0xE0D1U,  0xE0D3U,  0xE0D5U,  0x1CC1AU, 0x1CC1FU, 0x1CC20U, 0x1CC40U, 0x1CE02U,
+            0x1CE0AU, 0x1CE0DU, 0x1CE15U, 0x1CE1AU, 0x1CE50U, 0x1CEB0U, 0x1FB93U, 0x1FBB0U,
+            0x1FBBCU, 0x1FBC0U, 0x1FBCDU, 0x1FBF0U, 0xF5D0U,  0xF60DU};
+        const BoxSize size = {24, 48};
+        uint8_t *a = malloc(size.width * size.height);
+        uint8_t *b = malloc(size.width * size.height);
+        XtpBoxGlyph glyph = {0};
+        size_t range;
+        size_t index;
+        uint32_t cp;
+        int result = -1;
+
+        if (a == NULL || b == NULL)
+                goto done;
+        for (index = 0; index < XtNumber(excluded); ++index)
+                if (XtpBoxGlyphCodepoint(excluded[index]))
+                        goto done;
+        /* Every claimed code point produces bounded, nonempty geometry. */
+        for (range = 0; range < XtNumber(ranges); ++range) {
+                for (cp = ranges[range].first; cp <= ranges[range].last; ++cp) {
+                        size_t rect;
+
+                        if (!XtpBoxGlyphCodepoint(cp) || !BoxMask(cp, size, False, a, &glyph) ||
+                            BoxInk(a, size) == 0)
+                                goto done;
+                        for (rect = 0; rect < glyph.count; ++rect)
+                                if (glyph.rects[rect].x + glyph.rects[rect].width > size.width ||
+                                    glyph.rects[rect].y + glyph.rects[rect].height > size.height)
+                                        goto done;
+                        XtpBoxGlyphFree(&glyph);
+                }
+        }
+        /* The first and last octant entries match sparse and dense grid masks. */
+        if (!BoxMask(0x1CD00U, size, False, a, NULL) ||
+            BoxInk(a, size) != (size.width / 2U) * (size.height / 4U) ||
+            !BoxMask(0x1CDE5U, size, False, b, NULL) || BoxInk(b, size) <= BoxInk(a, size))
+                goto done;
+        /* Flame separators reflect, and all four scan lines span the full cell width. */
+        if (!BoxMask(0xE0D2U, size, False, a, NULL) || !BoxMask(0xE0D4U, size, False, b, NULL) ||
+            !BoxMirrored(a, b, size, True, False))
+                goto done;
+        for (cp = 0x23BAU; cp <= 0x23BDU; ++cp)
+                if (!BoxMask(cp, size, False, a, NULL) ||
+                    !BoxSameColumns(a, size, 0, size.width - 1U))
+                        goto done;
+        /* The sixteen single sixteenth blocks partition a cell exactly. */
+        memset(a, 0, size.width * size.height);
+        for (cp = 0x1CE90U; cp <= 0x1CE9FU; ++cp) {
+                if (!BoxMask(cp, size, False, b, NULL))
+                        goto done;
+                for (index = 0; index < size.width * size.height; ++index) {
+                        if (a[index] && b[index])
+                                goto done;
+                        a[index] |= b[index];
+                }
+        }
+        if (BoxInk(a, size) != size.width * size.height)
+                goto done;
+        /* Bold changes line-derived shapes, while filled grid cells remain identical. */
+        if (!BoxMask(0x1CC1BU, size, False, a, NULL) || !BoxMask(0x1CC1BU, size, True, b, NULL) ||
+            BoxInk(b, size) <= BoxInk(a, size) || !BoxMask(0x1FB00U, size, False, a, NULL) ||
+            !BoxMask(0x1FB00U, size, True, b, NULL) || memcmp(a, b, size.width * size.height) != 0)
+                goto done;
+        /* The raster scratch and rectangle list both fail closed and are released. */
+        for (index = 0; index < 2U; ++index) {
+                box_alloc_budget = (unsigned int)index;
+                XtpBoxGlyphSetAllocator(BoxFailingRealloc);
+                if (XtpBoxGlyphPlan(0x1FB3CU, size.width, size.height, false, &glyph) ||
+                    glyph.rects != NULL || glyph.count != 0 || glyph.failed) {
+                        XtpBoxGlyphSetAllocator(NULL);
+                        goto done;
+                }
+                XtpBoxGlyphSetAllocator(NULL);
+        }
+        if (!XtpBoxGlyphPlan(0x1CC35U, 1030, 1100, false, &glyph) || glyph.count == 0)
+                goto done;
+        XtpBoxGlyphFree(&glyph);
+        result = 0;
+done:
+        XtpBoxGlyphSetAllocator(NULL);
+        XtpBoxGlyphFree(&glyph);
+        free(a);
+        free(b);
         return result;
 }
 
@@ -6086,6 +6187,7 @@ XtpSelfTest(void)
             {"emoji-presentation", SelfTestEmojiPresentation},
             {"box-glyphs", SelfTestBoxGlyphs},
             {"braille and Powerline glyphs", SelfTestProceduralGlyphs},
+            {"extended procedural glyphs", SelfTestExtendedProceduralGlyphs},
             {"search matching", SelfTestSearchMatch},
             {"notification policy", SelfTestNotificationPolicy},
             {"Unicode Script=Han", SelfTestUnicodeScript},

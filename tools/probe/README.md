@@ -61,6 +61,31 @@ ZWJ/flag comparison with the mode off and on; other cases use the selected
 legacy/cluster/both width mode. `text emoji` opens the submenu; use
 `text emoji all` to run the former complete suite.
 
+The **Procedural glyph rendering** cases present a visual catalog of characters
+that are useful to draw from cell geometry instead of a font. This renderer
+behavior has no universal capability name. xterm calls its subset *built-in
+line-drawing characters* and controls it with `forceBoxChars`; Ghostty calls its
+implementation a *sprite face*; foot documents
+`box-drawings-uses-font-glyphs`, whose default false value selects generated
+drawings.
+
+The catalog is grouped by purpose. Each group starts with constructions that
+use the characters as intended: complete boxes and junctions, continuous block
+bars, Braille plots, Powerline segments, or tiled mosaics. Compact code-point
+sheets follow for inspecting individual glyphs. The catalog contains no baked-in
+terminal support claims; record the observed result for the terminal being
+tested. The union includes Unicode Box Drawing, Block Elements, Braille,
+Symbols for Legacy Computing and its supplement, DEC Special Graphics,
+Powerline, geometric pieces, and a private branch-symbol range.
+
+```sh
+just probe text-box-drawing text-procedural-union  # every group
+just probe text-box-drawing text-procedural-box    # U+2500-U+257F
+just probe text-block-drawing text-procedural-block
+just probe text-braille-drawing text-procedural-braille
+just probe text-powerline-drawing text-procedural-powerline
+```
+
 Mouse navigation requires working, permitted SGR mouse reports; keyboard and
 number navigation remain available when mouse reporting is disabled.
 

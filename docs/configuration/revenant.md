@@ -81,15 +81,16 @@ Revision 5 role, shaping, emoji, and general-fallback expansion applies only to
 `renderFont: true`; an existing xterm bitmap-font configuration may continue
 to use `renderFont: false` and the traditional bitmap resources unchanged.
 
-Both paths draw box-drawing (U+2500–U+257F), block-element
-(U+2580–U+259F) and braille (U+2800–U+28FF) characters and the Powerline
-separators U+E0B0–U+E0BF from the cell geometry so that lines and segments
-join across cells at any size, in bold, and under inverse video or
-selection. Other Powerline and Nerd Font symbols stay with the font. With Xft
+Both paths can draw box and block elements, Braille, DEC scan lines, terminal
+corner triangles, standardized Symbols for Legacy Computing and its Unicode
+16 supplement, and the Powerline separators U+E0B0–U+E0BF plus U+E0D2 and
+U+E0D4 from cell geometry. Lines and segments therefore join across cells at
+any size, in bold, and under inverse video or selection. Other Powerline,
+Nerd Font, and private-use symbols stay with the font. With Xft
 the primary face's own glyphs are used and the geometric drawing steps in
 only for characters the face lacks; the bitmap path always draws them.
 `forceBoxChars: true` (`+fbx`; `-fbx` turns it off, as in xterm) forces the geometric drawing for the whole
-range, the font menu's **Line-Drawing Characters** entry toggles it at
+range, the font menu's **Procedural Glyphs** entry toggles it at
 runtime, and `set-font-linedrawing(on|off|toggle)` does the same from a
 key binding; turning it off returns to the font's glyphs at once.
 

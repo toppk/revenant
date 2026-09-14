@@ -117,7 +117,17 @@ Feature ID: `input-touchpad-inertia`. Low-priority smooth-scroll/inertia behavio
 
 ### Force procedural box characters
 
-Feature ID: `resource-force-box-chars`. forceBoxChars and the font-linedrawing menu select procedural drawing versus font glyphs.
+Feature ID: `resource-force-box-chars`. `forceBoxChars` and the
+**Procedural Glyphs** (`font-linedrawing`) menu item select procedural drawing
+versus font glyphs for every supported range.
+
+### Procedural terminal glyph families
+
+Feature IDs: `text-dec-scanline-drawing`,
+`text-geometric-terminal-drawing`, `text-legacy-computing-drawing`, and
+`text-legacy-computing-supplement-drawing`. These distinguish DEC scan lines,
+terminal-oriented geometric pieces, Symbols for Legacy Computing, and its
+Unicode 16 supplement so terminals can report each family independently.
 
 ### Retain selection ownership
 

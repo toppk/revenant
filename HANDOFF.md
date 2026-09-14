@@ -607,7 +607,7 @@ function-pointer helper would lose the useful type check.
   when `forceBoxChars` is set, always on the bitmap path (whose
   `MakeVisualCell` now keeps these code points instead of `?`), and on the
   Xft path when the primary face for the cell's bold/italic style lacks the
-  character (`XftCharExists`), so a fallback face never draws a box glyph
+  character (`XftCharExists`), so a fallback face never draws a procedural glyph
   with foreign metrics. A box cell is never grouped for shaping. The cell
   is painted as background fill plus `XFillRectangles` on the widget GC
   under the same clip as text, using the `VisualCell` colors, so inverse,
@@ -615,9 +615,10 @@ function-pointer helper would lose the useful type check.
   text; the block cursor draws the glyph in the cursor text color over
   the fill, and decorations (underline, strikethrough) are unchanged. The
   route log line says `role=box file=(procedural)`. `XtpVtSetForceBoxChars`
-  invalidates the frame and redraws, logging `box glyphs font-first ->
+  invalidates the frame and redraws, logging `procedural glyphs font-first ->
   forced` (or back); the font menu's `font-linedrawing` entry is an active
-  checked item, `set-font-linedrawing(on|off|toggle)` is an action with
+  checked item labeled **Procedural Glyphs**,
+  `set-font-linedrawing(on|off|toggle)` is an action with
   its own `LocalKeyAction` identity so a bound key and its release never
   reach the child, and `+fbx`/`-fbx` set the resource with xterm's
   polarity (plus turns it on). Plans allocate their rectangle list on the
@@ -634,9 +635,16 @@ function-pointer helper would lose the useful type check.
   thickness inside the solid outline, overlapping the neighbor rows and
   reaching the flat side on the first and last rows; the slash separators
   reuse the U+2571/U+2572 diagonals. The draw decision, colors, cursor,
-  route log and `forceBoxChars` switch are shared with box drawing, and the
-  rest of the private-use area (U+E0A0–U+E0AF, U+E0C0 onward) stays with
-  the font. `XtpBoxGlyphSetAllocator` lets the self-test fail allocations.
+  route log and `forceBoxChars` switch are shared with box drawing. The same
+  planner covers U+E0D2/U+E0D4, DEC scan lines U+23BA–U+23BD, terminal
+  corner triangles, assigned terminal mosaics in Symbols for Legacy
+  Computing, and selected Unicode 16 Legacy Computing Supplement ranges.
+  These include sextant, octant, quadrant and sixteenth grids, smooth
+  mosaics, fractional blocks, checkerboards, diagonal fills and paths,
+  circle pieces, and supplementary box junctions. U+1FB93 is unassigned;
+  ordinary geometric symbols, the other Powerline and Nerd Font symbols,
+  and Ghostty's private U+F5D0–U+F60D range stay with the font.
+  `XtpBoxGlyphSetAllocator` lets the self-test fail allocations.
   The `box-glyphs` self-test checks every code
   point at six cell sizes for staying inside the cell, the light band
   geometry and column/row identity across cells, cross = union of the two
@@ -665,6 +673,12 @@ function-pointer helper would lose the useful type check.
   full block joined to an arrow, inverse, selected and cursor-covered
   arrows, a heavier bold thin arrow, braille dot squares and counts, and
   that U+E0A0 and U+E0C0 are not drawn procedurally.
+  The `extended procedural glyphs` self-test plans every newly accepted code
+  point, checks exclusions and bounds, octant density, mirrored flame
+  separators, edge-to-edge DEC scan lines, the sixteenth partition, and bold
+  versus solid geometry. A third `xvfb-box-glyphs` scene forces
+  representatives from every new family and requires both the procedural
+  route and visible ink.
 - Copy feedback: `PublishSelection` in `vt_interaction.c` calls
   `VtStartCopyFlash` when a selection gesture owned at least one atom; OSC
   52 writes own atoms through `OwnSelectionText` directly and never reach

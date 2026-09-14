@@ -59,7 +59,7 @@ artifacts take their version from the tag, not from the development version in
   keeps its own glyphs and the procedural drawing is used only for
   characters the face lacks; the bitmap path, which previously showed `?`,
   always draws them. The new `forceBoxChars` resource (`+fbx` on, `-fbx` off), the
-  font menu's Line-Drawing Characters entry, and the `set-font-linedrawing()`
+  font menu's Procedural Glyphs entry, and the `set-font-linedrawing()`
   action force the procedural drawing for the whole range, and switching
   it off returns to the font's glyphs immediately. Every key is now decided
   one event-loop tick after Xt dispatches it, so a key bound to any local
@@ -73,9 +73,14 @@ artifacts take their version from the tag, not from the development version in
   box-drawing rules: Xft keeps the primary face's own glyphs, the bitmap
   path and `forceBoxChars` always draw them, and bold, inverse video,
   selection and the block cursor color them like text. Other Powerline and
-  Nerd Font symbols, such as the branch icon U+E0A0 and the flame
-  separators, stay with the font, as does braille in a cell too narrow for
+  Nerd Font symbols, such as the branch icon U+E0A0, stay with the font, as does braille in a cell too narrow for
   a visible dot.
+- Extend procedural drawing to DEC scan lines, terminal corner triangles,
+  Powerline flame separators U+E0D2/U+E0D4, Symbols for Legacy Computing,
+  and the selected Unicode 16 Legacy Computing Supplement ranges used for
+  separated quadrants and sextants, circle pieces, octants, and sixteenth
+  blocks. They share the box-drawing routing and switch. U+1FB93, unrelated
+  symbols, and private-use additions stay with the font.
 - Pipe the last command's output to a helper. The new `pipeCommandOutput`
   resource names a shell command, unset by default, and the new
   `pipe-command-output()` action (Ctrl+Shift+G) finds the most recently

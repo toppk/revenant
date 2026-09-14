@@ -38,6 +38,140 @@ func glyphs(s *Session) {
 	s.say("Braille dots are equal squares in two columns; Powerline shapes span the cell height and meet segment colors without a seam.")
 	s.pause()
 }
+
+type codepointRange struct {
+	first rune
+	last  rune
+}
+
+type proceduralGlyphGroup struct {
+	id       string
+	title    string
+	note     string
+	examples []string
+	ranges   []codepointRange
+	chars    []rune
+}
+
+var proceduralGlyphGroups = []proceduralGlyphGroup{
+	{id: "box", title: "Box Drawing", note: "Frames, junctions, mixed weights, rounded corners, dashes and diagonals.", examples: []string{
+		"Light:   ┌────────┬────────┐", "         │        │        │", "         ├────────┼────────┤", "         │        │        │", "         └────────┴────────┘",
+		"Heavy:   ┏━━━━━━━━┳━━━━━━━━┓", "         ┣━━━━━━━━╋━━━━━━━━┫", "         ┗━━━━━━━━┻━━━━━━━━┛",
+		"Double:  ╔════════╦════════╗", "         ╠════════╬════════╣", "         ╚════════╩════════╝",
+		"Other:   ╭────╮  ┌┄┄┄┄┐  ╲╱ ╳",
+	}, ranges: []codepointRange{{0x2500, 0x257f}}},
+	{id: "block", title: "Block Elements and shades", note: "Bars, fills, shades and quadrant mosaics.", examples: []string{
+		"Horizontal fractions: ▏▎▍▌▋▊▉█", "Vertical fractions:   ▁▂▃▄▅▆▇█", "Solid cell seam:      ████████████████",
+		"Shade ramp:           ░░▒▒▓▓██", "Quadrant tiles:       ▖▗ ▘▝  ▙▟ ▛▜  ▚▞",
+	}, ranges: []codepointRange{{0x2580, 0x259f}}},
+	{id: "braille", title: "Braille patterns", note: "A two-by-four dot matrix used for text, plots and dense terminal graphics.", examples: []string{
+		"Individual dots: ⠁ ⠂ ⠄ ⡀   ⠈ ⠐ ⠠ ⢀", "Columns and fill: ⡇ ⢸ ⣿", "Plot-like chain:  ⡀⡄⡆⡇⣇⣧⣷⣿⣶⣤⣀",
+	}, ranges: []codepointRange{{0x2800, 0x28ff}}},
+	{id: "powerline", title: "Powerline separators", note: "Private-use separators intended to join colored status-line segments.", examples: []string{
+		"Filled arrows:  left ████ right", "Thin arrows:    left ──── right", "Slants:         ███    ███", "Half circles:   ███    ███", "Extra flame:    ████",
+	}, ranges: []codepointRange{{0xe0b0, 0xe0bf}}, chars: []rune{0xe0d2, 0xe0d4}},
+	{id: "geometric", title: "Geometric terminal graphics", note: "Triangles, diagonals, a diamond and a vertical rectangle.", examples: []string{
+		"Triangles: ◢◣  ◥◤  ◸◹◺  ◿", "DEC shapes: ◆ ▮",
+	}, chars: []rune{0x25ae, 0x25c6, 0x25e2, 0x25e3, 0x25e4, 0x25e5, 0x25f8, 0x25f9, 0x25fa, 0x25ff}},
+	{id: "scanline", title: "DEC horizontal scan lines", note: "Four vertical positions used with the ordinary box-drawing horizontal line.", examples: []string{
+		"Levels: ⎺⎺⎺⎺  ⎻⎻⎻⎻  ────  ⎼⎼⎼⎼  ⎽⎽⎽⎽",
+	}, ranges: []codepointRange{{0x23ba, 0x23bd}}},
+	{id: "controls", title: "DEC control pictures", note: "Printable pictures for control functions; these do not join across cells.", examples: []string{
+		"Control pictures: ␉ ␊ ␋ ␌ ␍ ␤",
+	}, chars: []rune{0x2409, 0x240a, 0x240b, 0x240c, 0x240d, 0x2424}},
+	{id: "symbols", title: "DEC mathematical and other symbols", note: "Non-joining compatibility members of the DEC Special Graphics repertoire.", examples: []string{
+		"Symbols: ° ± · £ π ≠ ≤ ≥",
+	}, chars: []rune{0x00b0, 0x00b1, 0x00b7, 0x00a3, 0x03c0, 0x2260, 0x2264, 0x2265}},
+	{id: "legacy-sextants", title: "Legacy Computing: sextant mosaics", note: "Every nonempty, nonfull combination of a two-by-three cell grid.", examples: []string{
+		"Density samples: 🬀 🬂 🬆 🬎 🬝 🬫 🬺", "Tiled strip:     🬀🬂🬆🬎🬝🬫🬺",
+	}, ranges: []codepointRange{{0x1fb00, 0x1fb3b}}},
+	{id: "legacy-smooth", title: "Legacy Computing: smooth mosaics", note: "Diagonal wedges and triangular fractional blocks for tiled graphics.", examples: []string{
+		"Wedges: 🬼🭁🭌🭒  🭗🭢🭨🭭", "Fractions: 🭬 🭭 🭮 🭯",
+	}, ranges: []codepointRange{{0x1fb3c, 0x1fb6f}}},
+	{id: "legacy-eighths", title: "Legacy Computing: eighth blocks and fills", note: "Fine horizontal/vertical fractions, split shades and diagonal fills.", examples: []string{
+		"Vertical eighths:   🭰🭱🭲🭳🭴🭵", "Horizontal eighths: 🭶🭷🭸🭹🭺🭻", "Fills:              🮌🮍🮎🮏 🮐🮕🮘🮙",
+	}, ranges: []codepointRange{{0x1fb70, 0x1fb92}, {0x1fb94, 0x1fb9b}}},
+	{id: "legacy-extra", title: "Legacy Computing: lines, circles and extra mosaics", note: "Additional standard diagonals, box pieces, partial circles and blocks.", examples: []string{
+		"Diagonal pieces: 🮠🮡🮢🮣 🮽🮾🮿", "Circle pieces:   🯠🯡🯢🯣 🯨🯩🯪🯫", "Fraction blocks: 🯎 🯏",
+	}, ranges: []codepointRange{{0x1fb9c, 0x1fbaf}, {0x1fbbd, 0x1fbbf}, {0x1fbce, 0x1fbef}}},
+	{id: "supplement-quadrants", title: "Legacy Supplement: separated quadrants", note: "Quadrant mosaics with visible gutters between their pieces.", examples: []string{
+		"Separated quadrants: 𜰡𜰢𜰣𜰤 𜰥𜰦𜰧 𜰨𜰩𜰪𜰫 𜰬𜰭𜰮𜰯",
+	}, ranges: []codepointRange{{0x1cc21, 0x1cc2f}}},
+	{id: "supplement-circles", title: "Legacy Supplement: circle pieces", note: "Twelve pieces that form edge-touching circles across a four-by-four cell area.", examples: []string{
+		"𜰰𜰱𜰲𜰳", "𜰴𜰵𜰶𜰷", "𜰸𜰹𜰺𜰻", "𜰼𜰽𜰾𜰿",
+	}, ranges: []codepointRange{{0x1cc30, 0x1cc3f}}},
+	{id: "supplement-octants", title: "Legacy Supplement: octant mosaics", note: "Combinations of a two-by-four cell grid: a denser counterpart to sextants.", examples: []string{
+		"Density samples: 𜴀 𜴂 𜴎 𜴟 𜵿 𜷥", "Tiled strip:     𜴀𜴂𜴎𜴟𜵿𜷥",
+	}, ranges: []codepointRange{{0x1cd00, 0x1cde5}}},
+	{id: "supplement-separated", title: "Legacy Supplement: separated sextants and sixteenths", note: "Guttered sextants followed by individual sixteenth-cell pieces.", examples: []string{
+		"Separated sextants: 𝹑𝹓𝹗𝹟𝺏", "Sixteenth pieces:   𝺐𝺓𝺗𝺛𝺟",
+	}, ranges: []codepointRange{{0x1ce51, 0x1ceaf}}},
+	{id: "supplement-extra", title: "Legacy Supplement: extra boxes and ellipses", note: "A small set of line junctions, split circles and ellipse halves.", examples: []string{
+		"Box pieces: 𜰛 𜰝 𜰞", "Circle/ellipse pieces: 𝸀 𝸁 𝸋 𝸌 𝸖𝸗𝸘𝸙",
+	}, ranges: []codepointRange{{0x1cc1b, 0x1cc1e}, {0x1ce00, 0x1ce01}, {0x1ce0b, 0x1ce0c}, {0x1ce16, 0x1ce19}}},
+	{id: "branch", title: "Private branch symbols", note: "A private-use icon range; meanings depend on the font/project that assigned it.", examples: []string{
+		"Private-use catalog follows; missing-font boxes are expected elsewhere.",
+	}, ranges: []codepointRange{{0xf5d0, 0xf60d}}},
+}
+
+func groupCodepoints(group proceduralGlyphGroup) []rune {
+	var result []rune
+	for _, span := range group.ranges {
+		for r := span.first; r <= span.last; r++ {
+			result = append(result, r)
+		}
+	}
+	result = append(result, group.chars...)
+	return result
+}
+
+func proceduralGlyphs(s *Session) {
+	selected := ""
+	if s.result != nil {
+		selected = strings.TrimPrefix(s.result.CaseID, "text-procedural-")
+	}
+	groups := proceduralGlyphGroups
+	if selected != "union" {
+		groups = nil
+		for _, group := range proceduralGlyphGroups {
+			if group.id == selected {
+				groups = append(groups, group)
+				break
+			}
+		}
+	}
+	columns, rows := terminalSize(s.out)
+	entriesPerLine := max(1, columns/13)
+	linesPerPage := max(1, rows-5)
+	for _, group := range groups {
+		s.page(group.title + " / constructions")
+		s.say("%s", group.note)
+		s.say("")
+		for _, example := range group.examples {
+			s.say("%s", example)
+		}
+		s.pause()
+
+		codepoints := groupCodepoints(group)
+		perPage := entriesPerLine * linesPerPage
+		pages := (len(codepoints) + perPage - 1) / perPage
+		for page := 0; page < pages; page++ {
+			s.page(fmt.Sprintf("%s / code points (%d/%d)", group.title, page+1, pages))
+			s.say("Each entry is U+codepoint followed by the glyph.")
+			end := min(len(codepoints), (page+1)*perPage)
+			pageCodepoints := codepoints[page*perPage : end]
+			for line := 0; line < len(pageCodepoints); line += entriesPerLine {
+				lineEnd := min(len(pageCodepoints), line+entriesPerLine)
+				var entries []string
+				for _, r := range pageCodepoints[line:lineEnd] {
+					entries = append(entries, fmt.Sprintf("U+%04X [%s]", r, string(r)))
+				}
+				s.say("%s", strings.Join(entries, "  "))
+			}
+			s.pause()
+		}
+	}
+}
 func copyFixture(s *Session) {
 	s.say("COPY-PROBE alpha café 界 omega COPY-END")
 	s.say("Start with -xrm 'XTerm*copyFlashDuration: 300' and optionally copyFlashColor.")
