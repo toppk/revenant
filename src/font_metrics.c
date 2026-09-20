@@ -29,3 +29,33 @@ XtpFontCenteredOrigin(double minimum, double maximum, int area_x, unsigned int a
 
         return (int)lround(origin);
 }
+
+int
+XtpFittedFaceFind(const XtpFittedFaceSlot *slots, size_t count, const void *source,
+                  unsigned int span)
+{
+        size_t index;
+
+        if (slots == NULL || source == NULL)
+                return -1;
+        for (index = 0; index < count; ++index) {
+                if (slots[index].source == source && slots[index].span == span)
+                        return (int)index;
+        }
+        return -1;
+}
+
+int
+XtpFittedFaceAppend(XtpFittedFaceSlot *slots, size_t *count, size_t capacity, const void *source,
+                    unsigned int span)
+{
+        size_t index;
+
+        if (slots == NULL || count == NULL || source == NULL || *count >= capacity)
+                return -1;
+        index = (*count)++;
+        slots[index].source = source;
+        slots[index].span = span;
+        slots[index].fitted = NULL;
+        return (int)index;
+}

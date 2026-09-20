@@ -171,6 +171,8 @@ static XtResource resources[] = {
      OFFSET(face_name_doublesize), XtRString, NULL},
     {"faceNameEmoji", "FaceNameEmoji", XtRString, sizeof(String), OFFSET(face_name_emoji),
      XtRString, NULL},
+    {"faceNameEmojiText", "FaceNameEmojiText", XtRString, sizeof(String),
+     OFFSET(face_name_emoji_text), XtRString, NULL},
     {"faceNameHan", "FaceNameHan", XtRString, sizeof(String), OFFSET(face_name_han), XtRString,
      NULL},
     {"boldFont", "BoldFont", XtRString, sizeof(String), OFFSET(bold_font_name), XtRString, NULL},
@@ -183,6 +185,8 @@ static XtResource resources[] = {
     {"colorGlyphs", "ColorGlyphs", XtRBoolean, sizeof(Boolean), OFFSET(color_glyphs), XtRImmediate,
      (XtPointer)True},
     {"systemFallback", "SystemFallback", XtRBoolean, sizeof(Boolean), OFFSET(system_fallback),
+     XtRImmediate, (XtPointer)True},
+    {"fitEmojiText", "FitEmojiText", XtRBoolean, sizeof(Boolean), OFFSET(fit_emoji_text),
      XtRImmediate, (XtPointer)True},
     {"reportFontRouting", "ReportFontRouting", XtRBoolean, sizeof(Boolean),
      OFFSET(report_font_routing), XtRImmediate, (XtPointer)False},
@@ -1201,11 +1205,13 @@ FontResourcesChanged(const Vt100Rec *old_vt, const Vt100Rec *new_vt)
             StringChanged(old_vt->vt.face_name, new_vt->vt.face_name) ||
             StringChanged(old_vt->vt.face_name_doublesize, new_vt->vt.face_name_doublesize) ||
             StringChanged(old_vt->vt.face_name_emoji, new_vt->vt.face_name_emoji) ||
+            StringChanged(old_vt->vt.face_name_emoji_text, new_vt->vt.face_name_emoji_text) ||
             StringChanged(old_vt->vt.face_name_han, new_vt->vt.face_name_han) ||
             StringChanged(old_vt->vt.bold_font_name, new_vt->vt.bold_font_name) ||
             StringChanged(old_vt->vt.wide_bold_font_name, new_vt->vt.wide_bold_font_name) ||
             StringChanged(old_vt->vt.emoji_presentation_name, new_vt->vt.emoji_presentation_name) ||
             old_vt->vt.color_glyphs != new_vt->vt.color_glyphs ||
+            old_vt->vt.fit_emoji_text != new_vt->vt.fit_emoji_text ||
             old_vt->vt.system_fallback != new_vt->vt.system_fallback ||
             old_vt->vt.limit_fontsets != new_vt->vt.limit_fontsets ||
             old_vt->vt.limit_fontheight != new_vt->vt.limit_fontheight ||

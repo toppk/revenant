@@ -3,6 +3,7 @@
 
 #include "emoji_presentation.h"
 #include "font_chain.h"
+#include "font_metrics.h"
 #include "font_route_cache.h"
 #include "glyph_cairo.h"
 #include "glyph_shape.h"
@@ -19,6 +20,7 @@
 #define XTP_XFT_FALLBACK_CAPACITY 32
 #define XTP_GLYPH_INK_CACHE_SIZE 256
 #define XTP_VISUAL_TEXT_CAPACITY 64
+#define XTP_FITTED_FACE_CACHE_SIZE 64
 
 typedef struct
 {
@@ -60,6 +62,8 @@ typedef enum
         XTP_FONT_ROLE_WIDE,
         XTP_FONT_ROLE_EMOJI,
         XTP_FONT_ROLE_HAN,
+        /* Not a capture slot, so it follows every slot-mapped role. */
+        XTP_FONT_ROLE_EMOJI_TEXT,
         XTP_FONT_ROLE_COUNT,
 } XtpFontRoleIndex;
 
@@ -104,6 +108,13 @@ typedef struct
         size_t system_sort_count;
         GlyphInkCacheEntry glyph_ink_cache[XTP_GLYPH_INK_CACHE_SIZE];
         size_t next_glyph_ink_cache;
+        Boolean fit_emoji_text;
+        /* Shrunk faces; see font-resolution(7).  The route and glyph-ink caches
+         * hold these pointers, so an entry is never evicted or closed before
+         * the universe is destroyed. */
+        XtpFittedFaceSlot fitted_faces[XTP_FITTED_FACE_CACHE_SIZE];
+        size_t fitted_face_count;
+        Boolean fitted_faces_exhausted;
 } XtpFontUniverse;
 
 #endif

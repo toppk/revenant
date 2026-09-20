@@ -339,6 +339,26 @@ make_universe routing "${base_fonts[@]}" \
 make_universe routing-modern "${base_fonts[@]}" \
 	NotoSansMonoCJKjp-Regular.otf NotoSansMonoCJKjp-Bold.otf \
 	NotoEmoji-Regular-3.003.ttf Noto-COLRv1.ttf
+# Both monochrome and color faces, plus a hostile pattern rule: a request for
+# the monochrome family is redirected to the color family unless the request
+# itself says color=false.  This has the shape of the installed generic-emoji
+# rules (45-generic aliasing plus 60-generic's color default); it is not a copy
+# of them.  A presentation-aware request must survive it.
+make_universe alias-emoji "${base_fonts[@]}" \
+	NotoEmoji-Regular-3.003.ttf Noto-COLRv1.ttf
+cat >"$work/universes/alias-emoji/fontconfig.conf" <<'EOF'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <dir prefix="relative">fonts</dir>
+  <cachedir prefix="xdg">fontconfig</cachedir>
+  <match target="pattern">
+    <test name="family"><string>Noto Emoji</string></test>
+    <test name="color" compare="not_eq" qual="all"><bool>false</bool></test>
+    <edit name="family" mode="prepend" binding="strong"><string>Noto Color Emoji</string></edit>
+  </match>
+</fontconfig>
+EOF
 make_universe legacy-routing "${base_fonts[@]}" \
 	NotoColorEmoji-2.034.ttf OpenMoji-COLRv0.ttf
 make_universe shaping "${base_fonts[@]}" \
@@ -468,8 +488,10 @@ contract.
 The `empty` universe deliberately contains no fonts. The `base`, `cbdt`,
 `cbdt-legacy`, `cbdt-lowres`, `colrv0`, `colrv1`, `mono`, `mono-modern`,
 `svginot`, `atomic-tag`, `sbix`, `cjk`, `cjk-emoji`, `routing`,
-`routing-modern`, `legacy-routing`, and `shaping`
-universes isolate the remaining rendering and fallback scenarios. Moving this
+`routing-modern`, `alias-emoji`, `legacy-routing`, and `shaping`
+universes isolate the remaining rendering and fallback scenarios. `alias-emoji`
+additionally carries a hostile pattern rule that redirects a monochrome family
+request to the color family unless the request states `color=false`. Moving this
 entire tree is safe because its Fontconfig paths and font links are relative.
 EOF
 

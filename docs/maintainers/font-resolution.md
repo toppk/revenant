@@ -12,6 +12,12 @@ technical form of Font Resolution Specification Revision 5 plus Erratum 1.
 It is normative for new resolver work; the implementation-status section
 distinguishes landed behavior from requirements that remain to be built.
 
+The [2026-09-19 fallback review](font-fallback-review.md) documents gaps in
+default text-presentation emoji coverage, candidate discovery, and fitting.
+The text-emoji rescue and fitting amendment is implemented below; candidate
+discovery gaps remain. Passing resolver gates does not establish glyph
+availability in every installed-font environment.
+
 The companion contracts are:
 
 - the [font-format baseline](../compatibility/font-format-baseline.md), which
@@ -125,11 +131,13 @@ are independent mechanisms.
 | Resource | Default | Contract |
 | --- | --- | --- |
 | `faceNameEmoji` | unset | Emoji-presentation slot chain |
+| `faceNameEmojiText` | unset | Monochrome rescue chain for text-presentation emoji atoms |
 | `faceNameHan` | unset | Han glyph-form slot chain |
 | `fallbackFace1` … `fallbackFace16` | unset | Ordered single-pattern user fallback roles |
 | `systemFallback` | true | Permit unnamed slot-seeded fontconfig candidates |
 | `colorGlyphs` | true | Permit color paint at any role/rung |
 | `emojiPresentation` | `unicode` | Unicode, forced-text, or forced-emoji policy |
+| `fitEmojiText` | true | Permit span fitting for text-presentation emoji atoms |
 | `reportFontRouting` | false | Collect bounded routing records |
 
 <!-- markdownlint-enable MD013 -->
@@ -199,12 +207,14 @@ Choose the first configured and applicable slot:
    unset;
 4. `faceName` otherwise.
 
-Two new-resource-gated cascades are permitted:
+Three new-resource-gated cascades are permitted:
 
 - a configured emoji slot that misses re-captures at doublesize, preserving
   the historical emoji rescue;
 - a configured Han slot that misses re-captures at the slot that would have
-  captured the atom without `faceNameHan`.
+  captured the atom without `faceNameHan`;
+- a configured `faceNameEmojiText` is consulted for a text-emoji atom in the
+  primary or wide resolve stage, as specified below.
 
 A configured wide-text slot does not re-capture at primary after a miss
 (WD-01). This boundary is implemented together with deterministic tofu so a
@@ -217,9 +227,10 @@ The order is:
 1. entry 1;
 2. entry 2;
 3. `fallbackFace1` … `fallbackFace16`;
-4. slot-seeded `FcFontSort` candidates when `systemFallback` is true and the
+4. `faceNameEmojiText` entry 1 then entry 2, for a text-emoji atom only;
+5. slot-seeded `FcFontSort` candidates when `systemFallback` is true and the
    glyph-bearing-open budget remains;
-5. deterministic tofu.
+6. deterministic tofu.
 
 `systemFallback: false` truncates only before unnamed system candidates.
 Named entry 2 and numbered fallbacks remain. This is intentionally different
@@ -227,6 +238,122 @@ from `limitFontsets: 0`, which permits nothing beyond entry 1.
 
 The stock-equality claim applies to the normal style only. Bold, italic, and
 bold-italic coverage is normal-canonical by intentional drift.
+
+## Text-presentation emoji
+
+A **text-emoji atom** is an atom that requires ink, whose effective presentation
+is text rather than emoji, and whose base carries the Unicode `Emoji` property
+while not being a bare ASCII keycap base (U+0023, U+002A, U+0030…U+0039 outside
+an actual keycap sequence). Nothing else qualifies: ordinary text, Han, kana,
+Hangul, shared punctuation, and every emoji-presentation atom are untouched by
+everything in this section.
+
+Bare U+1F6E0 in ordinary application output is the motivating case. It is
+text-default, so the emoji slot never captures it, and it reaches the primary or
+wide slot where nothing is obliged to supply a pictograph.
+
+### `faceNameEmojiText` precedence
+
+The resource is a two-entry slot chain under the inherited grammar, unset by
+default. It is a **resolve-stage rescue, never a capture slot**: it cannot take
+over primary text, and an atom it fails to serve continues down the same order
+it would have taken if the resource were unset.
+
+For a text-emoji atom, it is consulted at position 4 above, which is:
+
+- **after** every existing explicit text choice for the resolving slot — entry 1,
+  entry 2, and `fallbackFace1` … `fallbackFace16` — so a user's existing chain
+  keeps precedence and a face that already serves the atom continues to;
+- **before** unnamed slot-seeded system candidates, matching the rule that an
+  explicit choice outranks automatic discovery everywhere else in this document;
+- **before** that slot's deterministic tofu.
+
+It is consulted in the primary and wide resolve stages, which are the two that
+serve text presentation, and never in the emoji or Han stages. Consulting it in
+the wide stage is a third new-resource-gated cascade, listed with the other two;
+it does not weaken WD-01, which forbids a configured wide slot from re-capturing
+at primary.
+
+The role has no numbered fallbacks and no system seeding of its own, so it adds
+no second budget. `limitFontsets: 0` suppresses **both** of its entries: unlike
+`faceNameEmoji` and `faceNameHan`, this role does not capture atoms, it rescues
+them after the capturing slot's own choices are exhausted, so the value that
+permits nothing beyond entry 1 of the capturing slot must permit nothing here
+either. Entry 2 is an ordinary candidate and consumes the glyph-bearing-open
+budget when it is opened.
+
+### Presentation-aware matching
+
+The monochrome requirement is communicated **before** Fontconfig substitution:
+`FC_COLOR` is added as false to the request unless the configured pattern already
+constrains color, so a system or user rule that appends `color=true` to a
+generic `emoji` request cannot silently redirect the role to a color face. The
+user's pattern wins when it is explicit; Revenant never rewrites global
+Fontconfig policy.
+
+A family name remains a preference, not an identity. Acceptance is unchanged:
+required cmap coverage, exact UVS, shaping without dropped selectors or
+mid-cluster `.notdef`, and actual ink under the current paint policy. Because a
+text-emoji atom paints with color disabled, a color-only glyph in a face that
+also carries outlines is rejected here exactly as it is anywhere else. The
+effective file and index are reported, so a family that resolved elsewhere is
+visible rather than assumed.
+
+### Span fitting
+
+`fitEmojiText` defaults to true and governs one narrow behavior. For a
+text-emoji atom only, when a face has already satisfied coverage, shaping, and
+ink, and would be refused **solely** because its advance exceeds the atom's
+committed span, a fitted instance of that same face is opened once at a size
+scaled uniformly by `span / advance`, and the atom is validated again in it. If
+the fitted instance satisfies the ordinary advance rule it serves the atom;
+otherwise the face is refused exactly as before.
+
+- The scale is uniform on both axes, so artwork is not distorted, and it only
+  ever shrinks.
+- It applies at both consult points that can serve a text-emoji atom with an
+  oversized face: the `faceNameEmojiText` role and a fallback candidate that
+  would otherwise be advance-deferred. Stating both is deliberate: a role face
+  is not advance-checked at all today, so an explicit monochrome choice would
+  otherwise overflow its cell.
+- `limitFontWidth` is **not** relaxed, reinterpreted, or bypassed. It still
+  governs every other atom class, and the fitted instance must satisfy it.
+- Ink stays inside the atom's assigned cells. Borrowing a neighboring cell's
+  whitespace is not part of this policy.
+- Committed width, the primary metrics authority, cell geometry, and every other
+  role's faces are untouched. Only the instance serving this atom is scaled.
+- The scale is taken from the face's **maximum advance**, not from the advance of
+  whichever atom asked first, so `(source face, span)` is a complete key: two
+  atoms with different advances in one face share one instance, and what a later
+  atom gets does not depend on the order atoms arrived in. The atom's advance is
+  not an input to the scale at all, which is why order dependence is excluded by
+  construction rather than by a test. A face whose widest glyph is far wider than
+  the atom's is therefore shrunk more than strictly necessary; the atom's own
+  advance is still validated in the fitted instance, so this costs size, never
+  correctness.
+- Because the advance rule is a one-cell rule, only one-cell atoms are ever
+  fitted. A width-two atom bypasses the rule and is served unfitted. A second
+  span therefore appears only when the cell size itself changes, as it does on a
+  font-slot switch.
+- Fitted instances are **never evicted or closed while the universe lives**,
+  because the route cache and the glyph-ink cache hold these pointers. The table
+  is bounded instead; exhaustion refuses to fit further atoms, warns once, and is
+  cleared only by the transactional reload that replaces the whole universe.
+- Style selection cannot undo fitting. A bold or italic candidate of the same
+  family must satisfy the same span, being fitted itself if necessary; when it
+  cannot, it is declined and the fitted normal face is retained, so SGR never
+  widens an atom past its cells.
+- With `fitEmojiText: false` a fallback candidate is refused on advance exactly
+  as it is today, which keeps the pre-existing behavior available and testable.
+  A `faceNameEmojiText` face is refused on the same terms, because no role may
+  paint outside its atom's cells: an explicit choice cannot buy a neighbor's
+  cell, and the refusal is logged as a deferral with the measured advance.
+
+The routing report schema is unchanged. This role is not a capture slot, so a
+route it serves reports the capturing slot that owned the atom, with rung
+`entry1` or `entry2`; no rung, miss, or slot enum gains a value.
+
+`tests/xvfb-emoji-artwork.sh` is the acceptance gate for all of the above.
 
 ## Support validation
 

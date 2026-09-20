@@ -16,6 +16,46 @@ order fonts are tried in, and which parts of the expanded resolver are still
 being implemented. The complete engineering contract is the
 [font-resolution specification](../maintainers/font-resolution.md).
 
+Known limitation: candidate discovery can still lose a usable monochrome face
+when a color face already covers the same characters, so a text-default emoji
+may render as a placeholder box in some font environments even though one of
+your installed fonts covers it. Naming the face with `faceNameEmojiText`, below,
+is the reliable workaround. The
+[fallback review](../maintainers/font-fallback-review.md) records the evidence;
+adding a color emoji face alone does not resolve it.
+
+## Text-style emoji
+
+Some emoji default to a text presentation rather than a colored one: a bare
+hammer and wrench, an information source, a pencil. Programs print them without
+a variation selector and expect a glyph. Those characters are not served by
+`faceNameEmoji`, which owns colored emoji presentation, and an ordinary
+monospace face rarely covers them, so they can end up as a placeholder box.
+
+Install a monochrome emoji face: on Fedora, `google-noto-emoji-fonts` supplies
+`Noto Emoji`. Revenant can use it through automatic fallback when candidate
+discovery retains it; use the explicit resource below if discovery misses it.
+
+To name the face yourself, for instance when several are installed or a
+Fontconfig rule redirects a generic request to a colored font:
+
+```
+XTerm*vt100.faceNameEmojiText: Noto Emoji
+```
+
+Revenant asks Fontconfig for a monochrome face, so a rule that appends
+`color=true` to a generic `emoji` request cannot quietly answer with a colored
+one. The face is consulted only for text-presentation emoji, only after your
+ordinary text faces and numbered fallbacks have had their turn, and never for
+ordinary text, CJK, or colored emoji.
+
+Monochrome emoji faces usually draw wider than one terminal cell. Revenant
+shrinks such a face uniformly so the artwork fits the cells the terminal engine
+assigned, which leaves the glyph noticeably smaller than the surrounding text
+but keeps it inside its own cell and never moves the cursor. Set
+`XTerm*vt100.fitEmojiText: false` to turn that off; an oversized face is then
+refused, as in earlier releases.
+
 ## A practical configuration
 
 This is a good starting point for a system with the named fonts installed:

@@ -19,6 +19,9 @@ typedef enum
         XTP_FONT_ROUTE_HAN,
         XTP_FONT_ROUTE_HAN_FALLBACK,
         XTP_FONT_ROUTE_TOFU,
+        /* Appended so CapturedRouteKind's slot doubling stays valid. */
+        XTP_FONT_ROUTE_EMOJI_TEXT,
+        XTP_FONT_ROUTE_EMOJI_TEXT_FALLBACK,
 } XtpFontRouteKind;
 
 typedef enum

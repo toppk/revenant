@@ -154,6 +154,7 @@ typedef struct
         String face_name;
         String face_name_doublesize;
         String face_name_emoji;
+        String face_name_emoji_text;
         String face_name_han;
         String bold_font_name;
         String wide_bold_font_name;
@@ -161,6 +162,7 @@ typedef struct
         String grapheme_width_name;
         Boolean grapheme_width_unicode;
         Boolean color_glyphs;
+        Boolean fit_emoji_text;
         Boolean system_fallback;
         Boolean report_font_routing;
         int limit_fontsets;

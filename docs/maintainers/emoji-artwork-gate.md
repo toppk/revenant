@@ -93,65 +93,48 @@ artwork quality, or reachability.
 adds the CJK face and Noto COLRv1, mirroring `routing`, so the color and
 monochrome alternatives overlap exactly as they do on a real system.
 
-## Known gaps the next implementation must repair
+## What repaired the reported failure
 
-The gate currently reports 6 passes, 11 expected gaps, 0 unexpected. Every gap
-has the same measured cause. In `routing-modern` and `mono-modern`, system
-discovery **does** reach the modern monochrome face, and the width-1 fallback
-advance rule then defers it:
+The gate reports **17 passed, 0 expected gaps, 0 unexpected**. The eleven
+width-1 entries that used to be listed in `known_gap` were removed one at a time
+as their complete assertion sets passed; no assertion was weakened, and the two
+negative tofu cases still pass unchanged.
+
+What was measured before the repair, in `routing-modern` and `mono-modern`:
+system discovery did reach the modern monochrome face, and the width-1 advance
+rule then deferred it.
 
 ```text
 font: activated Xft fallback slot=0 style=0 entry=3 source=chain0 budget=1/50
 font: deferred Xft fallback slot=0 entry=3 advance=28.207 cell=13 width=1 limit=10
-font: outline fallback rejected glyph=2254 error=0 format=1869968492 contours=0 points=0
 font: route base=U+1F6E0 width=1 presentation=text role=tofu glyphs=0 file=(unknown)
 ```
 
-Noto Emoji's 1.27em advance normalizes to about 2.17 cells against a one-cell
-span, so the atom is refused. The color face is then correctly refused for text
-presentation because its outline is empty, and the atom lands in tofu. Raising
-`limitFontWidth` does not help: the review measured the same rejection at 10 and
-at 50.
+`XtpFontFallbackAdvanceFits` in `src/font_metrics.c` returns `true` before
+computing anything unless `committed_width == 1U`, so the rule is a one-cell
+rule and the defect was one-cell advance rejection of a usable face with no
+fitting policy to answer it. That is what the span fitting policy in
+[font-resolution(7)](font-resolution.md) now supplies. `limitFontWidth` is
+unchanged and still governs every other atom class; the fitted instance has to
+satisfy it like anything else.
 
-The rule is deliberately scoped to one-cell atoms. `XtpFontFallbackAdvanceFits`
-in `src/font_metrics.c` returns `true` before computing anything unless
-`committed_width == 1U`:
+The same line now routes as:
 
-```c
-if (committed_width != 1U || cell_width == 0)
-        return true;
+```text
+font: fitted Xft fallback slot=0 span=13 advance=28.207 fitted-advance=12.902
+font: route base=U+1F6E0 width=1 presentation=text role=fallback \
+      file=.../NotoEmoji-Regular-3.003.ttf
 ```
 
-So what the evidence establishes is **one-cell advance rejection of a usable
-face, and the absence of any fitting policy that could scale it into one cell**.
-It does not establish faulty arithmetic; the arithmetic is not reached for wider
-atoms.
+With `faceNameEmojiText` configured the same atom routes `role=emoji-text` from
+the same file, which is the explicit lever for the same outcome.
 
-The currently passing monochrome case is useful but must not be over-read.
-`package-text` forces text presentation on U+1F4E6 and the same 3.003 file
-renders real monochrome artwork. It does **not** exercise the same check: the
-character differs, the route differs (`role=doublesize-fallback` rather than
-primary-slot system fallback), and its committed width of 2 bypasses the rule
-above outright. What it does establish is that this file supplies usable
-monochrome outlines and that the renderer can draw them inside cells. That
-removes "the font is unusable" and "the coverage census is wrong" as
-explanations; it does not localize the width-1 defect by itself.
-
-Gaps, all with that one cause:
-
-| Case | What it covers |
-| --- | --- |
-| `install-line` | The reported application line, bare, with occupied neighbors |
-| `tools-bare`, `tools-vs15` | Bare and VS15 text presentation of U+1F6E0 |
-| `tools-no-color` | `colorGlyphs: false` still needs outline ink |
-| `tools-mono-only` | `mono-modern`, where no color face exists at all |
-| `tools-adjacent`, `tools-spaced`, `tools-neighbors` | Cell fitting beside blank and occupied cells |
-| `tools-size-12`, `tools-size-32` | Two further cell geometries |
-| `tools-right-edge` | Last column of the grid, with no wrap onto the next row |
-
-Passing cases that must not regress: `tools-vs16` and `tools-vs16-unicode`
-(color artwork in both width regimes), `package-default`, `package-text`, and
-the two negative tofu cases.
+Measured artwork at 16 point in a 13x27 cell: 90 inked pixels with bounds
+`1,12,12,11`, so the glyph occupies roughly a 12x11 box inside its cell, with
+margins on every side and no ink in the border above, the row below, or any
+neighboring cell. It is small. Legibility remains a human judgment and belongs
+to the TDN artwork probe; this suite establishes that a recognizable-sized,
+correctly routed, contained glyph is drawn where tofu used to be.
 
 ## A separate, differently caused miss
 
@@ -187,6 +170,41 @@ That two different mechanisms produce an indistinguishable final `role=tofu` is
 itself a finding: the route log cannot separate lost candidates from advance
 rejection without reading earlier lines. The diagnostics work in the priorities
 should make that distinction visible at the route.
+
+## The resources themselves
+
+`tests/xvfb-emoji-text-role.sh` covers `faceNameEmojiText` and `fitEmojiText`,
+which the gate above deliberately never sets: both chain entries, a hostile
+generic-emoji pattern rule in the `alias-emoji` universe, an explicit
+`color=true` in the user's own pattern being honored, the fitting opt-out at both
+consult points, precedence against `faceName` entry 2 and `fallbackFace1`,
+`limitFontsets: 0` suppressing both rescue entries, the width-one scope of the
+advance rule, instance reuse, a second span reached through a font-slot switch,
+and styled output. Seventeen cases pass, with route, pixel and cursor assertions
+as applicable; these are not all asserted in every case. The reported
+AddressSanitizer run found no lifetime errors on the exercised paths. The
+slot-switch case observes a second fitted instance; an earlier log line alone
+does not establish that the first instance remains alive. Ownership is enforced
+by retaining fitted fonts until universe destruction.
+
+The fitted-face table's boundary is a unit test, `fitted-face table` in
+`-self-test`: reuse returns the same entry, the span is part of the key, a full
+table refuses a new entry instead of displacing one, every entry handed out
+earlier stays findable after exhaustion, and clearing the count models the
+universe replacement that a reload performs.
+
+Two coverage limits are worth naming rather than papering over:
+
+- No staged fixture has a monochrome emoji family with a real bold or italic
+  face, so the styled cases prove SGR does not widen an atom past its cells but
+  do **not** exercise the branch that declines an oversized *styled candidate*.
+  That branch is covered by inspection only; a bold-capable monochrome emoji
+  fixture would close it.
+- Every real glyph in the staged monochrome face has the same 2600-unit advance,
+  so no two atoms built from it can have different advances. Order independence
+  is therefore established by construction — the atom's advance is not an input
+  to the scale — and the suite asserts the observable consequence, that two
+  atoms share one fitted instance.
 
 ## Running it
 

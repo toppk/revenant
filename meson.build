@@ -666,6 +666,20 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-emoji-text-role',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-emoji-text-role.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            window_ink_test_tool.full_path(),
+            font_key_test_tool.full_path(),
+            meson.current_source_dir() / 'font-fixtures-stage',
+        ],
+        timeout: 120,
+        is_parallel: false,
+    )
+    test(
         'xvfb-text-shaping',
         find_program('sh'),
         args: [

@@ -267,9 +267,11 @@ SetXftStyle(FcPattern *pattern, Boolean bold, Boolean italic)
 }
 
 static FcPattern *
-BuildXftRequest(Vt100Rec *vt, const char *face, double size, Boolean bold, Boolean italic)
+BuildXftRequest(Vt100Rec *vt, const char *face, double size, Boolean bold, Boolean italic,
+                Boolean monochrome)
 {
         FcPattern *pattern;
+        FcBool color;
 
         if (!Nonempty(face))
                 return NULL;
@@ -280,6 +282,11 @@ BuildXftRequest(Vt100Rec *vt, const char *face, double size, Boolean bold, Boole
         FcPatternDel(pattern, FC_PIXEL_SIZE);
         FcPatternAddDouble(pattern, FC_SIZE, size);
         SetXftStyle(pattern, bold, italic);
+        /* Before substitution, and only when the user did not say otherwise:
+         * afterwards a generic emoji rule has already added color=true and the
+         * request can no longer express a monochrome preference. */
+        if (monochrome && FcPatternGetBool(pattern, FC_COLOR, 0, &color) != FcResultMatch)
+                (void)FcPatternAddBool(pattern, FC_COLOR, FcFalse);
         FcConfigSubstitute(NULL, pattern, FcMatchPattern);
         XftDefaultSubstitute(XtDisplay((Widget)vt), XScreenNumberOfScreen(XtScreen((Widget)vt)),
                              pattern);
@@ -289,7 +296,7 @@ BuildXftRequest(Vt100Rec *vt, const char *face, double size, Boolean bold, Boole
 static XftFont *
 OpenXftFont(Vt100Rec *vt, const char *face, double size, Boolean bold, Boolean italic)
 {
-        FcPattern *pattern = BuildXftRequest(vt, face, size, bold, italic);
+        FcPattern *pattern = BuildXftRequest(vt, face, size, bold, italic, False);
         FcPattern *match;
         FcResult result;
         XftFont *font;
@@ -305,18 +312,25 @@ OpenXftFont(Vt100Rec *vt, const char *face, double size, Boolean bold, Boolean i
 }
 
 static FcPattern *
-ResolveXftPattern(Vt100Rec *vt, const char *face, double size, Boolean bold, Boolean italic)
+ResolveXftPatternAs(Vt100Rec *vt, const char *face, double size, Boolean bold, Boolean italic,
+                    Boolean monochrome)
 {
         FcPattern *pattern;
         FcPattern *match;
         FcResult result;
 
-        pattern = BuildXftRequest(vt, face, size, bold, italic);
+        pattern = BuildXftRequest(vt, face, size, bold, italic, monochrome);
         if (pattern == NULL)
                 return NULL;
         match = FcFontMatch(NULL, pattern, &result);
         FcPatternDestroy(pattern);
         return match;
+}
+
+static FcPattern *
+ResolveXftPattern(Vt100Rec *vt, const char *face, double size, Boolean bold, Boolean italic)
+{
+        return ResolveXftPatternAs(vt, face, size, bold, italic, False);
 }
 
 static Boolean
@@ -396,12 +410,96 @@ VtOpenNormalizedXftPattern(Vt100Rec *vt, FcPattern *pattern, int slot, double *s
         return normalized;
 }
 
+/* One uniform shrink of an otherwise usable face so a text-emoji atom fits the
+ * cells the backend already committed.  It never enlarges and never touches
+ * another role's faces; see font-resolution(7).
+ *
+ * The scale comes from the face's maximum advance, not from the advance of
+ * whichever atom asked first, so (source, span) is a complete key: two atoms
+ * with different advances in one face share one instance and the result does not
+ * depend on their order.  Entries are never evicted, because the route cache and
+ * the glyph-ink cache keep these pointers; the table is bounded instead, and
+ * exhaustion refuses to fit rather than closing a face still in use. */
+XftFont *
+VtFontFittedForSpan(Vt100Rec *vt, XftFont *source, unsigned int span)
+{
+        XtpFontUniverse *universe = vt->vt.font_universe;
+        FcPattern *pattern;
+        double scale;
+        int index;
+
+        if (universe == NULL || source == NULL || span == 0 ||
+            source->max_advance_width <= (int)span)
+                return NULL;
+        index =
+            XtpFittedFaceFind(universe->fitted_faces, universe->fitted_face_count, source, span);
+        if (index >= 0)
+                return universe->fitted_faces[index].fitted;
+        index = XtpFittedFaceAppend(universe->fitted_faces, &universe->fitted_face_count,
+                                    XTP_FITTED_FACE_CACHE_SIZE, source, span);
+        if (index < 0) {
+                if (!universe->fitted_faces_exhausted) {
+                        universe->fitted_faces_exhausted = True;
+                        XtpLog(XTP_LOG_WARNING, "font",
+                               "fitted Xft face table is full at %u entries; further "
+                               "text-emoji atoms are not fitted until the fonts reload",
+                               (unsigned int)XTP_FITTED_FACE_CACHE_SIZE);
+                }
+                return NULL;
+        }
+        scale = (double)span / (double)source->max_advance_width;
+        pattern = FcPatternDuplicate(source->pattern);
+        if (pattern != NULL && !ScaleXftPatternSize(pattern, scale)) {
+                FcPatternDestroy(pattern);
+                pattern = NULL;
+        }
+        universe->fitted_faces[index].fitted =
+            pattern != NULL ? XftFontOpenPattern(XtDisplay((Widget)vt), pattern) : NULL;
+        if (universe->fitted_faces[index].fitted == NULL && pattern != NULL)
+                FcPatternDestroy(pattern);
+        XtpLog(XTP_LOG_DEBUG, "font",
+               "fitted Xft face span=%u max-advance=%d scale=%.3f entry=%d result=%s", span,
+               source->max_advance_width, scale, index,
+               universe->fitted_faces[index].fitted != NULL ? "opened" : "unavailable");
+        return universe->fitted_faces[index].fitted;
+}
+
 static XftFont *
 OpenNormalizedXftFont(Vt100Rec *vt, const char *face, double size, Boolean bold, Boolean italic,
                       int slot, double *scale_out)
 {
         return VtOpenNormalizedXftPattern(vt, ResolveXftPattern(vt, face, size, bold, italic), slot,
                                           scale_out);
+}
+
+/* The emoji-text role is normal-style only: it rescues artwork, and SGR must
+ * not change the serving family. */
+static void
+LoadXftEmojiTextSlot(Vt100Rec *vt, int slot, const char *face, double size, XftFont **fonts)
+{
+        double cell_scale = 1.0;
+
+        if (slot < 0 || slot >= XTP_FONT_SLOTS || !Nonempty(face) ||
+            vt->vt.font_universe->roles[XTP_FONT_ROLE_PRIMARY].fonts[XTP_XFT_STYLE_NORMAL][slot] ==
+                NULL)
+                return;
+        /* This role is a rescue after the capturing slot's own choices, not a
+         * capturing role, so a zero fallback budget suppresses both its
+         * entries. */
+        if (vt->vt.font_universe->limit_fontsets == 0)
+                return;
+        fonts[slot] = VtOpenNormalizedXftPattern(
+            vt, ResolveXftPatternAs(vt, face, size, False, False, True), slot, &cell_scale);
+        if (fonts[slot] == NULL) {
+                XtpLog(XTP_LOG_WARNING, "font",
+                       "failed Xft role=emoji-text slot=%d face=%s points=%.2f", slot, face, size);
+                return;
+        }
+        LogXftResolved(vt, "emoji-text", slot, "normal", 1, face, fonts[slot]);
+        XtpLog(XTP_LOG_DEBUG, "font",
+               "loaded Xft role=emoji-text slot=%d face=%s points=%.2f cell-scale=%.3f "
+               "requested-color=false",
+               slot, face, size, cell_scale);
 }
 
 static void
@@ -722,7 +820,7 @@ AppendXftFallback(XtpXftFallbackSet *fallbacks, int slot, unsigned int style, Xf
 static void
 LoadXftFallbacks(Vt100Rec *vt, int slot, const char *role, const char *face,
                  const char *explicit_face, double size, Boolean bold, Boolean italic,
-                 XftFont *primary, XtpXftFallbackSet *fallbacks,
+                 Boolean emoji_text, XftFont *primary, XtpXftFallbackSet *fallbacks,
                  const Boolean named_enabled[XTP_FALLBACK_FACE_COUNT])
 {
         unsigned int style = XtpFontStyleIndex(bold, italic);
@@ -736,7 +834,8 @@ LoadXftFallbacks(Vt100Rec *vt, int slot, const char *role, const char *face,
                 return;
         fallbacks->primaries[slot][style] = primary;
         if (Nonempty(explicit_face)) {
-                FcPattern *pattern = ResolveXftPattern(vt, explicit_face, size, bold, italic);
+                FcPattern *pattern =
+                    ResolveXftPatternAs(vt, explicit_face, size, bold, italic, emoji_text);
                 uint8_t before = fallbacks->counts[slot][style];
 
                 (void)AppendXftFallback(fallbacks, slot, style, primary, pattern, 0);
@@ -774,9 +873,11 @@ LoadXftFallbacks(Vt100Rec *vt, int slot, const char *role, const char *face,
                        role, slot, style, index + 1, (unsigned int)before + 1U, named_face);
         }
         fallbacks->named_counts[slot][style] = fallbacks->counts[slot][style];
-        if (!vt->vt.font_universe->system_fallback)
+        /* The emoji-text role is entry 1 and entry 2 only: it seeds no system
+         * candidates of its own, so it adds no second budget. */
+        if (!vt->vt.font_universe->system_fallback || emoji_text)
                 return;
-        request = BuildXftRequest(vt, face, size, bold, italic);
+        request = BuildXftRequest(vt, face, size, bold, italic, False);
         if (request == NULL)
                 return;
         fallbacks->system_requests[slot][style] = request;
@@ -833,14 +934,14 @@ LoadXftRoleFallbacks(Vt100Rec *vt, int slot, const char *role, const char *face,
                      XftFont *italic, XftFont *bold_italic, XtpXftFallbackSet *fallbacks,
                      const Boolean named_enabled[XTP_FALLBACK_FACE_COUNT])
 {
-        LoadXftFallbacks(vt, slot, role, face, explicit_face, size, False, False, normal, fallbacks,
-                         named_enabled);
+        LoadXftFallbacks(vt, slot, role, face, explicit_face, size, False, False, False, normal,
+                         fallbacks, named_enabled);
         LoadXftFallbacks(vt, slot, role, Nonempty(bold_face) ? bold_face : face,
                          Nonempty(bold_face) ? bold_explicit_face : explicit_face, size, True,
-                         False, bold, fallbacks, named_enabled);
-        LoadXftFallbacks(vt, slot, role, face, explicit_face, size, False, True, italic, fallbacks,
-                         named_enabled);
-        LoadXftFallbacks(vt, slot, role, face, explicit_face, size, True, True, bold_italic,
+                         False, False, bold, fallbacks, named_enabled);
+        LoadXftFallbacks(vt, slot, role, face, explicit_face, size, False, True, False, italic,
+                         fallbacks, named_enabled);
+        LoadXftFallbacks(vt, slot, role, face, explicit_face, size, True, True, False, bold_italic,
                          fallbacks, named_enabled);
 }
 
@@ -896,6 +997,12 @@ VtFontUniverseDestroy(Vt100Rec *vt, XtpFontUniverse *universe)
                 }
                 CloseFallbackSet(vt, &universe->roles[role].fallbacks);
                 XtpFontChainClear(&universe->chains[role]);
+        }
+        for (slot = 0; slot < (int)universe->fitted_face_count; ++slot) {
+                XftFont *fitted = universe->fitted_faces[slot].fitted;
+
+                if (fitted != NULL)
+                        XftFontClose(XtDisplay((Widget)vt), (XftFont *)fitted);
         }
         XtpFontChainClear(&universe->primary_bold_chain);
         XtpFontChainClear(&universe->wide_bold_chain);
@@ -989,6 +1096,22 @@ VtFontEnsureSlot(Vt100Rec *vt, int slot)
                         universe->roles[XTP_FONT_ROLE_EMOJI].fonts[XTP_XFT_STYLE_BOLD],
                         universe->roles[XTP_FONT_ROLE_EMOJI].fonts[XTP_XFT_STYLE_ITALIC],
                         universe->roles[XTP_FONT_ROLE_EMOJI].fonts[XTP_XFT_STYLE_BOLD_ITALIC]);
+        {
+                /* This role has entry 1 and entry 2 only: no numbered fallbacks
+                 * and no system seeding, so it adds no second budget. */
+                static const Boolean no_named[XTP_FALLBACK_FACE_COUNT] = {False};
+                XtpFontChain *text_chain = &universe->chains[XTP_FONT_ROLE_EMOJI_TEXT];
+                const char *text_face = text_chain->count != 0 ? text_chain->entries[0] : NULL;
+                const char *text_entry2 = text_chain->count > 1 ? text_chain->entries[1] : NULL;
+
+                LoadXftEmojiTextSlot(
+                    vt, slot, text_face, size,
+                    universe->roles[XTP_FONT_ROLE_EMOJI_TEXT].fonts[XTP_XFT_STYLE_NORMAL]);
+                LoadXftFallbacks(
+                    vt, slot, "emoji-text", text_face, text_entry2, size, False, False, True,
+                    universe->roles[XTP_FONT_ROLE_EMOJI_TEXT].fonts[XTP_XFT_STYLE_NORMAL][slot],
+                    &universe->roles[XTP_FONT_ROLE_EMOJI_TEXT].fallbacks, no_named);
+        }
         LoadXftRoleSlot(vt, slot, "han", han_face, size, True,
                         universe->roles[XTP_FONT_ROLE_HAN].fonts[XTP_XFT_STYLE_NORMAL],
                         universe->roles[XTP_FONT_ROLE_HAN].fonts[XTP_XFT_STYLE_BOLD],
@@ -1067,6 +1190,7 @@ VtFontUniverseInitialize(Vt100Rec *vt)
         vt->vt.use_xft = False;
         universe->emoji_presentation = ParseEmojiPolicy(vt->vt.emoji_presentation_name);
         universe->color_glyphs = vt->vt.color_glyphs;
+        universe->fit_emoji_text = vt->vt.fit_emoji_text;
         universe->system_fallback = vt->vt.system_fallback;
         universe->limit_fontsets = vt->vt.limit_fontsets;
         /* Retained for the backend-owned DEC double-height gap (LM-04/05). */
@@ -1094,6 +1218,8 @@ VtFontUniverseInitialize(Vt100Rec *vt)
         if (XtpFontChainParse(vt->vt.face_name, face_chain) != 0 ||
             XtpFontChainParse(vt->vt.face_name_doublesize, wide_chain) != 0 ||
             XtpFontChainParse(vt->vt.face_name_emoji, emoji_chain) != 0 ||
+            XtpFontChainParse(vt->vt.face_name_emoji_text,
+                              &universe->chains[XTP_FONT_ROLE_EMOJI_TEXT]) != 0 ||
             XtpFontChainParse(vt->vt.face_name_han, han_chain) != 0 ||
             XtpFontChainParseXftEntries(vt->vt.bold_font_name, bold_chain) != 0 ||
             XtpFontChainParseXftEntries(vt->vt.wide_bold_font_name, wide_bold_chain) != 0) {

@@ -14,6 +14,7 @@ void VtFontUniverseInitialize(Vt100Rec *vt);
 Boolean VtFontEnsureSlot(Vt100Rec *vt, int slot);
 Boolean VtFontUniverseReload(Vt100Rec *vt);
 void VtFontUniverseDestroy(Vt100Rec *vt, XtpFontUniverse *universe);
+XftFont *VtFontFittedForSpan(Vt100Rec *vt, XftFont *source, unsigned int span);
 void VtFontUniverseClose(Vt100Rec *vt);
 Boolean VtFontEnsureXftDraw(Vt100Rec *vt);
 Boolean VtFontEnsureCairoDraw(Vt100Rec *vt);

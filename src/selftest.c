@@ -316,6 +316,62 @@ SelfTestFontMetrics(void)
         return 0;
 }
 
+/* The fitted-face table hands its pointers to the route and glyph-ink caches,
+ * so it must never reuse or evict an entry.  At the boundary it has to refuse a
+ * new one and keep every entry already handed out findable. */
+static int
+SelfTestFittedFaceTable(void)
+{
+        enum
+        {
+                CAPACITY = 3
+        };
+        static const char sources[4] = {'a', 'b', 'c', 'd'};
+        XtpFittedFaceSlot slots[CAPACITY] = {{0}};
+        size_t count = 0;
+        int first;
+        int second;
+
+        if (XtpFittedFaceFind(slots, count, &sources[0], 13U) != -1)
+                return -1;
+        first = XtpFittedFaceAppend(slots, &count, CAPACITY, &sources[0], 13U);
+        if (first != 0 || count != 1 || XtpFittedFaceFind(slots, count, &sources[0], 13U) != first)
+                return -1;
+        /* The span is part of the key: one face fitted to two spans is two
+         * entries, and neither answers for the other. */
+        second = XtpFittedFaceAppend(slots, &count, CAPACITY, &sources[0], 26U);
+        if (second != 1 || XtpFittedFaceFind(slots, count, &sources[0], 26U) != second ||
+            XtpFittedFaceFind(slots, count, &sources[0], 13U) != first)
+                return -1;
+        if (XtpFittedFaceAppend(slots, &count, CAPACITY, &sources[1], 13U) != 2 ||
+            count != CAPACITY)
+                return -1;
+        /* Full: a further face is refused rather than displacing one. */
+        if (XtpFittedFaceAppend(slots, &count, CAPACITY, &sources[2], 13U) != -1 ||
+            count != CAPACITY)
+                return -1;
+        if (XtpFittedFaceFind(slots, count, &sources[2], 13U) != -1)
+                return -1;
+        /* Everything handed out earlier is still findable after exhaustion. */
+        if (XtpFittedFaceFind(slots, count, &sources[0], 13U) != first ||
+            XtpFittedFaceFind(slots, count, &sources[0], 26U) != second ||
+            XtpFittedFaceFind(slots, count, &sources[1], 13U) != 2)
+                return -1;
+        if (slots[first].source != &sources[0] || slots[first].span != 13U ||
+            slots[second].span != 26U)
+                return -1;
+        /* A reload replaces the whole universe, which is the only reset. */
+        count = 0;
+        if (XtpFittedFaceFind(slots, count, &sources[0], 13U) != -1 ||
+            XtpFittedFaceAppend(slots, &count, CAPACITY, &sources[3], 13U) != 0)
+                return -1;
+        if (XtpFittedFaceFind(NULL, 0, &sources[0], 13U) != -1 ||
+            XtpFittedFaceAppend(NULL, &count, CAPACITY, &sources[0], 13U) != -1 ||
+            XtpFittedFaceAppend(slots, NULL, CAPACITY, &sources[0], 13U) != -1)
+                return -1;
+        return 0;
+}
+
 static int
 SelfTestFontReportBound(void)
 {
@@ -6193,6 +6249,7 @@ XtpSelfTest(void)
             {"Unicode Script=Han", SelfTestUnicodeScript},
             {"font-chain", SelfTestFontChain},
             {"font-metrics", SelfTestFontMetrics},
+            {"fitted-face table", SelfTestFittedFaceTable},
             {"font-report bound", SelfTestFontReportBound},
             {"font-route-cache", SelfTestFontRouteCache},
             {"background-opacity", SelfTestBackgroundOpacity},

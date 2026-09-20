@@ -103,6 +103,7 @@ static const ResourceProbe resource_probes[] = {
     {"xterm.vt100.faceName", "XTerm.VT100.FaceName"},
     {"xterm.vt100.faceNameDoublesize", "XTerm.VT100.FaceNameDoublesize"},
     {"xterm.vt100.faceNameEmoji", "XTerm.VT100.FaceNameEmoji"},
+    {"xterm.vt100.faceNameEmojiText", "XTerm.VT100.FaceNameEmojiText"},
     {"xterm.vt100.faceNameHan", "XTerm.VT100.FaceNameHan"},
     {"xterm.vt100.boldFont", "XTerm.VT100.BoldFont"},
     {"xterm.vt100.wideBoldFont", "XTerm.VT100.WideBoldFont"},
@@ -511,6 +512,11 @@ ReportFonts(const ReportContext *context, Widget vt)
             "XTerm.VT100.FaceNameEmoji",
             NULL,
         };
+        ResourceSpec emoji_text_spec = {
+            "xterm.vt100.faceNameEmojiText",
+            "XTerm.VT100.FaceNameEmojiText",
+            NULL,
+        };
         ResourceSpec han_spec = {
             "xterm.vt100.faceNameHan",
             "XTerm.VT100.FaceNameHan",
@@ -556,6 +562,7 @@ ReportFonts(const ReportContext *context, Widget vt)
         Resolved double_face = ResolveResource(context, &double_spec);
         Resolved base_size = ResolveResource(context, &size_spec);
         Resolved emoji_face = ResolveResource(context, &emoji_spec);
+        Resolved emoji_text_face = ResolveResource(context, &emoji_text_spec);
         Resolved han_face = ResolveResource(context, &han_spec);
         Resolved bold_face = ResolveResource(context, &bold_spec);
         Resolved wide_bold_face = ResolveResource(context, &wide_bold_spec);
@@ -586,6 +593,9 @@ ReportFonts(const ReportContext *context, Widget vt)
                       &double_face);
         PrintResolved("XTerm*faceNameEmoji", "supported",
                       "Preferred face for Unicode emoji presentation.", &emoji_face);
+        PrintResolved("XTerm*faceNameEmojiText", "supported",
+                      "Monochrome rescue for text-presentation emoji, after the text faces.",
+                      &emoji_text_face);
         PrintResolved("XTerm*faceNameHan", "supported",
                       "Script=Han text-presentation role; excludes Script_Extensions.", &han_face);
         PrintResolved("XTerm*boldFont", "supported",
@@ -730,6 +740,7 @@ ReportFonts(const ReportContext *context, Widget vt)
         free(double_face.value);
         free(base_size.value);
         free(emoji_face.value);
+        free(emoji_text_face.value);
         free(han_face.value);
         free(bold_face.value);
         free(wide_bold_face.value);
@@ -1026,7 +1037,8 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "selectToClipboard") == 0 || strcmp(name, "multiClickTime") == 0 ||
             strcmp(name, "charClass") == 0 || strcmp(name, "renderFont") == 0 ||
             strcmp(name, "faceName") == 0 || strcmp(name, "faceNameDoublesize") == 0 ||
-            strcmp(name, "faceNameEmoji") == 0 || strcmp(name, "faceNameHan") == 0 ||
+            strcmp(name, "faceNameEmoji") == 0 || strcmp(name, "faceNameEmojiText") == 0 ||
+            strcmp(name, "faceNameHan") == 0 || strcmp(name, "fitEmojiText") == 0 ||
             strcmp(name, "boldFont") == 0 || strcmp(name, "wideBoldFont") == 0 ||
             strcmp(name, "boldColors") == 0 || strcmp(name, "emojiPresentation") == 0 ||
             strcmp(name, "graphemeWidth") == 0 || strcmp(name, "colorGlyphs") == 0 ||

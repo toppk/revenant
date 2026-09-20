@@ -52,19 +52,15 @@ expected_gaps=0
 # listed gap may report these and nothing else.
 gap_categories="tofu-route effective-file tofu-ink"
 
-# The renderer repair each gap is waiting on.  The mechanism is measured, not
-# inferred: system discovery does reach Noto Emoji 3.003 in these universes and
-# the advance rule in XtpFontFallbackAdvanceFits, which applies only when the
-# committed width is 1, then defers it.  No fitting policy exists to make a
-# usable face fit a one-cell span.
+# No case is listed: every text-emoji atom below now renders.  The width-1
+# advance deferral that used to defer Noto Emoji 3.003 is answered by the span
+# fitting policy in font-resolution(7), and the eleven entries that named it
+# were removed one at a time as their complete assertions passed.  The machinery
+# stays for the next gap: a listed case must fail with the documented evidence
+# and nothing else.
 known_gap()
 {
     case $1 in
-    install-line | tools-bare | tools-vs15 | tools-mono-only | tools-no-color | \
-        tools-adjacent | tools-spaced | tools-neighbors | \
-        tools-size-12 | tools-size-32 | tools-right-edge)
-        echo "width-1 fallback advance rule defers Noto Emoji 3.003; no fitting policy exists"
-        ;;
     *)
         echo ""
         ;;
