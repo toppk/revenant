@@ -18,9 +18,15 @@ PROBES = {
     0x1F1FA: "regional_indicator_u",
     0x65E5: "cjk_sentinel",
     0x2139: "information_text_default",
+    0x1F6E0: "hammer_and_wrench_text_default",
+    0x1F4E6: "package_emoji_default",
 }
 
 INK_KINDS = {"outline", "bitmap", "color", "svg"}
+
+# Keycap bases are ordinary ASCII and are excluded from the text-default
+# census: a terminal must not route them to an emoji face on their own.
+KEYCAP_BASES = frozenset({0x23, 0x2A} | set(range(0x30, 0x3A)))
 
 
 def sha256(path: Path) -> str:
@@ -29,6 +35,30 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def emoji_property(path: Path, name: str) -> set[int]:
+    """Return the codepoints carrying one emoji-data.txt binary property."""
+    result: set[int] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        fields = [field.strip() for field in line.split("#")[0].split(";")]
+        if len(fields) < 2 or fields[1] != name or not fields[0]:
+            continue
+        first, _, last = fields[0].partition("..")
+        result.update(range(int(first, 16), int(last or first, 16) + 1))
+    return result
+
+
+def text_default_bases(path: Path) -> frozenset[int]:
+    """Emoji bases whose default presentation is text, excluding keycaps."""
+    emoji = emoji_property(path, "Emoji")
+    presentation = emoji_property(path, "Emoji_Presentation")
+    return frozenset(emoji - presentation - KEYCAP_BASES)
+
+
+def font_version(font: TTFont) -> str:
+    """The internal head.fontRevision, which is not the release version."""
+    return f"{font['head'].fontRevision:.3f}"
 
 
 def family_name(font: TTFont) -> str:
@@ -142,7 +172,7 @@ def axes(font: TTFont) -> list[dict[str, float | str]]:
     ]
 
 
-def inspect_font(path: Path) -> dict:
+def inspect_font(path: Path, census: frozenset[int] | None = None) -> dict:
     font = TTFont(path, lazy=False, fontNumber=0)
     cmap = font.getBestCmap() or {}
     glyph_order = font.getGlyphOrder()
@@ -168,9 +198,10 @@ def inspect_font(path: Path) -> dict:
         if glyph_id in svg:
             ink.append("svg")
         probes[label] = "+".join(ink) if ink else "covered-no-ink"
-    return {
+    result = {
         "sha256": sha256(path),
         "family": family_name(font),
+        "version": font_version(font),
         "technologies": technologies(font),
         "outline": outline_kind(font),
         "strikes": strike_sizes(font),
@@ -179,19 +210,27 @@ def inspect_font(path: Path) -> dict:
         "codepoints": len(cmap),
         "probes": probes,
     }
+    if census is not None:
+        result["text_default_bases"] = {
+            "covered": sum(1 for codepoint in census if codepoint in cmap),
+            "total": len(census),
+        }
+    return result
 
 
-def inspect_directory(directory: Path) -> dict[str, dict]:
+def inspect_directory(
+    directory: Path, census: frozenset[int] | None = None
+) -> dict[str, dict]:
     suffixes = {".ttf", ".otf", ".ttc"}
     paths = sorted(
         path for path in directory.iterdir() if path.suffix.lower() in suffixes
     )
-    return {path.name: inspect_font(path) for path in paths}
+    return {path.name: inspect_font(path, census) for path in paths}
 
 
 def report(fonts: dict[str, dict]) -> None:
     for filename, info in fonts.items():
-        print(f"\n{filename}   family: {info['family']}")
+        print(f"\n{filename}   family: {info['family']} {info['version']}")
         print(f"  technology: {', '.join(info['technologies'])}")
         print(f"  outline:    {info['outline']}")
         if info["strikes"]:
@@ -202,6 +241,9 @@ def report(fonts: dict[str, dict]) -> None:
         if info["axes"]:
             print(f"  axes:       {info['axes']}")
         print(f"  size:       {info['glyphs']} glyphs, {info['codepoints']} codepoints")
+        census = info.get("text_default_bases")
+        if census is not None:
+            print(f"  text-default: {census['covered']}/{census['total']} bases")
         for label, state in info["probes"].items():
             print(f"  probe:      {label}={state}")
 
@@ -267,10 +309,7 @@ def check_manifest(
         return 1
     if directory is None:
         directory = manifest_path.parent / manifest.get("font_directory", "fonts")
-    actual = inspect_directory(directory)
-    expected = manifest["fonts"]
     errors = []
-    check_probe_paths(expected, errors)
     expected_unicode = manifest.get("unicode_version")
     if not isinstance(expected_unicode, str):
         errors.append("unicode_version: expected string")
@@ -278,6 +317,18 @@ def check_manifest(
         if not unicode_data and "unicode_data" in manifest:
             unicode_data = [manifest_path.parent / manifest["unicode_data"]]
         check_unicode_sources(expected_unicode, unicode_data, errors)
+    census = None
+    for path in unicode_data:
+        if path.is_file():
+            census = text_default_bases(path)
+            break
+    expected = manifest["fonts"]
+    if census is None and any(
+        "text_default_bases" in info for info in expected.values()
+    ):
+        errors.append("text_default_bases: no emoji-data.txt to recompute the census")
+    actual = inspect_directory(directory, census)
+    check_probe_paths(expected, errors)
     if set(actual) != set(expected):
         missing = sorted(set(expected) - set(actual))
         extra = sorted(set(actual) - set(expected))
@@ -307,7 +358,8 @@ def main() -> int:
         default=[],
         type=Path,
         metavar="FILE",
-        help="also require a Unicode data file's Version header to match the manifest",
+        help="check a Unicode data file's Version header against the manifest, "
+        "or supply emoji-data.txt for the text-default census when reporting",
     )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
@@ -315,14 +367,15 @@ def main() -> int:
         if args.paths:
             parser.error("font paths cannot be combined with --check")
         return check_manifest(args.check, args.dir, args.unicode_data)
-    if args.unicode_data:
-        parser.error("--unicode-data requires --check")
+    if len(args.unicode_data) > 1:
+        parser.error("reporting accepts at most one --unicode-data file")
+    census = text_default_bases(args.unicode_data[0]) if args.unicode_data else None
     if args.dir is not None:
         if args.paths:
             parser.error("font paths cannot be combined with --dir")
-        fonts = inspect_directory(args.dir)
+        fonts = inspect_directory(args.dir, census)
     elif args.paths:
-        fonts = {path.name: inspect_font(path) for path in args.paths}
+        fonts = {path.name: inspect_font(path, census) for path in args.paths}
     else:
         parser.error("provide font paths, --dir, or --check")
     if args.json:

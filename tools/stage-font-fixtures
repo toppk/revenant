@@ -40,6 +40,7 @@ noto-emoji-2.028|noto-emoji-2.028.zip|a5354c70df3b174029891fd1cc7eb0302c24685956
 openmoji-17.0.0|openmoji-font.zip|1de61d8dcb38d0bebbdd13c7057a65f5d957ead36ce4b61bd635f84e6f3cadba|https://github.com/hfg-gmuend/openmoji/releases/download/17.0.0/openmoji-font.zip
 twemoji-source-14.0.2|twemoji-14.0.2.zip|e10e955c58b49d1de9218f08b48bf52913c6deeee7c569daa97ba7a4df4a3716|https://github.com/jdecked/twemoji/archive/refs/tags/v14.0.2.zip
 fedora-twitter-twemoji-14.0.2-10|twitter-twemoji-fonts-14.0.2-10.fc44.noarch.rpm|fb580bd15bce8fd6e737f5b62803941d7b884436c4332b2d46e89a2c6f0af01a|https://kojipkgs.fedoraproject.org/packages/twitter-twemoji-fonts/14.0.2/10.fc44/noarch/twitter-twemoji-fonts-14.0.2-10.fc44.noarch.rpm
+fedora-google-noto-emoji-20250623-4|google-noto-emoji-fonts-20250623-4.fc44.noarch.rpm|6abad8d318b51c1ad6d9c4ecf97dbe6f4fae8b02f9b264a15d9afdb213a180a1|https://kojipkgs.fedoraproject.org/packages/google-noto-emoji-fonts/20250623/4.fc44/noarch/google-noto-emoji-fonts-20250623-4.fc44.noarch.rpm
 twitter-color-emoji-15.1.0|TwitterColorEmoji-SVGinOT-Linux-15.1.0.tar.gz|c8a5302ee4e4c2188ce785edd84c50c616a07f6e99fe1b91aecba4e1db341295|https://github.com/13rac1/twemoji-color-font/releases/download/v15.1.0/TwitterColorEmoji-SVGinOT-Linux-15.1.0.tar.gz
 unicode-emoji-17.0.0|emoji-data.txt|2cb2bb9455cda83e8481541ecf5b6dfda66a3bb89efa3fa7c5297eccf607b72b|https://www.unicode.org/Public/17.0.0/ucd/emoji/emoji-data.txt
 openmoji-license-17.0.0|openmoji-17.0.0-LICENSE.txt|5e436ff8ffbb77d8607220e9bce20c8915d860010feeb6c1ebef5a85688e9b39|https://raw.githubusercontent.com/hfg-gmuend/openmoji/17.0.0/LICENSE.txt
@@ -248,6 +249,19 @@ mkdir -p "$rpm_root"
 cp -- "$rpm_root/usr/share/fonts/twemoji/Twemoji.ttf" "$work/fonts/Twemoji.ttf"
 cp -- "$rpm_root/usr/share/licenses/twitter-twemoji-fonts/LICENSE-BUILD" \
 	"$work/licenses/Twemoji-build-Apache-2.0.txt"
+rpm_root="$work/rpm-google-noto-emoji"
+mkdir -p "$rpm_root"
+(
+	cd "$rpm_root"
+	rpm2cpio "$work/sources/google-noto-emoji-fonts-20250623-4.fc44.noarch.rpm" | \
+		cpio -idm --quiet
+)
+# Internal version 3.003, distinct from the 1.05 face in the 2.028 archive.
+cp -- "$rpm_root/usr/share/fonts/google-noto-emoji-fonts/NotoEmoji-Regular.ttf" \
+	"$work/fonts/NotoEmoji-Regular-3.003.ttf"
+cp -- "$rpm_root/usr/share/licenses/google-noto-emoji-fonts/OFL.txt" \
+	"$work/licenses/NotoEmoji-3.003-OFL.txt"
+
 extract_zip twemoji-14.0.2.zip twemoji-14.0.2/LICENSE \
 	"$work/licenses/Twemoji-14.0.2-MIT.txt"
 extract_zip twemoji-14.0.2.zip twemoji-14.0.2/LICENSE-GRAPHICS \
@@ -310,6 +324,7 @@ make_universe cbdt-lowres "${base_fonts[@]}" Twemoji.ttf
 make_universe colrv0 "${base_fonts[@]}" OpenMoji-COLRv0.ttf
 make_universe colrv1 "${base_fonts[@]}" Noto-COLRv1.ttf
 make_universe mono "${base_fonts[@]}" NotoEmoji-Regular.ttf
+make_universe mono-modern "${base_fonts[@]}" NotoEmoji-Regular-3.003.ttf
 make_universe svginot "${base_fonts[@]}" TwitterColorEmoji-SVGinOT.ttf
 make_universe atomic-tag "${base_fonts[@]}" \
 	TwitterColorEmoji-SVGinOT.ttf Noto-COLRv1.ttf
@@ -321,6 +336,9 @@ make_universe cjk-emoji "${base_fonts[@]}" \
 make_universe routing "${base_fonts[@]}" \
 	NotoSansMonoCJKjp-Regular.otf NotoSansMonoCJKjp-Bold.otf \
 	NotoEmoji-Regular.ttf Noto-COLRv1.ttf
+make_universe routing-modern "${base_fonts[@]}" \
+	NotoSansMonoCJKjp-Regular.otf NotoSansMonoCJKjp-Bold.otf \
+	NotoEmoji-Regular-3.003.ttf Noto-COLRv1.ttf
 make_universe legacy-routing "${base_fonts[@]}" \
 	NotoColorEmoji-2.034.ttf OpenMoji-COLRv0.ttf
 make_universe shaping "${base_fonts[@]}" \
@@ -344,6 +362,10 @@ make_universe shaping "${base_fonts[@]}" \
 			source=noto-emoji-2.034; license=licenses/NotoEmoji-2.034.txt ;;
 		NotoEmoji-Regular.ttf)
 			source=noto-emoji-2.028; license=licenses/NotoEmoji-2.028.txt ;;
+		NotoEmoji-Regular-3.003.ttf)
+			source=fedora-google-noto-emoji-20250623-4
+			license=licenses/NotoEmoji-3.003-OFL.txt
+			;;
 		OpenMoji-COLRv0.ttf)
 			source=openmoji-17.0.0
 			license=licenses/OpenMoji-17.0.0-CC-BY-SA-4.0.txt
@@ -415,7 +437,10 @@ supplementary emoji range. The CJK role is the standalone, non-variable Noto
 Sans Mono CJK JP Regular/Bold release. Those faces also exercise CFF outlines
 and the OpenType ceiling of 65,535 glyphs. Emoji faces cover high- and
 low-resolution CBDT, COLRv0, COLRv1, SVGinOT with outline fallback,
-monochrome outlines, and synthetic sbix.
+monochrome outlines, and synthetic sbix. Two monochrome Noto Emoji faces are
+staged deliberately: internal version 1.05 from the 2.028 source archive, which
+lacks most text-default bases, and internal version 3.003 from the documented
+Fedora package, which covers all of them. They never share a universe.
 
 Each directory below `universes/` is a self-contained Fontconfig universe.
 Its configuration uses only that universe's `fonts/` links and private
@@ -441,8 +466,9 @@ probe. See the maintained `tools/font-fixtures/README.md` for the full schema
 contract.
 
 The `empty` universe deliberately contains no fonts. The `base`, `cbdt`,
-`cbdt-legacy`, `cbdt-lowres`, `colrv0`, `colrv1`, `mono`, `svginot`,
-`atomic-tag`, `sbix`, `cjk`, `cjk-emoji`, `routing`, `legacy-routing`, and `shaping`
+`cbdt-legacy`, `cbdt-lowres`, `colrv0`, `colrv1`, `mono`, `mono-modern`,
+`svginot`, `atomic-tag`, `sbix`, `cjk`, `cjk-emoji`, `routing`,
+`routing-modern`, `legacy-routing`, and `shaping`
 universes isolate the remaining rendering and fallback scenarios. Moving this
 entire tree is safe because its Fontconfig paths and font links are relative.
 EOF

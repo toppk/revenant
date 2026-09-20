@@ -7,6 +7,21 @@ routing data and for the width tables that commit cells before rendering.
 `unicode_data`; additional width or routing inputs can be interlocked with
 repeated `--unicode-data FILE` options.
 
+Each entry also records `version`, the internal `head.fontRevision`. It is not
+the release or package version: the monochrome face in the Noto Emoji 2.028
+source archive reports `1.050`, and the Fedora `google-noto-emoji-fonts`
+20250623-4 package file reports `3.003`. Quote both identities when reporting a
+coverage result.
+
+`text_default_bases` is the coverage census: how many emoji bases whose default
+presentation is text, excluding the ASCII keycap bases, the font's best cmap
+maps. The total comes from `unicode_data`, so `--check` needs that file to
+recompute it. Scalar cmap coverage is the only claim here; it says nothing about
+sequences, artwork quality, or whether the renderer can reach and fit the glyph.
+The two monochrome Noto Emoji fixtures differ sharply under this census — 63 of
+207 for `1.050` against 207 of 207 for `3.003` — which is why the older face is
+retained as an explicitly incomplete negative fixture rather than replaced.
+
 The top-level `outline` value records which outline table technology a font
 contains (`glyf`, `CFF`, or `CFF2`). It does **not** claim that a particular
 mapped glyph has visible contours. Each probe value records actual ink paths:
@@ -30,6 +45,13 @@ lacks U+1FAE8. It therefore captures Noto before the Emoji 15.1 family
 redesign. The `cbdt-legacy` universe isolates its direct rendering; the
 `legacy-routing` universe pairs it with OpenMoji so a genuine color-face
 coverage miss exercises role fall-through.
+
+The two monochrome faces never share a universe, because both name the family
+`Noto Emoji` and a family request could not then select between them. `mono`
+and `routing` hold the incomplete `1.050` face; `mono-modern` and
+`routing-modern` hold `3.003`. A positive text-emoji artwork expectation belongs
+only in the modern universes; a tofu expectation in `mono` or `routing` records
+genuinely absent coverage, not a rendering policy.
 
 The `atomic-tag` universe pairs Twitter's SVGinOT face, which has a generic
 black flag but no Scotland ligature, with current Noto Color Emoji. It proves

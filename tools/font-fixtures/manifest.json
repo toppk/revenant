@@ -7,6 +7,7 @@
     "DejaVuSansMono-BoldOblique.ttf": {
       "sha256": "91713a71d550bba22c2a6b2bb2a9ad8f9a159e12e4e9f0a5b2677998ba21213e",
       "family": "DejaVu Sans Mono",
+      "version": "2.370",
       "technologies": ["monochrome"],
       "outline": "glyf",
       "strikes": {},
@@ -19,12 +20,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "missing",
         "cjk_sentinel": "missing",
-        "information_text_default": "missing"
+        "information_text_default": "missing",
+        "hammer_and_wrench_text_default": "missing",
+        "package_emoji_default": "missing"
+      },
+      "text_default_bases": {
+        "covered": 34,
+        "total": 207
       }
     },
     "DejaVuSansMono-Bold.ttf": {
       "sha256": "bce60f1b4421acd9ea51ba6623d7024ecbe6817a953e3654df62a5e6bdf8f769",
       "family": "DejaVu Sans Mono",
+      "version": "2.370",
       "technologies": ["monochrome"],
       "outline": "glyf",
       "strikes": {},
@@ -37,12 +45,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "missing",
         "cjk_sentinel": "missing",
-        "information_text_default": "missing"
+        "information_text_default": "missing",
+        "hammer_and_wrench_text_default": "missing",
+        "package_emoji_default": "missing"
+      },
+      "text_default_bases": {
+        "covered": 82,
+        "total": 207
       }
     },
     "DejaVuSansMono-Oblique.ttf": {
       "sha256": "742097840c541870e8d6dc5c9b37bb1ceeea6c0dedd1d475faf903ef9df734b0",
       "family": "DejaVu Sans Mono",
+      "version": "2.370",
       "technologies": ["monochrome"],
       "outline": "glyf",
       "strikes": {},
@@ -55,12 +70,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "missing",
         "cjk_sentinel": "missing",
-        "information_text_default": "missing"
+        "information_text_default": "missing",
+        "hammer_and_wrench_text_default": "missing",
+        "package_emoji_default": "missing"
+      },
+      "text_default_bases": {
+        "covered": 34,
+        "total": 207
       }
     },
     "DejaVuSansMono.ttf": {
       "sha256": "b4a6c3e4faab8773f4ff761d56451646409f29abedd68f05d38c2df667d3c582",
       "family": "DejaVu Sans Mono",
+      "version": "2.370",
       "technologies": ["monochrome"],
       "outline": "glyf",
       "strikes": {},
@@ -73,12 +95,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "missing",
         "cjk_sentinel": "missing",
-        "information_text_default": "missing"
+        "information_text_default": "missing",
+        "hammer_and_wrench_text_default": "missing",
+        "package_emoji_default": "missing"
+      },
+      "text_default_bases": {
+        "covered": 82,
+        "total": 207
       }
     },
     "NotoSansDevanagari-Bold.ttf": {
       "sha256": "ee8bb4df2203759d8d302a5e05aa2206b98067bd24a10e8f8c3d930f4b23135a",
       "family": "Noto Sans Devanagari",
+      "version": "2.006",
       "technologies": ["monochrome"],
       "outline": "glyf",
       "strikes": {},
@@ -91,12 +120,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "missing",
         "cjk_sentinel": "missing",
-        "information_text_default": "missing"
+        "information_text_default": "missing",
+        "hammer_and_wrench_text_default": "missing",
+        "package_emoji_default": "missing"
+      },
+      "text_default_bases": {
+        "covered": 3,
+        "total": 207
       }
     },
     "NotoSansDevanagari-Regular.ttf": {
       "sha256": "da2d2135e978c6f68852cfd8201c3a067df1acf73232fe80c58f89e6302ee6e8",
       "family": "Noto Sans Devanagari",
+      "version": "2.006",
       "technologies": ["monochrome"],
       "outline": "glyf",
       "strikes": {},
@@ -109,12 +145,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "missing",
         "cjk_sentinel": "missing",
-        "information_text_default": "missing"
+        "information_text_default": "missing",
+        "hammer_and_wrench_text_default": "missing",
+        "package_emoji_default": "missing"
+      },
+      "text_default_bases": {
+        "covered": 3,
+        "total": 207
       }
     },
     "Noto-COLRv1.ttf": {
       "sha256": "0ae57fe58645638523ba35f388d93739d292539a9acb84df5700c81b1e1a28d2",
       "family": "Noto Color Emoji",
+      "version": "2.051",
       "technologies": ["COLRv1"],
       "outline": "glyf",
       "strikes": {},
@@ -127,12 +170,19 @@
         "shaking_face_emoji_15": "color",
         "regional_indicator_u": "color",
         "cjk_sentinel": "missing",
-        "information_text_default": "color"
+        "information_text_default": "color",
+        "hammer_and_wrench_text_default": "color",
+        "package_emoji_default": "color"
+      },
+      "text_default_bases": {
+        "covered": 207,
+        "total": 207
       }
     },
     "NotoColorEmoji.ttf": {
       "sha256": "72a635cb3d2f3524c51620cdde406b217204e8a6a06c6a096ff8ed4b5fd6e27b",
       "family": "Noto Color Emoji",
+      "version": "2.051",
       "technologies": ["CBDT"],
       "outline": "none",
       "strikes": {"CBDT": [109]},
@@ -145,12 +195,19 @@
         "shaking_face_emoji_15": "bitmap",
         "regional_indicator_u": "bitmap",
         "cjk_sentinel": "missing",
-        "information_text_default": "bitmap"
+        "information_text_default": "bitmap",
+        "hammer_and_wrench_text_default": "bitmap",
+        "package_emoji_default": "bitmap"
+      },
+      "text_default_bases": {
+        "covered": 207,
+        "total": 207
       }
     },
     "NotoColorEmoji-2.034.ttf": {
       "sha256": "bf2a8506b80614ba190a34c7b037af1269a7d614fe9f3b613cc15cdeec6f814b",
       "family": "Noto Color Emoji",
+      "version": "2.034",
       "technologies": ["CBDT"],
       "outline": "none",
       "strikes": {"CBDT": [109]},
@@ -163,12 +220,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "bitmap",
         "cjk_sentinel": "missing",
-        "information_text_default": "bitmap"
+        "information_text_default": "bitmap",
+        "hammer_and_wrench_text_default": "bitmap",
+        "package_emoji_default": "bitmap"
+      },
+      "text_default_bases": {
+        "covered": 207,
+        "total": 207
       }
     },
     "NotoEmoji-Regular.ttf": {
       "sha256": "415dc6290378574135b64c808dc640c1df7531973290c4970c51fdeb849cb0c5",
       "family": "Noto Emoji",
+      "version": "1.050",
       "technologies": ["monochrome"],
       "outline": "glyf",
       "strikes": {},
@@ -181,12 +245,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "outline",
         "cjk_sentinel": "missing",
-        "information_text_default": "outline"
+        "information_text_default": "outline",
+        "hammer_and_wrench_text_default": "missing",
+        "package_emoji_default": "outline"
+      },
+      "text_default_bases": {
+        "covered": 63,
+        "total": 207
       }
     },
     "NotoSansMonoCJKjp-Bold.otf": {
       "sha256": "dfdffe149bc6cbf52860dabd8b8dadbca40ae87a4fbe143b55c0258db2dadfb8",
       "family": "Noto Sans Mono CJK JP",
+      "version": "2.004",
       "technologies": ["monochrome"],
       "outline": "CFF",
       "strikes": {},
@@ -199,12 +270,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "missing",
         "cjk_sentinel": "outline",
-        "information_text_default": "missing"
+        "information_text_default": "missing",
+        "hammer_and_wrench_text_default": "missing",
+        "package_emoji_default": "missing"
+      },
+      "text_default_bases": {
+        "covered": 49,
+        "total": 207
       }
     },
     "NotoSansMonoCJKjp-Regular.otf": {
       "sha256": "4d01725be822d144cf9a56ade981e6fb920cd7a610b8fc24cc601a920beea5b9",
       "family": "Noto Sans Mono CJK JP",
+      "version": "2.004",
       "technologies": ["monochrome"],
       "outline": "CFF",
       "strikes": {},
@@ -217,12 +295,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "missing",
         "cjk_sentinel": "outline",
-        "information_text_default": "missing"
+        "information_text_default": "missing",
+        "hammer_and_wrench_text_default": "missing",
+        "package_emoji_default": "missing"
+      },
+      "text_default_bases": {
+        "covered": 49,
+        "total": 207
       }
     },
     "OpenMoji-COLRv0.ttf": {
       "sha256": "8376fee074649ece235faba0d157d851f3d93632f0540ad1165feba1aba9ba37",
       "family": "OpenMoji",
+      "version": "1.000",
       "technologies": ["COLRv0"],
       "outline": "glyf",
       "strikes": {},
@@ -235,12 +320,19 @@
         "shaking_face_emoji_15": "color",
         "regional_indicator_u": "color",
         "cjk_sentinel": "missing",
-        "information_text_default": "color"
+        "information_text_default": "color",
+        "hammer_and_wrench_text_default": "color",
+        "package_emoji_default": "color"
+      },
+      "text_default_bases": {
+        "covered": 207,
+        "total": 207
       }
     },
     "XtpSyntheticSbix.ttf": {
       "sha256": "87959441b45fcd3b0e3a56b593b3687ae8cf12bc197654a8d29be7d9fd5b8af2",
       "family": "XTP Synthetic sbix",
+      "version": "1.000",
       "technologies": ["sbix"],
       "outline": "glyf",
       "strikes": {"sbix": [16]},
@@ -253,12 +345,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "missing",
         "cjk_sentinel": "missing",
-        "information_text_default": "missing"
+        "information_text_default": "missing",
+        "hammer_and_wrench_text_default": "missing",
+        "package_emoji_default": "missing"
+      },
+      "text_default_bases": {
+        "covered": 0,
+        "total": 207
       }
     },
     "Twemoji.ttf": {
       "sha256": "59c88b3836312e3a28eb431a570bf8bd76183951d0adf4692f93768b203359f7",
       "family": "Twemoji",
+      "version": "2.019",
       "technologies": ["CBDT"],
       "outline": "none",
       "strikes": {"CBDT": [61]},
@@ -271,12 +370,19 @@
         "shaking_face_emoji_15": "missing",
         "regional_indicator_u": "bitmap",
         "cjk_sentinel": "missing",
-        "information_text_default": "bitmap"
+        "information_text_default": "bitmap",
+        "hammer_and_wrench_text_default": "bitmap",
+        "package_emoji_default": "bitmap"
+      },
+      "text_default_bases": {
+        "covered": 207,
+        "total": 207
       }
     },
     "TwitterColorEmoji-SVGinOT.ttf": {
       "sha256": "42d4b2a827c9ed557dff88c2f4723cb93985003a81dee76797324d66d04a57b8",
       "family": "Twitter Color Emoji",
+      "version": "1.000",
       "technologies": ["SVGinOT"],
       "outline": "glyf",
       "strikes": {},
@@ -289,7 +395,38 @@
         "shaking_face_emoji_15": "outline+svg",
         "regional_indicator_u": "outline+svg",
         "cjk_sentinel": "missing",
-        "information_text_default": "outline+svg"
+        "information_text_default": "outline+svg",
+        "hammer_and_wrench_text_default": "outline+svg",
+        "package_emoji_default": "outline+svg"
+      },
+      "text_default_bases": {
+        "covered": 207,
+        "total": 207
+      }
+    },
+    "NotoEmoji-Regular-3.003.ttf": {
+      "sha256": "b57ed895ae9d09ba7b4b19c343a75cf39aad57156c3450e339d9d11556d7edc1",
+      "family": "Noto Emoji",
+      "version": "3.003",
+      "technologies": ["monochrome"],
+      "outline": "glyf",
+      "strikes": {},
+      "axes": [],
+      "glyphs": 1895,
+      "codepoints": 1496,
+      "probes": {
+        "grinning_face": "outline",
+        "heart_text_default": "outline",
+        "shaking_face_emoji_15": "outline",
+        "regional_indicator_u": "outline",
+        "cjk_sentinel": "missing",
+        "information_text_default": "outline",
+        "hammer_and_wrench_text_default": "outline",
+        "package_emoji_default": "outline"
+      },
+      "text_default_bases": {
+        "covered": 207,
+        "total": 207
       }
     }
   }
