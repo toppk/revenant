@@ -1,4 +1,14 @@
 #!/bin/sh
+#
+# Route identity and width policy for explicitly configured font chains.
+#
+# This suite grades which role and font a cluster reaches and that policy never
+# changes a committed width.  It is not the artwork gate: several cases below
+# expect role=tofu, and deterministic tofu is monochrome ink, so a `mono` pixel
+# class here is not evidence that a glyph was drawn.  Positive text-emoji
+# artwork, with modern monochrome coverage and an explicit known-gap list, lives
+# in xvfb-emoji-artwork.sh.  Each expected-tofu case is annotated with the
+# mechanism that produces it, audited against the debug log.
 
 set -eu
 
@@ -241,6 +251,14 @@ run_case routing heart-vs16-default ❤️ color 1 \
 run_case routing heart-vs15 '❤︎' mono 1 \
     'base=U+2764 width=1 presentation=text role=primary' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+# Audited expected miss, not an artwork expectation.  This universe's
+# monochrome face is Noto Emoji 1.05, which does map U+2139; the log shows only
+# four queued primary-slot candidates and the color face's empty outline being
+# rejected, so the monochrome alternative is never activated.  That is the
+# discovery loss in the fallback review, and the final `role=tofu` cannot be
+# told apart from absent coverage without reading the log.  The positive
+# requirement is gated in xvfb-emoji-artwork.sh; do not turn this into a
+# `mono`-only success assertion.
 run_case routing info-text ℹ mono 1 \
     'base=U+2139 width=1 presentation=text role=tofu' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
@@ -309,6 +327,11 @@ run_case legacy-routing legacy-cbdt-fallthrough 🫨 color 2 \
 run_case routing policy-emoji-heart ❤ color 1 \
     'base=U+2764 width=1 presentation=emoji role=emoji' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' emoji true
+# Two more audited expected misses with the same shape: Noto Emoji 1.05 maps
+# U+1F600, and forced text presentation correctly refuses the color face's
+# color-only glyph, but no monochrome candidate is activated.  What these two
+# cases do establish is that forced text never leaks color and never changes the
+# committed width; they establish nothing about visible ink.
 run_case routing policy-text-grin 😀 mono 2 \
     'base=U+1F600 width=2 presentation=text role=tofu' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' text true
