@@ -9,6 +9,9 @@ specifications:
   dec-std-070:
     title: DEC STD 070 Video Systems Reference Manual
     url: http://bitsavers.org/pdf/dec/standards/EL-SM070-00_DEC_STD_070_Video_Systems_Reference_Manual_Dec91.pdf
+  ghostty-symbol-constraint-width:
+    title: 'Ghostty: constraintWidth in src/renderer/cell.zig (implementation reference; no standard describes this)'
+    url: https://github.com/ghostty-org/ghostty/blob/main/src/renderer/cell.zig
   kitty-unscroll:
     title: 'kitty: Unscrolling the screen'
     url: https://sw.kovidgoyal.net/kitty/unscroll/

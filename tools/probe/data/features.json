@@ -26,6 +26,78 @@
     "sequence": ""
   },
   {
+    "id": "text-monochrome-emoji",
+    "title": "Monochrome emoji fallback",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Emoji artwork and fallback"
+    ],
+    "specifications": [
+      "unicode-uts-51"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "text-emoji-presentation",
+    "title": "Emoji text and color presentation",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Emoji artwork and fallback"
+    ],
+    "specifications": [
+      "unicode-uts-51"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "text-emoji-cell-fitting",
+    "title": "Emoji fitting within terminal cells",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Emoji artwork and fallback"
+    ],
+    "specifications": [
+      "unicode-uts-51"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "text-symbol-whitespace-expansion",
+    "title": "Symbol drawing into adjacent blank cells",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Emoji artwork and fallback"
+    ],
+    "specifications": [
+      "ghostty-symbol-constraint-width"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "text-emoji-sequences",
+    "title": "Complete emoji sequence rendering",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Emoji artwork and fallback"
+    ],
+    "specifications": [
+      "unicode-uts-51"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "text-color-emoji",
+    "title": "Color emoji rendering",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Emoji artwork and fallback"
+    ],
+    "specifications": [
+      "unicode-uts-51"
+    ],
+    "sequence": ""
+  },
+  {
     "id": "text-box-drawing",
     "title": "Synthesized box drawing",
     "breadcrumb": [

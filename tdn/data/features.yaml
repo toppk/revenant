@@ -977,6 +977,51 @@ features:
     specifications:
     - ecma-tr-53-handling-of-bi-directional-texts
     labels: []
+  text-monochrome-emoji:
+    title: Monochrome emoji fallback
+    kind: feature
+    category: text
+    pages:
+    - text/emoji-rendering.md
+    specifications:
+    - unicode-uts-51
+    labels: []
+  text-emoji-presentation:
+    title: Emoji text and color presentation
+    kind: feature
+    category: text
+    pages:
+    - text/emoji-rendering.md
+    specifications:
+    - unicode-uts-51
+    labels: []
+  text-emoji-cell-fitting:
+    title: Emoji fitting within terminal cells
+    kind: feature
+    category: text
+    pages:
+    - text/emoji-rendering.md
+    specifications:
+    - unicode-uts-51
+    labels: []
+  text-emoji-sequences:
+    title: Complete emoji sequence rendering
+    kind: feature
+    category: text
+    pages:
+    - text/emoji-rendering.md
+    specifications:
+    - unicode-uts-51
+    labels: []
+  text-symbol-whitespace-expansion:
+    title: Symbol drawing into adjacent blank cells
+    kind: feature
+    category: text
+    pages:
+    - text/emoji-rendering.md
+    specifications:
+    - ghostty-symbol-constraint-width
+    labels: []
   text-color-emoji:
     title: Color emoji rendering
     kind: feature

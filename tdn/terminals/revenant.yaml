@@ -371,6 +371,21 @@ features:
     evidence:
     - kind: test
       url: https://github.com/toppk/revenant/blob/d4941b5402123004e2fa1126c529ad6c8b1a2451/tests/xvfb-box-glyphs.sh
+  text-symbol-whitespace-expansion:
+    status: unsupported
+    as-of: git:bd0bcf50b695349486aa227fe482e6c6a7c23798
+    notes: Current policy is strict in-cell fitting. A one-cell symbol is drawn inside the cells the backend
+      committed to it; an oversized monochrome face is shrunk to fit rather than allowed to grow into a
+      neighboring blank cell, and the artwork gate asserts that the following cell, the row below and the
+      border above stay free of ink. Adopting the optional behavior later would be an opt-in with its own
+      eligibility, background, selection, cursor and damage rules; this record describes the present default
+      rather than a decision against it. Assessed from the containment assertions only, which do not cover
+      legibility.
+    review: reviewed
+    checked: '2026-09-20'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/bd0bcf50b695349486aa227fe482e6c6a7c23798/tests/xvfb-emoji-artwork.sh
   text-procedural-glyphs:
     status: supported
     as-of: git:d4941b5402123004e2fa1126c529ad6c8b1a2451

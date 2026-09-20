@@ -14,6 +14,20 @@
     {
       "breadcrumb": [
         "Text, emoji and rendering",
+        "Emoji artwork and fallback"
+      ],
+      "features": [
+        "text-monochrome-emoji",
+        "text-emoji-presentation",
+        "text-emoji-cell-fitting",
+        "text-symbol-whitespace-expansion",
+        "text-emoji-sequences",
+        "text-color-emoji"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Text, emoji and rendering",
         "Glyphs"
       ],
       "features": [

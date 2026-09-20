@@ -76,6 +76,9 @@ xterm do not reorder. Applications targeting Arabic or Hebrew users must
 assume either logical-order display or visual reordering with no way to tell
 except by asking the user, unless the emulator answers DECRQM for 2500.
 
+See [emoji artwork and fallback](emoji-rendering.md) for separate monochrome,
+presentation, fitting and sequence capability probes.
+
 ## Color emoji
 
 Color emoji come from bitmap (CBDT, sbix) or vector (COLR) fonts. Emulators

@@ -134,6 +134,41 @@ class ProbeAcceptance(unittest.TestCase):
         self.assertIn(b"PASS: each jump puts the named prompt at the top", output)
         self.assertNotIn(b"Pipe must contain", output)
 
+    def test_emoji_artwork_does_not_claim_automatic_success(self):
+        samples = {
+            "monochrome-emoji": "🛠 Installed demo-1.0",
+            "emoji-presentation": "[🛠\ufe0e] [🛠\ufe0f]",
+            "emoji-cell-fitting": "A🛠B",
+            "emoji-sequences": "👩‍💻",
+            "symbol-whitespace-expansion": "Adjacent: 🛠🛠🛠",
+        }
+        for case, sample in samples.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "result.json"
+                sent = False
+
+                def interact(output):
+                    nonlocal sent
+                    if not sent and b"Space/Enter: continue" in output:
+                        sent = True
+                        return b" "
+                    return b""
+
+                slug = "text-symbol-whitespace-expansion" if case.startswith(
+                    "symbol-"
+                ) else "text-" + case
+                code, output, restored = run_probe(
+                    [slug, case, "--output", str(path)],
+                    interaction=interact,
+                )
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertTrue(restored)
+                self.assertTrue(sent)
+                self.assertIn(sample.encode(), output)
+                self.assertNotIn(b"\x1b[6n", output)
+                result = json.loads(path.read_text())[0]
+                self.assertEqual(result["outcome"], "unassessed")
+
     def test_command_catalog_and_tdn_references(self):
         catalog = json.loads(subprocess.check_output([str(BINARY), "list", "--json"]))
         ids = set(

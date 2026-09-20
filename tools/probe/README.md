@@ -61,6 +61,21 @@ ZWJ/flag comparison with the mode off and on; other cases use the selected
 legacy/cluster/both width mode. `text emoji` opens the submenu; use
 `text emoji all` to run the former complete suite.
 
+The emoji/font probes mechanically grade cursor movement, not recognizable
+glyphs, font selection, or color presentation. A tofu box with the correct
+advance can pass the width check. `--assess` adds a human judgment for the
+run; it does not make each sample a rendering assertion. The
+[font fallback review](../../docs/maintainers/font-fallback-review.md) records
+the resulting coverage gap. Separate rendering acceptance scenarios now
+exercise these areas. Run `just probe text-monochrome-emoji monochrome-emoji --assess`
+and see the [capability guide](../../tdn/docs/text/emoji-rendering.md) for
+presentation, fitting and sequence cases. These visual cases are separate from
+the unchanged width corpus. A renderer's own integration tests can support a
+versioned record for that renderer, scoped to what they assert; legibility and
+other terminals still need a human assessment. Preserve this distinction when
+recording support
+evidence.
+
 The **Procedural glyph rendering** cases present a visual catalog of characters
 that are useful to draw from cell geometry instead of a font. This renderer
 behavior has no universal capability name. xterm calls its subset *built-in

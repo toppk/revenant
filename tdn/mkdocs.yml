@@ -149,6 +149,7 @@ nav:
       - Grapheme clusters: text/graphemes.md
       - Text sizing: text/sizing.md
       - Rendering: text/rendering.md
+      - Emoji artwork and fallback: text/emoji-rendering.md
   - Graphics:
       - Overview: graphics/index.md
       - Sixel: graphics/sixel.md
