@@ -28,6 +28,12 @@ fixture_root=$5
 xtp_xvfb_test_init
 xtp_require_font_fixtures "$fixture_root"
 xtp_start_xvfb "$xvfb"
+# The fixture runner isolates Fontconfig but not the X resource environment, and a
+# fresh Xvfb has no RESOURCE_MANAGER, so Xt falls through to the developer's own
+# ~/.Xdefaults.  An inherited faceNameEmojiText would configure the role whose
+# precedence and opt-out this suite controls case by case, so the terminal runs against an empty home
+# with inherited resource files neutralized.  Nothing outside test_dir is touched.
+mkdir "$test_dir/empty-home"
 
 modern_mono=NotoEmoji-Regular-3.003.ttf
 color_face=Noto-COLRv1.ttf
@@ -64,7 +70,8 @@ start_case()
     done_dir=$test_dir/$name.done
 
     # shellcheck disable=SC2016
-    "$fixture_root/run" "$universe" "$terminal" -debug +sb \
+    HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+        "$fixture_root/run" "$universe" "$terminal" -debug +sb \
         -fa 'DejaVu Sans Mono:rgba=none' -fs 16 "$@" \
         -xrm 'xterm.vt100.internalBorder: 4' \
         -xrm 'xterm.vt100.background: #000000' \

@@ -39,6 +39,12 @@ xtp_require_font_fixtures "$fixture_root"
 # so the whole window must stay inside the viewable screen area.
 xtp_xvfb_screen=1600x900x24
 xtp_start_xvfb "$xvfb"
+# The fixture runner isolates Fontconfig but not the X resource environment, and a
+# fresh Xvfb has no RESOURCE_MANAGER, so Xt falls through to the developer's own
+# ~/.Xdefaults.  An inherited faceNameEmojiText would configure the very rescue
+# this suite exists to test without, so the terminal runs against an empty home
+# with inherited resource files neutralized.  Nothing outside test_dir is touched.
+mkdir "$test_dir/empty-home"
 
 modern_mono=NotoEmoji-Regular-3.003.ttf
 color_face=Noto-COLRv1.ttf
@@ -123,7 +129,8 @@ start_sample()
     # limitFontWidth is set anywhere in this suite.  The reported failure was a
     # default-path failure, so a hand-written chain would not reproduce it.
     # shellcheck disable=SC2016
-    "$fixture_root/run" "$universe" "$terminal" -debug +sb \
+    HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+        "$fixture_root/run" "$universe" "$terminal" -debug +sb \
         -fa 'DejaVu Sans Mono:rgba=none' -fs "$font_size" "$@" \
         -xrm 'xterm.vt100.internalBorder: 4' \
         -xrm 'xterm.vt100.background: #000000' \

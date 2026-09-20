@@ -16,13 +16,15 @@ order fonts are tried in, and which parts of the expanded resolver are still
 being implemented. The complete engineering contract is the
 [font-resolution specification](../maintainers/font-resolution.md).
 
-Known limitation: candidate discovery can still lose a usable monochrome face
-when a color face already covers the same characters, so a text-default emoji
-may render as a placeholder box in some font environments even though one of
-your installed fonts covers it. Naming the face with `faceNameEmojiText`, below,
-is the reliable workaround. The
-[fallback review](../maintainers/font-fallback-review.md) records the evidence;
-adding a color emoji face alone does not resolve it.
+Revenant looks for a monochrome face specifically when a character wants a text
+presentation, so an installed monochrome emoji font is usually found even when a
+color font covers the same characters and even when a Fontconfig rule prefers
+color. Discovery is still bounded work over a Fontconfig-ordered list, so an
+unusual font environment can defeat it; if a text-style emoji comes out as a
+placeholder box, name the face with `faceNameEmojiText`, below, which does not
+depend on discovery at all. The
+[fallback review](../maintainers/font-fallback-review.md) records how this used
+to fail; adding a color emoji face alone never resolved it.
 
 ## Text-style emoji
 

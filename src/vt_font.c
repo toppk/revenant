@@ -4,6 +4,8 @@
 #include "font_chain.h"
 #include "font_metrics.h"
 #include "font_role.h"
+#include "unicode_script.h"
+#include "utf8.h"
 #include "vt_widgetP.h"
 
 #include <X11/StringDefs.h>
@@ -799,14 +801,15 @@ XftFallbackDuplicate(XtpXftFallbackSet *fallbacks, int slot, unsigned int style,
 }
 
 static Boolean
-AppendXftFallback(XtpXftFallbackSet *fallbacks, int slot, unsigned int style, XftFont *primary,
-                  FcPattern *pattern, uint8_t named_index)
+AppendXftFallbackBounded(XtpXftFallbackSet *fallbacks, int slot, unsigned int style,
+                         XftFont *primary, FcPattern *pattern, uint8_t named_index,
+                         unsigned int bound, Boolean presentation_reserved)
 {
         uint8_t fallback;
 
         if (pattern == NULL)
                 return False;
-        if (fallbacks->counts[slot][style] == XTP_XFT_FALLBACK_CAPACITY ||
+        if (fallbacks->counts[slot][style] >= bound ||
             XftFallbackDuplicate(fallbacks, slot, style, primary, pattern)) {
                 FcPatternDestroy(pattern);
                 return False;
@@ -814,7 +817,16 @@ AppendXftFallback(XtpXftFallbackSet *fallbacks, int slot, unsigned int style, Xf
         fallback = fallbacks->counts[slot][style]++;
         fallbacks->candidates[slot][style][fallback].pattern = pattern;
         fallbacks->candidates[slot][style][fallback].named_index = named_index;
+        fallbacks->candidates[slot][style][fallback].presentation_reserved = presentation_reserved;
         return True;
+}
+
+static Boolean
+AppendXftFallback(XtpXftFallbackSet *fallbacks, int slot, unsigned int style, XftFont *primary,
+                  FcPattern *pattern, uint8_t named_index)
+{
+        return AppendXftFallbackBounded(fallbacks, slot, style, primary, pattern, named_index,
+                                        XTP_XFT_FALLBACK_CAPACITY, False);
 }
 
 static void
@@ -890,8 +902,11 @@ VtFontEnsureSystemFallbacks(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot
                             unsigned int style)
 {
         FcPattern *request;
+        FcPattern *monochrome_request;
         FcFontSet *set;
         FcResult result;
+        unsigned int ordinary;
+        int candidates = 0;
         int index;
 
         if (fallbacks == NULL || slot < 0 || slot >= XTP_FONT_SLOTS ||
@@ -922,9 +937,162 @@ VtFontEnsureSystemFallbacks(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot
                 }
                 FcFontSetDestroy(set);
         }
+        ordinary = fallbacks->counts[slot][style];
+        /* The sort above is coverage-trimmed, and a color face covering the same
+         * scalars makes a monochrome face look redundant, so the alternative a
+         * text-presentation atom needs can be missing entirely.  A second sort
+         * that states the monochrome preference recovers it.  Shared coverage is
+         * not interchangeable presentation.
+         *
+         * That sort is retained, not drained: taking a prefix of it would just
+         * exchange one blind cutoff for another, and unrelated monochrome faces
+         * would fill the reserve before the needed one is reached.  Candidates
+         * are taken from it per atom, by coverage, in VtFontDiscoverForCluster. */
+        monochrome_request = FcPatternDuplicate(request);
+        if (monochrome_request != NULL) {
+                FcPatternDel(monochrome_request, FC_COLOR);
+                if (!FcPatternAddBool(monochrome_request, FC_COLOR, FcFalse)) {
+                        FcPatternDestroy(monochrome_request);
+                        monochrome_request = NULL;
+                }
+        }
+        if (monochrome_request != NULL) {
+                ++vt->vt.font_universe->system_sort_count;
+                set = FcFontSort(NULL, monochrome_request, FcTrue, NULL, &result);
+                if (set == NULL) {
+                        FcPatternDestroy(monochrome_request);
+                        monochrome_request = NULL;
+                } else {
+                        fallbacks->monochrome_requests[slot][style] = monochrome_request;
+                        fallbacks->monochrome_sets[slot][style] = set;
+                        candidates = set->nfont;
+                }
+        }
         FcPatternDestroy(request);
-        XtpLog(XTP_LOG_INFO, "font", "queued lazy Xft system fallback slot=%d style=%u count=%u",
-               slot, style, fallbacks->counts[slot][style]);
+        XtpLog(XTP_LOG_INFO, "font",
+               "queued lazy Xft system fallback slot=%d style=%u count=%u ordinary=%u "
+               "inventory=%u reserve=%u monochrome-candidates=%d",
+               slot, style, fallbacks->counts[slot][style], ordinary,
+               (unsigned int)XTP_XFT_FALLBACK_CAPACITY, (unsigned int)XTP_XFT_PRESENTATION_RESERVE,
+               candidates);
+}
+
+/* Take the next monochrome candidate that covers this atom, scanning the retained
+ * sort forward from CURSOR, which belongs to this atom's search and starts at
+ * zero.  Returns True when one was appended, so the caller can try it. */
+Boolean
+VtFontDiscoverForCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot, unsigned int style,
+                         const char *text, size_t length, int *cursor)
+{
+        FcFontSet *set;
+        FcPattern *request;
+
+        (void)vt;
+        if (fallbacks == NULL || cursor == NULL || slot < 0 || slot >= XTP_FONT_SLOTS ||
+            style >= XTP_XFT_STYLE_COUNT)
+                return False;
+        set = fallbacks->monochrome_sets[slot][style];
+        request = fallbacks->monochrome_requests[slot][style];
+        if (set == NULL || request == NULL)
+                return False;
+        if (fallbacks->presentation_counts[slot][style] >= XTP_XFT_PRESENTATION_RESERVE) {
+                XtpLog(XTP_LOG_DEBUG, "font",
+                       "presentation reserve exhausted slot=%d style=%u reserve=%u", slot, style,
+                       (unsigned int)XTP_XFT_PRESENTATION_RESERVE);
+                return False;
+        }
+        while (*cursor < set->nfont) {
+                FcPattern *candidate = set->fonts[(*cursor)++];
+                FcPattern *render;
+                FcCharSet *charset = NULL;
+                FcBool color = FcTrue;
+                size_t offset = 0;
+                Boolean covers = True;
+
+                if (FcPatternGetBool(candidate, FC_COLOR, 0, &color) == FcResultMatch && color)
+                        continue;
+                if (FcPatternGetCharSet(candidate, FC_CHARSET, 0, &charset) != FcResultMatch ||
+                    charset == NULL)
+                        continue;
+                while (offset < length) {
+                        uint32_t codepoint;
+                        size_t consumed;
+
+                        if (!XtpUtf8Decode(text + offset, length - offset, &codepoint, &consumed)) {
+                                covers = False;
+                                break;
+                        }
+                        offset += consumed;
+                        if (XtpUnicodeSequenceControl(codepoint))
+                                continue;
+                        if (!FcCharSetHasChar(charset, codepoint)) {
+                                covers = False;
+                                break;
+                        }
+                }
+                if (!covers)
+                        continue;
+                if (XftFallbackDuplicate(fallbacks, slot, style, fallbacks->primaries[slot][style],
+                                         candidate))
+                        continue;
+                render = FcFontRenderPrepare(NULL, request, candidate);
+                if (render == NULL)
+                        continue;
+                if (!AppendXftFallbackBounded(fallbacks, slot, style,
+                                              fallbacks->primaries[slot][style], render, 0,
+                                              XTP_XFT_FALLBACK_SLOTS, True))
+                        continue;
+                ++fallbacks->presentation_counts[slot][style];
+                XtpLog(
+                    XTP_LOG_INFO, "font",
+                    "discovered monochrome Xft candidate slot=%d style=%u entry=%u scanned=%d/%d "
+                    "reserve=%u/%u",
+                    slot, style, fallbacks->counts[slot][style], *cursor, set->nfont,
+                    fallbacks->presentation_counts[slot][style],
+                    (unsigned int)XTP_XFT_PRESENTATION_RESERVE);
+                return True;
+        }
+        return False;
+}
+
+/* An unnamed role has no face name to build a system-candidate seed from, so the
+ * emoji branch had nothing to discover unless faceNameDoublesize happened to be
+ * set.  Seed it from the primary face with a stated color preference: the mirror
+ * of the monochrome sort, for the same reason.  Deliberately emoji-only; the wide
+ * role keeps its existing behavior so CJK routing does not move. */
+static void
+LoadXftEmojiDiscoverySeed(Vt100Rec *vt, int slot, const char *primary_face, double size,
+                          XftFont *primary, XtpXftFallbackSet *fallbacks,
+                          XtpXftFallbackSet *budget_owner)
+{
+        const unsigned int style = XTP_XFT_STYLE_NORMAL;
+        FcPattern *request;
+        FcBool color;
+
+        if (slot < 0 || slot >= XTP_FONT_SLOTS || !Nonempty(primary_face) || primary == NULL ||
+            fallbacks == NULL || fallbacks->system_requests[slot][style] != NULL ||
+            fallbacks->system_loaded[slot][style])
+                return;
+        if (!vt->vt.font_universe->system_fallback || vt->vt.font_universe->limit_fontsets == 0)
+                return;
+        request = BuildXftRequest(vt, primary_face, size, False, False, False);
+        if (request == NULL)
+                return;
+        if (FcPatternGetBool(request, FC_COLOR, 0, &color) != FcResultMatch || !color) {
+                FcPatternDel(request, FC_COLOR);
+                if (!FcPatternAddBool(request, FC_COLOR, FcTrue)) {
+                        FcPatternDestroy(request);
+                        return;
+                }
+        }
+        fallbacks->primaries[slot][style] = primary;
+        fallbacks->system_requests[slot][style] = request;
+        if (budget_owner != NULL)
+                fallbacks->shared_activations[slot][style] =
+                    &budget_owner->activated_counts[slot][style];
+        XtpLog(XTP_LOG_DEBUG, "font",
+               "prepared unnamed Xft emoji discovery slot=%d style=%u seed=%s color=true", slot,
+               style, primary_face);
 }
 
 static void
@@ -967,6 +1135,10 @@ CloseFallbackSet(Vt100Rec *vt, XtpXftFallbackSet *set)
                         }
                         if (set->system_requests[slot][style] != NULL)
                                 FcPatternDestroy(set->system_requests[slot][style]);
+                        if (set->monochrome_requests[slot][style] != NULL)
+                                FcPatternDestroy(set->monochrome_requests[slot][style]);
+                        if (set->monochrome_sets[slot][style] != NULL)
+                                FcFontSetDestroy(set->monochrome_sets[slot][style]);
                 }
         }
 }
@@ -1143,6 +1315,13 @@ VtFontEnsureSlot(Vt100Rec *vt, int slot)
             universe->roles[XTP_FONT_ROLE_EMOJI].fonts[XTP_XFT_STYLE_ITALIC][slot],
             universe->roles[XTP_FONT_ROLE_EMOJI].fonts[XTP_XFT_STYLE_BOLD_ITALIC][slot],
             &universe->roles[XTP_FONT_ROLE_EMOJI].fallbacks, universe->named_enabled);
+        if (!Nonempty(emoji_face)) {
+                LoadXftEmojiDiscoverySeed(
+                    vt, slot, face, size,
+                    universe->roles[XTP_FONT_ROLE_PRIMARY].fonts[XTP_XFT_STYLE_NORMAL][slot],
+                    &universe->roles[XTP_FONT_ROLE_EMOJI].fallbacks,
+                    &universe->roles[XTP_FONT_ROLE_PRIMARY].fallbacks);
+        }
         LoadXftRoleFallbacks(
             vt, slot, "han", han_face, han_chain->count > 1 ? han_chain->entries[1] : NULL, NULL,
             NULL, size, universe->roles[XTP_FONT_ROLE_HAN].fonts[XTP_XFT_STYLE_NORMAL][slot],

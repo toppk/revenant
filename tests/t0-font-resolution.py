@@ -100,7 +100,14 @@ ROUTES = {
     ],
     "LM-03-limitFontsets-two": [
         ("65E5", "renderFontNorm#2", "fallback"),
-        ("1F600", "renderFontNorm#6", "fallback"),
+        # Automatic color-emoji discovery serves an emoji-presentation atom from
+        # the emoji slot's candidates rather than the primary slot's.  The
+        # oracle-deposed facts are unchanged: the same request resolves the same
+        # file, and the two activations still come out of one limitFontsets
+        # budget, which the unnamed emoji role shares with the primary role.
+        # Only this runner's projected role label moves.  See the automatic
+        # color-emoji discovery section of font-resolution(7).
+        ("1F600", "renderFontNorm#6", "emoji-fallback"),
     ],
 }
 

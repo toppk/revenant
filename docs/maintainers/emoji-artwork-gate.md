@@ -136,40 +136,32 @@ neighboring cell. It is small. Legibility remains a human judgment and belongs
 to the TDN artwork probe; this suite establishes that a recognizable-sized,
 correctly routed, contained glyph is drawn where tofu used to be.
 
-## A separate, differently caused miss
+## A separate miss, since repaired
 
-The older expected-tofu cases in `tests/xvfb-emoji-routing.sh` are **not** the
-same defect, and the audit annotations in that file now say so. For `info-text`,
-`policy-text-grin`, and `policy-text-color-wide` in the `routing` universe, Noto
-Emoji 1.05 does map the base, but the log shows only four queued primary-slot
-candidates and the color face's empty outline being rejected: no monochrome
-candidate is ever activated. That is the discovery and charset-trimming loss,
-recorded separately.
+The older expected-tofu cases in `tests/xvfb-emoji-routing.sh` were **not** the
+same defect as the width-1 advance rejection above. For `info-text`,
+`policy-text-grin` and `policy-text-color-wide` in the `routing` universe, Noto
+Emoji 1.05 does map the base, but the coverage-trimmed candidate sort dropped it
+as redundant once the color face covered the same scalars: the log showed four
+queued primary-slot candidates, the color face's empty outline being rejected,
+and no monochrome candidate ever activated.
 
-Those expectations are left unchanged. They accurately describe today's
-behavior and they still prove that forced text presentation never leaks color
-and never alters a committed width. What they cannot do is show that a glyph
-appeared, which is why the positive requirement lives in the new suite instead of
-being bolted onto them.
+That was the discovery loss, and it is now repaired by the presentation-aware
+second sort described in [font-resolution(7)](font-resolution.md). All three
+cases render from `NotoEmoji-Regular.ttf` today, and their expectations in that
+suite were updated from `role=tofu` to the serving role — a strictly stronger
+assertion, since a role and a file are named where nothing was before.
 
-### The rest of the audit
+`tests/xvfb-font-discovery.sh` is the suite for that repair: the reproduction
+itself, clean defaults, a generic rule preferring color, a universe with no
+monochrome face at all, an explicit `fallbackFace1` still outranking discovery,
+`systemFallback: false`, `limitFontsets: 0`, and both CJK routes. Nine cases,
+each checking route identity, containment and the cursor column.
 
-Every other expected-tofu assertion in the suite was checked against the
-fixture manifest and found to be a genuine absence, so none of them needed a
-change:
-
-| Assertion | Why tofu is correct |
-| --- | --- |
-| `xvfb-font-tofu.sh`, both cases | The whole point of the suite: all roles cleared and `systemFallback: false` |
-| `xvfb-emoji-routing.sh` `no-color-*` | Color declined for bases whose only ink is color or bitmap; already annotated upstream of this work |
-| `xvfb-font-wide-boundary.sh` `configured-wide-miss` | The wide face is Noto Emoji, whose manifest probe records `cjk_sentinel: missing` |
-| `xvfb-font-han.sh` U+65E5 with an unsupported IVS | Exact IVS matching must reject it |
-| `xvfb-font-route-cache.sh` and `check-font-routing-report.py` U+10FFFF | A noncharacter, unassigned in every face |
-
-That two different mechanisms produce an indistinguishable final `role=tofu` is
-itself a finding: the route log cannot separate lost candidates from advance
-rejection without reading earlier lines. The diagnostics work in the priorities
-should make that distinction visible at the route.
+One thing that repair did not change is worth keeping in view: a final
+`role=tofu` still cannot be told apart from absent coverage without reading the
+earlier log lines. Distinguishing lost candidates, advance rejection and genuine
+absence at the route itself is the diagnostics work, still outstanding.
 
 ## The resources themselves
 

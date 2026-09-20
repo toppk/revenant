@@ -280,6 +280,10 @@ tar -xOf "$work/sources/TwitterColorEmoji-SVGinOT-Linux-15.1.0.tar.gz" \
 
 python3 "$project_root/tools/font-fixtures/make-sbix.py" \
 	"$work/fonts/XtpSyntheticSbix.ttf"
+# Filler faces for the crowded-inventory universe.  They live outside fonts/ so
+# they stay out of the manifest: they are adversaries for candidate selection,
+# not fixtures any rendering test inspects.
+python3 "$project_root/tools/font-fixtures/make-crowd.py" "$work/fonts-crowd" 36
 cp -- "$project_root/LICENSE" "$work/licenses/XTP-MIT.txt"
 cp -- "$work/sources/openmoji-17.0.0-LICENSE.txt" \
 	"$work/licenses/OpenMoji-17.0.0-CC-BY-SA-4.0.txt"
@@ -346,6 +350,22 @@ make_universe routing-modern "${base_fonts[@]}" \
 # of them.  A presentation-aware request must survive it.
 make_universe alias-emoji "${base_fonts[@]}" \
 	NotoEmoji-Regular-3.003.ttf Noto-COLRv1.ttf
+# Thirty-six filler faces carry the primary family name and each map one unique
+# private-use codepoint, so family scoring puts them at the top of the candidate
+# sort and coverage trimming keeps all of them.  The monochrome emoji face then
+# sorts past the ordinary inventory bound, which is the point: it must still be
+# reachable, and a blind prefix of any pass would miss it.
+make_universe crowded "${base_fonts[@]}" \
+	NotoEmoji-Regular-3.003.ttf Noto-COLRv1.ttf
+cat >"$work/universes/crowded/fontconfig.conf" <<'EOF'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <dir prefix="relative">fonts</dir>
+  <dir prefix="relative">../../fonts-crowd</dir>
+  <cachedir prefix="xdg">fontconfig</cachedir>
+</fontconfig>
+EOF
 cat >"$work/universes/alias-emoji/fontconfig.conf" <<'EOF'
 <?xml version="1.0"?>
 <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
@@ -356,6 +376,15 @@ cat >"$work/universes/alias-emoji/fontconfig.conf" <<'EOF'
     <test name="family"><string>Noto Emoji</string></test>
     <test name="color" compare="not_eq" qual="all"><bool>false</bool></test>
     <edit name="family" mode="prepend" binding="strong"><string>Noto Color Emoji</string></edit>
+  </match>
+  <!-- The second rule reaches the requests automatic discovery makes, which are
+       seeded from the primary family, not from an emoji family.  Stating a color
+       preference there is what 60-generic.conf does in shape: unless the request
+       says otherwise, prefer color.  Candidate selection must survive it. -->
+  <match target="pattern">
+    <test name="family"><string>DejaVu Sans Mono</string></test>
+    <test name="color" compare="not_eq" qual="all"><bool>false</bool></test>
+    <edit name="color" mode="append"><bool>true</bool></edit>
   </match>
 </fontconfig>
 EOF
@@ -488,8 +517,10 @@ contract.
 The `empty` universe deliberately contains no fonts. The `base`, `cbdt`,
 `cbdt-legacy`, `cbdt-lowres`, `colrv0`, `colrv1`, `mono`, `mono-modern`,
 `svginot`, `atomic-tag`, `sbix`, `cjk`, `cjk-emoji`, `routing`,
-`routing-modern`, `alias-emoji`, `legacy-routing`, and `shaping`
-universes isolate the remaining rendering and fallback scenarios. `alias-emoji`
+`routing-modern`, `alias-emoji`, `crowded`, `legacy-routing`, and `shaping`
+universes isolate the remaining rendering and fallback scenarios. `crowded` adds
+the generated `fonts-crowd/` filler faces, which push the monochrome emoji face
+past the candidate inventory bound. `alias-emoji`
 additionally carries a hostile pattern rule that redirects a monochrome family
 request to the color family unless the request states `color=false`. Moving this
 entire tree is safe because its Fontconfig paths and font links are relative.
@@ -502,6 +533,9 @@ python3 "$project_root/tools/font-fixture-info.py" --check "$work/manifest.json"
 if command -v fc-list >/dev/null 2>&1; then
 	for universe in "$work/universes"/*; do
 		expected=$(find "$universe/fonts" -type l | wc -l)
+		if [[ ${universe##*/} == crowded ]]; then
+			expected=$((expected + $(find "$work/fonts-crowd" -name '*.ttf' | wc -l)))
+		fi
 		actual=$(XDG_CACHE_HOME="$universe/cache" \
 			FONTCONFIG_FILE="$universe/fontconfig.conf" fc-list : file | \
 			sed -n 's/:.*//p' | sort -u | wc -l)

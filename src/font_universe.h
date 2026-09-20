@@ -17,7 +17,15 @@
 #define XTP_FONT_SLOTS 8
 #define XTP_XFT_STYLE_COUNT 4
 #define XTP_FALLBACK_FACE_COUNT 16
+/* Ordinary system candidates stored per (slot, style).  This is an inventory
+ * bound on enumeration, independent of limitFontsets, which budgets how many
+ * glyph-bearing faces may be opened: raising that budget cannot recover a
+ * candidate this bound excluded. */
 #define XTP_XFT_FALLBACK_CAPACITY 32
+/* Reserved beyond that bound for candidates a presentation-aware pass finds,
+ * which the ordinary coverage-trimmed sort drops as redundant. */
+#define XTP_XFT_PRESENTATION_RESERVE 8
+#define XTP_XFT_FALLBACK_SLOTS (XTP_XFT_FALLBACK_CAPACITY + XTP_XFT_PRESENTATION_RESERVE)
 #define XTP_GLYPH_INK_CACHE_SIZE 256
 #define XTP_VISUAL_TEXT_CAPACITY 64
 #define XTP_FITTED_FACE_CACHE_SIZE 64
@@ -38,14 +46,23 @@ typedef struct
         XftFont *font;
         Boolean attempted;
         Boolean activated;
+        Boolean presentation_reserved;
         uint8_t named_index;
 } XtpXftFallbackCandidate;
 
 typedef struct
 {
         XtpXftFallbackCandidate candidates[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT]
-                                          [XTP_XFT_FALLBACK_CAPACITY];
+                                          [XTP_XFT_FALLBACK_SLOTS];
         FcPattern *system_requests[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
+        /* The presentation-aware sort is retained rather than consumed, so a
+         * candidate can be chosen for the atom that actually missed instead of
+         * from a blind prefix.  Each atom searches it from the start with its own
+         * cursor: a candidate that does not cover one atom must stay available to
+         * every other atom. */
+        FcPattern *monochrome_requests[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
+        FcFontSet *monochrome_sets[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
+        uint8_t presentation_counts[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
         XftFont *primaries[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
         Boolean system_loaded[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
         uint8_t counts[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
@@ -54,6 +71,11 @@ typedef struct
         /* [explicit_counts, named_counts) are numbered user fallbacks. */
         uint8_t named_counts[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
         uint8_t activated_counts[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
+        /* When set, activations count against another role's budget instead of
+         * this set's own.  The unnamed emoji role shares the primary role's
+         * budget, so automatic color discovery does not hand the default
+         * configuration a second allowance of limitFontsets. */
+        uint8_t *shared_activations[XTP_FONT_SLOTS][XTP_XFT_STYLE_COUNT];
 } XtpXftFallbackSet;
 
 typedef enum

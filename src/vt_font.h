@@ -15,6 +15,10 @@ Boolean VtFontEnsureSlot(Vt100Rec *vt, int slot);
 Boolean VtFontUniverseReload(Vt100Rec *vt);
 void VtFontUniverseDestroy(Vt100Rec *vt, XtpFontUniverse *universe);
 XftFont *VtFontFittedForSpan(Vt100Rec *vt, XftFont *source, unsigned int span);
+/* CURSOR is this atom's position in the retained sort; start it at zero for each
+ * atom and keep it across that atom's retries. */
+Boolean VtFontDiscoverForCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot,
+                                 unsigned int style, const char *text, size_t length, int *cursor);
 void VtFontUniverseClose(Vt100Rec *vt);
 Boolean VtFontEnsureXftDraw(Vt100Rec *vt);
 Boolean VtFontEnsureCairoDraw(Vt100Rec *vt);

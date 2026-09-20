@@ -3,12 +3,12 @@
 # Route identity and width policy for explicitly configured font chains.
 #
 # This suite grades which role and font a cluster reaches and that policy never
-# changes a committed width.  It is not the artwork gate: several cases below
-# expect role=tofu, and deterministic tofu is monochrome ink, so a `mono` pixel
-# class here is not evidence that a glyph was drawn.  Positive text-emoji
-# artwork, with modern monochrome coverage and an explicit known-gap list, lives
-# in xvfb-emoji-artwork.sh.  Each expected-tofu case is annotated with the
-# mechanism that produces it, audited against the debug log.
+# changes a committed width.  It is not the artwork gate: a `mono` pixel class
+# here is not evidence that a glyph was drawn, because deterministic tofu is
+# monochrome ink too.  Positive text-emoji artwork lives in
+# xvfb-emoji-artwork.sh and candidate discovery in xvfb-font-discovery.sh.  The
+# remaining expected-tofu cases are annotated with the mechanism that produces
+# them, audited against the debug log.
 
 set -eu
 
@@ -26,6 +26,11 @@ fixture_root=$4
 xtp_xvfb_test_init
 xtp_require_font_fixtures "$fixture_root"
 xtp_start_xvfb "$xvfb"
+# Every case here pins a serving role, so a developer's own ~/.Xdefaults naming a
+# face resource would silently replace one.  The terminal runs against an empty
+# home with inherited resource files neutralized; nothing outside test_dir is
+# touched.
+mkdir "$test_dir/empty-home"
 
 wait_for_terminal()
 {
@@ -46,6 +51,7 @@ run_case()
     color_glyphs=${10}
     primary_face=${11:-DejaVu Sans Mono:rgba=none}
     grapheme_width=${12:-default}
+    expected_file=${13:-}
     log=$test_dir/$case_name.log
     cpr=$test_dir/$case_name.cpr
     done_dir=$test_dir/$case_name.done
@@ -70,7 +76,8 @@ run_case()
 
     # The single-quoted program is expanded by the child bash, not this shell.
     # shellcheck disable=SC2016
-    "$fixture_root/run" "$universe" "$terminal" -debug +sb -geometry 8x4 \
+    HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+        "$fixture_root/run" "$universe" "$terminal" -debug +sb -geometry 8x4 \
         -fa "$primary_face" -fs 16 "$@" \
         -xrm 'xterm.vt100.internalBorder: 4' \
         -xrm 'xterm.vt100.background: #000000' \
@@ -108,6 +115,19 @@ run_case()
     then
         echo "$case_name expected class=$expected_class, width=$expected_width, route=$expected_route, and no following-cell ink" >&2
         tail -160 "$log" >&2
+        exit 1
+    fi
+    if test -n "$expected_file" && \
+       ! grep -F -q -- "font: route $expected_route" "$log"
+    then
+        echo "$case_name lost its route line before the effective-file check" >&2
+        exit 1
+    fi
+    if test -n "$expected_file" && \
+       ! grep -F -- "font: route $expected_route" "$log" | grep -F -q -- "/$expected_file "
+    then
+        echo "$case_name expected the atom to be served from $expected_file" >&2
+        grep -F -- "font: route $expected_route" "$log" | tail -2 >&2
         exit 1
     fi
     if test "$case_name" = heart-vs16-unicode
@@ -188,7 +208,8 @@ run_cursor_clip_case()
     # clip, the cursor repaint sizes the square emoji to the cell height and
     # overwrites the following cell.
     # shellcheck disable=SC2016
-    "$fixture_root/run" routing "$terminal" -debug +sb -geometry 8x4 \
+    HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+        "$fixture_root/run" routing "$terminal" -debug +sb -geometry 8x4 \
         -fa 'DejaVu Sans Mono:rgba=none' -fs 16 \
         -fe 'Noto Color Emoji' -fd 'Noto Sans Mono CJK JP' \
         -xrm 'xterm.vt100.internalBorder: 4' \
@@ -251,17 +272,16 @@ run_case routing heart-vs16-default ❤️ color 1 \
 run_case routing heart-vs15 '❤︎' mono 1 \
     'base=U+2764 width=1 presentation=text role=primary' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
-# Audited expected miss, not an artwork expectation.  This universe's
-# monochrome face is Noto Emoji 1.05, which does map U+2139; the log shows only
-# four queued primary-slot candidates and the color face's empty outline being
-# rejected, so the monochrome alternative is never activated.  That is the
-# discovery loss in the fallback review, and the final `role=tofu` cannot be
-# told apart from absent coverage without reading the log.  The positive
-# requirement is gated in xvfb-emoji-artwork.sh; do not turn this into a
-# `mono`-only success assertion.
+# This case used to expect tofu: the coverage-trimmed candidate sort dropped this
+# universe's monochrome face as redundant once the color face covered U+2139, so
+# the alternative was never activated.  The presentation-aware discovery pass now
+# recovers it, and the span fitting policy makes its oversized glyph fit, so the
+# atom is served from Noto Emoji 1.05.  Route identity is the assertion here;
+# artwork lives in xvfb-emoji-artwork.sh and discovery in xvfb-font-discovery.sh.
 run_case routing info-text ℹ mono 1 \
-    'base=U+2139 width=1 presentation=text role=tofu' \
-    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
+    'base=U+2139 width=1 presentation=text role=fallback' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' default NotoEmoji-Regular.ttf
 run_unicode_case routing info-vs16-unicode ℹ️ color 2 \
     'base=U+2139 width=2 presentation=emoji role=emoji' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true
@@ -327,17 +347,18 @@ run_case legacy-routing legacy-cbdt-fallthrough 🫨 color 2 \
 run_case routing policy-emoji-heart ❤ color 1 \
     'base=U+2764 width=1 presentation=emoji role=emoji' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' emoji true
-# Two more audited expected misses with the same shape: Noto Emoji 1.05 maps
-# U+1F600, and forced text presentation correctly refuses the color face's
-# color-only glyph, but no monochrome candidate is activated.  What these two
-# cases do establish is that forced text never leaks color and never changes the
-# committed width; they establish nothing about visible ink.
+# Forced text presentation still refuses the color face's color-only glyph, and
+# the recovered monochrome candidate now serves the atom through the wide slot.
+# These two continue to establish that forced text never leaks color and never
+# changes the committed width; they now also pin the serving role.
 run_case routing policy-text-grin 😀 mono 2 \
-    'base=U+1F600 width=2 presentation=text role=tofu' \
-    'Noto Color Emoji' 'Noto Sans Mono CJK JP' text true
+    'base=U+1F600 width=2 presentation=text role=doublesize-fallback' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' text true \
+    'DejaVu Sans Mono:rgba=none' default NotoEmoji-Regular.ttf
 run_case routing policy-text-color-wide 😀 mono 2 \
-    'base=U+1F600 width=2 presentation=text role=tofu' \
-    'Noto Color Emoji' 'Noto Color Emoji' text true
+    'base=U+1F600 width=2 presentation=text role=doublesize-fallback' \
+    'Noto Color Emoji' 'Noto Color Emoji' text true \
+    'DejaVu Sans Mono:rgba=none' default NotoEmoji-Regular.ttf
 
 # Declining color uses genuine outlines; rejected empty/bitmap-only bases
 # exhaust the role chain and render deterministic tofu.

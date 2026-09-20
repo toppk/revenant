@@ -299,6 +299,163 @@ also carries outlines is rejected here exactly as it is anywhere else. The
 effective file and index are reported, so a family that resolved elsewhere is
 visible rather than assumed.
 
+### Presentation-aware discovery
+
+`FcFontSort` is asked twice for a slot's system candidates, and the two results
+are used differently.
+
+The first sort is unchanged: the slot-seeded request, coverage-trimmed, stored in
+order until the inventory bound is reached. The second states the monochrome
+preference — `FC_COLOR` deleted and re-added as false — and is **retained rather
+than drained**. Nothing is stored from it up front.
+
+The second sort exists because trimming answers a coverage question, not a
+presentation one. When a color face covers the same scalars, the trimmed sort
+drops the monochrome face as redundant and it never reaches the inventory at all,
+so a text-presentation atom has nothing to route to however large the activation
+budget is. Measured in the `routing` fixture universe: the trimmed sort omits
+`Noto Emoji` entirely, the untrimmed sort has it seventh, and the
+monochrome-preferring sort has it fifth, ahead of the color face. Shared
+character coverage does not imply interchangeable presentation.
+
+It is retained rather than drained because a prefix of it would only exchange one
+blind cutoff for another. Unrelated monochrome faces sort first in plenty of
+environments, and they would fill a reserve before the needed face was reached.
+Instead, when every stored candidate has missed a particular atom, the sort is
+scanned for the first non-color face whose charset covers **that atom's** required
+scalars; it is appended and tried, and if it also misses, the scan resumes where
+it stopped.
+
+The scan position belongs to **one atom's search**. Each unresolved atom starts at
+the beginning of the retained sort and carries its own cursor across its own
+retries. A shared cursor would be a correctness bug, not an optimization: a face
+that does not cover the atom being searched for would be stepped over
+permanently, and every later atom that face does cover would be denied it.
+
+Repeating the scan per atom is bounded work. A face that covers an atom is
+appended once and found by the ordinary walk afterwards, so a full rescan only
+happens for an atom nothing covers — and that atom's tofu route is cached, so it
+does not rescan on repaint either.
+
+Three bounds, deliberately distinct:
+
+- `XTP_XFT_FALLBACK_CAPACITY`, 32, bounds **enumeration** of ordinary candidates
+  per (slot, style).
+- `XTP_XFT_PRESENTATION_RESERVE`, 8, bounds how many candidates the per-atom scan
+  may append, counted in `presentation_counts` and enforced, not merely implied
+  by the array size. An atom nothing covers appends nothing, so it cannot spend
+  the reserve on behalf of later atoms. They are stored beyond the ordinary bound, so recovering an
+  alternative never costs an ordinary candidate its place.
+- `limitFontsets`, default 50, budgets **activation**: how many glyph-bearing
+  faces may be opened. Raising it cannot recover a candidate enumeration
+  excluded, which is why the inventory needed its own answer.
+
+Nothing else moves. The scan runs only where system candidates already ran, so
+`systemFallback: false` still suppresses it, `limitFontsets: 0` still exits before
+it, explicit entry 1, entry 2 and numbered fallbacks keep their precedence, and
+the Han and wide routes are untouched: a discovered candidate still has to satisfy
+coverage, presentation and ink for the atom in front of it. A candidate the scan
+supplied is reported as `source=monochrome` when it activates, and the scan logs
+how far it went, against both the sort length and the reserve.
+
+Discovery remains bounded work over a Fontconfig-ordered list. It is not a
+guarantee that an installed face will always be found; `faceNameEmojiText` is the
+lever that does not depend on discovery.
+
+### Automatic color-emoji discovery
+
+A role with no configured face name has no system-candidate seed, because the
+seed is built from that name. With `faceNameEmoji` unset, the emoji branch
+therefore had nothing to discover and an emoji-presentation atom could reach tofu
+with a usable color face installed. `faceNameDoublesize` masked this whenever it
+happened to be set: the wide role's seed served the emoji branch on its behalf.
+
+The emoji role's normal-style request is now seeded even when the role is unnamed:
+
+- The seed is built from **entry 1 of the primary chain**, the one face guaranteed
+  to exist, with `FC_COLOR` stated as true so the sort prefers color faces. It is
+  the mirror of the monochrome sort above, and for the same reason: presentation
+  has to be requested, not hoped for.
+- It is prepared only when `faceNameEmoji` is unset. A named emoji role keeps its
+  own seed, built from its own name, exactly as before.
+- It is prepared only when `systemFallback` is true and `limitFontsets` is
+  nonzero, so both controls still suppress it.
+- Routing coverage is decided through the normal instance, so only that style is
+  seeded.
+
+**Where the seeded candidates are consulted matters, and it is not where a
+configured role's are.** A configured emoji role keeps its system candidates
+inside the emoji branch, as before. The unnamed role's seeded candidates are
+automatic, so they are consulted in the primary slot's tail instead: after entry
+1, entry 2 and `fallbackFace1` … `fallbackFace16`, after the `faceNameEmojiText`
+rescue, and before the presentation-neutral primary sort. Consulting them any
+earlier would let a discovered color font override a usable explicit choice,
+which is the one thing automatic discovery must never do.
+
+Before the primary sort rather than after it, because that sort states no
+presentation and would answer a color-emoji atom with the first covering face —
+in the fixtures, a monochrome one.
+
+The seed earns its place by ordering, not by reachability. With neither slot
+configured the atom already fell through to the primary slot's candidates, but
+that sort states no presentation, so it answered a color-emoji atom with the
+first covering face — in the fixtures, a monochrome one. A color-preferring seed
+is what makes the emoji slot answer with color artwork.
+
+**The budget is shared, not duplicated.** Each fallback set counts activations
+separately, so a set of its own would have handed the default configuration a
+second allowance of `limitFontsets`. The unnamed emoji role's activations
+therefore count against the primary role's counter through
+`shared_activations`. A configured emoji role keeps its own budget, exactly as
+before. T0's `LM-02` pins this: with `limitFontsets: 1`, the single allowance is
+spent on the first atom and the emoji atom gets no fallback at all.
+
+This is deliberately **not** extended to the wide role. An unset
+`faceNameDoublesize` still seeds nothing, so wide-text and CJK discovery are
+untouched: emoji presentation is the demonstrated requirement, and widening
+unnamed discovery to the wide role would change Han and kana routing without one.
+
+One inherited rule had to be scoped for this to work at all. The fallback advance
+rule refuses a candidate whose glyphs are wider than the committed cells, and
+every color emoji is about two cells wide by design, so a width-one color atom
+was refused however it was discovered. The rule now follows one of three policies
+per atom: `STRICT` is the inherited behavior; `FIT` adds span fitting for
+text-emoji atoms; and `EMOJI` exempts a candidate that will paint as **color
+artwork**, because the paint path already scales that into the committed cells,
+exactly as it does for a configured emoji role. A monochrome candidate under
+`EMOJI` is still refused, since an outline glyph is drawn at its normalized size
+and would overflow. `limitFontWidth` itself is unchanged.
+
+T0's `LM-03` records the one projected outcome that moves: the same request
+resolves the same file within the same budget, but the serving role is
+`emoji-fallback` rather than the primary slot's `fallback`. The oracle-deposed
+facts — file, index, activation count — are unchanged; only Revenant's own role
+label differs, because an emoji-presentation atom is now served by the emoji
+slot. The xterm deposition in `compat/xterm-411-face-name.json` is untouched.
+
+Acceptance is unchanged, which is what keeps `colorGlyphs: false` honest. A
+discovered candidate must still cover the atom and produce ink under the current
+paint policy, so declining color still refuses a color-only glyph and still ends
+in deterministic tofu rather than leaking color.
+
+### What presentation does and does not decide
+
+Presentation orders candidates and governs paint. It does **not** make a
+monochrome face ineligible for an emoji-presentation atom, and no blanket
+rejection is implemented. The observable policy, with no color face installed at
+all, follows from the advance rule rather than from presentation:
+
+| Atom | Outcome |
+| --- | --- |
+| One cell (bare VS16 under the legacy width regime) | The monochrome face's glyphs are about two cells wide, the advance rule refuses them, and the atom is deterministic tofu |
+| Two cells (an emoji-default base, or VS16 under mode 2027) | The advance rule does not apply, so the monochrome face covers the atom, produces ink, and serves it |
+
+So a wide emoji atom can render in monochrome when nothing colored is installed.
+That is a coverage outcome, not a presentation swap: the color-preferring seed
+had nothing color to offer, and the ordinary acceptance rules then applied. Both
+rows are asserted in `tests/xvfb-font-discovery.sh`; neither is a general claim
+about presentation.
+
 ### Span fitting
 
 `fitEmojiText` defaults to true and governs one narrow behavior. For a
