@@ -130,6 +130,21 @@ run_case()
         grep -F -- "font: route $expected_route" "$log" | tail -2 >&2
         exit 1
     fi
+    case $case_name in
+    seq-*)
+        # Containment for the sequence cases is not just the following cell: the
+        # band below the atom's whole span must stay blank too.
+        below=$("$window_ink" "$window" --expose 4 $((4 + cell_height)) \
+            $((expected_width * cell_width)) "$cell_height" 0x000000)
+        below_class=$(printf '%s\n' "$below" | sed -n 's/^class=\([^ ]*\).*/\1/p')
+        printf '%-18s below-span=%s\n' "$case_name" "$below_class"
+        if test "$below_class" != blank
+        then
+            echo "$case_name painted ink below its span: $below" >&2
+            exit 1
+        fi
+        ;;
+    esac
     if test "$case_name" = heart-vs16-unicode
     then
         damage_width=$((cell_width / 2))
@@ -336,6 +351,97 @@ run_unicode_case routing sequence-atomic-fallback ❤️‍🔥 color 2 \
 run_unicode_case routing sequence-ligature-fallback 👩‍💻 color 2 \
     'base=U+1F469 width=2 presentation=emoji role=doublesize glyphs=1' \
     'Noto Emoji' 'Noto Color Emoji' unicode true
+
+# Styled whole-sequence selection.  The generated styled family maps both
+# components and the joiner in all three real faces, and only Regular carries the
+# `liga` rule that joins them, so a bold or italic request has a real, covering
+# candidate that still cannot shape the complete atom.  Production accepts a styled
+# candidate only when it shapes the whole cluster to one glyph
+# (`requires_composition` in src/font_router.c), which these cases grade in both
+# places style selection happens: the configured role and the fallback candidate
+# list.  Every case runs in mode 2027, because the complete grapheme is the atom
+# under test; the effective file is the discriminator, since the route line reports
+# the *requested* bold/italic attributes either way.
+zwj_man_laptop=$(printf '\U0001F468\u200D\U0001F4BB')
+man=$(printf '\U0001F468')
+bulb=$(printf '\U0001F4A1')
+bold=$(printf '\033[1m')
+italic=$(printf '\033[3m')
+styled_family='XTP Styled Emoji'
+partial_family='XTP Partial Sequence'
+# The complete sequence, served by the one face that can shape it.
+run_case styled-emoji seq-styled-normal "$zwj_man_laptop" mono 2 \
+    'base=U+1F468 width=2 presentation=emoji role=emoji glyphs=1' \
+    "$styled_family" 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode XtpStyledEmoji-Regular.ttf
+# Bold and italic requests: the real styled faces of that family cover every
+# component, so only complete-sequence acceptance can decline them.  The complete
+# result must survive, which is the effective file staying Regular.
+run_case styled-emoji seq-styled-bold "$bold$zwj_man_laptop" mono 2 \
+    'base=U+1F468 width=2 presentation=emoji role=emoji glyphs=1' \
+    "$styled_family" 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode XtpStyledEmoji-Regular.ttf
+run_case styled-emoji seq-styled-italic "$italic$zwj_man_laptop" mono 2 \
+    'base=U+1F468 width=2 presentation=emoji role=emoji glyphs=1' \
+    "$styled_family" 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode XtpStyledEmoji-Regular.ttf
+# The controls that make those two mean something: the same request style on one
+# component of the same sequence is served by the styled face itself, so the
+# declines above are about the complete atom and not about coverage or realness.
+run_case styled-emoji seq-component-bold "$bold$man" mono 2 \
+    'base=U+1F468 width=2 presentation=emoji role=emoji glyphs=1' \
+    "$styled_family" 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode XtpStyledEmoji-Bold.ttf
+run_case styled-emoji seq-component-italic "$italic$man" mono 2 \
+    'base=U+1F468 width=2 presentation=emoji role=emoji glyphs=1' \
+    "$styled_family" 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode XtpStyledEmoji-Italic.ttf
+# A preferred role face that covers both components and cannot shape the sequence:
+# the atom must fall through whole to the later candidate, under every style.
+run_case styled-emoji seq-partial-normal "$zwj_man_laptop" mono 2 \
+    'base=U+1F468 width=2 presentation=emoji role=doublesize glyphs=1' \
+    "$partial_family" "$styled_family" unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode XtpStyledEmoji-Regular.ttf
+run_case styled-emoji seq-partial-bold "$bold$zwj_man_laptop" mono 2 \
+    'base=U+1F468 width=2 presentation=emoji role=doublesize glyphs=1' \
+    "$partial_family" "$styled_family" unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode XtpStyledEmoji-Regular.ttf
+run_case styled-emoji seq-partial-italic "$italic$zwj_man_laptop" mono 2 \
+    'base=U+1F468 width=2 presentation=emoji role=doublesize glyphs=1' \
+    "$partial_family" "$styled_family" unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode XtpStyledEmoji-Regular.ttf
+# Why that role face was refused: it serves one component of the same sequence.
+run_case styled-emoji seq-partial-component "$man" mono 2 \
+    'base=U+1F468 width=2 presentation=emoji role=emoji glyphs=1' \
+    "$partial_family" "$styled_family" unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode XtpPartialSequence-Regular.ttf
+# The same decline in the other place style selection happens: with no wide role
+# the atom is served by a fallback rung, where styled candidates come from the
+# same-family candidate list rather than from a configured role.
+run_case styled-emoji seq-fallback-bold "$bold$zwj_man_laptop" mono 2 \
+    'base=U+1F468 width=2 presentation=emoji role=emoji-fallback glyphs=1' \
+    "$partial_family" - unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode XtpStyledEmoji-Regular.ttf
+# That rung's own control: U+1F4A1 is carried by the styled family alone, so this
+# request reaches the same fallback candidate list -- and there the bold candidate is
+# accepted.  Without this, retaining Regular above would also pass if no usable bold
+# candidate existed on that rung at all.
+run_case styled-emoji seq-fallback-component-bold "$bold$bulb" mono 2 \
+    'base=U+1F4A1 width=2 presentation=emoji role=emoji-fallback glyphs=1' \
+    "$partial_family" - unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode XtpStyledEmoji-Bold.ttf
+# Real-font sequences under a style request, for the types the generated fixture
+# does not cover.  These do not reach the styled-candidate branch -- neither Noto
+# family ships a real bold -- so they grade only that a style request leaves a
+# composed atom whole, with its width and containment intact.
+run_case routing sequence-keycap-bold "$bold"1️⃣ color 2 \
+    'base=U+0031 width=2 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode
+run_case routing sequence-flag-italic "$italic"🇺🇸 color 2 \
+    'base=U+1F1FA width=2 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode
 
 # An emoji-face miss falls through to doublesize; policy never changes width.
 run_case routing emoji-fallthrough 🫨 color 2 \

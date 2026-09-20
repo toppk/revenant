@@ -285,8 +285,10 @@ python3 "$project_root/tools/font-fixtures/make-sbix.py" \
 # not fixtures any rendering test inspects.
 python3 "$project_root/tools/font-fixtures/make-crowd.py" "$work/fonts-crowd" 48
 # One emoji family in three real styles, for the styled fallback selection and
-# fitting paths.  Generated because no staged third-party family covers a
-# text-default emoji base as real regular, bold and italic faces.
+# fitting paths, plus the partial family that covers a ZWJ sequence's components
+# without its ligature.  Generated because no staged third-party family covers a
+# text-default emoji base as real regular, bold and italic faces, and none has a
+# styled member that covers a sequence it cannot shape.
 python3 "$project_root/tools/font-fixtures/make-styled-emoji.py" "$work/fonts-styled"
 cp -- "$project_root/LICENSE" "$work/licenses/XTP-MIT.txt"
 cp -- "$work/sources/openmoji-17.0.0-LICENSE.txt" \
@@ -537,8 +539,10 @@ The `empty` universe deliberately contains no fonts. The `base`, `cbdt`,
 universes isolate the remaining rendering and fallback scenarios. `crowded` adds
 the generated `fonts-crowd/` filler faces, which push the monochrome emoji face
 past the candidate inventory bound. `styled-emoji` adds the generated
-`fonts-styled/` family, whose real bold and italic faces exercise styled fallback
-selection and fitting. `alias-emoji`
+`fonts-styled/` faces: one family whose real bold and italic members exercise styled
+fallback selection, fitting and whole-sequence acceptance, plus a partial family that
+covers a ZWJ sequence's components without its ligature, so a styled candidate can be
+offered a sequence it cannot shape. `alias-emoji`
 additionally carries a hostile pattern rule that redirects a monochrome family
 request to the color family unless the request states `color=false`. Moving this
 entire tree is safe because its Fontconfig paths and font links are relative.

@@ -212,7 +212,9 @@ Regular and Bold map U+1F6E0 to a two-em glyph — a measured advance of 52.187p
 a 13px cell at 16 point — so both must be fitted. Italic maps it to a half-em glyph
 that a GSUB multiple substitution in `liga` decomposes into two, so the run
 advances too far while the face's own maximum advance already fits one cell, which
-is a shape fitting cannot repair. Regular draws two bars and Bold three, so which
+is a shape fitting cannot repair. That half-em maximum advance is load-bearing:
+anything added to these faces has to keep it, which is why the sequence glyphs
+described below are half an em too. Regular draws two bars and Bold three, so which
 face served shows in pixels as well as in the route log. The `styled-emoji`
 universe carries the family from `fonts-styled/`, outside the manifest, for the
 same reason the crowd fillers are outside it: an adversary for one code path, not a
@@ -224,6 +226,75 @@ One coverage limit is worth naming rather than papering over:
   is therefore established by construction — the atom's advance is not an input
   to the scale — and the suite asserts the observable consequence, that two
   atoms share one fitted instance.
+
+## Styled whole-sequence selection
+
+Style selection runs **after** a route is chosen, so a bold or italic request can
+only replace the serving font, never the routing decision. The question that leaves
+open is whether it can replace a *complete* sequence with an incomplete drawing of
+its parts. Production accepts a styled candidate only if it shapes the whole cluster
+to one glyph — `requires_composition` in `FontHasCluster`, `src/font_router.c` —
+and the same condition governs the two places a styled candidate comes from: a
+configured role (`VtFontRoleStyle`) and the same-family candidate list on a fallback
+rung (`FallbackStyleRangeWithCluster`).
+
+`tests/xvfb-emoji-routing.sh` grades that with eleven cases in the `styled-emoji`
+universe, all in mode 2027, because the complete grapheme is the atom under test. The
+same generated family now also carries one ZWJ sequence, U+1F468 ZWJ U+1F4BB: every
+face maps both components and the joiner, and only Regular carries the `liga` rule
+that joins them, verified with `hb-shape` — Regular shapes one glyph, Bold, Italic
+and the partial family shape two, since HarfBuzz drops the default-ignorable joiner.
+A second generated family, **XTP Partial Sequence**, covers the same components with
+no ligature and nothing else, so it can stand in front as a preferred role face. One
+more codepoint, U+1F4A1, is carried by the styled family alone, which is how an atom
+is steered onto a fallback rung rather than to the preferred role face.
+
+The sequence glyphs are half an em, the same as Italic's own U+1F6E0 glyph, so that
+no face's maximum advance changes: that value is an input to the fitting decisions the
+styled cases above grade, and a wider component glyph would have raised Italic's
+`advanceWidthMax` from 500 to 700 and quietly moved that mechanism. The three faces'
+`advanceWidthMax`, ascent, descent, weight class, `fsSelection`, italic angle,
+`macStyle` and U+1F6E0 metrics are identical to the pre-change faces, and every
+pre-existing glyph's outline and metrics compare byte-identical; only cmap entries
+were added. Unchanged shaping alone would not have established that.
+
+What the cases establish:
+
+- the complete sequence is served by Regular with `glyphs=1`, and a bold or italic
+  request keeps that effective file — the real, covering styled candidate is declined;
+- the same request style on **one component** of that sequence is served by the bold
+  or italic file itself, which is what makes the declines above attributable to
+  complete-sequence acceptance rather than to coverage or to a synthesised style;
+- a preferred role face that covers both components and cannot shape the sequence is
+  refused whole: the atom falls through to the later candidate under regular, bold
+  and italic requests, and that same face does serve one component;
+- the decline happens on a fallback rung as well as in a configured role, reached by
+  removing the wide role so the atom is served at `emoji-fallback`;
+- that rung has its own control: under the same configuration, U+1F4A1 is served by
+  the **bold file** at `emoji-fallback`, so retaining Regular for the sequence is not
+  merely the absence of a usable bold candidate on that rung;
+- every case keeps non-tofu ink, a blank following cell, a blank band below the whole
+  span, and a CPR-measured advance of two columns, independent of which face served.
+
+Disabling the acceptance check (dropping `requires_composition && run->count != 1U`)
+makes both decisive cases fail. `seq-styled-bold` and `seq-fallback-bold` then accept
+the Bold face for the incomplete atom: the route loses `glyphs=1` and the painted ink
+goes from 171 pixels in `bounds=6,2,11,19` to 285 in `bounds=0,2,23,19` — the two
+components drawn side by side across the span instead of the joined glyph. The source
+was restored afterwards and the diff is empty.
+
+Two limits, stated rather than implied:
+
+- The route line reports the **requested** bold and italic attributes, not the served
+  face's, so the effective file is the discriminator; `slant=` does follow the served
+  face and distinguishes the italic cases.
+- The fixture's component glyph is the same shape in all three faces, so pixels do
+  not distinguish bold from italic here, and nothing in these cases claims the
+  artwork looks bold or slanted. Human legibility is still not asserted anywhere.
+- Two further cases use real Noto faces for a keycap and a regional flag under a
+  style request. Neither family ships a real bold or italic, so they reach only the
+  "no styled candidate exists" path: they grade that a style request leaves a composed
+  atom whole, with its width and containment intact, and nothing more.
 
 ## Reload and cache coverage
 
