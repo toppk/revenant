@@ -225,6 +225,112 @@ One coverage limit is worth naming rather than papering over:
   to the scale — and the suite asserts the observable consequence, that two
   atoms share one fitted instance.
 
+## Reload and cache coverage
+
+`tests/xtp-font-reload.c`, driven by `tests/xvfb-font-reload.sh` in the
+`routing-modern` universe, carries the emoji transitions in **one running widget**
+so that later steps inherit the state earlier ones produced. What it establishes,
+in order:
+
+1. A one-cell text emoji atom is served by automatic monochrome discovery with role
+   `fallback` from `NotoEmoji-Regular-3.003.ttf`, and the serving font **is** the
+   fitted table's entry for the current span. Routing it again returns the same
+   instance and does not fit the face a second time.
+2. A successful geometry reload of the active slot advances the generation exactly
+   once and changes the cell width. The replaced universe starts with an empty
+   fitted table; re-routing the atom fits the face to the **new** span and no entry
+   for the previous span survives.
+3. A successful font reload that sets `faceNameEmojiText` advances the generation
+   once and changes the serving **role** from `fallback` to `emoji-text`. The role
+   is the assertion, because the same file reached through automatic discovery would
+   prove nothing about the rescue taking over.
+4. A rejected reload leaves the generation and the effective universe unchanged, and
+   the atom then still routes `emoji-text`, from the same file, returning the same
+   fitted instance, which is still the table's entry for the current span.
+
+Two kinds of reuse are asserted separately, because the same font pointer comes
+back either way: the **route cache** gains exactly one entry for the atom and none
+when it is routed again, and the **fitted table** keeps exactly one instance. Both
+counters reset when the universe is replaced.
+
+A count that does not grow is not a hit, since re-storing the same key would also
+leave it unchanged, so the hit itself is read from the router's own debug logging
+(`src/font_router.c` logs `route-cache hit`, `miss` and `stale`). The helper raises
+the log level and prints a `PHASE` marker before each transition; the suite then
+attributes the lines to phases and requires a `miss` for the atom's first route, a
+`hit` for the repeat, and **no** `route-cache stale` line anywhere, since a stale
+entry surviving a reload is exactly the defect this area is about.
+
+Evidence is observable state — generation counters, role names, effective files and
+the fitted table's spans. Nothing compares against a font pointer from a destroyed
+universe: an allocator may hand the same address back, so identity there would
+prove nothing about replacement. The
+suite's snapshot check pins the generation sequence `2, 4, 4`: advanced by each
+successful reload, held by the rejected one. The whole suite also runs under
+AddressSanitizer, since this is the path where a universe is destroyed while fitted
+faces and route-cache entries point into it.
+
+What these transitions do **not** cover:
+
+- Nothing about **pixels**: routing is in-process here. Painting across the same
+  transitions is covered by the separate helper below, which is why the routing
+  helper keeps the stub backend.
+- Only the monochrome text path. The color emoji role and the styled bold and italic
+  faces are not exercised across a reload.
+- The presentation reserve's interaction with reload is untested: a reload clears the
+  reserve by replacing the universe, which no case asserts.
+
+### Painting across the same transitions
+
+`tests/xtp-font-reload-paint.c` is the painted variant, run by the same suite. The
+routing helper links `src/terminal_stub.c` (`meson.build`), and the stub ignores
+input, emits no cells and reports column zero, so it can never paint: the painted
+variant links the real backend instead and asserts that with
+`XtpTerminalBackendIsStub` **before** it looks at any pixel. It keeps one widget
+across every transition, as the routing helper does.
+
+It is deliberately narrow. It paints through `XtpTerminalFeedOutput` and
+`XtpVtUpdate` — the dirty-update path the application uses; `XtpVtRedraw` repaints
+the cached frame, so every sample would have shown the first screen — and reads back
+rectangles of the window with `XGetImage`. Two harness facts are established before
+any emoji claim: plain ASCII paints ink in its own cell and advances one column, and
+the reference character U+E000 **routes to tofu** — asserted, not assumed from a
+nonblank drawing — and paints the box whose checksum is what "not tofu" then means at
+that geometry. The reference is re-measured before every phase, since a reload
+changes the cell.
+
+Four phases follow in one widget: automatic fallback, the same after a geometry
+reload, the explicit `faceNameEmojiText` rescue, and the rejected reload that has to
+keep painting from the retained universe. Each asserts, for bare U+1F6E0: the
+**serving role** expected of that phase (`fallback`, then `emoji-text`) and an
+effective file of `NotoEmoji-Regular-3.003.ttf` for the very route the paint draws
+from; then ink present, a checksum different from that geometry's tofu box, and
+containment. The rescue phase is where role and file diverge in usefulness: the file
+is the same one automatic discovery already found, so only the role shows the rescue
+took over — and only the paint shows it still draws.
+
+Containment is measured **outside** the atom: the cell to its right and the full
+two-cell-wide band in the row below must be blank. A bound computed inside the
+sampled cell, as an earlier version had, cannot fail, so it is gone rather than
+labelled. The containment sample is taken with the cursor hidden, since the cursor
+block inks the cell after the atom; the advance is read from a second paint with it
+visible, since the core reports a cursor column only for a visible cursor.
+
+The widget is created with `internalBorder` 0 and white-on-black through
+`XtVaTypedArg`: those resources are a Dimension and Pixels, so a plain string
+argument is stored as its pointer value, which put the text origin off-window and
+left the window a uniform garbage color — every cell then sampled identically and
+the emoji looked "pixel-identical to tofu".
+
+Each of these checks was shown to reject a wrong expectation: naming the
+`emoji-text` role in the automatic phase, expecting `DejaVuSansMono.ttf` as the
+effective file, using a served character as the tofu reference, and painting ink into
+the cell beside the atom or the row below it each produce the corresponding failure.
+
+What it does not cover: only the monochrome text path and this one atom, no color or
+styled faces, and no assertion that the artwork is recognizable — it distinguishes
+drawings, it does not read them.
+
 ## Running it
 
 ```sh

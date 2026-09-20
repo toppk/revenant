@@ -345,6 +345,35 @@ font_reload_test_tool = executable(
     install: false,
 )
 
+# The same transitions with the real terminal backend, which is what makes painting
+# observable: the stub emits no cells and reports column zero.
+font_reload_paint_test_tool = executable(
+    'xtp-font-reload-paint',
+    [
+        'tests/xtp-font-reload-paint.c',
+        widget_sources,
+        terminal_sources,
+        terminal_link_sources,
+    ],
+    include_directories: include_directories('src'),
+    c_args: terminal_compile_args,
+    dependencies: [
+        x11_dep,
+        xt_dep,
+        xaw_dep,
+        xmu_dep,
+        fontconfig_dep,
+        xft_dep,
+        xrender_dep,
+        cairo_dep,
+        cairo_ft_dep,
+        cairo_xlib_dep,
+        harfbuzz_dep,
+        m_dep,
+    ],
+    install: false,
+)
+
 key_test_tool = executable(
     'xtp-send-key',
     'tests/xtp-send-key.c',
@@ -827,6 +856,7 @@ if build_with_ghostty and xvfb.found()
             files('tests/xvfb-font-reload.sh'),
             xvfb.full_path(),
             font_reload_test_tool.full_path(),
+            font_reload_paint_test_tool.full_path(),
             meson.current_source_dir() / 'font-fixtures-stage',
         ],
         timeout: 30,
