@@ -10,8 +10,10 @@ def fail(message: str) -> None:
     raise SystemExit(f"font routing report: {message}")
 
 
-if len(sys.argv) != 3 or sys.argv[2] not in {"enabled", "disabled"}:
-    fail(f"usage: {sys.argv[0]} LOG enabled|disabled")
+REQUIRED_MISS = {"advance": "advance", "reserve": "reserve"}
+
+if len(sys.argv) != 3 or sys.argv[2] not in {"enabled", "disabled"} | REQUIRED_MISS.keys():
+    fail(f"usage: {sys.argv[0]} LOG enabled|disabled|advance|reserve")
 
 records = []
 for line in Path(sys.argv[1]).read_text(encoding="utf-8").splitlines():
@@ -28,7 +30,8 @@ if any(record.get("schema") != 1 or not isinstance(record.get("type"), str) for 
     fail("record missing schema=1 or string type")
 
 snapshots = [record for record in records if record["type"] == "snapshot"]
-if len(snapshots) != 1 or snapshots[0].get("collection") != sys.argv[2]:
+collection = "disabled" if sys.argv[2] == "disabled" else "enabled"
+if len(snapshots) != 1 or snapshots[0].get("collection") != collection:
     fail(f"unexpected snapshot records: {snapshots!r}")
 if sys.argv[2] == "disabled":
     if records != snapshots or snapshots[0].get("records") != 0:
@@ -52,7 +55,18 @@ for record in loads:
     if effective is not None and not {"file", "index", "coords"} <= effective.keys():
         fail(f"invalid effective role: {effective!r}")
 
-allowed_misses = {"cmap", "uvs", "shape", "ink", "budget", "truncated"}
+# advance and reserve were appended to the miss enum; existing names keep their
+# meaning, so a reader that predates them sees new names rather than shifted ones.
+allowed_misses = {
+    "cmap",
+    "uvs",
+    "shape",
+    "ink",
+    "budget",
+    "truncated",
+    "advance",
+    "reserve",
+}
 allowed_rungs = {"entry1", "entry2", "system", "tofu"}
 atoms = {}
 for record in routes:
@@ -73,6 +87,19 @@ for record in routes:
     if "missesTruncated" in record and record["missesTruncated"] is not True:
         fail(f"invalid route miss bound: {record!r}")
     atoms[record["atom"]] = record
+
+# The miss-code cases assert emission and stop: their text is chosen to produce
+# one code, not to exercise the whole enabled corpus.
+if sys.argv[2] in REQUIRED_MISS:
+    wanted = REQUIRED_MISS[sys.argv[2]]
+    seen = {
+        miss.get("code")
+        for record in routes
+        for miss in record.get("misses", [])
+    }
+    if wanted not in seen:
+        fail(f"expected a {wanted!r} miss; saw {sorted(code for code in seen if code)}")
+    raise SystemExit(0)
 
 if atoms.get("0041", {}).get("rung") != "entry1":
     fail("ASCII primary route missing")

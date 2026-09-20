@@ -87,6 +87,20 @@ fi
 grep -q '^  \[ok\] Primary scalable font: DejaVu Sans Mono (faceSize applies)$' \
     "$configured_report"
 grep -q '\[ok\] Color emoji coverage: Noto Color Emoji' "$configured_report"
+grep -q '^Emoji lookup diagnostics$' "$configured_report"
+grep -q 'coverage does not prove active routing or fitting' "$configured_report"
+# The two emoji roles are named, and each probe says which role it stands for.
+grep -q 'faceNameEmoji serves emoji' "$configured_report"
+grep -q 'faceNameEmojiText serves text presentation' "$configured_report"
+# The configured roles are reported as configured, and the fixed probes are
+# labelled as examples rather than as this system's settings.
+grep -q '^    role: configured faceNameEmoji$' "$configured_report"
+grep -q '^    role: .*faceNameEmojiText.*$' "$configured_report"
+grep -q '^  The two lines below are fixed examples, not your configuration\.$' \
+    "$configured_report"
+grep -q '^    role: example: the same family with the monochrome requirement stated$' \
+    "$configured_report"
+grep -q '^  \[.*\] Text emoji coverage: ' "$configured_report"
 grep -q '\[ok\] Relevant xterm/XTerm server settings: found' "$configured_report"
 grep -q '^  \[ok\] Procedural glyphs: forced for supported ranges$' "$configured_report"
 if grep -q '^Seamless terminal graphics$' "$configured_report"
@@ -99,6 +113,95 @@ grep -q "^  host-terminal: $program test-host$" "$configured_report"
 if grep -q '^Readable starter resources$' "$configured_report"
 then
     echo "welcome report treated an explicit scalable font as unconfigured" >&2
+    exit 1
+fi
+
+cat >"$test_dir/emoji-alias.conf" <<EOF
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <dir>$fixture_root/universes/routing/fonts</dir>
+  <cachedir>$test_dir/font-cache</cachedir>
+  <match target="pattern">
+    <test name="family"><string>Noto Emoji</string></test>
+    <test qual="all" name="color" compare="not_eq"><bool>false</bool></test>
+    <edit name="color" mode="assign"><bool>true</bool></edit>
+    <edit name="family" mode="prepend"><string>Noto Color Emoji</string></edit>
+  </match>
+</fontconfig>
+EOF
+alias_report=$test_dir/alias-report
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null \
+    FONTCONFIG_FILE="$test_dir/emoji-alias.conf" \
+    "$terminal" -fa 'DejaVu Sans Mono' -welcome \
+    >"$alias_report" 2>"$test_dir/alias-log"
+grep -q 'Noto Emoji -> Noto Color Emoji; color=yes; U+1F6E0=covered' "$alias_report"
+grep -q 'Noto Emoji:color=false -> Noto Emoji; color=no; U+1F6E0=missing' "$alias_report"
+grep -q 'NotoEmoji-Regular.ttf' "$alias_report"
+# The redirected request is named as a substitution rather than left to be
+# inferred from two family names that happen to differ.
+grep -q 'Noto Emoji -> Noto Color Emoji;.*(substituted by Fontconfig)' "$alias_report"
+if grep -q 'Noto Emoji:color=false ->.*(substituted by Fontconfig)' "$alias_report"
+then
+    echo 'a constrained request that was honored must not be reported as substituted' >&2
+    exit 1
+fi
+
+# The same environment with a modern monochrome face installed: the report
+# suggests the text-emoji role with a copyable, constrained pattern.
+sed "s|universes/routing/fonts|universes/routing-modern/fonts|" \
+    "$test_dir/emoji-alias.conf" >"$test_dir/emoji-modern.conf"
+# No -fa here: the starter-resource fragment is only offered when a readable
+# font is being recommended, and that fragment is what has to be copyable.
+modern_report=$test_dir/modern-report
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null \
+    FONTCONFIG_FILE="$test_dir/emoji-modern.conf" \
+    "$terminal" -welcome \
+    >"$modern_report" 2>"$test_dir/modern-log"
+grep -q '^  \[ok\] Text emoji coverage: Noto Emoji$' "$modern_report"
+grep -q '^    XTerm\*faceNameEmojiText: Noto Emoji:color=false$' "$modern_report"
+grep -q '^  emoji-text-font: Noto Emoji$' "$modern_report"
+
+# A universe whose only emoji face is color: a color-only face must not be
+# reported or suggested as the monochrome text role.
+cat >"$test_dir/color-only.conf" <<EOF
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <dir>$fixture_root/universes/cbdt/fonts</dir>
+  <cachedir>$test_dir/font-cache</cachedir>
+</fontconfig>
+EOF
+color_only_report=$test_dir/color-only-report
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null \
+    FONTCONFIG_FILE="$test_dir/color-only.conf" \
+    "$terminal" -welcome >"$color_only_report" 2>"$test_dir/color-only-log"
+grep -q '^  \[ok\] Color emoji coverage: Noto Color Emoji$' "$color_only_report"
+grep -q '^  \[recommend\] Text emoji coverage: not found$' "$color_only_report"
+grep -q '^  emoji-text-font: not found$' "$color_only_report"
+if grep -q 'faceNameEmojiText:' "$color_only_report"
+then
+    echo 'a color-only face must not be suggested for the monochrome text role' >&2
+    exit 1
+fi
+
+# A configured text role is reported as configured and asked the way the renderer
+# asks it.  Naming a color family here is answered by a redirection rather than by
+# that family, because the monochrome requirement is stated before substitution;
+# the report shows the request, the face it actually reached, and that it was
+# substituted.
+configured_text_report=$test_dir/configured-text-report
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null \
+    FONTCONFIG_FILE="$test_dir/color-only.conf" \
+    "$terminal" -xrm 'XTerm*vt100.faceNameEmojiText: Noto Color Emoji' -welcome \
+    >"$configured_text_report" 2>"$test_dir/configured-text-log"
+grep -q '^  Noto Color Emoji -> DejaVu Sans Mono; color=no; .*(substituted by Fontconfig)$' \
+    "$configured_text_report"
+grep -q '^    role: configured faceNameEmojiText, asked as the renderer asks it$' \
+    "$configured_text_report"
+if grep -q '^    warning: this request answered with a color face$' "$configured_text_report"
+then
+    echo 'a monochrome request answered with a color face; the stated requirement was lost' >&2
     exit 1
 fi
 

@@ -23,12 +23,14 @@ run_case()
     mode=$1
     report_option=$2
     text=$3
+    universe=${4:-routing}
+    extra=${5:-}
     log=$test_dir/$mode.log
     done_dir=$test_dir/$mode-done
 
     # shellcheck disable=SC2086
-    "$fixture_root/run" routing "$terminal" -debug +sb -geometry 12x6 \
-        -fa 'DejaVu Sans Mono:rgba=none' -fs 16 $report_option \
+    "$fixture_root/run" "$universe" "$terminal" -debug +sb -geometry 12x6 \
+        -fa 'DejaVu Sans Mono:rgba=none' -fs 16 $report_option $extra \
         -xrm 'xterm.vt100.translations: #override <Key>F12: report-font-routing()' \
         -xrm 'xterm.vt100.faceNameDoublesize:' \
         -xrm 'xterm.vt100.faceNameEmoji:' \
@@ -74,5 +76,21 @@ run_case()
     terminal_pid=
 }
 
+# A miss code is only trustworthy if omitting or misclassifying it is visible, so
+# each of the two new codes has a case that must produce it.
+#
+# advance: U+2139 is covered by this universe's monochrome face and shaped from
+# it, but its glyphs are wider than one cell.  With fitting disabled the width
+# rule refuses it, which is a different fact from a shaping failure.
+run_case advance '-report-font-routing' '\342\204\271' routing \
+    "-xrm xterm.vt100.fitEmojiText:false"
+# reserve: forty-eight filler faces each map one private-use codepoint, and only
+# thirty-two reach the candidate inventory.  Printing the ones beyond it makes the
+# presentation-aware scan append its maximum and then stop, which is a different
+# fact from finding nothing.  The characters are separated, because consecutive
+# private-use characters shape as one wide cluster and would be a single atom.
+run_case reserve '-report-font-routing' \
+    '\356\200\240 \356\200\241 \356\200\242 \356\200\243 \356\200\244 \356\200\245 \356\200\246 \356\200\247 \356\200\250 \356\200\251 \356\200\252 \356\200\253 \356\200\254 \356\200\255 \356\200\256 \356\200\257' \
+    crowded
 run_case disabled '' 'A'
 run_case enabled '-report-font-routing' 'A\r\n\033[1mA日\033[0m\r\n\364\217\277\277'

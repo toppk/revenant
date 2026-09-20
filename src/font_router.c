@@ -411,7 +411,7 @@ FallbackFontRangeWithCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slo
                                             VtSlotWidth(vt, slot), width,
                                             vt->vt.font_universe->limit_fontwidth);
                                         XtpFontRouteTraceAdd(trace, rung, candidate->named_index,
-                                                             XTP_FONT_MISS_SHAPE);
+                                                             XTP_FONT_MISS_ADVANCE);
                                         continue;
                                 }
                                 /* The exempted color candidate serves as it is;
@@ -469,6 +469,11 @@ SystemFallbackWithCluster(Vt100Rec *vt, XtpXftFallbackSet *fallbacks, int slot, 
                     fallbacks->counts[slot][0], text, length, width, color_glyphs,
                     requires_composition, span_policy, run, trace, rung_out, named_out);
         }
+        /* Distinguish "the scan found nothing" from "the scan was not allowed to
+         * look further", which otherwise read the same in a report. */
+        if (font == NULL && fallbacks->presentation_counts[slot][XTP_XFT_STYLE_NORMAL] >=
+                                XTP_XFT_PRESENTATION_RESERVE)
+                XtpFontRouteTraceAdd(trace, XTP_FONT_RUNG_SYSTEM, 0, XTP_FONT_MISS_RESERVE);
         return font;
 }
 
@@ -558,7 +563,7 @@ EmojiTextRoleWithCluster(Vt100Rec *vt, int slot, const char *text, size_t length
                                        "width=%u limit=%d",
                                        slot, advance, VtSlotWidth(vt, slot), width,
                                        vt->vt.font_universe->limit_fontwidth);
-                                miss = XTP_FONT_MISS_SHAPE;
+                                miss = XTP_FONT_MISS_ADVANCE;
                                 font = NULL;
                         } else {
                                 font = fitted;

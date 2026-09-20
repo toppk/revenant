@@ -125,11 +125,22 @@ The font-routing report answers which configured or automatic font actually
 served each distinct terminal atom. Collection is disabled by default. Enable
 it, bind the snapshot action, and keep standard error separate from the PTY:
 
+`-report-font-routing` alone opens a terminal and collects routes; it does not
+print a report and exit like `-report-config`. The snapshot action must be
+invoked in that newly opened terminal. It cannot inspect another already
+running terminal's font choices.
+
 ```sh
 revenant -report-font-routing \
   -xrm 'XTerm*vt100.translations: #override <Key>F12: report-font-routing()' \
   2>font-routing.ndjson
 ```
+
+The snapshot is written to the terminal's own standard error, which is why the
+example redirects it to a file: sharing that stream with the PTY would interleave
+JSON with whatever the shell is printing. Collection itself prints nothing and
+changes nothing on screen, so a terminal started with `-report-font-routing` and
+never asked for a snapshot looks exactly like any other.
 
 After the relevant text has appeared, press F12. Each output line is an
 independent JSON object with `"schema": 1`. The snapshot contains:
@@ -152,8 +163,22 @@ independent JSON object with `"schema": 1`. The snapshot contains:
 `rung` is `entry1`, `entry2`, a literal numbered name such as
 `fallbackFace7`, `system`, or `tofu`. Tofu records keep `file`, `index`, and
 `coords` present with null values. Routing miss codes are `cmap`, `uvs`,
-`shape`, `ink`, `budget`, and `truncated`; style fallback is a separate
+`shape`, `ink`, `budget`, `truncated`, `advance`, and `reserve`; style fallback
+is a separate
 informational object because it never changes the routed family.
+Four of those say something different about why a usable-looking font did not
+serve, which otherwise look identical on screen:
+
+- `cmap`, `uvs` and `ink`: the face does not cover the atom, lacks the exact
+  variation sequence, or produces no ink for it under the current paint policy;
+- `advance`: the face covers the atom and shapes it, but its glyphs are wider
+  than the committed cells and the fallback width rule refused them. This is the
+  one that used to be reported as `shape`;
+- `budget`: `limitFontsets` was already spent, so the candidate was never opened;
+- `reserve`: the presentation-aware discovery scan had already appended its
+  maximum number of candidates, so it stopped looking rather than finding
+  nothing.
+
 If a route exceeds its 64 recorded misses, it carries
 `"missesTruncated": true`; routing itself continues normally.
 

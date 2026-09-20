@@ -381,6 +381,88 @@ depend on those two pending DEC paths.
 
 ## Diagnosing selection
 
+### Fontconfig and width diagnostics
+
+`revenant -welcome` compares unconstrained `Noto Emoji` with
+`Noto Emoji:color=false`, showing the effective family, file, color property,
+and representative U+1F6E0 coverage. These are candidate lookups, not proof
+that the active renderer selected or successfully fitted those fonts.
+
+Fontconfig settings from attempts to improve xterm also affect Revenant's
+Xft path. They are shared system/user policy, not xterm-specific resources.
+Review `~/.config/fontconfig/fonts.conf`, legacy `~/.fonts.conf`, and
+`/etc/fonts/conf.d`; do not delete intentional preferences automatically.
+For example, preferring Twemoji for generic `emoji` is reasonable for color
+emoji. Standard generic rules can also classify a `Noto Emoji` request as
+emoji and default it to `color=true`. The result can then be Twemoji even
+though a monochrome Noto Emoji file is installed. An explicit `color=false`
+request suppresses that default. Renderer discovery must communicate the
+required presentation and validate the resulting ink.
+
+Use `fc-pattern -c -d 'Noto Emoji'` to inspect substitutions and
+`fc-match -f '%{family} %{file}\n' 'Noto Emoji:color=false'` to inspect the
+selected file. Check that these tools use the same Fontconfig installation as
+Revenant; a second installation in PATH can have different rules.
+
+Selection and fitting are separate. A fallback font is first normalized to
+the primary font's height. For a one-cell atom, the current advance check is:
+
+```text
+abs(shaped advance) < cell width * (1 + limitFontWidth / 100)
+```
+
+This checks pen advance, not visible ink bounds. For text-emoji fallbacks and
+`faceNameEmojiText`, `fitEmojiText` permits retrying an oversized face at a
+smaller size; the fitted instance must satisfy the check. Color artwork admitted
+for emoji presentation is fitted by the paint path instead. Wider atoms bypass
+the inherited advance check. See the
+[current fitting contract](../maintainers/font-resolution.md#span-fitting).
+
+At an 11-pixel cell width the default 10% limit permits advances below 12.1
+pixels; the maximum 50% permits below 16.5. The historical review measured a
+24.161-pixel advance for bare U+1F6E0 before fitting, explaining why increasing
+the limit alone did not fix it. The symbol still occupies one backend cell;
+fitting must not change cursor movement. The
+[review](../maintainers/font-fallback-review.md) retains that diagnosis.
+
+### Understanding Noto font versions
+
+The internal font version is the TTF `name` table's name ID 5, not its RPM
+package version, Unicode coverage version, or the Git tag of a different font.
+The `head.fontRevision` field is a binary fixed-point representation of a
+revision and may print a small rounding difference. To inspect the installed
+monochrome file with fontTools:
+
+```python
+from fontTools.ttLib import TTFont
+font = TTFont("/usr/share/fonts/google-noto-emoji-fonts/NotoEmoji-Regular.ttf")
+print(font["name"].getDebugName(5))  # Version 3.003 in the reviewed RPM
+print(font["head"].fontRevision)
+```
+
+The reviewed Fedora package is `20250623-4.fc44`, containing monochrome
+version 3.003; Ghostty's checked-in monochrome font is 3.005. The local
+`upstream/noto-emoji/2D/fonts/NotoColorEmoji.ttf` is color version 2.057.
+These are separate numbering tracks. `gen_version.py` in that upstream
+generates color-font version records, including source date/commit metadata.
+
+That repository updated its old monochrome font to 1.05 in commit `2f1ffdd6f`
+(2015-12-15) and removed it as outdated in `1442f6acc` (2022-04-03).
+Our historical fixture extracts that old font from a 2.028 release archive;
+the archive version does not turn its contained monochrome font into 2.028.
+
+Modern monochrome Noto Emoji is distributed through
+[Google Fonts](https://fonts.google.com/noto/specimen/Noto+Emoji) and the
+[google/fonts family directory](https://github.com/google/fonts/tree/main/ofl/notoemoji).
+Its metadata refers to an `emoji-bw` release archive, but that repository was
+not publicly accessible during this review. The upstream
+[monochrome repository question](https://github.com/googlefonts/noto-emoji/issues/548)
+also records this discoverability problem. Do not infer modern monochrome
+source/build provenance from the color checkout or its package URL alone;
+pin the actual distributed asset, version, hash, and license for testing.
+
+### Configuration and routing reports
+
 Start with the static configuration report and human-readable debug log:
 
 ```sh

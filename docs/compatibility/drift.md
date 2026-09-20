@@ -634,9 +634,9 @@ additionally accepts GNU-style `--help` and `--version`; double-dash options do
 not abbreviate. Its version line identifies the installed product and project
 version rather than using xterm's `XTerm(411)` form.
 
-Revenant-only command options are `--self-test`, `-welcome`, `-report-config`,
+Revenant-only command options are `-self-test`, `-welcome`, `-report-config`,
 `-report-font-routing`, `-log`, and `-fe`. The first is an installed package
-diagnostic; `-welcome` is an offline setup audit; the report and logging options
+diagnostic and keeps `--self-test` as a compatibility alias; `-welcome` is an offline setup audit; the report and logging options
 expose Revenant's structured configuration/diagnostic facilities; `-fe`
 selects the explicit emoji face.
 The complete accepted and deferred option inventory is maintained in the

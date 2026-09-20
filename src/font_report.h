@@ -21,6 +21,10 @@ typedef enum
         XTP_FONT_MISS_INK,
         XTP_FONT_MISS_BUDGET,
         XTP_FONT_MISS_TRUNCATED,
+        /* Appended by convention: the reported vocabulary is these names, and
+         * the numeric positions are never serialized. */
+        XTP_FONT_MISS_ADVANCE,
+        XTP_FONT_MISS_RESERVE,
 } XtpFontRouteMissCode;
 
 typedef struct

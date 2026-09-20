@@ -506,9 +506,22 @@ otherwise the face is refused exactly as before.
   paint outside its atom's cells: an explicit choice cannot buy a neighbor's
   cell, and the refusal is logged as a deferral with the measured advance.
 
-The routing report schema is unchanged. This role is not a capture slot, so a
-route it serves reports the capturing slot that owned the atom, with rung
-`entry1` or `entry2`; no rung, miss, or slot enum gains a value.
+This role is not a capture slot, so a route it serves reports the capturing slot
+that owned the atom, with rung `entry1` or `entry2`; no rung or slot enum gains a
+value.
+
+The miss vocabulary did gain two values, `advance` and `reserve`. The schema's
+compatibility surface is the emitted **names**, not the enum's numeric positions,
+which are internal and never serialized; appending is a source convention that
+keeps the C values of existing names stable for readers of the debug log, not a
+wire-format requirement. What schema 1 promises is that an existing name keeps its
+meaning, so a reader that predates these two sees unfamiliar names rather than
+changed ones.
+
+The two exist because both facts were previously unreportable. Advance rejection
+shared `shape` with shaping failure, which made the fallback width rule invisible;
+`reserve` distinguishes a discovery scan that stopped at its bound from one that
+searched and found nothing.
 
 `tests/xvfb-emoji-artwork.sh` is the acceptance gate for all of the above.
 

@@ -45,6 +45,10 @@ Single-dash options accept an unambiguous prefix, so **-geo** means
 same option with **-** turns on.
 Unknown options are rejected before a display is opened.
 
+**-self-test** runs the installed-package diagnostic without opening a display.
+The historical **--self-test** spelling remains an alias. This diagnostic
+accepts no other options.
+
 # OPTIONS
 
 The X Toolkit options **-display**, **-geometry**, **-name**, **-class**,

@@ -189,6 +189,10 @@ MissName(XtpFontRouteMissCode code)
                 return "budget";
         case XTP_FONT_MISS_TRUNCATED:
                 return "truncated";
+        case XTP_FONT_MISS_ADVANCE:
+                return "advance";
+        case XTP_FONT_MISS_RESERVE:
+                return "reserve";
         }
         return "shape";
 }

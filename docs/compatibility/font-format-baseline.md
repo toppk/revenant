@@ -7,6 +7,16 @@ description: font format baseline and emoji renderer contract
 
 # Font format baseline and emoji renderer contract
 
+These are selected-font capability tests, not a guarantee of default font
+availability: they establish that a named face can be rendered, not that a
+suitable face will be found. Pixel class `mono` alone cannot distinguish a
+recognizable glyph from deterministic tofu, which is why artwork acceptance lives
+in the [emoji artwork gate](../maintainers/emoji-artwork-gate.md) and candidate
+selection in `tests/xvfb-font-discovery.sh`. The
+[2026-09-19 fallback review](../maintainers/font-fallback-review.md) records the
+text-presentation failures that this matrix once passed over; those are repaired,
+and the review is kept as the diagnosis rather than as a current defect list.
+
 The original baseline commit captured Revenant's pre-routing Xft behavior. The
 same executable contract now separates two questions that otherwise look
 identical on screen:

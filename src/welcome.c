@@ -367,16 +367,30 @@ PositiveNumber(const char *text, double fallback)
         return end != text && value > 0.0 ? value : fallback;
 }
 
+typedef enum
+{
+        XTP_WELCOME_PAINT_ANY,
+        XTP_WELCOME_PAINT_COLOR,
+        XTP_WELCOME_PAINT_MONOCHROME,
+} WelcomePaint;
+
 static FcPattern *
-FontRequest(Display *display, const char *requested, double point_size)
+FontRequest(Display *display, const char *requested, double point_size, WelcomePaint paint)
 {
         FcPattern *pattern = FcNameParse((const FcChar8 *)requested);
+        FcBool color;
 
         if (pattern == NULL)
                 return NULL;
         FcPatternDel(pattern, FC_SIZE);
         FcPatternDel(pattern, FC_PIXEL_SIZE);
         (void)FcPatternAddDouble(pattern, FC_SIZE, point_size);
+        /* The renderer states this before substitution, so that a generic rule
+         * cannot add color=true first; the report has to ask the same question
+         * the renderer asks or it describes a different lookup. */
+        if (paint == XTP_WELCOME_PAINT_MONOCHROME &&
+            FcPatternGetBool(pattern, FC_COLOR, 0, &color) != FcResultMatch)
+                (void)FcPatternAddBool(pattern, FC_COLOR, FcFalse);
         (void)FcConfigSubstitute(NULL, pattern, FcMatchPattern);
         XftDefaultSubstitute(display, DefaultScreen(display), pattern);
         return pattern;
@@ -384,7 +398,7 @@ FontRequest(Display *display, const char *requested, double point_size)
 
 static FontMatch
 MatchFont(Display *display, const char *requested, const FcChar32 *characters, size_t count,
-          bool require_color, bool require_scalable, double point_size)
+          WelcomePaint paint, bool require_scalable, double point_size)
 {
         FontMatch result = {0};
         FcPattern *pattern;
@@ -393,7 +407,7 @@ MatchFont(Display *display, const char *requested, const FcChar32 *characters, s
         FcResult match_result;
         int index;
 
-        pattern = FontRequest(display, requested, point_size);
+        pattern = FontRequest(display, requested, point_size, paint);
         if (pattern == NULL)
                 return result;
         if (count != 0) {
@@ -427,7 +441,12 @@ MatchFont(Display *display, const char *requested, const FcChar32 *characters, s
                 }
                 (void)FcPatternGetBool(candidate, FC_COLOR, 0, &color);
                 (void)FcPatternGetBool(candidate, FC_SCALABLE, 0, &scalable);
-                if (require_color && !color)
+                /* A color=false preference orders the sort; it does not promise
+                 * that every candidate in it is monochrome, so the candidate
+                 * itself is checked before it can be reported or suggested. */
+                if (paint == XTP_WELCOME_PAINT_COLOR && !color)
+                        usable = false;
+                if (paint == XTP_WELCOME_PAINT_MONOCHROME && color)
                         usable = false;
                 if (require_scalable && !scalable)
                         usable = false;
@@ -448,6 +467,64 @@ MatchFont(Display *display, const char *requested, const FcChar32 *characters, s
         return result;
 }
 
+/* The family a request asks for, which is everything before the first property
+ * separator; "Noto Emoji:color=false" asks for "Noto Emoji". */
+static void
+RequestedFamily(char *out, size_t size, const char *request)
+{
+        size_t length = strcspn(request, ":");
+
+        if (length >= size)
+                length = size - 1;
+        memcpy(out, request, length);
+        out[length] = '\0';
+}
+
+static void
+PrintEmojiLookup(FILE *stream, Display *display, const char *request, double point_size,
+                 WelcomePaint paint, const char *role)
+{
+        FcPattern *pattern = FontRequest(display, request, point_size, paint);
+        FcPattern *match;
+        FcResult result;
+        FcChar8 *family = NULL;
+        FcChar8 *file = NULL;
+        FcCharSet *charset = NULL;
+        FcBool color = FcFalse;
+        char clean_family[160];
+        char clean_file[1024];
+        char requested_family[160];
+        bool substituted;
+
+        if (pattern == NULL)
+                return;
+        match = FcFontMatch(NULL, pattern, &result);
+        FcPatternDestroy(pattern);
+        if (match == NULL) {
+                fprintf(stream, "  %s -> no match\n", request);
+                return;
+        }
+        (void)FcPatternGetString(match, FC_FAMILY, 0, &family);
+        (void)FcPatternGetString(match, FC_FILE, 0, &file);
+        (void)FcPatternGetBool(match, FC_COLOR, 0, &color);
+        (void)FcPatternGetCharSet(match, FC_CHARSET, 0, &charset);
+        CopyClean(clean_family, sizeof(clean_family), family != NULL ? (char *)family : "unknown",
+                  strlen(family != NULL ? (char *)family : "unknown"));
+        CopyClean(clean_file, sizeof(clean_file), file != NULL ? (char *)file : "unknown",
+                  strlen(file != NULL ? (char *)file : "unknown"));
+        RequestedFamily(requested_family, sizeof(requested_family), request);
+        substituted = strcasecmp(requested_family, clean_family) != 0;
+        fprintf(stream, "  %s -> %s; color=%s; U+1F6E0=%s%s\n", request, clean_family,
+                color ? "yes" : "no",
+                charset != NULL && FcCharSetHasChar(charset, 0x1f6e0U) ? "covered" : "missing",
+                substituted ? " (substituted by Fontconfig)" : "");
+        fprintf(stream, "    file: %s\n", clean_file);
+        fprintf(stream, "    role: %s\n", role);
+        if (paint == XTP_WELCOME_PAINT_MONOCHROME && color)
+                fputs("    warning: this request answered with a color face\n", stream);
+        FcPatternDestroy(match);
+}
+
 static double
 DisplayDpi(Display *display, const char *requested, double point_size)
 {
@@ -456,7 +533,7 @@ DisplayDpi(Display *display, const char *requested, double point_size)
         int millimeters = DisplayHeightMM(display, screen);
         double dpi = 0.0;
 
-        pattern = FontRequest(display, requested, point_size);
+        pattern = FontRequest(display, requested, point_size, XTP_WELCOME_PAINT_ANY);
         if (pattern != NULL) {
                 (void)FcPatternGetDouble(pattern, FC_DPI, 0, &dpi);
                 FcPatternDestroy(pattern);
@@ -512,6 +589,9 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
                  const char *application_class)
 {
         static const FcChar32 emoji_characters[] = {0x1f600U, 0x1f3fDU, 0x1f4bbU};
+        /* Text-default bases: what a monochrome emoji face has to cover to be
+         * worth suggesting for faceNameEmojiText. */
+        static const FcChar32 emoji_text_characters[] = {0x1f6e0U, 0x2139U, 0x270fU};
         static const FcChar32 cjk_characters[] = {0x4e2dU, 0x65e5U, 0x8a9eU};
         XtpOsRelease release = {0};
         struct utsname system_name;
@@ -520,6 +600,7 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
         char resource[256];
         char primary_pattern[256];
         char emoji_pattern[256];
+        char emoji_text_pattern[256];
         char clean_application_name[160];
         char clean_application_class[160];
         char clean_host[160];
@@ -527,10 +608,12 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
         char *app_defaults;
         String face_name = NULL;
         String emoji_name = NULL;
+        String emoji_text_name = NULL;
         String face_size = NULL;
         Boolean force_box_chars = False;
         FontMatch primary;
         FontMatch emoji;
+        FontMatch emoji_text;
         FontMatch cjk;
         const char *host = getenv("TERM_PROGRAM");
         const char *host_version = getenv("TERM_PROGRAM_VERSION");
@@ -553,8 +636,9 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
         if (uname(&system_name) != 0)
                 memset(&system_name, 0, sizeof(system_name));
         hints = PackagesFor(&release);
-        XtVaGetValues(vt, "faceName", &face_name, "faceNameEmoji", &emoji_name, "faceSize",
-                      &face_size, "forceBoxChars", &force_box_chars, NULL);
+        XtVaGetValues(vt, "faceName", &face_name, "faceNameEmoji", &emoji_name, "faceNameEmojiText",
+                      &emoji_text_name, "faceSize", &face_size, "forceBoxChars", &force_box_chars,
+                      NULL);
         configured_face_size = ResourceValue(database, application_name, application_class,
                                              "faceSize", "FaceSize", resource, sizeof(resource));
         configured_font = ResourceValue(database, application_name, application_class, "font",
@@ -566,15 +650,20 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
                           configured_face_size;
         PrimaryPattern(face_name, "monospace", primary_pattern, sizeof(primary_pattern));
         PrimaryPattern(emoji_name, "emoji", emoji_pattern, sizeof(emoji_pattern));
+        PrimaryPattern(emoji_text_name, "emoji", emoji_text_pattern, sizeof(emoji_text_pattern));
         point_size = PositiveNumber(face_size, 8.0);
         dpi = DisplayDpi(display, primary_pattern, point_size);
-        primary = MatchFont(display, primary_pattern, NULL, 0, false, true, point_size);
+        primary =
+            MatchFont(display, primary_pattern, NULL, 0, XTP_WELCOME_PAINT_ANY, true, point_size);
         emoji = MatchFont(display, emoji_pattern, emoji_characters,
-                          sizeof(emoji_characters) / sizeof(emoji_characters[0]), true, true,
-                          point_size);
-        cjk =
-            MatchFont(display, "sans-serif", cjk_characters,
-                      sizeof(cjk_characters) / sizeof(cjk_characters[0]), false, true, point_size);
+                          sizeof(emoji_characters) / sizeof(emoji_characters[0]),
+                          XTP_WELCOME_PAINT_COLOR, true, point_size);
+        emoji_text = MatchFont(display, emoji_text_pattern, emoji_text_characters,
+                               sizeof(emoji_text_characters) / sizeof(emoji_text_characters[0]),
+                               XTP_WELCOME_PAINT_MONOCHROME, true, point_size);
+        cjk = MatchFont(display, "sans-serif", cjk_characters,
+                        sizeof(cjk_characters) / sizeof(cjk_characters[0]), XTP_WELCOME_PAINT_ANY,
+                        true, point_size);
         needs_readable_font =
             XtpWelcomeNeedsReadableFont(configured_font, using_xft, cell_height, dpi);
         app_defaults = XtResolvePathname(display, "app-defaults", application_class, NULL, NULL,
@@ -619,10 +708,42 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
                         cell_height);
         fprintf(stream, "  [%s] Color emoji coverage: %s\n", emoji.found ? "ok" : "recommend",
                 emoji.found ? emoji.family : "not found");
+        fprintf(stream, "  [%s] Text emoji coverage: %s\n", emoji_text.found ? "ok" : "recommend",
+                emoji_text.found ? emoji_text.family : "not found");
         fprintf(stream, "  [%s] CJK coverage: %s\n", cjk.found ? "ok" : "recommend",
                 cjk.found ? cjk.family : "not found");
         fprintf(stream, "  [%s] Procedural glyphs: %s\n", force_box_chars ? "ok" : "recommend",
                 force_box_chars ? "forced for supported ranges" : "font glyphs preferred");
+
+        fputs("\nEmoji lookup diagnostics\n"
+              "  Candidate matches only: coverage does not prove active routing or fitting.\n"
+              "  Color and text emoji are separate roles: faceNameEmoji serves emoji\n"
+              "  presentation, faceNameEmojiText serves text presentation such as a bare\n"
+              "  hammer and wrench. They can resolve to different files.\n",
+              stream);
+        PrintEmojiLookup(stream, display, emoji_pattern, point_size, XTP_WELCOME_PAINT_ANY,
+                         emoji_name != NULL && *emoji_name != '\0'
+                             ? "configured faceNameEmoji"
+                             : "faceNameEmoji is unset; illustrative generic lookup");
+        PrintEmojiLookup(stream, display, emoji_text_pattern, point_size,
+                         XTP_WELCOME_PAINT_MONOCHROME,
+                         emoji_text_name != NULL && *emoji_text_name != '\0'
+                             ? "configured faceNameEmojiText, asked as the renderer asks it"
+                             : "faceNameEmojiText is unset; illustrative generic lookup");
+        fputs("  The two lines below are fixed examples, not your configuration.\n", stream);
+        PrintEmojiLookup(stream, display, "Noto Emoji", point_size, XTP_WELCOME_PAINT_ANY,
+                         "example: unqualified family, which generic rules may redirect");
+        PrintEmojiLookup(stream, display, "Noto Emoji:color=false", point_size,
+                         XTP_WELCOME_PAINT_MONOCHROME,
+                         "example: the same family with the monochrome requirement stated");
+        fputs("  Fontconfig rules from an earlier xterm setup also affect this terminal.\n"
+              "  Generic emoji rules may prefer color even for the name Noto Emoji.\n"
+              "  Compare the effective files above before changing fonts or configuration.\n"
+              "  Review ~/.config/fontconfig/fonts.conf, ~/.fonts.conf and /etc/fonts/conf.d;\n"
+              "  keep intentional preferences. No files have been changed.\n"
+              "  A monochrome match can still fail the fallback width limit.\n"
+              "  See the fonts manual's Fontconfig and width diagnostics.\n",
+              stream);
 
         if (!force_box_chars)
                 fprintf(stream,
@@ -648,6 +769,9 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
                 if (emoji.found)
                         fprintf(stream, "    %s*faceNameEmoji: %s\n", clean_application_class,
                                 emoji.family);
+                if (emoji_text.found)
+                        fprintf(stream, "    %s*faceNameEmojiText: %s:color=false\n",
+                                clean_application_class, emoji_text.family);
                 if (cjk.found)
                         fprintf(stream, "    %s*faceNameHan: %s\n", clean_application_class,
                                 cjk.family);
@@ -676,6 +800,7 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
                         "☺︎ "
                         " "
                         "☺️\n"
+                        "  tools:  🛠  🛠︎  🛠️ (bare, text, emoji)\n"
                         "  text:   é  क्  العربية  中文  日本語\n",
                         XTP_PROGRAM_NAME);
         } else {
@@ -704,6 +829,8 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
         fprintf(stream, "  primary-font: %s\n",
                 using_xft ? (primary.found ? primary.family : "unresolved") : "fixed (bitmap)");
         fprintf(stream, "  emoji-font: %s\n", emoji.found ? emoji.family : "not found");
+        fprintf(stream, "  emoji-text-font: %s\n",
+                emoji_text.found ? emoji_text.family : "not found");
         fprintf(stream, "  app-defaults: %s\n", app_defaults != NULL ? "found" : "not found");
         fprintf(stream, "  host-terminal: %s%s%s\n", clean_host,
                 clean_host_version[0] != '\0' ? " " : "", clean_host_version);

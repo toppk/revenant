@@ -105,7 +105,7 @@ that ignores application blink requests.
 | `-report-font-routing` | `vt100.reportFontRouting` | Collect bounded font-routing records for `report-font-routing()` snapshots |
 | `-help` / `--help` | — | Print accepted options and exit without opening a display |
 | `-version` / `--version` | — | Print the version and exit; the double-dash form is Revenant specific |
-| `--self-test` | — | Run the built-in self test and exit (Revenant specific) |
+| `-self-test` / `--self-test` | — | Run the built-in self test and exit; single dash is canonical, the double-dash form is a retained alias (Revenant specific) |
 
 !!! note "Unsupported means rejected"
     For example, `revenant -ls` currently exits with a bad-option diagnostic;

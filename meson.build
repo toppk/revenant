@@ -463,7 +463,7 @@ opacity_slider_test_tool = executable(
 test(
     'self-test',
     xterm_plus,
-    args: ['--self-test'],
+    args: ['-self-test'],
 )
 
 test(

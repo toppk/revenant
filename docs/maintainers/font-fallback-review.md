@@ -7,8 +7,13 @@ description: emoji fallback design and coverage review
 
 # Emoji fallback design and coverage review
 
-**Review date:** 2026-09-19. **Status:** findings and proposed amendment;
-no font-routing or packaging changes are implemented by this review.
+**Review date:** 2026-09-19. **Status:** historical. This page records the
+diagnosis as it stood on that date; the repairs it proposed have since landed.
+`faceNameEmojiText`, span fitting, presentation-aware discovery and automatic
+color-emoji discovery are implemented and specified in
+[font-resolution(7)](font-resolution.md), which is the current contract. Read
+this page for the evidence and the reasoning, not for present behavior. Its
+remarks about a future vendored-font option are unchanged and still open.
 
 The trigger was ordinary application output containing bare U+1F6E0:
 
@@ -238,9 +243,9 @@ The later roadmap decision permits evaluating vendored fonts in the future,
 provided users can replace or disable both faces. Immediate work still uses
 installed fonts; that future option does not restore the withdrawn API.
 The remaining design work concerns installed-font discovery and fitting.
-The following is a direction for an amendment, not implemented behavior or
-a shipped resource API. The follow-up proposal names `faceNameEmojiText`
-as the targeted monochrome fallback resource.
+The following was the proposed direction. It has since been implemented and
+specified; `faceNameEmojiText` is a shipped resource, and the paragraphs below
+are retained as the reasoning that produced it rather than as pending work.
 
 ### Preserve the invariants
 

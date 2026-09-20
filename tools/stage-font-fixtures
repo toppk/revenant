@@ -283,7 +283,7 @@ python3 "$project_root/tools/font-fixtures/make-sbix.py" \
 # Filler faces for the crowded-inventory universe.  They live outside fonts/ so
 # they stay out of the manifest: they are adversaries for candidate selection,
 # not fixtures any rendering test inspects.
-python3 "$project_root/tools/font-fixtures/make-crowd.py" "$work/fonts-crowd" 36
+python3 "$project_root/tools/font-fixtures/make-crowd.py" "$work/fonts-crowd" 48
 cp -- "$project_root/LICENSE" "$work/licenses/XTP-MIT.txt"
 cp -- "$work/sources/openmoji-17.0.0-LICENSE.txt" \
 	"$work/licenses/OpenMoji-17.0.0-CC-BY-SA-4.0.txt"
@@ -350,7 +350,7 @@ make_universe routing-modern "${base_fonts[@]}" \
 # of them.  A presentation-aware request must survive it.
 make_universe alias-emoji "${base_fonts[@]}" \
 	NotoEmoji-Regular-3.003.ttf Noto-COLRv1.ttf
-# Thirty-six filler faces carry the primary family name and each map one unique
+# Forty-eight filler faces carry the primary family name and each map one unique
 # private-use codepoint, so family scoring puts them at the top of the candidate
 # sort and coverage trimming keeps all of them.  The monochrome emoji face then
 # sorts past the ordinary inventory bound, which is the point: it must still be

@@ -184,10 +184,10 @@ static const OptionHelp option_help[] = {
     {"-log level", "set diagnostic threshold"},
     {"-/+debug", "turn debug diagnostics on/off"},
     {"-report-config", "print resolved configuration and exit"},
-    {"-report-font-routing", "report font-routing decisions"},
+    {"-report-font-routing", "collect routes; invoke report-font-routing() to print a snapshot"},
     {"-welcome", "analyze resources and fonts, then suggest a readable setup"},
     {"-e command args ...", "command to execute"},
-    {"--self-test", "run the installed package diagnostic"},
+    {"-self-test", "run the installed package diagnostic (--self-test is an alias)"},
 };
 
 static const char *
@@ -326,7 +326,8 @@ XtpScanCommandLine(int argc, char **argv, XtpCommandLine *result)
                         result->print_version = true;
                         continue;
                 }
-                if (strcmp(argv[argument], "--self-test") == 0) {
+                if (strcmp(argv[argument], "-self-test") == 0 ||
+                    strcmp(argv[argument], "--self-test") == 0) {
                         if (argc != 2) {
                                 result->error = XTP_COMMAND_ERROR_UNKNOWN;
                                 result->error_option = argv[argument];
