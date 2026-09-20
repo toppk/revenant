@@ -172,8 +172,26 @@ generic-emoji pattern rule in the `alias-emoji` universe, an explicit
 consult points, precedence against `faceName` entry 2 and `fallbackFace1`,
 `limitFontsets: 0` suppressing both rescue entries, the width-one scope of the
 advance rule, instance reuse, a second span reached through a font-slot switch,
-and styled output. Seventeen cases pass, with route, pixel and cursor assertions
-as applicable; these are not all asserted in every case. The reported
+and styled output. Twenty cases pass, with route, pixel and cursor assertions
+as applicable; these are not all asserted in every case.
+
+Three of them are the real styled faces: the regular face fitted and serving, SGR
+bold selecting the **bold file** with that candidate fitted in its own right, and
+an italic candidate that cannot satisfy the policy being declined with the regular
+face retained. The two outcomes are distinguished rather than merged. The bold case
+asserts a second fitted instance exists and that bold's pixels differ from
+regular's; the italic case asserts the italic file never served, that the decline
+was logged, and that the italic attribute survived the decline — the serving face is
+the regular one, so nothing there claims the artwork looks slanted. Disabling the styled span
+check makes the bold case fail on the fitted instance and the italic case fail on
+the effective file, the serving face and the missing decline.
+
+Paint clips to the atom's cells, so an unfitted oversized styled glyph is cropped
+rather than allowed to bleed. The assertions these cases make — containment, and
+bold's pixels differing from regular's — cannot reliably tell a cropped glyph from a
+fitted one. Assertions that could, such as a reference render or a check on the
+fixture's complete bar geometry, are not made here, which is why the bold case
+asserts the fitted instance instead of leaning on pixels. The reported
 AddressSanitizer run found no lifetime errors on the exercised paths. The
 slot-switch case observes a second fitted instance; an earlier log line alone
 does not establish that the first instance remains alive. Ownership is enforced
@@ -185,13 +203,22 @@ table refuses a new entry instead of displacing one, every entry handed out
 earlier stays findable after exhaustion, and clearing the count models the
 universe replacement that a reload performs.
 
-Two coverage limits are worth naming rather than papering over:
+The styled-candidate branch was the outstanding gap and is now covered by a
+generated family rather than by inspection.
+`tools/font-fixtures/make-styled-emoji.py` produces **XTP Styled Emoji** in three
+real styles: Fontconfig reads weight 200 for Bold and slant 100 for Italic, with no
+`FC_EMBOLDEN` and no `FC_MATRIX` on either, so neither is a synthesised style.
+Regular and Bold map U+1F6E0 to a two-em glyph — a measured advance of 52.187px in
+a 13px cell at 16 point — so both must be fitted. Italic maps it to a half-em glyph
+that a GSUB multiple substitution in `liga` decomposes into two, so the run
+advances too far while the face's own maximum advance already fits one cell, which
+is a shape fitting cannot repair. Regular draws two bars and Bold three, so which
+face served shows in pixels as well as in the route log. The `styled-emoji`
+universe carries the family from `fonts-styled/`, outside the manifest, for the
+same reason the crowd fillers are outside it: an adversary for one code path, not a
+rendering fixture.
 
-- No staged fixture has a monochrome emoji family with a real bold or italic
-  face, so the styled cases prove SGR does not widen an atom past its cells but
-  do **not** exercise the branch that declines an oversized *styled candidate*.
-  That branch is covered by inspection only; a bold-capable monochrome emoji
-  fixture would close it.
+One coverage limit is worth naming rather than papering over:
 - Every real glyph in the staged monochrome face has the same 2600-unit advance,
   so no two atoms built from it can have different advances. Order independence
   is therefore established by construction — the atom's advance is not an input

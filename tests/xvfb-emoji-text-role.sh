@@ -382,6 +382,81 @@ else
 fi
 stop_case
 
+printf '\n== real styled fallback faces ==\n'
+# The styled-emoji universe supplies one family in three real styles.  Regular and
+# Bold draw a two-em glyph, so both need fitting; Italic draws a half-em glyph that
+# GSUB decomposes into two, so its run is too wide while the face itself already
+# fits a cell -- which fitting cannot repair.  Those are the two styled outcomes.
+styled_regular=XtpStyledEmoji-Regular.ttf
+styled_bold=XtpStyledEmoji-Bold.ttf
+styled_italic=XtpStyledEmoji-Italic.ttf
+
+note styled-real-normal "the regular face of the styled family is fitted and serves"
+start_case styled-real-normal styled-emoji "$tools" unicode
+check_route styled-real-normal U+1F6E0 fallback "$styled_regular" || true
+check_contained styled-real-normal 1 mono
+check_cursor styled-real-normal 2
+normal_ink=$(ink_hash "$(sample_cells 0 1)")
+stop_case
+
+note styled-real-bold "SGR bold selects the real bold face, which is then fitted"
+start_case styled-real-bold styled-emoji "$(printf '\033[1m')$tools" unicode
+check_route styled-real-bold U+1F6E0 fallback "$styled_bold" || true
+check_contained styled-real-bold 1 mono
+check_cursor styled-real-bold 2
+bold_ink=$(ink_hash "$(sample_cells 0 1)")
+# A different file and a different drawing, so neither the route nor the pixels can
+# be satisfied by continuing to use the regular face.
+if grep -E -q -- "route base=U\+1F6E0 .*/$styled_regular " "$log"
+then
+    fail_case styled-real-bold "the regular face served a bold atom"
+fi
+# The regular face is fitted as table entry 0 while serving the normal route, so a
+# second entry is the proof that the bold candidate itself was fitted.  Paint clips
+# to the atom's cells, so an unfitted bold glyph is cropped rather than bleeding:
+# the containment and unequal-hash checks below cannot tell that apart from a fitted
+# glyph.  A reference render, or assertions about the fixture's complete bar
+# geometry, could; neither is asserted here, which is why this check is.
+if ! grep -E -q -- 'fitted Xft face .* entry=1 result=opened' "$log"
+then
+    fail_case styled-real-bold "expected a fitted instance of the bold candidate itself"
+fi
+if test "$(grep -c -E -- 'fitted Xft fallback .* fitted-advance=' "$log")" -lt 2
+then
+    fail_case styled-real-bold "expected both the normal and the bold candidate to be fitted"
+fi
+if grep -F -q 'declined styled Xft fallback' "$log"
+then
+    fail_case styled-real-bold "the bold candidate was declined although fitting serves it"
+fi
+printf '%-22s normal-ink=%s bold-ink=%s\n' styled-real-bold "$normal_ink" "$bold_ink"
+if test -z "$bold_ink" || test "$bold_ink" = "$normal_ink"
+then
+    fail_case styled-real-bold "bold drew the same pixels as regular"
+fi
+stop_case
+
+note styled-real-italic "italic declined, regular retained, italic attribute preserved"
+start_case styled-real-italic styled-emoji "$(printf '\033[3m')$tools" unicode
+check_route styled-real-italic U+1F6E0 fallback "$styled_regular" || true
+check_contained styled-real-italic 1 mono
+check_cursor styled-real-italic 2
+if grep -E -q -- "route base=U\+1F6E0 .*/$styled_italic " "$log"
+then
+    fail_case styled-real-italic "the italic candidate served an atom it cannot fit"
+fi
+if ! grep -F -q 'declined styled Xft fallback' "$log"
+then
+    fail_case styled-real-italic "expected the italic candidate to be declined by the span check"
+fi
+# The serving face is the regular one, so this asserts that the requested attribute
+# survived the decline, not that the artwork looks slanted.
+if ! grep -E -q -- 'route base=U\+1F6E0 .* italic=true ' "$log"
+then
+    fail_case styled-real-italic "the italic attribute was lost when the candidate was declined"
+fi
+stop_case
+
 printf '\n== styled output ==\n'
 # A styled candidate may not replace a fitted face with a full-size one.
 for style in bold italic

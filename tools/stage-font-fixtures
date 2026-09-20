@@ -284,6 +284,10 @@ python3 "$project_root/tools/font-fixtures/make-sbix.py" \
 # they stay out of the manifest: they are adversaries for candidate selection,
 # not fixtures any rendering test inspects.
 python3 "$project_root/tools/font-fixtures/make-crowd.py" "$work/fonts-crowd" 48
+# One emoji family in three real styles, for the styled fallback selection and
+# fitting paths.  Generated because no staged third-party family covers a
+# text-default emoji base as real regular, bold and italic faces.
+python3 "$project_root/tools/font-fixtures/make-styled-emoji.py" "$work/fonts-styled"
 cp -- "$project_root/LICENSE" "$work/licenses/XTP-MIT.txt"
 cp -- "$work/sources/openmoji-17.0.0-LICENSE.txt" \
 	"$work/licenses/OpenMoji-17.0.0-CC-BY-SA-4.0.txt"
@@ -357,6 +361,18 @@ make_universe alias-emoji "${base_fonts[@]}" \
 # reachable, and a blind prefix of any pass would miss it.
 make_universe crowded "${base_fonts[@]}" \
 	NotoEmoji-Regular-3.003.ttf Noto-COLRv1.ttf
+# The styled family lives outside fonts/ for the same reason the fillers do: it is
+# an adversary for one code path, not a fixture any rendering matrix inspects.
+make_universe styled-emoji "${base_fonts[@]}"
+cat >"$work/universes/styled-emoji/fontconfig.conf" <<'EOF'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <dir prefix="relative">fonts</dir>
+  <dir prefix="relative">../../fonts-styled</dir>
+  <cachedir prefix="xdg">fontconfig</cachedir>
+</fontconfig>
+EOF
 cat >"$work/universes/crowded/fontconfig.conf" <<'EOF'
 <?xml version="1.0"?>
 <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
@@ -517,10 +533,12 @@ contract.
 The `empty` universe deliberately contains no fonts. The `base`, `cbdt`,
 `cbdt-legacy`, `cbdt-lowres`, `colrv0`, `colrv1`, `mono`, `mono-modern`,
 `svginot`, `atomic-tag`, `sbix`, `cjk`, `cjk-emoji`, `routing`,
-`routing-modern`, `alias-emoji`, `crowded`, `legacy-routing`, and `shaping`
+`routing-modern`, `alias-emoji`, `crowded`, `styled-emoji`, `legacy-routing`, and `shaping`
 universes isolate the remaining rendering and fallback scenarios. `crowded` adds
 the generated `fonts-crowd/` filler faces, which push the monochrome emoji face
-past the candidate inventory bound. `alias-emoji`
+past the candidate inventory bound. `styled-emoji` adds the generated
+`fonts-styled/` family, whose real bold and italic faces exercise styled fallback
+selection and fitting. `alias-emoji`
 additionally carries a hostile pattern rule that redirects a monochrome family
 request to the color family unless the request states `color=false`. Moving this
 entire tree is safe because its Fontconfig paths and font links are relative.
@@ -535,6 +553,9 @@ if command -v fc-list >/dev/null 2>&1; then
 		expected=$(find "$universe/fonts" -type l | wc -l)
 		if [[ ${universe##*/} == crowded ]]; then
 			expected=$((expected + $(find "$work/fonts-crowd" -name '*.ttf' | wc -l)))
+		fi
+		if [[ ${universe##*/} == styled-emoji ]]; then
+			expected=$((expected + $(find "$work/fonts-styled" -name '*.ttf' | wc -l)))
 		fi
 		actual=$(XDG_CACHE_HOME="$universe/cache" \
 			FONTCONFIG_FILE="$universe/fontconfig.conf" fc-list : file | \
