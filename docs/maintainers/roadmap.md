@@ -213,6 +213,46 @@ semantics and describes the implemented named-selection path.
   fonts and fallbacks, and representative emoji/CJK availability. Emit a small
   starter resource fragment and actionable documentation/package suggestions;
   do not install packages, modify user files, or load the X resource database.
+- The [emoji artwork gate](emoji-artwork-gate.md) is the acceptance suite for this
+  work. It passes on the reported line and carries no known gaps; a future gap must
+  be entered there with the mechanism that produces it.
+- Done: the [emoji fallback review](font-fallback-review.md) is closed using
+  installed fonts. Presentation-aware matching and discovery, relevant candidate
+  selection, and span fitting within backend-owned cells are specified in
+  [font-resolution](font-resolution.md); `-welcome` shows requested versus
+  effective files, names the color and text emoji roles, and explains inherited
+  Fontconfig preferences without treating them as errors or rewriting them. One of
+  the two coverage gaps this entry listed is closed: the generated `styled-emoji`
+  family supplies real bold and italic monochrome faces. Styled whole-sequence
+  selection, reload/rollback painting and a scoped Unicode coverage audit are covered
+  in the [artwork gate](emoji-artwork-gate.md), which records the cases, evidence
+  and limits without duplicating the implementation contract.
+- Still open, and unchanged by the text-presentation work: with no color face
+  installed, a **one-cell emoji-presentation** atom — bare VS16 under the legacy
+  width regime — has no monochrome substitute. Span fitting rescues
+  *text*-presentation atoms; an emoji-presentation atom whose only supply is an
+  oversized monochrome face is still refused by the advance rule and renders
+  deterministic tofu, as
+  [font-resolution](font-resolution.md#what-presentation-does-and-does-not-decide)
+  specifies and `tests/xvfb-font-discovery.sh` asserts. The two-cell row of that
+  table does serve monochrome; conflating the two is what this entry guards against.
+- Open, and needing a person rather than code: no artwork capability carries a
+  Revenant support record, because legibility has not been assessed. Follow the
+  [visual acceptance procedure](emoji-artwork-gate.md#visual-acceptance-procedure)
+  at several sizes and record the observation in `tdn/terminals/revenant.yaml`.
+  Also open by design: the pinned monochrome fixture predates E17.0, so seven newer
+  bases have no monochrome supply — a font gap the gate records with the advance
+  still asserted — and behavior outside the audit's inventoried scope carries no
+  coverage claim in either direction.
+- Future, and separate from each other: (1) evaluate vendored color and monochrome
+  emoji fonts as optional defaults, with pinned provenance, licenses, coverage tests,
+  and installed artifact checks — users must be able to replace both faces with their
+  own fonts or disable the vendored source, preserving explicit choices, CJK capture,
+  budgets and fixed widths; (2) decide whether to adopt optional symbol enlargement
+  into adjacent whitespace (`text-symbol-whitespace-expansion`), which is recorded as
+  unsupported today and would be an opt-in with its own eligibility, background,
+  selection, cursor and damage rules. Neither is a prerequisite for emoji
+  correctness, and installed-font routing works without them.
 - Treat readability as an outcome, not as “an `XTerm.ad` was found.” Use
   resource provenance, renderer, resolved cell geometry, effective Xft/display
   density, and font matches to conservatively flag the tiny stock bitmap-font

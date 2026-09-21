@@ -6,6 +6,55 @@ priorities and the Ghostling capability comparison live in the
 [upstream reference guide](docs/maintainers/upstream.md). Avoid recording an uncommitted
 file list or a single transient commit as project state here.
 
+## Testing scope in every implementer handoff
+
+The maintainer must state the testing scope in every implementation assignment
+and review follow-up. Do not assume implementers will infer it from this guide.
+Name the focused tests for iteration, the related regression subset, and the
+final checks required for that task.
+
+- During iteration, rebuild as needed and run the smallest tests that exercise
+  the change. Expand to the related regression subset when shared behavior
+  changes; for font routing, include the affected font/emoji, resource-report,
+  and self-tests rather than unrelated Xvfb suites.
+- Run the full suite once after the final substantive change when required by
+  the task. Repeat it only for a new failure or a subsequent change that
+  warrants it, and explain why. Do not rerun the full suite after every fix,
+  formatting pass, or review response.
+- Run documentation checks after documentation changes and focused sanitizer
+  checks for lifetime-sensitive changes. Broaden to other build configurations
+  when the change affects them or a required final gate calls for them.
+- Report commands, results, material coverage limits, and the reason for any
+  repeated expensive check. Sanitizers provide evidence for exercised paths;
+  they do not prove the absence of all lifetime bugs.
+- Keep test work within the assignment. Do not introduce shared harnesses,
+  permanent fault-injection frameworks, or new recipes merely to respond to
+  testing-cost feedback. A temporary targeted check can verify a small fix.
+
+Use this instruction in each handoff, adapted to the concrete task:
+
+> Iterate on the named focused tests. Expand to the related regression subset
+> when shared behavior changes. Run the required full suite once at the end;
+> repeat only when a new failure or subsequent change justifies it. Report what
+> ran and why expensive checks were repeated. Keep test infrastructure changes
+> within the assigned scope.
+
+## Probe usability follow-up
+
+The user finds the probe navigation and overlapping width/artwork cases confusing.
+Treat their cleanup as a separate task, not more emoji-renderer work. In particular,
+`just probe text-emoji-sequences emoji-sequences` leaves mode 2027 unchanged while
+asking the assessor to expect joined artwork. The width probe's `--regime cluster`
+path already requests, queries and restores that mode. Reuse that behavior for
+sequence artwork assessment, clearly display the active regime, and distinguish
+cursor-width results from visual judgments. Review navigation and naming together
+so users can find the appropriate case without knowing the internal split.
+Do not start this follow-up as part of closing the text-emoji repair.
+
+The user has visually confirmed that the original bare hammer-and-wrench now
+renders. This confirms the reported symptom is fixed in their environment; it is
+not a completed multi-size assessment of every artwork capability.
+
 ## Dispatch plumbing and remaining features
 
 Use the [dispatch guide](docs/maintainers/dispatch.md) and the local untracked
@@ -40,6 +89,35 @@ TDN: `osc-50-font-set`, `osc-50-font-query`, `policy-font-ops`, `osc-22-pointer-
 `probe-features` checks the runner through a fake PTY, including interruption
 cleanup; `xvfb-request-ops` checks startup/live mouse and capability policy,
 GetTcap exceptions, and preservation of unrelated replies.
+
+## Optional symbol enlargement into adjacent whitespace
+
+Track whitespace borrowing as a distinct future rendering feature. Its registered
+TDN slug is `text-symbol-whitespace-expansion`, separate from
+`text-emoji-cell-fitting`, with its own probe and documentation. The rendering
+behavior is not implemented in Revenant and is not a Unicode requirement.
+
+The reference behavior is Ghostty's `constraintWidth` in
+`upstream/ghostty/src/renderer/cell.zig`: eligible symbol-like characters,
+including private-use icons and some emoji, may draw across two cells when the
+next cell is empty, SPACE, or EN SPACE. The right edge and a preceding symbol
+restrict expansion, with exceptions for graphics elements. This grants drawing
+room, not necessarily exactly double the glyph size, and never changes the
+character's grid width or cursor advance. The source explicitly ties the
+preceding-symbol restriction to keeping adjacent private-use glyphs aligned.
+
+Keep strict cell fitting as Revenant's default. Any implementation should be an
+explicit opt-in because borrowing whitespace can consume intentional visual
+separation and make artwork size change as neighboring text changes. Specify
+eligibility and interactions with backgrounds, selection, cursor painting and
+damage before implementation; do not copy Ghostty's policy implicitly.
+
+Give this capability its own visual assessment: compare spaced and adjacent
+symbols, occupied neighbors and the right edge, then insert/delete text in the
+borrowed cell and check repainting, selection and cursor behavior. Measure
+cursor advance separately. Do not weaken the existing default-mode blank-cell
+containment assertions; expansion-mode expectations belong to the new feature.
+This remains optional roadmap work, not a prerequisite for emoji correctness.
 
 ## Unified Go manual probe
 
@@ -1075,6 +1153,29 @@ function-pointer helper would lose the useful type check.
   block-element, braille and Powerline separator characters are rasterized
   from the cell geometry when the primary face lacks them, on the bitmap
   path, or under `forceBoxChars`.
+- The emoji repair from the [font fallback review](docs/maintainers/font-fallback-review.md)
+  has its implementation and automated coverage complete; the contract lives in
+  [font-resolution](docs/maintainers/font-resolution.md). `faceNameEmojiText` supplies a
+  targeted monochrome rescue with span fitting inside backend-owned cells; automatic
+  presentation-aware discovery covers the unconfigured case; `-welcome` and
+  `-report-font-routing` name both emoji roles, requested versus effective files and
+  the precise rejection reason. Coverage: `tests/xvfb-emoji-artwork.sh` (the artwork
+  gate, no known gaps), `tests/xvfb-emoji-text-role.sh`, `tests/xvfb-font-discovery.sh`,
+  `tests/xvfb-emoji-routing.sh` (including styled whole-sequence selection),
+  `tests/xvfb-font-reload.sh` (routing plus a real-backend painted variant across a
+  geometry reload, the explicit rescue and a rejected reload), and the scoped
+  inventory `tools/emoji-coverage-audit.py` with its own tests. What is **not** done
+  is the full multi-size visual assessment; the user has confirmed the original
+  symbol renders, but no artwork capability carries
+  a Revenant support record — follow
+  [visual acceptance](docs/maintainers/emoji-artwork-gate.md#visual-acceptance-procedure)
+  at several sizes before promoting anything. Two limits are deliberate: the pinned
+  monochrome fixture predates E17.0, so seven newer bases have no monochrome supply
+  (a font gap the gate records, with the advance still asserted), and behavior outside
+  the audit's inventoried scope carries no coverage claim either way. The separate
+  one-cell emoji-presentation limitation with only oversized monochrome supply, and
+  the optional vendored-font and whitespace-expansion decisions, remain tracked in
+  the [roadmap](docs/maintainers/roadmap.md).
 - Application-selected DECSCUSR block, underline, and bar cursor presentation,
   including cursor-shape-only repaint coverage. Blinking variants and DEC mode
   12 use an Xt timer with xterm's `cursorOnTime` and `cursorOffTime` defaults;
@@ -1914,6 +2015,8 @@ Useful runtime checks:
 just probe-reverse-video
 just probe-emoji --no-pause
 just probe-fonts --no-pause
+python3 tools/emoji-coverage-audit.py
+just probe text-monochrome-emoji monochrome-emoji --assess
 just probe-keymodes --kitty-only
 just xterm-font-compat build-agent-gcc
 just resize-loop WINDOW_ID 8 20

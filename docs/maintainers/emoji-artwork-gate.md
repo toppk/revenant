@@ -526,6 +526,170 @@ What it does not cover: only the monochrome text path and this one atom, no colo
 styled faces, and no assertion that the artwork is recognizable — it distinguishes
 drawings, it does not read them.
 
+## Visual acceptance procedure
+
+Everything above is machine-checkable. Legibility is not: no assertion in this tree
+says a hammer looks like a hammer. That judgment is a human's, it is recorded by hand,
+and until it is recorded **no artwork capability carries a Revenant support record**.
+This procedure is the way to produce one; it invents no results and promotes nothing on
+its own.
+
+Use the existing probe — no new tooling. Establish what you are assessing first: the
+**binary's** identity, not the checkout's. Nothing compiles a Revenant revision into the
+executable, so the identity recorded is the version string, the backend revision and the
+binary's hash; a revision is attached only when the tree was clean, and a dirty tree is
+labelled as one rather than borrowing `HEAD`'s name. The build must succeed before
+anything else runs:
+
+```sh
+set -eu
+repo=$PWD
+binary=$repo/build-agent-gcc/revenant
+
+ninja -C build-agent-gcc revenant || exit 1
+source_state=clean
+test -z "$(git status --porcelain)" || source_state=dirty
+rev=$(git rev-parse HEAD)
+build=$("$binary" -report-config 2>/dev/null |
+    sed -n 's/^! \(version\|backend revision\): /\1=/p' | paste -sd' ')
+hash=$(sha256sum "$binary" | cut -d' ' -f1)
+if test "$source_state" = clean
+then
+    identity="$build binary-sha256=$hash built-from=git:$rev"
+else
+    identity="$build binary-sha256=$hash source=dirty built-from=unknown (git:$rev does not describe it)"
+fi
+```
+
+Then run the five cases for each size and environment. Every run writes into a fresh
+session directory, so repeating the procedure cannot overwrite earlier evidence, and
+`colorGlyphs`, `emojiPresentation` and the width regime are set explicitly **and read
+back** from the same configuration before being recorded — a value that cannot be read
+back stops the run instead of being asserted:
+
+```sh
+session=$(mktemp -d "${TMPDIR:-/tmp}/revenant-emoji-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX")
+printf 'session %s\nidentity %s\n' "$session" "$identity" >"$session/session.txt"
+
+grapheme=default
+for size in 10 16 32
+do
+    for env in installed staged
+    do
+        prefix=
+        test "$env" = installed || prefix="font-fixtures-stage/run routing-modern"
+        effective=$($prefix "$binary" -fs "$size" \
+            -xrm "xterm.vt100.graphemeWidth: $grapheme" \
+            -xrm 'xterm.vt100.colorGlyphs: true' \
+            -xrm 'xterm.vt100.emojiPresentation: unicode' \
+            -report-config 2>/dev/null |
+            sed -n 's/^XTerm\*VT100\*\(colorGlyphs\|emojiPresentation\|graphemeWidth\):[[:space:]]*/\1=/p' |
+            paste -sd' ')
+        # Never record a setting that was not read back.
+        for key in colorGlyphs emojiPresentation graphemeWidth
+        do
+            case " $effective " in
+            *" $key="*) ;;
+            *) echo "no effective $key for size=$size env=$env" >&2; exit 1 ;;
+            esac
+        done
+        for case in text-monochrome-emoji:monochrome-emoji \
+                    text-emoji-presentation:emoji-presentation \
+                    text-emoji-cell-fitting:emoji-cell-fitting \
+                    text-emoji-sequences:emoji-sequences \
+                    text-symbol-whitespace-expansion:symbol-whitespace-expansion
+        do
+            id=${case##*:}
+            stem=$session/$env-$size-$grapheme-$id
+            $prefix "$binary" -fs "$size" \
+                -xrm "xterm.vt100.graphemeWidth: $grapheme" \
+                -xrm 'xterm.vt100.colorGlyphs: true' \
+                -xrm 'xterm.vt100.emojiPresentation: unicode' \
+                -report-font-routing \
+                -xrm 'XTerm*vt100.translations: #override <Key>F12: report-font-routing()' \
+                -e sh -c 'cd "$1" && shift && exec just probe "$@"' sh "$repo" \
+                    "${case%%:*}" "$id" --assess \
+                    --terminal revenant --terminal-version "$identity" \
+                    --configuration "faceSize=$size env=$env $effective serving-fonts=$stem.routing" \
+                    --output "$stem.json" \
+                2>"$stem.routing"
+        done
+    done
+done
+```
+
+Argument handling is positional throughout: the repository path and the metadata reach
+`just probe` as arguments to `sh -c`, never interpolated into shell text, so a path
+containing spaces or an apostrophe survives intact. This was exercised with stand-ins
+from such a directory.
+
+Run the set with `grapheme=default` (the legacy width regime, which is Revenant's
+default) and, if you also want the mode-2027 regime, repeat with `grapheme=unicode`;
+whichever you used is in the filename and in `--configuration`, never assumed. Three
+sizes make fitting visible: a shrunken face has few pixels at 10, and a large cell
+exposes positioning at 32.
+
+**Which font painted a sample is a routing question.** `fc-match` and `-welcome`
+report *candidate* information — what Fontconfig would offer for a pattern — and cannot
+say what served an atom; `-welcome` states this about its own lookup. Press **F12** in
+the terminal while the samples are on screen to write a `report-font-routing()`
+snapshot to `$stem.routing`, and read the effective files from its `route` records (`file`,
+`index`, `rung`), or read the `font: route base=… file=…` lines from a `-log debug`
+run. Record those paths in the observation. Candidate lists may still be recorded as
+context, labelled as candidates.
+
+Include the original line verbatim. It is the first sample of `monochrome-emoji`:
+
+```
+🛠 Installed demo-1.0
+```
+
+Judge it as a whole: a recognizable hammer-and-wrench in the first cell, the text
+beside it untouched, and nothing clipped.
+
+Record, for every run, in the probe's `--configuration` and `--observation` strings —
+the settings the run actually used, not a template:
+
+- the binary's identity: its `version` and `backend revision` from `-report-config`,
+  its `sha256`, and a checkout revision only if the tree was clean; a dirty tree is
+  recorded as `source=dirty built-from=unknown`, because no revision describes it;
+- the exact `faceSize`, and the `graphemeWidth`, `colorGlyphs` and `emojiPresentation`
+  values **read back** from the same configuration rather than the ones intended, plus
+  which environment it was — installed fonts or the staged universe;
+- the **serving** font files for the atoms judged, taken from the routing snapshot or
+  the debug route lines, one per atom class if they differ;
+- release *and* internal font versions where they differ (installed monochrome 3.003
+  and the 1.05 fixture are different assets);
+- any local Fontconfig rules `-welcome` reports as substitutions, and candidate lists
+  if useful — both labelled as candidate information, which is what they are.
+
+Distinguish the two fitting questions, and do not merge their assessments:
+
+- **Strict in-cell fitting** (`text-emoji-cell-fitting`) is today's policy and the
+  expected default: recognizable ink inside the cells the backend committed, nothing
+  clipped, no neighboring cell touched. The `emoji-cell-fitting` case's spaced and
+  adjacent rows are for this.
+- **Whitespace expansion** (`text-symbol-whitespace-expansion`) is a separate optional
+  behavior Revenant does not implement. Its case asks only whether the spaced row's
+  artwork is *larger* than the adjacent row's. Equal rows are recorded as "no
+  enlargement observed for these samples" — not as proof of strict drawing, and not as
+  a defect either way. Its record is already `unsupported` with the containment
+  assertions as evidence; a visual assessment neither promotes nor contradicts that.
+
+Where observations go: keep the JSON from `--output` with the review, and write the
+judgment into `tdn/terminals/revenant.yaml` under the feature's record as
+`evidence: - kind: observation`, with `as-of: git:<full revision>`, a `checked` date
+and notes naming the sizes, the serving font files and what was seen. A record only
+becomes `supported` on the strength of such an observation; a clean probe exit, a
+passing suite, or correct cursor advance is not an assessment. If a sample is wrong,
+record the failing label rather than a general verdict, and leave the record `unknown`
+or `partial` accordingly.
+
+Keep observation and cause apart. A difference between the installed and staged runs is
+a difference between two runs; attributing it to a font needs the routing evidence from
+both, showing which file served the atom in each. Without that, record what was seen
+and say the cause is undetermined. `just check-tdn` validates the registry after any record change.
+
 ## Running it
 
 ```sh
