@@ -58,6 +58,15 @@ black flag but no Scotland ligature, with current Noto Color Emoji. It proves
 that preserved tag components reject the partial match and retry the complete
 sequence in the next role.
 
+`tools/emoji-coverage-audit.py` inventories these faces against the pinned
+`data/emoji-data.txt`, within a declared scope: every sequence in its table and every
+base newer than E15.0. Inside that scope it reports which atoms a named automated case
+asserts something about, which a staged face supports but nothing asserts, and which no
+face supports; older bases are reported as not inventoried rather than untested.
+Coverage comes from an explicit case table, not from scanning the suites, and sequence
+rows are shaped with `hb-shape` using production's own buffer flags, so neither a cmap
+entry nor a vanished control character can pass for a renderable sequence.
+
 For visual diagnosis outside the terminal, render a sequence directly from a
 staged font:
 

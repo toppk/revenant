@@ -227,6 +227,130 @@ One coverage limit is worth naming rather than papering over:
   to the scale — and the suite asserts the observable consequence, that two
   atoms share one fitted instance.
 
+## Unicode coverage audit
+
+`tools/emoji-coverage-audit.py` is the reproducible inventory behind the coverage
+claims here. Its inputs are pinned: the emoji properties and the `E<version>` age of
+each base come from the staged `data/emoji-data.txt` (**Unicode 17.0**, whose version
+header `font-fixture-info.py --check` pins against the manifest), and the faces come
+from the staged tree. It downloads nothing. Run it with
+`python3 tools/emoji-coverage-audit.py`, `--json` for the full table, or `--check` to
+verify the inventory alone.
+
+Two things it deliberately does not do, because the first version of it did both and
+both produced unreliable numbers:
+
+- **It does not infer coverage by scanning the suites.** A codepoint can be written in
+  a comment, in an unused variable, or assembled from shell variables a scanner never
+  sees, and a sequence's components are not the sequence. Coverage comes from
+  `AUTOMATED_CASES`, an explicit table naming the suite, the case, the atom and what
+  that case asserts. The labels are read off the helper each case calls, so they
+  distinguish `role` (a named serving role is required) from `non-tofu-role` (only that
+  it is not tofu), and `shaping` (the route was required to report `glyphs=1`) is
+  claimed only where a case actually requires it — in the artwork suite that means the
+  cases using `check_every_route`, because `check_route` never inspects `glyphs=`. The
+  scan survives only as a separate **source mentions** column, which means a codepoint
+  is written down somewhere and nothing more.
+- **It does not claim coverage outside its own scope.** The scope is every sequence in
+  the table and every base newer than E15.0. Older bases are reported as **not
+  inventoried**: the suites assert a great deal about them — bare U+1F6E0 is this
+  gate's own subject — and this table simply does not enumerate them, so the
+  asserted/unasserted totals below are for the audited scope alone.
+- **`--check` is case-reference validation, nothing more.** Each row must point at a
+  case its suite still *declares*, matched against the suite's own invocation forms
+  (`run_case` / `run_unicode_case` with the universe first; `start_sample` /
+  `negative_case`) with comment lines ignored, so a deleted case whose name survives in
+  a comment, or a longer case name that contains a shorter one, is not a declaration.
+  It cannot show that a case still makes the assertions its row claims; only reading
+  the case can.
+- **It does not shape with `hb-shape`'s defaults.** Production shapes a
+  composition-requiring atom with `HB_BUFFER_FLAG_PRESERVE_DEFAULT_IGNORABLES` and
+  everything else with `REMOVE_DEFAULT_IGNORABLES` (`XtpShapeUtf8ForComposition` and
+  `XtpShapeUtf8`, `src/glyph_shape.c`), and the audit now selects the same flag per
+  atom through a port of the classifier in `src/emoji_presentation.c`, plus `--bot
+  --eot --cluster-level=1`. This is not cosmetic: with ignorables removed, an
+  unsupported tag payload disappears and `TwitterColorEmoji-SVGinOT.ttf` reports **one
+  plausible glyph** for the Scotland flag it cannot draw. With production's flags the
+  same face reports `missing-glyph:7`, which is what the renderer refuses. The column
+  is named `shaping` because one glyph is not the whole of acceptance either: coverage,
+  ink, presentation and the advance rule are separate gates the audit does not model.
+
+`tests/emoji-coverage-audit.py` (meson test `emoji-coverage-audit`, 13 tests) holds
+each of these properties, all of which an earlier version got wrong: a commented and an
+unused literal are mentions and not coverage; the two columns are shown to disagree; a
+declaration deleted while a comment keeps its name **is** reported, and a longer case
+name is not a declaration of a shorter one; the assertion labels are checked against
+the helpers the cases call; U+1F6E0 is shown to be out of scope rather than unasserted;
+and the removed-ignorables false positive is reproduced and then shown to be rejected
+by the audit's own verdict, while a complete shaping verdict is shown to say nothing
+about presentation or ink.
+
+Counts as of this slice — 21 staged faces, 1438 `Emoji` bases, of which **34 are in the
+audited scope** (E15.0+):
+
+| bucket | bases |
+| --- | --- |
+| in scope, asserted by a named automated case | 5 |
+| in scope, covered by a staged face, asserted by nothing | 29 |
+| in scope, covered by no staged face | 0 |
+| not inventoried (older than E15.0) | 1404 |
+| *(written in a suite's source, coverage unproven)* | *35* |
+| *(human-assessed probe samples, never automated evidence)* | *49* |
+
+Probe samples include the Go artwork probe (`tools/probe/emoji_artwork.go`) as well as
+the width probes; U+1FAE9 is a probe sample and nothing else, which the report shows.
+
+Per-face coverage of the 34 bases newer than E15.0, cmap only:
+
+| face | E15.0+ bases |
+| --- | --- |
+| Noto-COLRv1, NotoColorEmoji (2.051), OpenMoji-COLRv0 | 34/34 |
+| NotoEmoji-Regular-3.003 | 27/34 — missing U+1F6D8, U+1FA8A, U+1FA8E, U+1FAC8, U+1FACD, U+1FAEA, U+1FAEF |
+| TwitterColorEmoji-SVGinOT | 20/34 |
+| NotoColorEmoji-2.034, NotoEmoji-Regular (1.05), Twemoji | 0/34 |
+
+**The audit found no renderer defect.** That conclusion rests on the live renderer
+cases below, not on the audit's shaping: every newer base sampled routes, shapes to one
+glyph and paints. The one gap exposed is a font gap, and it is recorded as one. The
+monochrome fixture predates E17.0, so forced text presentation has nothing to serve
+those seven bases with and the route is deliberate tofu — with the cursor advance still
+correct, which is the renderer's own contract and is asserted separately.
+
+Representative cases, added to `tests/xvfb-emoji-artwork.sh` as rows rather than one
+launch per codepoint:
+
+| case | what it grades |
+| --- | --- |
+| `newer-bases-row` | U+1FA75 (E15.0), U+1FADF (E16.0), U+1FA8A and U+1FACD (E17.0) in mode 2027: each routed `presentation=emoji glyphs=1` from `Noto-COLRv1.ttf`, color ink that is not the tofu box, margins inside its own two cells, blank following cell, blank row below and border above, and one CPR of column 9 for the row |
+| `newer-bases-text` | the same E15.0 and E16.0 bases under forced text presentation: served from `NotoEmoji-Regular-3.003.ttf`, monochrome ink, same containment, CPR column 5 |
+| `newest-bases-text-gap` | the two E17.0 bases under forced text: deliberate tofu, pixel-identical to the measured width-2 tofu box, advance still column 5. A face covering E17.0 should turn this into a positive case |
+| `tag-flags-row` | RGI England and Wales plus the valid non-RGI `usca` sequence in mode 2027: every logged U+1F3F4 route shaped one glyph from the color face, each atom contained, and England's artwork differs from Wales's, so the tag payload demonstrably reached the font |
+| `tag-flags-legacy` | the same row in the legacy width regime, which was **measured** to supply the same complete atoms here — the identical advance (column 7) and route evidence, not an assumption that legacy joins anything |
+
+Tag sequences, shaped with production's flags: the three RGI subdivision flags
+(`gbeng`, `gbsct`, `gbwls`) are complete in six faces including the monochrome one.
+The non-RGI `usca` is complete in `Noto-COLRv1.ttf` — a real, distinct ligature, which
+is why the painted case above is legitimate — and `split:6` in the monochrome face,
+which is a font limitation and not a defect: splitting a sequence the font cannot join
+is the correct outcome.
+
+Remaining limits:
+
+- 29 in-scope bases are covered by a staged face and asserted by nothing, and 1404
+  older bases are not inventoried at all. That is by design: this is a routing and
+  artwork gate, not a Unicode conformance matrix, and the inventory is a scoped
+  instrument for picking the next sample rather than a census of what the suites assert.
+- The inventory's assertion labels are maintained by hand against the suites' helpers.
+  `--check` catches a case that no longer exists; it cannot catch a case whose
+  assertions changed while its name stayed, so the labels are only as good as the last
+  reading of those cases.
+- `zwj-polar-bear` is asserted by no automated case; it is a probe sample only.
+- The audit measures scalar coverage from cmaps and sequence shaping from `hb-shape`.
+  Neither says a glyph is legible, and nothing here promotes a visual-legibility
+  record; the TDN capability records are unchanged by this slice.
+- Modifier, keycap and regional-indicator sequences are sampled by one entry each,
+  already exercised by the routing suite; the new cases add none.
+
 ## Styled whole-sequence selection
 
 Style selection runs **after** a route is chosen, so a bold or italic request can

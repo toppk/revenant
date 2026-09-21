@@ -335,6 +335,52 @@ check_route()
     fi
 }
 
+# Every route logged for one base, for a row of atoms that share a base -- the tag
+# sequences below all start at U+1F3F4, so the last line alone would grade one of
+# them.  Duplicate lines from repeated renders are harmless here: the assertion is
+# that no logged route for this base was split, tofu, or served from another file.
+check_every_route()
+{
+    base=$1
+    expected_presentation=$2
+    expected_file=$3
+
+    routes=$(grep -F "route base=$base " "$log" || true)
+    if test -z "$routes"
+    then
+        fail_artwork no-route "nothing logged for $base"
+        return
+    fi
+    printf '%-20s %s\n' "$sample.routes" \
+        "$(printf '%s\n' "$routes" | sed 's/.*font: //' | sort -u | wc -l) distinct"
+    for pattern in " role=tofu" " glyphs=1 "
+    do
+        case $pattern in
+        " role=tofu")
+            if printf '%s\n' "$routes" | grep -F -q -- "$pattern"
+            then
+                fail_artwork tofu-route "a $base route is tofu"
+            fi
+            ;;
+        *)
+            if printf '%s\n' "$routes" | grep -F -v -q -- "$pattern"
+            then
+                fail_artwork shaping "a $base route did not shape one glyph"
+                printf '%s\n' "$routes" | grep -F -v -- "$pattern" | sed 's/.*font: //'
+            fi
+            ;;
+        esac
+    done
+    if printf '%s\n' "$routes" | grep -F -v -q -- " presentation=$expected_presentation "
+    then
+        fail_artwork presentation "expected presentation=$expected_presentation"
+    fi
+    if printf '%s\n' "$routes" | grep -F -v -q -- "/$expected_file "
+    then
+        fail_artwork effective-file "expected effective file $expected_file"
+    fi
+}
+
 # One drawn atom: visible ink that is not the tofu box, of the expected paint
 # class, with margins inside its own cells.  Containment across the cell
 # boundary is established separately, by check_surroundings.
@@ -672,6 +718,120 @@ check_vertical_containment $((grid_columns - 1)) 1
 check_advance tools-right-edge "$grid_columns"
 stop_sample
 record tools-right-edge "last column placement"
+
+printf '\n== newer bases and tag sequences ==\n'
+# Chosen from tools/emoji-coverage-audit.py, which inventories the pinned
+# emoji-data.txt (Unicode 17.0) against the staged faces and the test corpus.  Each
+# row is one terminal launch covering several Unicode entries: the audit found 33
+# bases newer than E15.0 that a staged face covers and no suite touched, and three
+# of the four tag sequences it measures unexercised.  These rows sample that space
+# rather than enumerate it.
+newer_bases=$(printf '\U0001FA75\U0001FADF\U0001FA8A\U0001FACD')
+# E15.0 and E16.0, which the modern monochrome face covers.
+newer_text_bases=$(printf '\U0001FA75\U0001FADF')
+# E17.0, which it does not: see the font-gap case below.
+newest_bases=$(printf '\U0001FA8A\U0001FACD')
+tag_eng=$(printf '\U0001F3F4\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F')
+tag_wls=$(printf '\U0001F3F4\U000E0067\U000E0062\U000E0077\U000E006C\U000E0073\U000E007F')
+# Syntactically valid and outside the RGI set, so it separates "the font has this
+# ligature" from "the renderer split the atom".
+tag_usca=$(printf '\U0001F3F4\U000E0075\U000E0073\U000E0063\U000E0061\U000E007F')
+
+artwork_failures=
+start_sample newer-bases-row routing-modern "$newer_bases" 16 unicode true true 1 unicode
+check_advance newer-bases-row 9
+check_route U+1FA75 emoji "$color_face"
+check_route U+1FADF emoji "$color_face"
+check_route U+1FA8A emoji "$color_face"
+check_route U+1FACD emoji "$color_face"
+check_cell_artwork newer-bases-row.e15 0 2 0 color
+check_cell_artwork newer-bases-row.e16 2 2 0 color
+check_cell_artwork newer-bases-row.e17a 4 2 0 color
+check_cell_artwork newer-bases-row.e17b 6 2 0 color
+check_blank following-cell 8 1 0
+check_vertical_containment 0 8
+stop_sample
+record newer-bases-row "E15.0, E16.0 and E17.0 bases in mode 2027"
+
+artwork_failures=
+start_sample newer-bases-text routing-modern "$newer_text_bases" 16 text true true 1 unicode
+check_advance newer-bases-text 5
+check_route U+1FA75 text "$modern_mono"
+check_route U+1FADF text "$modern_mono"
+check_cell_artwork newer-bases-text.e15 0 2 0 mono
+check_cell_artwork newer-bases-text.e16 2 2 0 mono
+check_blank following-cell 4 1 0
+check_vertical_containment 0 4
+stop_sample
+record newer-bases-text "forced text presentation of E15.0 and E16.0 bases"
+
+# A font gap, recorded as one: NotoEmoji 3.003 predates E17.0, so forced text
+# presentation has nothing to serve these two bases with and tofu is the correct
+# result.  The advance is asserted anyway, because that contract is the renderer's
+# and does not depend on any font.  Replacing the monochrome fixture with a face
+# that covers E17.0 should turn this case into a positive one.
+artwork_failures=
+start_sample newest-bases-text-gap routing-modern "$newest_bases" 16 text true true 1 unicode
+check_advance newest-bases-text-gap 5
+for base in U+1FA8A U+1FACD
+do
+    route=$(grep -F "route base=$base " "$log" | tail -1)
+    printf '%-20s %s\n' "$sample.route" "$(printf '%s' "$route" | sed 's/.*font: //')"
+    if ! printf '%s\n' "$route" | grep -F -q -- ' role=tofu'
+    then
+        fail_artwork tofu-route "$base is served after all: remove this font-gap case"
+    fi
+done
+first=$(sample_cells 0 2 0)
+second=$(sample_cells 2 2 0)
+printf '%-20s %s\n' "$sample.first" "$first"
+printf '%-20s %s\n' "$sample.second" "$second"
+if test "$(ink_hash "$first")" != "$tofu_two_hash" || \
+   test "$(ink_hash "$second")" != "$tofu_two_hash"
+then
+    fail_artwork tofu-ink "expected the deterministic width-2 tofu box in both cells"
+fi
+check_vertical_containment 0 4
+stop_sample
+record newest-bases-text-gap "E17.0 bases have no monochrome supply in this universe"
+
+artwork_failures=
+start_sample tag-flags-row routing-modern "$tag_eng$tag_wls$tag_usca" 16 unicode true true 1 unicode
+check_advance tag-flags-row 7
+# All three atoms share the base, so every logged route is graded, not the last.
+check_every_route U+1F3F4 emoji "$color_face"
+check_cell_artwork tag-flags-row.eng 0 2 0 color
+check_cell_artwork tag-flags-row.wls 2 2 0 color
+check_cell_artwork tag-flags-row.usca 4 2 0 color
+check_blank following-cell 6 1 0
+check_vertical_containment 0 6
+# The tag payload has to reach the font: two different subdivisions may not paint
+# the same artwork.  Nothing here judges which flag is which, or its legibility.
+eng_hash=$(ink_hash "$(sample_cells 0 2 0)")
+wls_hash=$(ink_hash "$(sample_cells 2 2 0)")
+printf '%-20s eng=%s wls=%s\n' tag-flags-row "$eng_hash" "$wls_hash"
+if test "$eng_hash" = "$wls_hash"
+then
+    fail_artwork neighbor "the England and Wales sequences painted identical artwork"
+fi
+stop_sample
+record tag-flags-row "RGI England and Wales plus one valid non-RGI tag sequence"
+
+# Legacy segmentation, stated rather than assumed: this backend hands the complete
+# tag sequence to the renderer in the legacy regime too, measured here, so the same
+# whole-atom expectations apply.  Nothing joined is required of legacy for atom
+# kinds where it supplies separate atoms.
+artwork_failures=
+start_sample tag-flags-legacy routing-modern "$tag_eng$tag_wls$tag_usca" 16 unicode true true 1
+check_advance tag-flags-legacy 7
+check_every_route U+1F3F4 emoji "$color_face"
+check_cell_artwork tag-flags-legacy.eng 0 2 0 color
+check_cell_artwork tag-flags-legacy.wls 2 2 0 color
+check_cell_artwork tag-flags-legacy.usca 4 2 0 color
+check_blank following-cell 6 1 0
+check_vertical_containment 0 6
+stop_sample
+record tag-flags-legacy "the legacy regime supplies the same complete tag atoms"
 
 printf '\n== retained negative cases ==\n'
 # The 1.05 monochrome fixture genuinely lacks U+1F6E0, so tofu is the correct

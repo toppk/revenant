@@ -539,6 +539,8 @@ test(
 
 test('probe-features', python3, args: [files('tests/probe-features.py')], timeout: 45)
 
+test('emoji-coverage-audit', python3, args: [files('tests/emoji-coverage-audit.py')], timeout: 60)
+
 test(
     'probe-colors-parser',
     python3,
