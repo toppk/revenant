@@ -57,12 +57,12 @@ not a completed multi-size assessment of every artwork capability.
 
 ## Dispatch plumbing and remaining features
 
-Use the [dispatch guide](docs/maintainers/dispatch.md) and the local untracked
-`todo.md` IDs for bounded assignments. The tracked guide maps every pending
+Use the [dispatch guide](docs/maintainers/dispatch.md) and the tracked
+`todo.md` IDs for bounded assignments. The guide maps every pending
 chunk to its stable TDN feature IDs; chunk IDs are work units, not feature IDs.
-`tools/probe-features.py --list` lists 18 manual fixtures. These fixtures do not imply that the corresponding
-features are implemented. Extend the graphics fixture as media, placeholders
-and animation land; it currently covers only static inline RGBA placement.
+`just probe` builds and opens the Go probe browser. Its fixtures do not imply
+that the corresponding features are implemented. Kitty graphics is parked for
+the current drain; its existing fixture covers only static inline RGBA input.
 
 **Allow Mouse Ops** and **Allow Tcap Ops** are live Ctrl+right-click menu
 controls, both defaulting true. Mouse Ops suppresses encoded mouse/focus
@@ -176,58 +176,30 @@ records into independently tested behavior. Preserve published IDs when
 moving or rewriting pages. Do not turn unknown into unsupported merely
 because a query is denied or a probe has not been run.
 
-## Maintainer transition — 2026-09-02
+## Current release state — 2026-09-14
 
-The cursor-blink, ANSI-palette, and internal-naming rounds are complete. There
-are no known open findings from their final reviews. The complete maintained
-matrix passed at the transition point: GCC, Clang, and AddressSanitizer each
-passed 26/26 tests, the stub backend passed 6/6, all four builds were
-warning-free, and `git diff --check` was clean.
+Revenant 0.7.0 is published from `v0.7.0`. The release workflow built and
+tested five packages, signed their provenance, and published matching Arch,
+Fedora, Debian/Ubuntu, x86_64 tar, and aarch64 tar artifacts. At that release, the
+libghostty matrix contained 55 tests and the stub matrix contained 8; the local
+release gate and every package build completed without skips.
 
-The important completed state is:
+The release includes the Go/TDN probe, interactive scrollback search, OSC 133
+prompt navigation and output piping, desktop notifications and progress,
+dynamic colors and title stacks/reports, terminal-owned device identity,
+procedural terminal glyphs, and the current permission menus. The exact
+feature inventory and evidence live in TDN and the 0.7.0 changelog rather than
+in a second checklist here.
 
-- Cursor blinking matches xterm's DECSCUSR/DEC mode 12 model, including the
-  separate application operand, configurable XOR/OR composition, forced
-  `always`/`never` policies, reset behavior, and query replies. The observer
-  workaround and its parser tests are intentional; see Current architecture
-  below before changing it.
-- `color0` through `color15` are real supported resources with xterm's compiled
-  defaults. They seed libghostty's default palette, survive OSC 4 current-color
-  overrides, become the OSC 104 reset target, reach painted pixels, and leave
-  indices 16 through 255 unchanged. Color names are parsed to RGB without
-  allocating an X colormap entry.
-- Product branding now has an enforced boundary. Project prose, Meson,
-  packaging/release metadata, and concrete justfile launch paths may name the
-  installed product. Internal C, tools, and tests use `XTP` or `xterm+`; the C
-  program name comes from Meson's generated `XTP_PROGRAM_NAME`. The Meson
-  `internal-branding` test enforces the internal trees. The release-note helper
-  consequently lives at `packaging/release-notes`, and the synthetic sbix
-  fixture is `XTP Synthetic sbix`/`XtpSyntheticSbix.ttf`.
-- The libghostty adapter now supplies current cell/grid geometry for XTWINOPS
-  `CSI 14 t`, `CSI 16 t`, and `CSI 18 t` queries and identifies itself to
-  XTVERSION as `revenant(<version>)`, following xterm's `XTerm(411)` display
-  convention while retaining honest product identity. Backend self-tests pin
-  the initial and post-resize replies. Device-attribute replies are now
-  Revenant-owned through libghostty's device-attributes callback (see the
-  A3 entry below and the drift ledger); the earlier "deferred to v0.6"
-  wording described an unreviewed default, not a completed audit.
+The active implementation queue is `todo.md`. Kitty graphics remains honestly
+Missing and is parked during the current drain. The immediately useful work is
+the local or bounded remainder; API-blocked OSC 22, OSC 50, and Mouse Ops work
+must wait for the named libghostty boundary instead of adding another parser.
 
-Two review-method rules are now evidence-backed project practice. First, any
-claim that “xterm does X” must be checked against the pinned
-`upstream/xterm-snapshots` source and, when observable behavior is involved,
-differentially exercised against xterm. Second, X resource tests must use an
-isolated `HOME`; setting `XENVIRONMENT=/dev/null` does not suppress
-`~/.Xdefaults`. A maintainer's loose `xterm*colorN` entries caused two false
-palette findings and one implementation detour before a hermetic HOME and a
-real-xterm differential exposed the contamination.
-
-Resume from the v0.5 early-access plan and roadmap rather than reopening these
-rounds without a concrete regression. Item 9 still names startup cursor-shape
-resources and `clear-saved-lines` as bounded v0.5 work after the completed
-palette round. The larger high-use binding gaps are classified for v0.6. The
-honest command-line surface is now complete; session logging is explicitly
-deferred to v0.6, while the other option-driven process behaviors remain
-inventory items.
+Two review rules remain evidence-backed practice. Check claims about xterm
+against the pinned source and, when behavior is observable, against a live
+xterm. Run X resource tests with an isolated `HOME`; `XENVIRONMENT=/dev/null`
+does not suppress `~/.Xdefaults`.
 
 ## Mission
 
@@ -250,8 +222,8 @@ explicit capability comparison and the default MVP gate, but the owner may
 approve a clearly stated product exception rather than let one upstream demo
 feature control a release indefinitely. Kitty graphics is the current
 exception: it remains honestly Missing until images render, and libghostty
-parser state alone does not count as promotion, but it is not a v0.5 or v0.6
-release gate. Kitty keyboard is Present with progressive flags, stack, legacy
+parser state alone does not count as promotion. It is explicitly parked during
+the current TODO drain. Kitty keyboard is Present with progressive flags, stack, legacy
 fallback, modifiers, composition, and real press/repeat/release events covered
 end to end. Maintainer-reported keyboard application failures should continue
 to become named regression fixtures.
@@ -487,9 +459,10 @@ an unbounded cleanup pass.
   removing INFO narration and generated summaries over changing diagnostic
   coverage during feature work.
 
-Two reviewed choices are deliberate. Keep `--self-test` in the installed binary
+Two reviewed choices are deliberate. Keep the self test in the installed binary
 as a package smoke diagnostic; the table-driven runner addresses its structural
-cost. Keep the three Ghostty callback-pointer shims typed: assignment to each
+cost. Its canonical spelling is `-self-test`, matching every other option, with
+`--self-test` retained as an alias for existing scripts. Keep the three Ghostty callback-pointer shims typed: assignment to each
 Ghostty callback typedef provides compile-time signature checking, while their
 documented copy handles the option API's representation boundary. A generic
 function-pointer helper would lose the useful type check.
@@ -660,7 +633,9 @@ function-pointer helper would lose the useful type check.
   logs, drives a helper that exits without reading a 145 KB output to the
   closed-early path, and exits after a helper shell has already exited
   leaving a SIGTERM-ignoring `sleep` in its group, then confirms that
-  child is gone.
+  child is no longer running. Minimal container init processes may leave the
+  adopted child as a zombie; the test accepts that stopped state because the
+  terminal cannot reap a grandchild.
   The self-test pins the D contract: none seen, D before any next prompt,
   a running later command not moving it, CAN, SUB, `Dgarbage`, an oversized
   report, the exact 2048/2049 payload boundary, NUL bytes inside the D item
@@ -1250,7 +1225,7 @@ libghostty exposes much of the required machinery.
 The project and repository are named Revenant. The installed binary is
 `revenant`; `xterm+` remains an installed compatibility symlink. The `XTerm`
 application class, `xterm` instance, `vt100` widget name, resources, menus, and
-translations are the pinned v0.5 compatibility behavior and must not be renamed
+translations are the current compatibility behavior and must not be renamed
 as cosmetic cleanup. They are not necessarily the permanent identity model.
 The leading long-term candidate is instance `revenant`, class `XTerm`, but any
 transition must first account for instance-specific X resources, WM_CLASS-based
@@ -1293,11 +1268,11 @@ is not an xterm background/transparency feature.
 
 This split helps define possible Revenant work without turning it into a promise.
 Revenant already promotes resize reflow, OSC 8 links, current mouse and focus
-reporting, and the Kitty keyboard protocol through an X11/Athena frontend. It
-still needs the missing and Partial items in the Ghostling parity checklist,
-and it does not yet reproduce all of xterm's historical protocol tail. Future
-daily-driver ideas include scrollback search, richer font fallback and shaping,
-Kitty graphics, and possibly tabs, splits, or profiles if they can be added
+reporting, the Kitty keyboard protocol, interactive scrollback search, and
+general shaping and font fallback through an X11/Athena frontend. Kitty
+graphics remains the sole Missing Ghostling item, and Revenant does not yet
+reproduce all of xterm's historical protocol tail. Future daily-driver ideas
+include Kitty graphics, tabs, splits, or profiles if they can be added
 without discarding the X11 resource, translation, menu, and window-manager
 contract.
 Native Wayland and a wholesale GPU-shell redesign are not implied by this idea;
@@ -1358,351 +1333,9 @@ selection, decorations, and other ink opaque. Do not reopen this composition
 from screenshot intuition alone; change it only with corresponding pixel-level
 coverage.
 
-## v0.5.0 early-access plan
+## Open compatibility work
 
-The v0.5 feature milestone is the first build intended for people beyond the
-maintainer; release-pipeline-only checkpoints do not lower that product bar.
-It is a reconnaissance and early-access release, not the announcement release.
-Its job is to touch the important compatibility and onboarding surfaces, fix
-the cheap or immediately harmful gaps, and leave an evidence-backed inventory
-for v0.6. Crashes, lost or reordered PTY bytes, grid-width drift, corrupt
-history or selection, and silent compatibility breaks remain release blockers.
-
-The release thesis is: **make Revenant useful and understandable to its first
-outside users while discovering, rather than prematurely completing, the work
-needed for an announcement.** This is a smaller and more exploratory scope than
-the v0.6 hard gates below.
-
-### Release scope
-
-Work in this order. Review each surface only deeply enough to establish its
-real state. Fix a finding in v0.5 when it is small, blocks ordinary use, makes
-the early-access experience misleading, or is prerequisite to another scoped
-item. Otherwise record it under v0.6 and keep moving.
-
-1. **Protect the daily-driver path.** Continue using Revenant for ordinary
-   shells, editors, tmux, SSH, selection/paste, hyperlinks, resize, alternate
-   screen, and deep scrollback. Close reproducible crashes, byte loss, input
-   errors, stale painting, reflow failures, and history or selection corruption
-   before feature work. Finish the obscured-window, DECSTBM, alternate-screen,
-   X request ordering, and throughput checks in
-   `docs/compatibility/rendering-review.md`.
-2. **Refresh the Ghostling inventory.** Review the current Ghostling checkout
-   against the libghostty commit selected for v0.5 rather than carrying the
-   2026-08-24 comparison forward by assumption. Exercise each advertised
-   capability at the visible X11 boundary, confirm the existing claims with
-   representative evidence, reconcile the two parity matrices, and record any
-   capability Ghostling has added or removed. This is an inventory exercise for
-   v0.5, not a parity-implementation gate: fix only release-blocking regressions
-   or a clearly small dishonest classification discovered by the review. Keep
-   actual status (`Present`, `Partial`, or `Missing`) separate from release
-   scope. Kitty graphics remains Missing and is deliberately deferred from
-   v0.5, so this release must not claim complete Ghostling parity or the
-   existing MVP gate.
-
-   The 2026-09-02 source inventory compared Ghostling `63842bf8e5e4` (also the
-   current remote head) with Revenant's selected libghostty
-   `5aeb693b7727`; Ghostling itself pins `f64f4aca2c29`. Its advertised list is
-   unchanged, but its code now has a real, deliberately simple Kitty PNG and
-   placement renderer. Revenant remains 11 Present and 1 Missing against that
-   advertised list, with Kitty graphics the only missing item. The roadmap's
-   stale `Partial` resize label was corrected to `Present`.
-
-   Upstream triage on 2026-09-03 included Ghostty Discussions, which are its
-   pre-work request queue. Do not open a duplicate animation request:
-   [discussion 13379](https://github.com/ghostty-org/ghostty/discussions/13379)
-   is the active request for Kitty animation frames and links the older issue
-   and discussion history. No current Discussion was found for the other
-   concrete external-renderer gap: resolving Unicode-placeholder/virtual
-   placements into drawable placement geometry through libghostty's C API.
-   The closest contribution precedent is
-   [discussion 12347](https://github.com/ghostty-org/ghostty/discussions/12347),
-   where libghostty Kitty-graphics inspection work was welcomed. Implement
-   ordinary static placements first; if that confirms the boundary, take the
-   resolved-virtual-placement request to one narrowly scoped new Discussion
-   and add any required external-renderer animation-tick detail to 13379.
-   Ghostty's submission form requires the author to write in their own voice,
-   so preserve technical facts and reproductions here rather than preparing
-   text to paste as a submission.
-
-   The broader source comparison found two small terminal-effect differences.
-   XTWINOPS size reports and a product-owned XTVERSION reply are now integrated
-   and covered before and after resize. Full Ghostty formats XTVERSION as
-   `ghostty <version>`, Ghostling reports `ghostling`, and xterm 411 reports
-   `XTerm(411)`; Revenant deliberately reports `revenant(<version>)`. DA
-   replies are configured through the device-attributes callback rather
-   than libghostty's `CSI ? 62 ; 22 c` default: the advertised feature set,
-   clipboard code, DA2 version value, and DA3 form were each audited against
-   implemented behavior instead of copied from Ghostling; the drift ledger
-   records the evidence. The Clang build and 30/30 maintained
-   tests, formatting check, and `git diff --check` passed after the terminal
-   report implementation. A full visible-boundary re-exercise of every matrix
-   row remains part of the release inventory if stronger acceptance evidence is
-   desired.
-
-   Welcome currently has small duplicated X resource/font-probe logic beside
-   `config_report.c`, and its compositor-ready loop duplicates the opacity
-   harness. Consolidate those only when touching the owning report and Xvfb
-   helper modules; the v0.5 review found no remaining behavioral dependency on
-   that cleanup. Keep `-version` concise and xterm-like. The detailed
-   `-report-config` and `-welcome` support block, rather than `-version`, carry
-   the selected backend revision.
-3. **General shaping/fallback and italic—not emoji-only rendering. Completed.**
-   See the user guide at `docs/configuration/fonts.md` and the implementation
-   contract at `docs/maintainers/font-resolution.md`. The durable invariants
-   are: libghostty commits cell width before font lookup; entry 1 of the primary
-   Xft role alone defines fixed cell geometry; atom routing is normal-canonical;
-   compatible adjacent atoms shape together; and styles never change the
-   serving family. Primary, doublesize, emoji, and Han slots use xterm's
-   characterized two-entry chains, followed by numbered user fallbacks and
-   optionally unnamed system candidates under the inherited governors.
-
-   Non-primary faces normalize to primary metrics. Exact Han IVS misses and
-   exhausted ink-bearing clusters produce deterministic per-cell tofu. The
-   width-keyed LRU cache, schema-1 NDJSON routing report, and transactional
-   font-universe reload are implemented and covered by focused tests. The
-   patch-411 T0 runner replays the blessed 32-case deposition; changes to slot
-   grammar, governor behavior, or intentional style drift must update the
-   compat evidence rather than relying on memory.
-
-   Preserve the Xlib bitmap/BDF world when `renderFont: false`. The remaining
-   LM-04/05 gap is DEC double-height/double-width row recognition: the current
-   libghostty stream exposes no row-size state. Add that state to the backend
-   API before implementing the renderer behavior; never reconstruct it by
-   rescanning PTY bytes in the UI. Keep shaped-run caches separate from family
-   routing, preserve variable-font coordinates in every engine, and retain the
-   existing emoji routing/width, atomicity, color, clipping, and fixture gates.
-   TDN: `esc-double-size-lines`.
-4. **Review the command line and fix its obvious dishonesty.** Use
-   `docs/compatibility/command-line-feasibility.md` as the inventory and compare
-   behavior with the patch-411 xterm oracle. Reject an unknown option such as
-   `-asdfzxcv` with the invoked program name, xterm-style `bad command line
-   option` text, usage, and a failing status instead of silently opening a
-   window. Add single-dash `-help` and `-version`, preserve `-e` as the boundary
-   after which arguments belong to the child, and test output streams and exit
-   statuses. Add aliases for behavior that is already genuinely supported.
-   Triage the remaining inventory into small v0.5 work and the v0.6 hard gate;
-   Xt parsing alone is not support.
-5. **Defer xterm session logging to v0.6.** Keep `-/+l`, `-lf`, the `logFile`
-   and `logInhibit` resources, and the `logging` main-menu action classified as
-   one coherent v0.6 PTY-output-tee slice. Do not expose a partial v0.5 surface.
-   This user-requested session transcript remains distinct from Revenant's
-   structured diagnostic `-log` severity; neither option may accidentally
-   enable the other.
-   TDN: `logging-session-transcript`.
-6. **Add a bounded `revenant -welcome` setup assistant. Completed.** The shipped
-   path initializes the real Xt widget and resource database, prints its report,
-   and exits before terminal-backend creation or PTY spawn. It distinguishes
-   app-default availability, the server `RESOURCE_MANAGER`, and relevant live
-   instance/class settings; reports renderer, cell geometry, display DPI, and
-   actual fontconfig matches; conservatively flags an unconfigured small bitmap
-   font or bitmap use on a high-density display; and emits a review-before-use
-   scalable-font `XTerm*` starter fragment.
-
-   `/etc/os-release` is parsed as data with a whitelist and size bound. Tested
-   Debian-, Fedora-, and Arch-family mappings provide install commands for
-   missing `xrdb`, scalable monospace, emoji, and CJK capabilities, while an
-   unknown family receives generic advice. No network, package installation,
-   resource edit, or `xrdb` mutation occurs. Children now receive generated
-   `TERM_PROGRAM` and `TERM_PROGRAM_VERSION`; matching host identity and a
-   terminal stdout gate the advanced sample. The resolved widget's Xft and
-   emoji state is diagnostic data, not evidence about the terminal displaying
-   stdout. The bounded support block
-   includes OS/version/architecture, generated program and reviewed backend
-   identity, renderer, instance/class, font matches, app-default status, and
-   host identity without home paths or arbitrary environment content. Focused
-   self-tests and Xvfb cases cover parsing/family fallback, conventional and
-   simulated high-density policy, bare/configured resources, tool absence,
-   host gating, redaction, and unrealized ARGB-widget teardown. The last case
-   also fixed a pre-existing `BadColor` exit race: display close flushes Xt's
-   cached color converters, so the client colormap must remain alive until that
-   flush completes rather than being freed prematurely.
-   The report's optional appearance guidance points to `terminal.love` for its
-   scheme catalog, live demo, and default Xresources export, but performs no
-   network request or automatic import.
-
-   The retained design contract is that this remains a local,
-   read-only diagnosis for someone who may have neither an xterm configuration
-   nor suitable terminal fonts, not merely a decorative sample and not an
-   installer. Reuse `-report-config` and the renderer's own font-resolution
-   paths to summarize the running version and identity, the resolved
-   app-defaults file, live `RESOURCE_MANAGER` state and relevant merged
-   resources, configured bitmap/Xft faces and fallbacks, and representative
-   emoji/CJK coverage. Turn findings into short, actionable recommendations: a
-   starter `XTerm*` resource fragment, the preferred `~/.Xresources` plus
-   `xrdb -merge` workflow, the limited `~/.Xdefaults` fallback, and fonts or
-   optional tools that are missing. Point to `revenant(1)`, `-report-config`,
-   the detailed documentation, and the issue-report path.
-
-   Define “healthy” in terms of the resolved experience rather than merely the
-   presence of an xterm resource file. A stock tiny bitmap `fixed` face on a
-   high-density display deserves a readability recommendation even when an
-   `XTerm.ad` exists; a deliberately configured bitmap setup does not. Base the
-   decision on resource provenance, active renderer, resolved cell pixel size,
-   Xft DPI/display characteristics, and actual font matches. Characterize the
-   threshold on conventional and 4K displays before freezing it, keep the
-   recommendation conservative, and show the exact resource fragment rather
-   than silently changing the font. The default suggestion should use scalable
-   fontconfig aliases and a readable size, then add emoji or CJK packages only
-   when representative coverage is missing.
-
-   Parse `/etc/os-release` as data, never by sourcing it, and use only a
-   whitelisted `ID`, `ID_LIKE`, `VERSION_ID`, and display name to select
-   maintained package suggestions for the supported distribution families.
-   Pair that with `uname` architecture. Unknown distributions get generic
-   capability names and documentation rather than a guessed command. Package
-   mappings require fixtures and periodic verification; missing metadata must
-   degrade to an honest generic recommendation.
-
-   Revenant child processes should receive `TERM_PROGRAM` and
-   `TERM_PROGRAM_VERSION` set from generated build identity, rather than
-   inheriting a misleading outer-terminal value. When `-welcome` sees its output
-   is hosted by the matching program/version, it may show an advanced rendering
-   sample covering color emoji, ZWJ families, modifiers, flags, variation
-   selectors, combining text, and wide CJK. In another terminal it should keep
-   the setup report useful, label the host honestly, and ask the user to run the
-   visual sample inside Revenant instead of grading another emulator.
-
-   End with a stable, plain-text, copyable support block containing at minimum
-   OS distribution/version, architecture, Revenant version, selected terminal
-   backend/reviewed libghostty identity, renderer, application instance/class,
-   resolved primary and emoji fonts, app-default status, and whether the host
-   was identified as Revenant. Do not include usernames, home paths, arbitrary
-   environment values, or the complete resource database. The detailed
-   `-report-config` remains the opt-in attachment when more evidence is needed;
-   the same small collector may later back a dedicated support-report option.
-
-   Do not make xterm, `xrdb`, `fc-match`, or a particular font package a hard
-   dependency merely to support this assistant. Fontconfig is already a runtime
-   dependency and can answer font questions directly; Xlib exposes the server
-   resource database without invoking `xrdb`. Detect optional tools and explain
-   how to obtain them using verified per-distribution documentation, but never
-   install packages or edit/load resources automatically. Separately evaluate
-   whether packages should recommend xterm for its installed `XTerm.ad`, should
-   recommend the distribution's `xrdb` package, or should instead expand
-   Revenant's compiled fallback resources from the maintained app-defaults
-   reference. A hard dependency needs evidence that the terminal cannot provide
-   a sound standalone first run. Keep the assistant offline, avoid sensitive
-   environment output, and never claim that visual coverage was mechanically
-   verified merely because a sample was printed.
-7. **Pin the current name/class behavior and keep the transition open.** For
-   v0.5, application class `XTerm`, instance `xterm`, and widget `vt100` remain
-   the defaults for both `revenant` and `xterm+`. Explicit `-name` and `-class`
-   override application and shell identity before `XtOpenDisplay`; Xvfb pins
-   WM_CLASS, custom instance/class resource lookup and report provenance, and
-   xterm's `-e` child-basename default for WM_NAME and WM_ICON_NAME. Invocation
-   through another symlink does not silently change resource identity. This
-   describes how v0.5 works; it does not close the long-term decision.
-
-   Evaluate `revenant`/`XTerm` as the leading successor along with invoked-name
-   identity, dual-resource migration, and other viable models. The comparison
-   must cover `xterm.*` versus `XTerm*` resources, installed `XTerm.ad`, WM_CLASS
-   consumers, desktop files, `-name`/`-class`, compatibility symlinks,
-   configuration/report output, upgrade warnings, and rollback. Do not change
-   the default until existing users have a documented, tested migration path.
-8. **Remaining keyboard/XIM compatibility matrix. Completed.** The exact-byte
-   Xvfb matrix covers ordinary and application cursor/keypad modes,
-   Shift/Ctrl/Alt/Super combinations, function and editing keys, XIM Compose,
-   a remapped non-US character, and no-XIM Unicode fallback. F13
-   press/repeat/release is covered under Kitty reporting with a synthetic XKB
-   mapping. Keep libghostty's intentional fixterms default visible in the
-   drift ledger, and turn future application failures into named fixtures.
-9. **Finish the small, visible xterm-compatibility set. In progress.** `color0`
-   through `color15` are implemented. For v0.5, wire `cursorUnderLine`/`-uc`
-   and `cursorBar`/`-barc` to libghostty's existing default-cursor-style option,
-   preserving xterm's underline-over-bar precedence. Add
-   `clear-saved-lines()` using libghostty's public full-reset operation, whose
-   RIS behavior already clears screen contents and scrollback, and add xterm's
-   Meta+Button-2 binding with backend and Xvfb coverage. Compare both slices
-   against patch 411. Defer Shift+Select keyboard selection and Scroll Lock to
-   v0.6 because each needs new policy and widget state. Keep Alt+Return
-   fullscreen with the coherent fullscreen resource/menu/EWMH slice in v0.6;
-   the client message is small, but policy and useful window-manager testing are
-   not part of the v0.5 quick fixes. Do not turn v0.5 into an exhaustive
-   resource-catalog exercise. Startup cursor shape is now complete (V2);
-   the action gaps retain the identifiers below.
-   TDN: `ui-clear-saved-lines`, `selection-keyboard-extension`, `input-scroll-lock`,
-        `ui-fullscreen-toggle`.
-10. **Review the documentation as a new user.** Start from a clean supported
-    system and follow install, first launch, configuration, fonts, copy/paste,
-    keyboard, troubleshooting, and removal without maintainer knowledge.
-    Separate a short successful path from reference inventories, add an honest
-    early-access limitations page, make xterm migration explicit, and ensure
-    every command and resource example still works. `-welcome`, the manual,
-    website, package metadata, and `-report-config` should use the same names
-    and explanations.
-11. **Make early access supportable.** Keep default startup quiet and make
-   `--version`, `-report-config`, severity-selected logs, probes, and known
-   limitations sufficient for a useful bug report. Verify installation,
-   upgrade, shell exit, desktop entry, resources, fonts, menus, and uninstall
-   from the tarball, Debian package, RPM, and Arch Linux package. The release
-   notes must call the release early access and distinguish missing capability
-   from known defects.
-
-### Checkpoint gates
-
-Before publishing the v0.5 early-access feature release:
-
-- `just check-all` passes with strict GCC, strict Clang, AddressSanitizer, the
-  stub backend, Xvfb, and the reproducible font fixtures; every package job
-  runs the same relevant integration suites.
-- The selected Ghostty source is one reviewed, exact commit;
-  `tools/fetch-libghostty` rejects moving references. While the project targets
-  early 1.4 work before an upstream tag exists, keep the reviewed commit pin
-  and identify in the release notes that it came from an unreleased branch.
-- The live xterm geometry/font-menu comparison passes under VNC with curated
-  resources. Keep this an explicit side test because it depends on a separately
-  installed xterm oracle; do not pretend it is a hermetic normal test.
-- The emoji follow-through acceptance passes: ordinary complex and combining
-  text uses the generalized shaping/fallback path, the bitmap/BDF renderer is
-  unchanged, and the complete emoji routing, format, atomicity, clipping,
-  fitting, and two-regime width matrix remains green.
-- The remaining keyboard/XIM compatibility matrix passes its exact PTY-byte
-  fixtures, including application modes, modifiers, composition, and the
-  maintained non-US layout case.
-- The refreshed Ghostling inventory and command-line triage are recorded, and
-  the read-only `-welcome` setup audit passes without network access or system
-  mutation. Resource/app-default/font findings and recommendations are covered
-  on configured, intentionally bare, and simulated high-density systems.
-  `/etc/os-release` family fixtures, unknown-distribution fallback, missing-tool
-  and missing-font cases, host-terminal detection, advanced-sample gating, and
-  redaction of the copyable support block are tested. The
-  checklist and xterm differences ledger agree with shipped behavior and
-  explicitly identify deferred Kitty graphics and session logging; v0.5 is not
-  advertised as full Ghostling parity.
-- Unknown options fail visibly, `-help` is useful without an X display, and
-  `-e` preserves arbitrary child arguments. The name/class record pins v0.5
-  behavior, identifies `revenant`/`XTerm` as a leading future candidate, and
-  leaves the final transition decision explicitly open pending the impact
-  audit.
-- A newcomer can install one published package, complete the welcome path,
-  apply a minimal X resource configuration, and produce the documented
-  diagnostic information without consulting maintainer notes.
-- There are no open release-blocking daily-driver regressions or sanitizer
-  findings in exercised code. Package smoke tests report the tag-derived
-  version, and the published assets and provenance are verified using the
-  maintained release procedure.
-
-Kitty graphics remains Missing, so v0.5 is an explicitly limited early-access
-release rather than the MVP promised by the current Ghostling gate. Do not
-weaken the checklist or imply that parser support renders images. A cursory
-review is complete when it produces trustworthy status and bounded follow-up;
-it does not require resolving every finding before v0.5 ships.
-
-### Optional work, not release blockers
-
-- Remaining selection-retention, ICCCM text-target, paste-control, visual-bell,
-  urgency, scrollbar-style, and insensitive-menu work should be driven by
-  actual use or a small compatibility slice.
-  TDN: `selection-keep-selection`, `selection-keep-clipboard`, `selection-icccm-targets`,
-       `paste-control-filtering`, `bell-visual`, `notification-x11-urgency`,
-       `ui-scrollbar-styles`, `ui-menu-action-parity`.
-- Automatic package installation, resource-file editing/loading, and an
-  interactive multi-step welcome UI are out of scope; v0.5 requires the
-  read-only setup analysis and recommendations described above.
-- Additional shaping scripts, XIM layouts, and color-font versions are valuable
-  matrix expansion after each underlying path has one adversarial acceptance
-  fixture.
+The sections below are current compatibility backlogs. Dispatch bounded slices through `todo.md`; do not revive the removed v0.5/v0.6 release plans.
 
 ### Runtime dynamic colors and Color Ops — mostly closed
 
@@ -1861,91 +1494,6 @@ property and stack regressions. Keep unresolved backend hooks and deliberate
 differences explicit; neither a working toggle nor title reports alone means
 full Title Ops compatibility.
 
-### Preserve for future releases
-
-The broader ideas remain project direction rather than v0.5 promises:
-
-- Kitty graphics and scrollback search are expressly punted from v0.5, and
-  neither is a v0.6 announcement gate. They remain possible later features,
-  not work to squeeze in after scope freeze. Their bounded chunks are K1–K4
-  and U2–U3 in the dispatch guide.
-  TDN: `apc-kitty-static-images`, `apc-kitty-temp-file-transfer`,
-       `apc-kitty-shared-memory`, `apc-kitty-unicode-placeholders`, `apc-kitty-animation`,
-       `search-scrollback-literal`, `ui-search-overlay`, `search-copy-match`.
-- Tabs, splits, profiles, and live configuration reload remain open questions.
-  They are acceptable only if they respect Xt/X11 resources and the
-  window-manager contract rather than turning Revenant into an unrelated shell.
-  TDN: `ui-tabbed-terminals`, `ui-split-terminals`, `configuration-profiles`,
-       `configuration-live-reload`.
-- The deeper DEC/xterm tail, sixel, ReGIS, Tektronix 4014, printer controls,
-  locator operations, and exhaustive command-line/resource compatibility. The
-  broad inventory remains grouped; give newly identified DEC operations their
-  own IDs when the scope is audited.
-  TDN: `dcs-sixel`, `dcs-regis`, `tek-4014-graphics`, `csi-mc`, `csi-dec-media-copy`,
-       `csi-decelr`, `csi-decefr`, `csi-decsle`, `csi-decrqlp`,
-       `xterm-resource-compatibility`.
-- The snapshot/raw-byte multiplexer design described below, after the intended
-  upstream snapshot interface exists.
-
-Native Wayland support and a wholesale GPU renderer are anti-goals for
-Revenant. They would erase the project's intentional X11/Xt/Athena identity and
-should be pursued, if desired, as a different frontend or project rather than
-used to redirect this one. Normal use of existing X11 acceleration APIs does
-not violate this rule.
-
-## v0.6 announcement-release sketch
-
-v0.6 is the capture point for work that proves too large for the v0.5 survey.
-Unlike v0.5, it is intended to support a deliberate public announcement. Its
-scope should be refined from actual v0.5 findings, but the following are hard
-gates rather than aspirations:
-
-1. **The Ghostling comparison is current and the in-scope parity work is
-   complete.** Every advertised capability has maintained evidence and an
-   honest status at the visible X11 boundary. All non-excepted announcement
-   items are Present. Kitty graphics may remain the explicit Missing exception;
-   parser state alone is insufficient, and announcement language must say
-   "Ghostling parity except Kitty graphics" rather than claim full parity.
-2. **Menus and command line are honest and compatibility-reviewed.** Every
-   patch-411 menu entry and command-line option is implemented and tested,
-   deliberately insensitive/rejected, or explicitly documented as an
-   intentional difference. Supported entries match the xterm oracle, unknown
-   options fail, and no accepted-but-inert surface is advertised as working.
-3. **The name/class transition decision is evidence-backed.** Invocation names,
-   `-name`, `-class`, WM_CLASS, app-default lookup, existing `xterm*` and
-   `XTerm*` resources, compatibility symlinks, desktop integration, and storage
-   of generated customization have a documented and tested model. The decision
-   may retain `xterm`/`XTerm` for another release or move toward
-   `revenant`/`XTerm`; it must not describe the current default as permanent
-   without completing the migration analysis.
-   TDN: `x11-resource-identity`.
-4. **The newcomer path is release quality.** Installation, `-welcome`, the
-   manual and website, configuration examples, migration guidance, known
-   limitations, diagnostics, package removal, and issue reporting agree and
-   have been followed successfully from clean systems.
-5. **Daily-driver confidence supports the announcement.** The maintained
-   shell, editor, multiplexer, SSH, input, resize, rendering, selection,
-   scrollback, font, and packaging matrices pass, and known serious defects are
-   resolved or explicitly judged incompatible with announcing.
-6. **xterm session logging is complete and safe.** `-/+l`, `-lf`, `logFile`,
-   `logInhibit`, and the `logging` menu action share one tested PTY-output tee.
-   Start/stop behavior, file creation and permissions, append/truncate policy,
-   errors, and nonblocking terminal delivery are compared with xterm, and this
-   transcript facility remains independent of diagnostic `-log` severity.
-   TDN: `logging-session-transcript`.
-
-These gates demand complete classification and honest behavior, not wholesale
-implementation of xterm's historical tail. v0.5 findings should flow into this
-section as bounded tasks. If a v0.5 item starts expanding, moving its completion
-here is the normal scope valve, not a failure of the earlier release.
-
-Do not interpret the Ghostling comparison as the finish line or as authority
-over explicit product exceptions. It is the modern engine-integration floor
-for capabilities kept in scope; xterm remains the behavioral oracle for the
-daily-use interaction contract. When ordering similarly sized work, prefer
-changes that let multiple people run Revenant for real work and produce useful
-evidence for the next decision.
-
 ## Compatibility discipline
 
 - xterm compatibility is judged at the visible X11 boundary, not by internal
@@ -2017,7 +1565,7 @@ just probe-emoji --no-pause
 just probe-fonts --no-pause
 python3 tools/emoji-coverage-audit.py
 just probe text-monochrome-emoji monochrome-emoji --assess
-just probe-keymodes --kitty-only
+just probe csi-u-kitty-keyboard input-keyboard-kitty
 just xterm-font-compat build-agent-gcc
 just resize-loop WINDOW_ID 8 20
 just reflow-prompt

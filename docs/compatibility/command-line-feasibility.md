@@ -179,7 +179,7 @@ The two original structural gaps are complete:
 
 | Option | What xterm does | Mechanism | Approachability | Status |
 | --- | --- | --- | --- | --- |
-| `-/+l` / `-lf filename` | Tee PTY output to a log file | `pty.c` read path | Same tee as the `logging` menu entry; explicitly deferred from v0.5 | ROADMAP 0.6 |
+| `-/+l` / `-lf filename` | Tee PTY output to a log file | `pty.c` read path | Same tee as the `logging` menu entry; tracked as TODO P1 | ROADMAP |
 | `-report-charclass` | Dump `charClass` table | Selection classes | With `-cc` | ROADMAP #4 |
 | `-report-colors` | Log colour allocations | Renderer | Debug log already records colour cache; alias | READY |
 | `-report-fonts` | Log loaded fonts | `-report-config` font section covers it | Alias to a subset of `-report-config` | READY |
@@ -210,7 +210,7 @@ The two original structural gaps are complete:
    and the resulting WM properties.
 3. **Slice C — process options** in `pty.c`: `-ls`, `-tn`, `-tm`, `-ie`,
    `-hold`, `-wf`, `-mesg`, `-baudrate`, `-lc`/`-lcc`. Session transcript
-   logging (`-l`/`-lf`) is a separate v0.6 slice shared with the menu action.
+   logging (`-l`/`-lf`) is a separate TODO P1 slice shared with the menu action.
 4. **Slice D — startup application of existing menu modes**: `-rv`, `-aw`,
    `-rw`, `-132`, `-j`, `-mb`/`-nb`, `-fc`, `-sh`,
    `-nul`, `-cm`, `-into`, `-nomap`, `-maximized`/`-fullscreen`,

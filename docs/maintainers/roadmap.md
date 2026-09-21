@@ -25,21 +25,19 @@ the libghostty C API is the comparison point. See the
 [upstream reference guide](upstream.md) for checkout
 roles and revision policy.
 
-The [Ghostling feature-parity gate](../compatibility/ghostling-parity.md) is
-an MVP gate, not an aspirational comparison. MVP requires every advertised
-item to be Present at the user-visible boundary, including Kitty keyboard and
-Kitty graphics, while retaining the xterm features that make Revenant a daily
-driver rather than a differently skinned Ghostling.
+The [Ghostling feature-parity gate](../compatibility/ghostling-parity.md) is a
+capability comparison rather than an automatic release gate. Every advertised
+item must keep an honest Present, Partial, or Missing status at the user-visible
+boundary. Kitty graphics remains Missing and is explicitly parked in the
+current TODO drain; this exception must not be reported as parity.
 
 ## Capability baseline
 
-This matrix compares Revenant with the Ghostling checkout reviewed on
-2026-08-24. “Partial” means terminal state reaches Revenant or some behavior is
-present, but the complete user-visible integration is not yet available.
-The v0.5 inventory pass must refresh this dated comparison against the current
-Ghostling checkout and selected libghostty commit, reconcile it with the
-dedicated parity checklist, and record findings without turning the review into
-an implementation gate.
+This matrix reflects the maintained status on 2026-09-14. “Partial” means
+terminal state reaches Revenant or some behavior is present, but the complete
+user-visible integration is not yet available. Refresh the comparison when
+advancing the selected libghostty commit, and keep the dedicated parity
+checklist aligned with the evidence.
 
 <!-- markdownlint-disable MD013 -->
 
@@ -51,8 +49,8 @@ an implementation gate.
 | Bold, italic, inverse, and decorations | Present | Xft uses real clipped bold, italic, and bold-italic faces; bitmap bold remains synthetic as a separate xterm-fidelity task. |
 | Unicode and multi-codepoint graphemes | Present | Unicode 17 emoji presentation, color formats, general fontconfig fallback, contextual shaping, and atomic role selection are covered. |
 | Mode-aware keyboard input and modifiers | Present | Normal/application cursor and keypad modes, modifiers, editing/function keys, non-US UTF-8, XIM Compose, and Kitty event delivery have exact fixtures. |
-| Default VT bindings | Partial | The patch-411 binding groups are audited; add Meta+Button-2 with the v0.5 clear-saved-lines slice, and defer Shift+Select, Alt+Return fullscreen, and Scroll Lock to v0.6. |
-| Scrollback viewport | Present | Add xterm-compatible reset-and-clear-saved-lines behavior in v0.5 and retain deep-selection regression coverage. |
+| Default VT bindings | Partial | The patch-411 binding groups are audited; Shift+Select, Alt+Return fullscreen, Scroll Lock, and Meta+Button-2 clear-saved-lines remain open. |
+| Scrollback viewport | Present | Retain deep-selection regression coverage; clear-saved-lines remains an independent xterm compatibility gap. |
 | Wheel behavior and draggable scrollbar | Present | Retain local-history versus application-reporting coverage and extend Xaw styling tests. |
 | Mouse tracking and reporting formats | Present | Add Xvfb event-routing coverage and the remaining xterm mouse-policy resources. |
 | Focus reporting | Present | Retain exact `CSI I`/`CSI O` encoding and X focus-transition coverage while DEC private mode 1004 is enabled. |
@@ -106,10 +104,9 @@ the first small harness, then grow it with every parity slice.
   `-rightbar`, `-leftbar`, and Athena child width/thickness resources.
 - Extend the real Xaw scrollbar coverage for thumb state, dragging, left/right
   layout, and Athena styling resources.
-- Extend `scroll-back`/`scroll-forw` parameter compatibility. For v0.5, add
-  `clear-saved-lines` with xterm-compatible hard-reset behavior by using
-  libghostty's public full-reset operation, which already clears retained
-  history, and expose xterm's Meta+Button-2 binding. `scrollKey` and
+- Extend `scroll-back`/`scroll-forw` parameter compatibility, and add
+  xterm-compatible `clear-saved-lines` with its Meta+Button-2 binding.
+  `scrollKey` and
   `scrollTtyOutput` are implemented as resources, command-line options, and VT
   menu toggles.
 - When mouse tracking is active, encode wheel events for the application;
@@ -202,11 +199,11 @@ semantics and describes the implemented named-selection path.
 - Extend the now-honest command-line parser with the remaining process and
   resource semantics classified in the feasibility study. Unknown options,
   `-help`/`-version`, `-e`, resource aliases, and `-name`/`-class` are covered.
-- Implement xterm session transcript logging in v0.6 as one coherent slice:
+- Implement xterm session transcript logging as TODO P1, one coherent slice:
   `-/+l`, `-lf`, `logFile`, `logInhibit`, and the `logging` menu action must
   share a safe, nonblocking PTY-output tee and remain separate from diagnostic
   `-log` severity.
-- For v0.5, `-welcome` is implemented as a read-only setup assistant over the existing
+- `-welcome` is implemented as a read-only setup assistant over the existing
   configuration-report and font-resolution paths. It should diagnose a bare
   installation as well as an established xterm setup: resolved app-defaults,
   live server resources, likely resource-file workflow, configured bitmap/Xft

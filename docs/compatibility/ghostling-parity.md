@@ -11,10 +11,10 @@ Ghostling is Revenant's minimum modern-terminal capability floor. The goal is
 not merely to use the same parser: each advertised feature must cross the
 backend boundary and work through the real X11 interface.
 
-MVP requires every item in this checklist to be **Present**, plus the daily
-xterm-driver advantages that make Revenant more than a Ghostling port: the
-Xt/Athena interface, xterm resources and bindings, saved-history navigation,
-and X11 selection and paste behavior.
+The original MVP goal required every item in this checklist to be **Present**,
+plus the daily xterm-driver advantages that make Revenant more than a Ghostling
+port. Revenant has since shipped with Kitty graphics as an explicit exception.
+Keep that row honestly Missing while its TODO series is parked.
 
 “Partial” means libghostty already supplies state or encoding, but Revenant has
 not finished the user-visible integration or acceptance coverage.
@@ -85,9 +85,9 @@ remain useful matrix expansion, but are no longer missing protocol plumbing.
 
 The wire format and manual probes are documented in the
 [TDN Kitty keyboard reference](https://toppk.github.io/revenant/tdn/input/kitty-keyboard/).
-Run `python3 tools/probe-keymodes.py --kitty-only` from a checkout for the maintained
-interactive acceptance probe; it preserves exact bytes, decodes event types,
-and verifies flag-stack restoration.
+Run `just probe csi-u-kitty-keyboard input-keyboard-kitty` from a checkout for
+the maintained interactive acceptance probe; it preserves exact bytes, decodes
+event types, and verifies flag-stack restoration.
 
 ## Definition of “better than Ghostling”
 

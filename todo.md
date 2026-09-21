@@ -33,19 +33,121 @@ available meanwhile; new features use the Go runner now.
 
 ## Remaining dispatch order and dependencies
 
-Existing IDs stay stable. K2 has three sequential review slices under its
-existing ID; its parent is complete only after all three.
+Existing IDs stay stable. A chunk with sequential review slices is complete
+only after every slice lands.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| API-dependent | V3, F1, M1 | Public OSC hooks for V3/F1; effective mouse tracking API for M1. |
-| Graphics series | K1 → K2a limits → K2b temp files → K2c shared memory; K3/K4 after K1 | Keep resource limits, transport, placeholders and scheduling separate. |
-| Optional | S4 after S2 | Decide clear semantics before implementation. |
+| Active drain | T1 → W1 → C1 → P1 → P2 | Prefer frontend-owned work that can land against the current backend. |
+| Decision needed | S4 | Choose viewport movement or history deletion before implementation. |
+| API-dependent | V3, F1, M1, T2, W2 | Obtain the named libghostty effects/state; do not add another parser. |
+| Parked | K1 → K2a → K2b → K2c; K3/K4 after K1 | Kitty graphics is explicitly bunted during this drain. |
 
 Shared-file collision rule: serialize edits to `main.c`, `vt_widget*`,
 `terminal_ghostty*`, `meson.build`, and resource tables when dispatching work
 concurrently. Independent feature boundaries do not make concurrent edits safe; serialize
 conflicting ownership even within the same batch.
+
+## T: Title and window compatibility
+
+- [ ] **T1 — Frontend-owned Title Ops parity (three review slices).** These
+      pieces need no new escape callback and should land in order. Preserve the
+      tested separation between Title Ops setting permission and Window Ops
+      reports/stack operations.
+      Probe: extend the title family with cases mapped to each slice; retain
+      `just probe csi-21-t-title-report titles-query --target both` for report
+      regression.
+      Accept: actual ICCCM/EWMH properties, menu/action state, resource reports,
+      isolated HOME, relevant locales, and differential xterm 411 behavior.
+
+      1. **T1a — Action and redundant-update policy.** Register
+         `allow-title-ops(on|off|toggle)` against the existing live state and
+         implement `sameName` without changing stack consumption.
+         TDN: `action-allow-title-ops`, `resource-same-name`.
+      2. **T1b — UTF-8 title surface.** Implement `utf8Title`, the
+         `utf8-title` menu/action, and synchronized ICCCM `WM_NAME` /
+         `WM_ICON_NAME` plus EWMH `_NET_WM_NAME` / `_NET_WM_ICON_NAME`,
+         including stale-property deletion.
+         TDN: `resource-utf8-title`, `x11-utf8-title-properties`.
+      3. **T1c — Send-event interaction.** Make `allowSendEvents` disable the
+         effective Title Ops permission and its toggle exactly as xterm does.
+         TDN: `policy-title-ops-send-events`.
+
+- [ ] **T2 — Parser-dependent Title Ops completion.** Obtain selector/raw-input
+      effects for independent OSC 0/1/2 labels, title encoding modes, and the
+      1000-byte normalization boundary. Then implement XTSMTITLE/XTRMTITLE and
+      hex/UTF-8 input/report modes. Stop: no catch-all OSC/CSI observer.
+      Supporting fixtures: `just probe csi-21-t-title-report titles-query`
+      and `just probe csi-22-t-push-title titles-stack`; they exercise reports
+      and stack behavior. Probe gap: add mapped cases for independent OSC
+      0/1/2 input, title modes, malformed input and exact boundaries.
+      TDN: `osc-0-title-icon`, `osc-1-icon-name`, `osc-2-title`,
+           `resource-title-modes`, `csi-xtsmtitle`, `csi-xtrmtitle`,
+           `title-modes-hex-input`, `title-modes-hex-reports`,
+           `title-modes-utf8-input`, `title-modes-utf8-reports`,
+           `title-input-normalization`, `title-input-byte-limit`.
+
+- [ ] **W1 — Window Ops audit and exposed reports.** Re-audit patch 411's
+      `tblWindowOps` against the pinned libghostty revision, then gate every
+      operation already exposed, including CSI 14/16/18 t, through the existing
+      live policy. Add exact permitted/denied reply tests and numeric/name/
+      wildcard/negation coverage. Do not claim the category complete for
+      operations that still lack callbacks.
+      Probe: extend the window-report family for 14/16/18 and live policy.
+      TDN: `policy-window-ops`, `csi-14-t-pixel-size-report`,
+           `csi-16-t-report-cell-size-in-pixels`, `csi-18-t-text-size`.
+
+- [ ] **W2 — Remaining Window Ops effects.** After W1 identifies the concrete
+      API gaps, obtain callbacks for window manipulation/reports and the
+      cross-family column, line, checksum, X-property and status-line controls.
+      Use a window manager for stacking, minimize, maximize and fullscreen.
+      Stop: preserve libghostty parser ownership and keep OSC 0/1/2 under Title
+      Ops.
+      TDN: `csi-1-t-de-iconify`, `csi-2-t-iconify`,
+           `csi-3-t-move-window`, `csi-4-t-resize-window-in-pixels`,
+           `csi-5-t-raise`, `csi-6-t-lower`, `csi-7-t-refresh`,
+           `csi-8-t-resize-text-area-in-cells`, `csi-9-t-maximize`,
+           `csi-10-t-fullscreen`, `csi-11-t-report-window-state`,
+           `csi-13-t-position-report`,
+           `csi-15-t-report-screen-size-in-pixels`,
+           `csi-19-t-report-screen-size-in-cells`, `dec-mode-3-deccolm`,
+           `dec-mode-40-allow-3-to-resize`, `csi-decslpp`, `csi-decsnls`,
+           `csi-decrqcra`, `csi-xtchecksum`, `osc-3-x-property`,
+           `csi-decsasd`, `csi-decssdt`, `osc-52-multiple-targets`,
+           `osc-52-default-targets`, `osc-52-cut-buffers`,
+           `osc-52-invalid-base64-clear`, `osc-52-reply-target`.
+
+## C: Remaining Color Ops policy
+
+- [ ] **C1 — Color Ops and `allowSendEvents`.** Apply xterm's effective
+      permission interaction to the existing live Color Ops gate and menu,
+      without changing per-item filtering or palette writes. Add startup,
+      live-toggle and mixed-list regressions.
+      Probe: extend the dynamic-color policy case for `allowSendEvents`.
+      TDN: `policy-color-ops-send-events`.
+
+      Keep `policy-kitty-color-ops` and
+      `osc-dynamic-colors-reverse-video` recorded as core/API differences; do
+      not fold them into this frontend-owned slice.
+
+## P: Process and session behavior
+
+- [ ] **P1 — Session transcript logging.** Implement `-/+l`, `-lf`,
+      `logFile`, `logInhibit`, and the `logging` menu action as one safe,
+      nonblocking PTY-output tee. Keep it separate from diagnostic `-log`,
+      define file ownership/permissions and failure behavior, and cover live
+      enable/disable plus teardown.
+      TDN: `logging-session-transcript`.
+      Probe gap: add a native session-log case and verify the file externally.
+
+- [ ] **P2 — Remaining option-driven process behavior.** Implement and review
+      login-shell invocation, hold-after-exit, wait-for-map startup, terminal
+      mode resources, and PTY message permission as independent slices. Do not
+      disturb the completed `termName`/TERM contract or pre-X option scanner.
+      TDN: `startup-login-shell`, `startup-hold-after-exit`,
+           `startup-wait-for-map`, `resource-terminal-modes`,
+           `pty-message-permission`.
+      Probe gap: add one native case per slice that has observable child state.
 
 ## V: Text and cursor presentation
 
@@ -73,7 +175,11 @@ conflicting ownership even within the same batch.
       Probe gap: no case mapped to this slug yet. Add a clear-action scenario
       after defining the semantics; prompt markers alone do not verify clearing.
 
-## K: Kitty graphics (separate series)
+## K: Kitty graphics (parked)
+
+These chunks remain honest Missing/Partial registry work, but are not part of
+the current implementation drain. Reopen K1 explicitly before dispatching any
+of K2–K4.
 
 - [ ] **K1 — Static inline image rendering.** Establish placement iteration,
       image upload/cache ownership, clipping, scroll/resize/repaint, and a
