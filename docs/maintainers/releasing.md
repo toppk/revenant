@@ -72,8 +72,8 @@ then dispatches the workflow against that tag.
    Render the notes before committing, then verify the commit's file boundary:
 
     ```sh
-    version=0.4.0
-    previous_tag=v0.3.0
+    version="${VERSION:?export VERSION first}"
+    previous_tag="${PREVIOUS_TAG:?export PREVIOUS_TAG first}"
     git log --oneline "$previous_tag"..HEAD
     packaging/release-notes "$version"
     git add CHANGELOG.md meson.build
@@ -83,14 +83,14 @@ then dispatches the workflow against that tag.
 
    The final command must list only `CHANGELOG.md` and `meson.build`.
 
-   The prediction is intentionally cheap: if the next release becomes 0.4.1
-   rather than 0.5.0, correct the heading and development version in that
-   later release commit.
+   The prediction is intentionally cheap: if the next planned minor release
+   becomes a patch release, correct the heading and development version in
+   that later release commit.
 
 5. Tag the release commit and push the branch and tag:
 
     ```sh
-    version=0.4.0
+    version="${VERSION:?export VERSION first}"
     tag="v$version"
     git tag "$tag"
     git push origin master "$tag"
@@ -100,7 +100,7 @@ then dispatches the workflow against that tag.
    Actions tab. Tag creation and tag push do not perform this step:
 
     ```sh
-    tag=v0.4.0
+    tag="v${VERSION:?export VERSION first}"
     gh workflow run release.yml -f tag="$tag"
     gh run watch
     ```
@@ -109,11 +109,14 @@ then dispatches the workflow against that tag.
    green workflow as the finish line:
 
     ```sh
-    version=0.4.0
+    version="${VERSION:?export VERSION first}"
     tag="v$version"
     verify_dir=$(mktemp -d)
     gh release download "$tag" --dir "$verify_dir"
-    gh attestation verify "$verify_dir"/* --repo toppk/revenant
+    for asset in "$verify_dir"/*
+    do
+      gh attestation verify "$asset" --repo toppk/revenant
+    done
     tar -xzf "$verify_dir/revenant-$version-linux-$(uname -m).tar.gz" \
       -C "$verify_dir"
     test "$("$verify_dir/revenant-$version-linux-$(uname -m)/revenant" \
@@ -121,7 +124,7 @@ then dispatches the workflow against that tag.
     gh release view "$tag"
     ```
 
-   Confirm that all four assets are present, every attestation verifies, the
+   Confirm that all five assets are present, every attestation verifies, the
    binary version matches the tag, and the release body contains Highlights,
    Changes, and Artifacts rendered from the intended changelog entry.
 
@@ -229,7 +232,7 @@ Zig on `PATH`, and `tools/fetch-libghostty` run first; output lands in
 binary through Meson's `release-version` override.
 
 ```sh
-version=0.4.0
+version="${VERSION:?export VERSION first}"
 packaging/build-tarball "$version"
 packaging/build-deb "$version"      # Debian/Ubuntu: also needs debhelper
 packaging/build-rpm "$version"      # Fedora: also needs rpm-build
@@ -243,7 +246,7 @@ Do not amend an asset or silently move a published tag while leaving the old
 release in place.
 
 ```sh
-tag=v0.4.0
+tag="v${VERSION:?export VERSION first}"
 gh release delete "$tag" --yes --cleanup-tag
 git tag -d "$tag"
 # Land the fix, then repeat the release checklist.
