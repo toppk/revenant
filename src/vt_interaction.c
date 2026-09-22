@@ -161,6 +161,64 @@ Latin1ToUtf8(const uint8_t *bytes, size_t length, size_t *result_length)
         return result;
 }
 
+/* A selection reply as UTF-8, read by the type its owner declared rather than by
+ * what the bytes look like: UTF8_STRING as sent, STRING as Latin-1, COMPOUND_TEXT
+ * through Xlib as xterm does. Any other type cannot be interpreted, so it is refused
+ * and the caller moves on to its next target instead of guessing. */
+static Boolean
+SelectionTextToUtf8(Display *display, Atom type, const unsigned char *value, size_t length,
+                    uint8_t **bytes, size_t *result_length)
+{
+        XTextProperty property;
+        char **list = NULL;
+        int count = 0;
+        size_t total = 0;
+        int index;
+
+        *bytes = NULL;
+        *result_length = 0;
+        if (type == XInternAtom(display, "UTF8_STRING", False)) {
+                *bytes = malloc(length + 1U);
+                if (*bytes == NULL)
+                        return False;
+                if (length != 0)
+                        memcpy(*bytes, value, length);
+                (*bytes)[length] = '\0';
+                *result_length = length;
+                return True;
+        }
+        if (type == XA_STRING) {
+                *bytes = Latin1ToUtf8(value, length, result_length);
+                return *bytes != NULL;
+        }
+        if (type != XInternAtom(display, "COMPOUND_TEXT", False) || length > INT_MAX)
+                return False;
+        property.value = (unsigned char *)value;
+        property.encoding = type;
+        property.format = 8;
+        property.nitems = length;
+        if (Xutf8TextPropertyToTextList(display, &property, &list, &count) < Success ||
+            list == NULL)
+                return False;
+        for (index = 0; index < count; ++index)
+                total += strlen(list[index]);
+        *bytes = malloc(total + 1U);
+        if (*bytes != NULL) {
+                size_t used = 0;
+
+                for (index = 0; index < count; ++index) {
+                        size_t piece = strlen(list[index]);
+
+                        memcpy(*bytes + used, list[index], piece);
+                        used += piece;
+                }
+                (*bytes)[used] = '\0';
+                *result_length = used;
+        }
+        XFreeStringList(list);
+        return *bytes != NULL;
+}
+
 static Boolean
 ConvertSelection(Widget widget, Atom *selection, Atom *target, Atom *type_return,
                  XtPointer *value_return, unsigned long *length_return, int *format_return)
@@ -981,6 +1039,9 @@ ReportMouseButton(Vt100Rec *vt, XButtonEvent *event, XtpMouseAction action)
                 vt->vt.reported_mouse_buttons |= mask;
         } else if ((vt->vt.reported_mouse_buttons & mask) != 0) {
                 vt->vt.reported_mouse_buttons &= ~mask;
+                /* Like xterm, the vertical wheel reports presses only. */
+                if (event->button == Button4 || event->button == Button5)
+                        return True;
         } else {
                 return False;
         }
@@ -1040,6 +1101,7 @@ VtSelectStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_
         VtCancelCopyFlash(vt, "new-selection");
         vt->vt.selection_dragging = True;
         vt->vt.selection_extending = False;
+        vt->vt.selection_button = event->xbutton.button;
         vt->vt.selection_pointer_x = event->xbutton.x;
         vt->vt.selection_pointer_y = event->xbutton.y;
         vt->vt.selection_rectangle = (event->xbutton.state & Mod1Mask) != 0;
@@ -1048,13 +1110,43 @@ VtSelectStartAction(Widget widget, XEvent *event, String *params, Cardinal *num_
                result > 0 ? "true" : "false");
 }
 
+static void
+ExtendDragToPointer(Vt100Rec *vt)
+{
+        Widget widget = (Widget)vt;
+        int x = vt->vt.selection_pointer_x;
+        int y = vt->vt.selection_pointer_y;
+        uint16_t column;
+        uint16_t row;
+        int result;
+
+        if (!SelectionCellClamped(vt, x, y, &column, &row))
+                return;
+        if (vt->vt.selection_extending) {
+                result = XtpTerminalSelectionExtendActive(vt->vt.terminal, column, row,
+                                                          vt->vt.selection_rectangle != False);
+        } else {
+                result = XtpTerminalSelectionExtend(
+                    vt->vt.terminal, column, row, x, y, (uint32_t)vt->vt.columns,
+                    XtpVtCellWidth(widget), (uint32_t)VtTerminalX(vt), vt->core.height,
+                    vt->vt.selection_rectangle != False);
+        }
+        if (result < 0) {
+                StopSelectionAutoscroll(vt);
+                XBell(XtDisplay(widget), 0);
+                return;
+        }
+        if (result > 0)
+                XtpVtUpdate(widget);
+        ScheduleSelectionAutoscroll(vt);
+}
+
 void
 VtSelectExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
 {
         Vt100Rec *vt = VtAsRecord(widget);
         uint16_t column;
         uint16_t row;
-        int result;
 
         (void)params;
         (void)num_params;
@@ -1066,23 +1158,7 @@ VtSelectExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num
         vt->vt.selection_pointer_x = event->xmotion.x;
         vt->vt.selection_pointer_y = event->xmotion.y;
         vt->vt.selection_rectangle = (event->xmotion.state & Mod1Mask) != 0;
-        if (vt->vt.selection_extending) {
-                result = XtpTerminalSelectionExtendActive(vt->vt.terminal, column, row,
-                                                          (event->xmotion.state & Mod1Mask) != 0);
-        } else {
-                result = XtpTerminalSelectionExtend(
-                    vt->vt.terminal, column, row, event->xmotion.x, event->xmotion.y,
-                    (uint32_t)vt->vt.columns, XtpVtCellWidth(widget), (uint32_t)VtTerminalX(vt),
-                    vt->core.height, (event->xmotion.state & Mod1Mask) != 0);
-        }
-        if (result < 0) {
-                StopSelectionAutoscroll(vt);
-                XBell(XtDisplay(widget), 0);
-                return;
-        }
-        if (result > 0)
-                XtpVtUpdate(widget);
-        ScheduleSelectionAutoscroll(vt);
+        ExtendDragToPointer(vt);
 }
 
 void
@@ -1114,6 +1190,7 @@ VtStartExtendAction(Widget widget, XEvent *event, String *params, Cardinal *num_
                 VtCancelCopyFlash(vt, "new-selection");
                 vt->vt.selection_dragging = True;
                 vt->vt.selection_extending = True;
+                vt->vt.selection_button = event->xbutton.button;
                 vt->vt.selection_pointer_x = event->xbutton.x;
                 vt->vt.selection_pointer_y = event->xbutton.y;
                 vt->vt.selection_rectangle = False;
@@ -1254,6 +1331,9 @@ VtSelectEndAction(Widget widget, XEvent *event, String *params, Cardinal *num_pa
                 return;
         if (FinishHyperlinkPress(vt, &event->xbutton))
                 return;
+        /* A wheel tick or another button during a drag must not end it. */
+        if (vt->vt.selection_dragging && event->xbutton.button != vt->vt.selection_button)
+                return;
         if (!vt->vt.selection_dragging &&
             ReportMouseButton(vt, &event->xbutton, XTP_MOUSE_ACTION_RELEASE))
                 return;
@@ -1334,24 +1414,18 @@ SelectionReceived(Widget widget, XtPointer closure, Atom *selection, Atom *type,
 
         (void)selection;
         if (*type != XT_CONVERT_FAIL && value != NULL && *format == 8) {
-                Boolean latin1 = *type == XA_STRING;
+                uint8_t *converted;
+                size_t converted_length;
 
-                if (latin1) {
-                        uint8_t *converted;
-                        size_t converted_length;
-
-                        converted = Latin1ToUtf8(value, (size_t)*length, &converted_length);
-                        if (converted != NULL)
-                                DeliverPaste(widget, converted, converted_length);
-                        else
-                                XBell(XtDisplay(widget), 0);
+                if (SelectionTextToUtf8(XtDisplay(widget), *type, value, (size_t)*length,
+                                        &converted, &converted_length)) {
+                        DeliverPaste(widget, converted, converted_length);
                         free(converted);
-                } else {
-                        DeliverPaste(widget, value, (size_t)*length);
+                        XtFree(value);
+                        free(request);
+                        return;
                 }
-                XtFree(value);
-                free(request);
-                return;
+                /* An encoding that cannot be read is not pasted; STRING is asked for next. */
         }
         if (value != NULL)
                 XtFree(value);
@@ -1500,7 +1574,9 @@ VtScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_p
                 (void)ReportMouseButton(vt, &event->xbutton, XTP_MOUSE_ACTION_RELEASE);
                 return;
         }
-        (void)VtScrollViewportBy(vt, -rows);
+        /* The pointer now lies over other content; an active drag follows it. */
+        if (VtScrollViewportBy(vt, -rows) && vt->vt.selection_dragging)
+                ExtendDragToPointer(vt);
 }
 
 void
@@ -1517,7 +1593,9 @@ VtScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *nu
                 (void)ReportMouseButton(vt, &event->xbutton, XTP_MOUSE_ACTION_RELEASE);
                 return;
         }
-        (void)VtScrollViewportBy(vt, rows);
+        /* The pointer now lies over other content; an active drag follows it. */
+        if (VtScrollViewportBy(vt, rows) && vt->vt.selection_dragging)
+                ExtendDragToPointer(vt);
 }
 
 static long
@@ -1748,18 +1826,16 @@ FetchSelectionSync(Vt100Rec *vt, Atom selection, uint8_t **bytes, size_t *length
                                 XFree(value);
                         return XTP_CLIPBOARD_UNAVAILABLE;
                 }
-                if (actual_type == XA_STRING) {
-                        *bytes = Latin1ToUtf8(value != NULL ? value : (const unsigned char *)"",
-                                              items, length);
-                        result = *bytes != NULL ? XTP_CLIPBOARD_SUCCESS : XTP_CLIPBOARD_UNAVAILABLE;
-                } else {
-                        result = CopyBytes(value != NULL ? value : (const unsigned char *)"", items,
-                                           bytes, length)
-                                     ? XTP_CLIPBOARD_SUCCESS
-                                     : XTP_CLIPBOARD_UNAVAILABLE;
-                }
+                result = SelectionTextToUtf8(display, actual_type,
+                                             value != NULL ? value : (const unsigned char *)"",
+                                             items, bytes, length)
+                             ? XTP_CLIPBOARD_SUCCESS
+                             : XTP_CLIPBOARD_UNAVAILABLE;
                 if (value != NULL)
                         XFree(value);
+                /* An encoding that cannot be read is not answered; try the next target. */
+                if (result != XTP_CLIPBOARD_SUCCESS)
+                        continue;
                 return result;
         }
         return XTP_CLIPBOARD_UNAVAILABLE;

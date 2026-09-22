@@ -374,6 +374,33 @@ font_reload_paint_test_tool = executable(
     install: false,
 )
 
+sync_output_paint_test_tool = executable(
+    'xtp-sync-output-paint',
+    [
+        'tests/xtp-sync-output-paint.c',
+        widget_sources,
+        terminal_sources,
+        terminal_link_sources,
+    ],
+    include_directories: include_directories('src'),
+    c_args: terminal_compile_args,
+    dependencies: [
+        x11_dep,
+        xt_dep,
+        xaw_dep,
+        xmu_dep,
+        fontconfig_dep,
+        xft_dep,
+        xrender_dep,
+        cairo_dep,
+        cairo_ft_dep,
+        cairo_xlib_dep,
+        harfbuzz_dep,
+        m_dep,
+    ],
+    install: false,
+)
+
 key_test_tool = executable(
     'xtp-send-key',
     'tests/xtp-send-key.c',
@@ -381,10 +408,12 @@ key_test_tool = executable(
     install: false,
 )
 
+xtst_dep = dependency('xtst', required: false)
 wheel_test_tool = executable(
     'xtp-send-wheel',
     'tests/xtp-send-wheel.c',
-    dependencies: x11_dep,
+    dependencies: [x11_dep, xtst_dep],
+    c_args: xtst_dep.found() ? ['-DXTP_HAVE_XTEST=1'] : [],
     install: false,
 )
 
@@ -413,6 +442,13 @@ selection_owner_tool = executable(
     'xtp-own-selection',
     'tests/xtp-own-selection.c',
     dependencies: x11_dep,
+    install: false,
+)
+
+null_fault_preload = shared_module(
+    'xtp-null-fault',
+    'tests/xtp-null-fault.c',
+    dependencies: cc.find_library('dl', required: false),
     install: false,
 )
 
@@ -539,6 +575,13 @@ test(
 
 test('probe-features', python3, args: [files('tests/probe-features.py')], timeout: 45)
 
+test(
+    'unicode-table-provenance',
+    python3,
+    args: [files('tests/unicode-table-provenance.py')],
+    timeout: 60,
+)
+
 test('emoji-coverage-audit', python3, args: [files('tests/emoji-coverage-audit.py')], timeout: 60)
 
 test(
@@ -572,6 +615,38 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-mouse-scroll',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-mouse-scroll.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            python3.full_path(),
+            files('tests/mouse-scroll.py'),
+            wheel_test_tool.full_path(),
+            selection_reader_tool.full_path(),
+        ],
+        depends: [wheel_test_tool, selection_reader_tool],
+        timeout: 240,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-pty-closed-stdio',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-pty-closed-stdio.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            python3.full_path(),
+            files('tests/pty-closed-stdio.py'),
+            timeout_program.full_path(),
+            get_option('b_sanitize') == 'none' ? null_fault_preload.full_path() : '',
+        ],
+        depends: null_fault_preload,
+        timeout: 180,
+        is_parallel: false,
+    )
+    test(
         'xvfb-sync-output',
         find_program('sh'),
         args: [
@@ -582,6 +657,8 @@ if build_with_ghostty and xvfb.found()
             files('tests/sync-output.py'),
             resize_test_tool.full_path(),
             hover_test_tool.full_path(),
+            # The target itself, not its path, so Meson builds it before this test.
+            sync_output_paint_test_tool,
         ],
         timeout: 60,
         is_parallel: false,
@@ -938,7 +1015,11 @@ if build_with_ghostty and xvfb.found()
             selection_reader_tool.full_path(),
             selection_owner_tool.full_path(),
             selection_test_tool.full_path(),
+            key_test_tool,
+            files('tests/clipboard-encoding.py'),
         ],
+        # The owner and reader gained modes this suite depends on.
+        depends: [selection_reader_tool, selection_owner_tool],
         timeout: 120,
         is_parallel: false,
     )

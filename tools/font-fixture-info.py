@@ -287,6 +287,8 @@ def check_probe_paths(fonts: dict[str, dict], errors: list[str]) -> None:
 
 
 def check_unicode_sources(expected: str, paths: list[Path], errors: list[str]) -> None:
+    # Unicode 17.0's emoji-data.txt headers read "17.0" and 18.0.0's read "18.0.0",
+    # so the release is compared on its major.minor prefix.
     for path in paths:
         if not path.is_file():
             errors.append(f"unicode data: missing {path}")
@@ -294,7 +296,7 @@ def check_unicode_sources(expected: str, paths: list[Path], errors: list[str]) -
         actual = unicode_version(path)
         if actual is None:
             errors.append(f"unicode data: no '# Version:' header in {path}")
-        elif actual != expected:
+        elif actual.split(".")[:2] != expected.split(".")[:2]:
             errors.append(
                 f"unicode data: {path} is version {actual!r}, expected {expected!r}"
             )

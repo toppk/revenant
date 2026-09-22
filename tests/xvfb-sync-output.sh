@@ -11,6 +11,7 @@ python=$3
 driver=$4
 resize_tool=$5
 hover_tool=$6
+paint_tool=$7
 
 xtp_xvfb_test_init
 xtp_start_xvfb "$xvfb"
@@ -149,4 +150,33 @@ echo "$d" | sed -n '/synchronized output released/,$p' | grep -q 'render: frame 
 echo "$d" | grep -q 'synchronized output timeout' &&
     fail "phase D hit the timeout instead of a normal release"
 
-echo "synchronized output held, timed out, survived a resize, and deferred a hover repaint"
+# Transitions inside one parser batch, judged on painted pixels. A PTY write can be
+# split or merged by the reader, so the helper feeds the backend directly: each of its
+# batches is exactly one parser call and it paints only where the scenario says. The
+# scenarios cover visible output then a hold in one batch, a release, a completed frame
+# and a new hold in one batch, and the same transitions spread over consecutive batches
+# with no paint between them.
+if HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+    "$paint_tool" >"$test_dir/paint.out" 2>"$test_dir/paint.log"
+then
+    paint_status=0
+else
+    paint_status=$?
+fi
+if test "$paint_status" -ne 0
+then
+    # Unfiltered: a missing or crashing helper says why only on stderr.
+    echo "painted scenarios failed: $paint_tool exited $paint_status" >&2
+    cat "$test_dir/paint.out" >&2
+    tail -n 200 "$test_dir/paint.log" >&2
+    exit 1
+fi
+cat "$test_dir/paint.out"
+for scenario in same-write-output-then-hold same-write-release-frame-rehold \
+    consecutive-batches-release-frame-rehold
+do
+    grep -q "^$scenario held " "$test_dir/paint.out" ||
+        fail "painted scenario $scenario never ran"
+done
+
+echo "synchronized output held, timed out, survived a resize, deferred a hover repaint, and kept frame boundaries within a batch"

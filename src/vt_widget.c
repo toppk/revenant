@@ -1101,6 +1101,9 @@ Destroy(Widget widget)
                 XtRemoveTimeOut(vt->vt.viewport_update_timer);
         if (vt->vt.sync_output_timer != (XtIntervalId)0)
                 XtRemoveTimeOut(vt->vt.sync_output_timer);
+        /* A core that outlives this widget must not call back into it. */
+        if (vt->vt.terminal != NULL)
+                XtpTerminalSetRenderHold(vt->vt.terminal, NULL, NULL);
         if (vt->vt.selection_autoscroll_timer != (XtIntervalId)0)
                 XtRemoveTimeOut(vt->vt.selection_autoscroll_timer);
         if (vt->vt.cursor_blink_timer != (XtIntervalId)0)
@@ -2059,13 +2062,30 @@ ArmSynchronizedOutputTimer(Vt100Rec *vt)
                                     XTP_SYNC_OUTPUT_TIMEOUT_MS, SynchronizedOutputTimeout, vt);
 }
 
-/* DEC private mode 2026: keep the last complete frame until the batch ends. */
+/* Runs inside the parser, so it only records the change for the next paint. */
+static void
+VtRenderHold(void *closure, bool held, bool changed)
+{
+        Vt100Rec *vt = closure;
+
+        vt->vt.sync_output_capture_pending = held && changed ? True : False;
+}
+
+/* DEC private mode 2026: keep the frame the application completed before the hold
+ * until the hold ends. The backend captures that frame at the parser boundary where
+ * the hold began, so it is painted once here even if this paint comes after later
+ * transitions in the same batch; further held updates paint nothing. */
 static Boolean
 HoldSynchronizedOutput(Vt100Rec *vt, Boolean *force_full)
 {
         if (SynchronizedOutputEnabled(vt)) {
-                ++vt->vt.sync_output_held;
                 ArmSynchronizedOutputTimer(vt);
+                if (vt->vt.sync_output_capture_pending) {
+                        XtpLog(XTP_LOG_DEBUG, "render",
+                               "synchronized output paints the frame captured at the hold");
+                        return False;
+                }
+                ++vt->vt.sync_output_held;
                 XtpLog(XTP_LOG_DEBUG, "render", "synchronized output hold updates=%u",
                        vt->vt.sync_output_held);
                 return True;
@@ -2159,10 +2179,19 @@ XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
 
         if (vt->vt.terminal != terminal)
                 VtSearchTerminalChanged(vt);
+        /* The previous core must not call back into this widget after it lets go. */
+        if (vt->vt.terminal != NULL && vt->vt.terminal != terminal)
+                XtpTerminalSetRenderHold(vt->vt.terminal, NULL, NULL);
         vt->vt.terminal = terminal;
         CancelSynchronizedOutputTimer(vt);
         vt->vt.sync_output_held = 0;
         vt->vt.sync_output_full_redraw = False;
+        vt->vt.sync_output_capture_pending = False;
+        if (terminal != NULL) {
+                XtpTerminalSetRenderHold(terminal, VtRenderHold, vt);
+                /* Bound mid-hold: nothing of this core has been drawn here yet. */
+                vt->vt.sync_output_capture_pending = XtpTerminalRenderHeld(terminal);
+        }
         if (terminal == NULL) {
                 XtpLog(XTP_LOG_INFO, "terminal", "bound terminal=no");
                 return;

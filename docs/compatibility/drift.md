@@ -77,6 +77,17 @@ core, including preservation and reflow of text across width changes and full
 UTF-8 grapheme state, are intentional even where historical xterm behaves
 differently.
 
+Revenant retains libghostty's default scrollback-pull policy on resize. Growing
+the grid can reveal history when the cursor is on the bottom row, and widening
+the grid can reveal history when reflow needs fewer rows. The upstream
+`GHOSTTY_TERMINAL_OPT_RESIZE_PULL_SCROLLBACK` option was reviewed at revision
+`27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c`: disabling it addresses hosts such as
+Windows ConPTY that maintain a separate screen buffer without scrollback.
+Revenant uses a Unix `forkpty` transport and has no such second screen buffer.
+The maintainer decision is to keep the existing behavior, without a new resource
+or selectable policy. Existing resize, reflow, selection and history regressions
+remain applicable; this decision adds no new capability or TDN support claim.
+
 Colored underlines are one such extension: SGR 58 (indexed or 24-bit) colors
 every underline style and SGR 59 restores the text color, as in kitty and
 Ghostty. xterm patch 411 has no per-cell underline color; its `colorUL`
@@ -134,6 +145,19 @@ gate with xterm's default deny-all outcome; `disallowedMouseOps` named
 exceptions, Locator and alternate-scroll policy remain unimplemented. The
 encoder's effective tracking state needs a public API before named exceptions
 can be implemented reliably.
+
+Wheel reports match XTerm(411) byte for byte in modes 1000, 1002 and 1003 and in
+the X10, 1005, 1006 and 1015 encodings: one press per notch, no release, however
+many lines a local notch scrolls. Three differences remain. SGR-pixel (1016)
+coordinates count from 0 where xterm counts from 1, so the same point reports as
+`21;19` rather than `22;20`. In mode 1003 Revenant reports every motion event,
+where xterm reports only when the pointer enters a new cell. Alternate scroll
+(mode 1007) is not implemented: on the alternate screen without tracking, the
+wheel sends nothing, where xterm sends cursor Up or Down keys. An active drag
+survives wheel scrolling and follows the content under the pointer. In the same
+drag XTerm(411) selected the rows at the drag's screen positions after the scroll
+(lines 0177–0182 rather than 0182 to 0184).
+`xvfb-mouse-scroll` checks all of this with real (XTest) input.
 
 **Allow Tcap Ops** defaults true and overrides `disallowedTcapOps` (default
 `SetTcap,GetTcap`). Names, wildcards and tilde negation share the other Ops
@@ -240,6 +264,28 @@ from a synchronous `UTF8_STRING`/`STRING` conversion request otherwise. Query
 replies mirror the request's `BEL` or `ST` terminator and carry padded
 base64.
 
+Text crosses the X11 selection by the type its owner declares, never by what the
+bytes look like; paste and OSC 52 queries follow the same rules. A `UTF8_STRING`
+reply is passed on as sent — malformed UTF-8 included, as xterm-411 does. `STRING`
+is Latin-1, so an owner's `c3 a9` is the two characters `Ã©`, not `é`.
+`COMPOUND_TEXT` is decoded through Xlib, as xterm does; a reply of any type Revenant
+cannot read is refused and `STRING` is asked for instead, or the query is
+unavailable. As an owner, Revenant serves `STRING` as Latin-1 and replaces a
+character Latin-1 cannot hold with `?`, byte for byte what xterm-411 serves;
+`UTF8_STRING` carries the text unchanged. One difference: xterm answers a `TEXT`
+request with `STRING`, or `COMPOUND_TEXT` when the text needs it, and Revenant
+answers it with `UTF8_STRING`, which ICCCM permits since the reply names its type.
+
+Replies are not cut short. A direct reply is read whole (tested through 8 MiB)
+and queued to the PTY in one piece. In a test where the reader stopped reading
+for 1.5 s during an 8 MiB reply, the terminal held the undelivered bytes, and the
+complete reply followed when reading resumed. The queue has no size cap, but it
+is memory: if an allocation fails, the session ends, so delivery is not
+guaranteed then. An `INCR` transfer is not supported and is refused with the same
+empty reply as an unavailable selection; the next request is unaffected. Taking
+ownership uses the time of the last event Revenant processed, as xterm does, so a
+selection another client changed more recently than that is not taken back.
+
 Known differences from xterm patch 411, all rooted in libghostty's parser or
 reply formatter and recorded as upstream asks:
 
@@ -301,14 +347,37 @@ also applies when Title Ops is enabled.
 
 Stock xterm patch 411 ignores DEC private mode 2026. Revenant honors it:
 while an application has the mode set, output still reaches the terminal core
-but the window keeps its last complete frame, and the batch is painted once
-when the application resets the mode, unless a resize or the timeout below
-intervenes. This removes the tearing that full-screen
-programs such as editors and TUI dashboards otherwise show while they redraw.
+but the window shows the frame the application completed before the hold
+began, and the batch is painted once when the application resets the mode,
+unless a resize or the timeout below intervenes. This removes the tearing that
+full-screen programs such as editors and TUI dashboards otherwise show while
+they redraw.
+
+That frame is captured where the hold begins in the parser, not when the window
+next paints. libghostty reports the start of a hold before it parses anything
+after it, and the backend captures the terminal's render state at that moment
+(`XtpTerminalSetRenderHold`). So output written just before a hold in the same
+write is shown, and a frame completed between a release and a new hold is shown
+even when the release, the frame and the new hold all arrive before the next
+paint — in one write or across several reads. Before this, the window kept
+whatever it had last painted, so both frames could be lost and a program that
+redraws continuously could look frozen.
+
+The capture covers the whole visible frame, not only its cells. Screen reverse
+video, the default foreground, background and cursor colors, and the cursor's
+position, visibility, shape and blink request are taken at the same parser
+position, so a `DECSCNM`, OSC 10/11/12, `DECTCEM` or `DECSCUSR` that arrives after
+the hold began stays hidden until release, and one that arrived just before it is
+shown. A captured frame is painted once when its cells or any of that metadata
+differ from what is on screen; when the hold begins with nothing new since the
+last paint, nothing extra is drawn.
 
 A one-second timeout guards against an application that never resets the
 mode. When it fires, Revenant paints the pending output and resets mode 2026
-itself, so a later `DECRQM` query reports the mode as reset.
+itself, so a later `DECRQM` query reports the mode as reset. Setting the mode
+directly bypasses libghostty's hold report, so the backend ends the hold itself
+on that path, and captures a new one when it re-arms the mode after a host
+resize.
 
 An ordinary expose during a hold repaints the cached last complete frame and
 keeps holding. Events that invalidate that cache, such as a window resize or a
@@ -567,6 +636,17 @@ above it. The xterm-style `-debug` and `+debug` options remain aliases for
 `-log debug` and `-log warning`; the legacy `debug` resource is honored when
 `logLevel` is unset. This logging surface and its exact output are Revenant
 facilities, not an xterm compatibility promise.
+
+If Revenant is started with standard input, output or error closed, it first opens
+`/dev/null` on each closed one, and exits with status 1 before connecting to X if it
+cannot. Otherwise the X connection or the PTY master takes
+the free number, and anything written to standard error lands in it. XTerm(411),
+started with only fd 2 closed and given a font it cannot load, writes its warning
+into the X connection and hangs before starting the shell; with fds 1 and 2 closed
+its PTY master becomes fd 2, so a later warning would reach the shell as input. The
+shell's own stdio is unaffected in both terminals: `forkpty` closes the master
+before installing the slave on fds 0–2. `xvfb-pty-closed-stdio` checks all eight
+combinations.
 
 ### `brokenCopyArea` rendering workaround
 

@@ -8,6 +8,8 @@ import re
 import sys
 from pathlib import Path
 
+from uucode_pin import PinError, pinned_ucd_file, require_pinned_copy
+
 PROPERTIES = ("Emoji", "Emoji_Presentation")
 VERSION_RE = re.compile(r"^#\s*Version:\s*([0-9]+(?:\.[0-9]+)*)\s*$")
 PROPERTY_RE = re.compile(
@@ -71,58 +73,58 @@ def render(
 
 
 def main() -> int:
-    project_root = Path(__file__).resolve().parent.parent
-    width_inputs = sorted(
-        (project_root / "upstream/ghostty/zig-pkg").glob(
-            "uucode-*/ucd/emoji/emoji-data.txt"
-        )
-    )
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--project-root",
+        type=Path,
+        default=Path(__file__).resolve().parent.parent,
+        help="repository whose libghostty pin identifies the Unicode data",
+    )
     parser.add_argument(
         "--input",
         type=Path,
-        default=project_root / "font-fixtures-stage/data/emoji-data.txt",
+        help="emoji-data.txt for routing; defaults to the staged fixture copy and must "
+        "be byte-identical to the pinned libghostty data",
     )
-    parser.add_argument(
-        "--manifest",
-        type=Path,
-        default=project_root / "tools/font-fixtures/manifest.json",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=project_root / "src/emoji_ranges.h",
-    )
+    parser.add_argument("--manifest", type=Path)
+    parser.add_argument("--output", type=Path)
     parser.add_argument(
         "--width-input",
         type=Path,
-        default=width_inputs[0] if len(width_inputs) == 1 else None,
-        help="libghostty/uucode emoji-data.txt used by the width engine",
+        help="libghostty/uucode emoji-data.txt used by the width engine; defaults to the "
+        "pinned revision's uucode package, and an explicit copy must match it byte for byte",
     )
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
+    project_root = args.project_root
+    if args.input is None:
+        args.input = project_root / "font-fixtures-stage/data/emoji-data.txt"
+    if args.manifest is None:
+        args.manifest = project_root / "tools/font-fixtures/manifest.json"
+    if args.output is None:
+        args.output = project_root / "src/emoji_ranges.h"
+
+    # The pinned data is resolved whatever the options say; explicit inputs are then
+    # checked against it rather than trusted in its place.
+    try:
+        pinned = pinned_ucd_file(project_root, "ucd/emoji/emoji-data.txt")
+        if args.width_input is None:
+            args.width_input = pinned
+        else:
+            require_pinned_copy(args.width_input, pinned, "--width-input")
+        require_pinned_copy(args.input, pinned, "--input")
+    except PinError as error:
+        print(f"generate-emoji-table: {error}", file=sys.stderr)
+        return 1
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
-    version, properties = parse(args.input)
+    source, properties = parse(args.input)
+    # 17.0's header reads "17.0" and 18.0.0's reads "18.0.0": compare major.minor.
+    version = ".".join((source or "").split(".")[:2])
     expected_version = manifest.get("unicode_version")
     if version != expected_version:
         print(
             f"Unicode version mismatch: input={version!r} manifest={expected_version!r}",
-            file=sys.stderr,
-        )
-        return 1
-    if args.width_input is None:
-        print(
-            "cannot identify exactly one libghostty/uucode emoji-data.txt; "
-            "pass --width-input",
-            file=sys.stderr,
-        )
-        return 1
-    width_version, _ = parse(args.width_input)
-    if width_version != version:
-        print(
-            f"Unicode version mismatch: routing={version!r} "
-            f"libghostty-width={width_version!r}",
             file=sys.stderr,
         )
         return 1

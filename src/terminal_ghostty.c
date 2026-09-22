@@ -510,6 +510,156 @@ ProgressReportEffectPointer(void)
         return pointer;
 }
 
+/* Presentation state the live terminal would paint with now. Reading terminal data
+ * is permitted inside libghostty's effect callbacks, and the cursor-blink observer
+ * flushes bytes to libghostty before each change it tracks, so both are in step with
+ * the parser at a hold boundary. */
+static int
+ReadLivePresentation(XtpTerminal *terminal, XtpGhosttyPresentation *presentation)
+{
+        GhosttyTerminalModeConfig reverse = {GHOSTTY_MODE_REVERSE_COLORS, false};
+
+        memset(presentation, 0, sizeof(*presentation));
+        if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_MODE, &reverse) !=
+            GHOSTTY_SUCCESS)
+                return -1;
+        presentation->reverse_colors = reverse.value;
+        presentation->colors_valid =
+            ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_COLOR_FOREGROUND,
+                                 &presentation->foreground) == GHOSTTY_SUCCESS &&
+            ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_COLOR_BACKGROUND,
+                                 &presentation->background) == GHOSTTY_SUCCESS;
+        if (presentation->colors_valid &&
+            ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_COLOR_CURSOR,
+                                 &presentation->cursor) != GHOSTTY_SUCCESS)
+                presentation->cursor = presentation->foreground;
+        presentation->blink_requested = terminal->cursor_blink.blink_requested;
+        return 0;
+}
+
+/* Cursor metadata from the render state, which is the captured one during a hold. */
+static int
+ReadCursorMeta(XtpTerminal *terminal, XtpGhosttyFrameMeta *meta)
+{
+        bool in_viewport = false;
+        bool wide_tail = false;
+
+        meta->cursor_column = 0;
+        meta->cursor_row = 0;
+        if (ghostty_render_state_get(terminal->render_state,
+                                     GHOSTTY_RENDER_STATE_DATA_CURSOR_VISIBLE,
+                                     &meta->cursor_visible) != GHOSTTY_SUCCESS ||
+            ghostty_render_state_get(terminal->render_state,
+                                     GHOSTTY_RENDER_STATE_DATA_CURSOR_VISUAL_STYLE,
+                                     &meta->cursor_style) != GHOSTTY_SUCCESS ||
+            ghostty_render_state_get(terminal->render_state,
+                                     GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_HAS_VALUE,
+                                     &in_viewport) != GHOSTTY_SUCCESS)
+                return -1;
+        meta->cursor_visible = meta->cursor_visible && in_viewport;
+        if (!meta->cursor_visible)
+                return 0;
+        if (ghostty_render_state_get(terminal->render_state,
+                                     GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_X,
+                                     &meta->cursor_column) != GHOSTTY_SUCCESS ||
+            ghostty_render_state_get(terminal->render_state,
+                                     GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_Y,
+                                     &meta->cursor_row) != GHOSTTY_SUCCESS ||
+            ghostty_render_state_get(terminal->render_state,
+                                     GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_WIDE_TAIL,
+                                     &wide_tail) != GHOSTTY_SUCCESS)
+                return -1;
+        if (wide_tail && meta->cursor_column != 0)
+                --meta->cursor_column;
+        return 0;
+}
+
+static bool
+SameColor(GhosttyColorRgb a, GhosttyColorRgb b)
+{
+        return a.r == b.r && a.g == b.g && a.b == b.b;
+}
+
+static bool
+SameFrameMeta(const XtpGhosttyFrameMeta *a, const XtpGhosttyFrameMeta *b)
+{
+        const XtpGhosttyPresentation *pa = &a->presentation;
+        const XtpGhosttyPresentation *pb = &b->presentation;
+
+        return a->cursor_visible == b->cursor_visible && a->cursor_style == b->cursor_style &&
+               (!a->cursor_visible ||
+                (a->cursor_column == b->cursor_column && a->cursor_row == b->cursor_row)) &&
+               pa->reverse_colors == pb->reverse_colors && pa->colors_valid == pb->colors_valid &&
+               pa->blink_requested == pb->blink_requested &&
+               (!pa->colors_valid ||
+                (SameColor(pa->foreground, pb->foreground) &&
+                 SameColor(pa->background, pb->background) && SameColor(pa->cursor, pb->cursor)));
+}
+
+/* Enter or leave a hold. Entering captures the render state now, which is the frame
+ * the application completed before the hold: libghostty reports the hold before it
+ * parses anything after it, even later in the same write. Updating the render state
+ * is the operation libghostty permits inside this callback. */
+static void
+SetRenderHeld(XtpTerminal *terminal, bool held)
+{
+        GhosttyRenderStateDirty dirty = GHOSTTY_RENDER_STATE_DIRTY_FALSE;
+
+        if (terminal->render_held == held)
+                return;
+        if (held && ghostty_render_state_update(terminal->render_state, terminal->handle) !=
+                        GHOSTTY_SUCCESS) {
+                XtpLog(XTP_LOG_ERROR, "render", "cannot capture the frame at a render hold");
+                return;
+        }
+        if (held) {
+                XtpGhosttyFrameMeta captured;
+
+                /* Everything the held frame is painted with is fixed here, not only its
+                 * cells: settings parsed during the hold must stay hidden too. */
+                if (ReadLivePresentation(terminal, &terminal->held_presentation) != 0)
+                        terminal->held_presentation.colors_valid = false;
+                captured.presentation = terminal->held_presentation;
+                /* The capture owes a paint when its cells, cursor or presentation differ
+                 * from the last drawn frame; an unchanged frame owes none. */
+                if (ghostty_render_state_get(terminal->render_state,
+                                             GHOSTTY_RENDER_STATE_DATA_DIRTY,
+                                             &dirty) != GHOSTTY_SUCCESS ||
+                    ReadCursorMeta(terminal, &captured) != 0 || !terminal->drawn_valid ||
+                    !SameFrameMeta(&captured, &terminal->drawn)) {
+                        if (dirty == GHOSTTY_RENDER_STATE_DIRTY_FALSE)
+                                dirty = GHOSTTY_RENDER_STATE_DIRTY_PARTIAL;
+                }
+        }
+        terminal->render_held = held;
+        XtpLog(XTP_LOG_DEBUG, "render", "render hold %s",
+               !held                                       ? "ended"
+               : dirty != GHOSTTY_RENDER_STATE_DIRTY_FALSE ? "began; captured frame differs"
+                                                           : "began; captured frame is unchanged");
+        if (terminal->render_hold != NULL)
+                terminal->render_hold(terminal->render_hold_closure, held,
+                                      held && dirty != GHOSTTY_RENDER_STATE_DIRTY_FALSE);
+}
+
+static void
+RenderHoldEffect(GhosttyTerminal handle, void *userdata, bool held)
+{
+        (void)handle;
+        SetRenderHeld(userdata, held);
+}
+
+static const void *
+RenderHoldEffectPointer(void)
+{
+        GhosttyTerminalRenderHoldFn function = RenderHoldEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
 static const void *
 EnquiryEffectPointer(void)
 {
@@ -1460,7 +1610,9 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_DESKTOP_NOTIFICATION,
                                  DesktopNotificationEffectPointer()) != GHOSTTY_SUCCESS ||
             ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_PROGRESS_REPORT,
-                                 ProgressReportEffectPointer()) != GHOSTTY_SUCCESS) {
+                                 ProgressReportEffectPointer()) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_RENDER_HOLD,
+                                 RenderHoldEffectPointer()) != GHOSTTY_SUCCESS) {
                 FreeHandles(terminal);
                 free(terminal);
                 return NULL;
@@ -2427,6 +2579,11 @@ XtpTerminalSetMode(XtpTerminal *terminal, XtpTerminalMode mode, bool enabled)
                 return -1;
         XtpLog(XTP_LOG_INFO, "terminal", "mode=%d enabled=%s", (int)mode,
                enabled ? "true" : "false");
+        /* Setting mode 2026 through the option bypasses libghostty's hold report, so the
+         * host's own changes -- the timeout release, the resize re-arm -- are mirrored
+         * here with the same capture a parsed change gets. */
+        if (mode == XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT)
+                SetRenderHeld(terminal, enabled);
         return 0;
 }
 
@@ -2474,21 +2631,16 @@ RgbFromGhostty(GhosttyColorRgb color)
  * true when any of them changed since the last frame, which forces a full
  * repaint because libghostty sets no dirty flag for OSC 10/11/12. */
 static bool
-ReadEffectiveColors(XtpTerminal *terminal, XtpRenderFrame *frame)
+ApplyEffectiveColors(XtpTerminal *terminal, XtpRenderFrame *frame,
+                     const XtpGhosttyPresentation *presentation)
 {
-        GhosttyColorRgb foreground;
-        GhosttyColorRgb background;
-        GhosttyColorRgb cursor;
+        GhosttyColorRgb foreground = presentation->foreground;
+        GhosttyColorRgb background = presentation->background;
+        GhosttyColorRgb cursor = presentation->cursor;
         bool changed;
 
-        if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_COLOR_FOREGROUND,
-                                 &foreground) != GHOSTTY_SUCCESS ||
-            ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_COLOR_BACKGROUND,
-                                 &background) != GHOSTTY_SUCCESS)
+        if (!presentation->colors_valid)
                 return false;
-        if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_COLOR_CURSOR, &cursor) !=
-            GHOSTTY_SUCCESS)
-                cursor = foreground;
         frame->foreground = RgbFromGhostty(foreground);
         frame->background = RgbFromGhostty(background);
         frame->cursor = RgbFromGhostty(cursor);
@@ -2515,22 +2667,23 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                   bool force_full)
 {
         GhosttyRenderStateColors colors = GHOSTTY_INIT_SIZED(GhosttyRenderStateColors);
-        GhosttyTerminalModeConfig reverse_colors = {GHOSTTY_MODE_REVERSE_COLORS, false};
+        XtpGhosttyPresentation presentation;
+        XtpGhosttyFrameMeta meta;
         XtpRenderFrame frame = {0};
         GhosttyRenderStateDirty dirty;
-        GhosttyRenderStateCursorVisualStyle cursor_style;
         bool reverse_colors_changed;
         bool colors_changed;
         uint16_t row = 0;
-        bool cursor_in_viewport = false;
-        bool cursor_wide_tail = false;
         size_t rendered_cells = 0;
         size_t rendered_graphemes = 0;
 
         if (terminal == NULL || renderer == NULL)
                 return -1;
-        if (ghostty_render_state_update(terminal->render_state, terminal->handle) !=
-            GHOSTTY_SUCCESS) {
+        /* During a hold the captured frame is drawn, with the presentation captured
+         * alongside it; nothing parsed since reaches either. */
+        if (!terminal->render_held &&
+            ghostty_render_state_update(terminal->render_state, terminal->handle) !=
+                GHOSTTY_SUCCESS) {
                 XtpLog(XTP_LOG_ERROR, "render", "cannot update render state");
                 return -1;
         }
@@ -2539,8 +2692,9 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                 XtpLog(XTP_LOG_ERROR, "render", "cannot read render-state colors");
                 return -1;
         }
-        if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_MODE, &reverse_colors) !=
-            GHOSTTY_SUCCESS) {
+        if (terminal->render_held) {
+                presentation = terminal->held_presentation;
+        } else if (ReadLivePresentation(terminal, &presentation) != 0) {
                 XtpLog(XTP_LOG_ERROR, "render", "cannot read reverse-colors mode");
                 return -1;
         }
@@ -2550,52 +2704,33 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                                      &frame.rows) != GHOSTTY_SUCCESS ||
             ghostty_render_state_get(terminal->render_state, GHOSTTY_RENDER_STATE_DATA_DIRTY,
                                      &dirty) != GHOSTTY_SUCCESS ||
-            ghostty_render_state_get(terminal->render_state,
-                                     GHOSTTY_RENDER_STATE_DATA_CURSOR_VISIBLE,
-                                     &frame.cursor_visible) != GHOSTTY_SUCCESS ||
-            ghostty_render_state_get(terminal->render_state,
-                                     GHOSTTY_RENDER_STATE_DATA_CURSOR_VISUAL_STYLE,
-                                     &cursor_style) != GHOSTTY_SUCCESS ||
-            ghostty_render_state_get(terminal->render_state,
-                                     GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_HAS_VALUE,
-                                     &cursor_in_viewport) != GHOSTTY_SUCCESS) {
+            ReadCursorMeta(terminal, &meta) != 0) {
                 XtpLog(XTP_LOG_ERROR, "render", "cannot read render-state metadata");
                 return -1;
         }
-        frame.cursor_blink_requested = terminal->cursor_blink.blink_requested;
+        meta.presentation = presentation;
+        frame.cursor_blink_requested = presentation.blink_requested;
 
-        frame.reverse_colors = reverse_colors.value;
+        frame.reverse_colors = presentation.reverse_colors;
         reverse_colors_changed = terminal->reverse_colors_initialized &&
                                  terminal->reverse_colors != frame.reverse_colors;
-        colors_changed = ReadEffectiveColors(terminal, &frame);
+        colors_changed = ApplyEffectiveColors(terminal, &frame, &presentation);
         frame.full_repaint = force_full || dirty == GHOSTTY_RENDER_STATE_DIRTY_FULL ||
                              reverse_colors_changed || colors_changed;
         if (reverse_colors_changed)
                 XtpLog(XTP_LOG_INFO, "render", "screen reverse changed enabled=%s",
                        frame.reverse_colors ? "true" : "false");
-        if (cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_UNDERLINE)
+        if (meta.cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_UNDERLINE)
                 frame.cursor_shape = XTP_CURSOR_SHAPE_UNDERLINE;
-        else if (cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_BAR)
+        else if (meta.cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_BAR)
                 frame.cursor_shape = XTP_CURSOR_SHAPE_BAR;
-        else if (cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_BLOCK_HOLLOW)
+        else if (meta.cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_BLOCK_HOLLOW)
                 frame.cursor_shape = XTP_CURSOR_SHAPE_BLOCK_HOLLOW;
         else
                 frame.cursor_shape = XTP_CURSOR_SHAPE_BLOCK;
-        frame.cursor_visible = frame.cursor_visible && cursor_in_viewport;
-        if (frame.cursor_visible) {
-                if (ghostty_render_state_get(terminal->render_state,
-                                             GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_X,
-                                             &frame.cursor_column) != GHOSTTY_SUCCESS ||
-                    ghostty_render_state_get(terminal->render_state,
-                                             GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_Y,
-                                             &frame.cursor_row) != GHOSTTY_SUCCESS ||
-                    ghostty_render_state_get(terminal->render_state,
-                                             GHOSTTY_RENDER_STATE_DATA_CURSOR_VIEWPORT_WIDE_TAIL,
-                                             &cursor_wide_tail) != GHOSTTY_SUCCESS)
-                        return -1;
-                if (cursor_wide_tail && frame.cursor_column != 0)
-                        --frame.cursor_column;
-        }
+        frame.cursor_visible = meta.cursor_visible;
+        frame.cursor_column = meta.cursor_column;
+        frame.cursor_row = meta.cursor_row;
 
         if (!frame.full_repaint && dirty == GHOSTTY_RENDER_STATE_DIRTY_FALSE)
                 XtpLog(XTP_LOG_DEBUG, "render", "frame has no cell damage; checking cursor");
@@ -2735,6 +2870,9 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
         }
         terminal->reverse_colors_initialized = true;
         terminal->reverse_colors = frame.reverse_colors;
+        /* What is now on screen besides cells, for the next hold to compare with. */
+        terminal->drawn = meta;
+        terminal->drawn_valid = true;
         ReportColorSchemeChange(terminal);
         return 0;
 
@@ -2872,6 +3010,21 @@ XtpTerminalEncodeMouse(XtpTerminal *terminal, const XtpMouseEvent *event, char *
                "output-bytes=%zu",
                event->action, event->button, event->modifiers, event->x, event->y, *written);
         return 0;
+}
+
+void
+XtpTerminalSetRenderHold(XtpTerminal *terminal, XtpTerminalRenderHoldFn hold, void *closure)
+{
+        if (terminal == NULL)
+                return;
+        terminal->render_hold = hold;
+        terminal->render_hold_closure = hold != NULL ? closure : NULL;
+}
+
+bool
+XtpTerminalRenderHeld(const XtpTerminal *terminal)
+{
+        return terminal != NULL && terminal->render_held;
 }
 
 void

@@ -104,6 +104,7 @@ run_case()
     case $expected_width in
     1) expected_cpr=1b5b313b3252 ;;
     2) expected_cpr=1b5b313b3352 ;;
+    3) expected_cpr=1b5b313b3452 ;;
     4) expected_cpr=1b5b313b3552 ;;
     6) expected_cpr=1b5b313b3752 ;;
     *) echo "unsupported expected width: $expected_width" >&2; exit 2 ;;
@@ -351,6 +352,27 @@ run_unicode_case routing sequence-atomic-fallback ❤️‍🔥 color 2 \
 run_unicode_case routing sequence-ligature-fallback 👩‍💻 color 2 \
     'base=U+1F469 width=2 presentation=emoji role=doublesize glyphs=1' \
     'Noto Emoji' 'Noto Color Emoji' unicode true
+
+# Unicode 18 deltas, measured against a Unicode 17 backend build before the
+# migration and recorded in docs/maintainers/unicode-18-migration.md.
+#
+# U+1F7FF was Extended_Pictographic while unassigned in 17.0, so GB11 joined it to a
+# preceding emoji ZWJ sequence; 18.0 assigns it as an ordinary symbol, so the atom
+# now breaks in two.  Cursor advance changes with the segmentation (2 -> 3) and is
+# asserted from CPR, independently of what either atom is routed to or draws.
+zwj_extpict=$(printf '\U0001F600\u200d\U0001F7FF')
+run_case routing zwj-extpict-break-18 "$zwj_extpict" color 3 \
+    'base=U+1F600 width=2 presentation=emoji role=emoji glyphs=1' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode
+# A base added in Unicode 18.0: no staged face covers it, so the route is deliberate
+# tofu.  That is a fixture limitation, not a renderer defect, and the committed width
+# still has to be the Unicode 18 width -- which is the part this case guards.
+e18_base=$(printf '\U0001FADD')
+run_case routing e18-base-width "$e18_base" mono 2 \
+    'base=U+1FADD width=2 presentation=emoji role=tofu' \
+    'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true \
+    'DejaVu Sans Mono:rgba=none' unicode
 
 # Styled whole-sequence selection.  The generated styled family maps both
 # components and the joiner in all three real faces, and only Regular carries the

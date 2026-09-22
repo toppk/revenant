@@ -231,7 +231,7 @@ One coverage limit is worth naming rather than papering over:
 
 `tools/emoji-coverage-audit.py` is the reproducible inventory behind the coverage
 claims here. Its inputs are pinned: the emoji properties and the `E<version>` age of
-each base come from the staged `data/emoji-data.txt` (**Unicode 17.0**, whose version
+each base come from the staged `data/emoji-data.txt` (**Unicode 18.0**, whose version
 header `font-fixture-info.py --check` pins against the manifest), and the faces come
 from the staged tree. It downloads nothing. Run it with
 `python3 tools/emoji-coverage-audit.py`, `--json` for the full table, or `--check` to
@@ -285,14 +285,14 @@ and the removed-ignorables false positive is reproduced and then shown to be rej
 by the audit's own verdict, while a complete shaping verdict is shown to say nothing
 about presentation or ink.
 
-Counts as of this slice — 21 staged faces, 1438 `Emoji` bases, of which **34 are in the
-audited scope** (E15.0+):
+Counts after the [Unicode 18 migration](unicode-18-migration.md) — 21 staged faces,
+1447 `Emoji` bases, of which **43 are in the audited scope** (E15.0+):
 
 | bucket | bases |
 | --- | --- |
 | in scope, asserted by a named automated case | 5 |
 | in scope, covered by a staged face, asserted by nothing | 29 |
-| in scope, covered by no staged face | 0 |
+| in scope, covered by no staged face | 9 — every E18.0 addition; no staged release covers them |
 | not inventoried (older than E15.0) | 1404 |
 | *(written in a suite's source, coverage unproven)* | *35* |
 | *(human-assessed probe samples, never automated evidence)* | *49* |
@@ -336,6 +336,9 @@ is the correct outcome.
 
 Remaining limits:
 
+- 9 in-scope bases are covered by no staged face: the Unicode 18.0 additions, which
+  every pinned font release predates. `e18-base-width` in the routing suite records
+  that as a font gap with the committed width still asserted.
 - 29 in-scope bases are covered by a staged face and asserted by nothing, and 1404
   older bases are not inventoried at all. That is by design: this is a routing and
   artwork gate, not a Unicode conformance matrix, and the inventory is a scoped

@@ -42,7 +42,7 @@ twemoji-source-14.0.2|twemoji-14.0.2.zip|e10e955c58b49d1de9218f08b48bf52913c6dee
 fedora-twitter-twemoji-14.0.2-10|twitter-twemoji-fonts-14.0.2-10.fc44.noarch.rpm|fb580bd15bce8fd6e737f5b62803941d7b884436c4332b2d46e89a2c6f0af01a|https://kojipkgs.fedoraproject.org/packages/twitter-twemoji-fonts/14.0.2/10.fc44/noarch/twitter-twemoji-fonts-14.0.2-10.fc44.noarch.rpm
 fedora-google-noto-emoji-20250623-4|google-noto-emoji-fonts-20250623-4.fc44.noarch.rpm|6abad8d318b51c1ad6d9c4ecf97dbe6f4fae8b02f9b264a15d9afdb213a180a1|https://kojipkgs.fedoraproject.org/packages/google-noto-emoji-fonts/20250623/4.fc44/noarch/google-noto-emoji-fonts-20250623-4.fc44.noarch.rpm
 twitter-color-emoji-15.1.0|TwitterColorEmoji-SVGinOT-Linux-15.1.0.tar.gz|c8a5302ee4e4c2188ce785edd84c50c616a07f6e99fe1b91aecba4e1db341295|https://github.com/13rac1/twemoji-color-font/releases/download/v15.1.0/TwitterColorEmoji-SVGinOT-Linux-15.1.0.tar.gz
-unicode-emoji-17.0.0|emoji-data.txt|2cb2bb9455cda83e8481541ecf5b6dfda66a3bb89efa3fa7c5297eccf607b72b|https://www.unicode.org/Public/17.0.0/ucd/emoji/emoji-data.txt
+unicode-emoji-18.0.0|emoji-data-18.0.0.txt|80d00f8e616a0ef27fd6b8de3b758c06383b5d917e2977709578e68baf733bf1|https://www.unicode.org/Public/18.0.0/ucd/emoji/emoji-data.txt
 openmoji-license-17.0.0|openmoji-17.0.0-LICENSE.txt|5e436ff8ffbb77d8607220e9bce20c8915d860010feeb6c1ebef5a85688e9b39|https://raw.githubusercontent.com/hfg-gmuend/openmoji/17.0.0/LICENSE.txt
 unicode-license-v3|unicode-LICENSE.txt|e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96|https://www.unicode.org/license.txt
 EOF
@@ -293,7 +293,9 @@ python3 "$project_root/tools/font-fixtures/make-styled-emoji.py" "$work/fonts-st
 cp -- "$project_root/LICENSE" "$work/licenses/XTP-MIT.txt"
 cp -- "$work/sources/openmoji-17.0.0-LICENSE.txt" \
 	"$work/licenses/OpenMoji-17.0.0-CC-BY-SA-4.0.txt"
-cp -- "$work/sources/emoji-data.txt" "$work/data/emoji-data.txt"
+# The source filename carries its Unicode version so a seed directory can hold
+# several releases across a migration; the staged copy keeps the plain name.
+cp -- "$work/sources/emoji-data-18.0.0.txt" "$work/data/emoji-data.txt"
 cp -- "$work/sources/unicode-LICENSE.txt" "$work/licenses/Unicode-v3.txt"
 
 make_universe()

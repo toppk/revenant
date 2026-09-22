@@ -590,6 +590,21 @@ bool XtpTerminalMouseTracking(XtpTerminal *terminal);
 int XtpTerminalGetMode(XtpTerminal *terminal, XtpTerminalMode mode, bool *enabled);
 int XtpTerminalSetMode(XtpTerminal *terminal, XtpTerminalMode mode, bool enabled);
 void XtpTerminalSetEffects(XtpTerminal *terminal, const XtpTerminalEffects *effects);
+/*
+ * Synchronized output (DEC mode 2026) as a render hold. When a hold begins, the
+ * backend captures the frame the application finished before it, at that exact
+ * parser position, and XtpTerminalRender keeps drawing that frame until the hold
+ * ends; then it resumes drawing live state. HELD reports each change; when a hold
+ * begins, CHANGED says whether the captured frame differs from the last one drawn,
+ * which is when a paint is owed to show it. The callback runs inside
+ * XtpTerminalFeedOutput, so it must not feed, render or change modes of the
+ * terminal -- recording the change for the next paint is what it is for.
+ * Renderer-facing rather than an application effect, so it is registered by whatever
+ * draws the terminal; NULL unregisters. The stub backend never holds.
+ */
+typedef void (*XtpTerminalRenderHoldFn)(void *closure, bool held, bool changed);
+void XtpTerminalSetRenderHold(XtpTerminal *terminal, XtpTerminalRenderHoldFn hold, void *closure);
+bool XtpTerminalRenderHeld(const XtpTerminal *terminal);
 const char *XtpTerminalBackend(void);
 bool XtpTerminalBackendIsStub(void);
 

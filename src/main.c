@@ -23,6 +23,7 @@
 #include <X11/Xutil.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <locale.h>
 #include <signal.h>
 #include <stdint.h>
@@ -1626,6 +1627,40 @@ DestroyApplication(App *app)
         }
 }
 
+/* Keeps logging out of an X connection or PTY master that would reuse a closed fd 0-2. */
+static int
+ReserveStandardDescriptors(void)
+{
+        for (int fd = STDIN_FILENO; fd <= STDERR_FILENO; fd++) {
+                int null_fd;
+                int placed;
+
+                if (fcntl(fd, F_GETFD) >= 0)
+                        continue;
+                if (errno != EBADF)
+                        return -1;
+                do
+                        null_fd = open("/dev/null", O_RDWR);
+                while (null_fd < 0 && errno == EINTR);
+                if (null_fd < 0)
+                        return -1;
+                if (null_fd == fd)
+                        continue;
+                do
+                        placed = dup2(null_fd, fd);
+                while (placed < 0 && errno == EINTR);
+                if (placed != fd) {
+                        int error = placed < 0 ? errno : EBADF;
+
+                        (void)close(null_fd);
+                        errno = error;
+                        return -1;
+                }
+                (void)close(null_fd);
+        }
+        return 0;
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1637,6 +1672,12 @@ main(int argc, char **argv)
         int status = EXIT_FAILURE;
         XrmDatabase command_database = NULL;
 
+        if (ReserveStandardDescriptors() != 0) {
+                XtpLog(XTP_LOG_ERROR, "startup",
+                       "cannot open /dev/null on a closed standard descriptor: %s",
+                       strerror(errno));
+                return EXIT_FAILURE;
+        }
         /* Helper pipes may close early; the write path reports EPIPE instead of dying. Every
          * exec child restores the default. */
         (void)signal(SIGPIPE, SIG_IGN);

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly reference=0c2a290d3a3e2a599be3a43435d778a5896667ee
+readonly reference=27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c
 readonly repository=https://github.com/ghostty-org/ghostty.git
 # A branch or tag would move under the CI cache key and between release jobs.
 if [[ ! $reference =~ ^[0-9a-f]{40}$ ]]; then

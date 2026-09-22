@@ -279,6 +279,7 @@ typedef struct
         Atom stale_clipboard_property;
         Boolean selection_dragging;
         Boolean selection_extending;
+        unsigned int selection_button;
         XtIntervalId selection_autoscroll_timer;
         int selection_pointer_x;
         int selection_pointer_y;
@@ -330,6 +331,8 @@ typedef struct
         XtIntervalId sync_output_timer;
         unsigned int sync_output_held;
         Boolean sync_output_full_redraw;
+        /* A hold began and captured a frame that has not been painted yet. */
+        Boolean sync_output_capture_pending;
         Boolean suppress_grid_resize;
         XIM input_method;
         XIC input_context;

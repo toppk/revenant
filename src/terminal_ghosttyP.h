@@ -19,6 +19,28 @@ typedef struct
         bool consumed;
 } XtpPaletteQuery;
 
+/* What a frame is painted with beyond its cells. While a hold lasts, the values
+ * read when it began are used, so settings parsed during the hold stay hidden. */
+typedef struct
+{
+        bool reverse_colors;
+        bool colors_valid;
+        GhosttyColorRgb foreground;
+        GhosttyColorRgb background;
+        GhosttyColorRgb cursor;
+        bool blink_requested;
+} XtpGhosttyPresentation;
+
+/* The frame metadata a paint shows besides cell damage. */
+typedef struct
+{
+        XtpGhosttyPresentation presentation;
+        bool cursor_visible;
+        uint16_t cursor_column;
+        uint16_t cursor_row;
+        GhosttyRenderStateCursorVisualStyle cursor_style;
+} XtpGhosttyFrameMeta;
+
 struct XtpTerminal
 {
         GhosttyTerminal handle;
@@ -103,6 +125,16 @@ struct XtpTerminal
         XtpTerminalEffects effects;
         char *answerback;
         size_t answerback_length;
+        /* DEC mode 2026: the render state was captured when the hold began and is not
+         * updated again until it ends. */
+        bool render_held;
+        XtpGhosttyPresentation held_presentation;
+        /* The metadata of the last frame drawn, so a capture can tell whether it
+         * differs from what is on screen beyond its cells. */
+        XtpGhosttyFrameMeta drawn;
+        bool drawn_valid;
+        XtpTerminalRenderHoldFn render_hold;
+        void *render_hold_closure;
 };
 
 /* Primary-screen rows including scrollback; 0 on the alternate screen. */

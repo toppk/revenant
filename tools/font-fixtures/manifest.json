@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "unicode_version": "17.0",
+  "unicode_version": "18.0",
   "unicode_data": "data/emoji-data.txt",
   "font_directory": "fonts",
   "fonts": {

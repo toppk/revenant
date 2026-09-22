@@ -620,6 +620,22 @@ XtpTerminalSetMode(XtpTerminal *terminal, XtpTerminalMode mode, bool enabled)
         return 0;
 }
 
+/* The stub parses nothing, so it never enters a render hold. */
+void
+XtpTerminalSetRenderHold(XtpTerminal *terminal, XtpTerminalRenderHoldFn hold, void *closure)
+{
+        (void)terminal;
+        (void)hold;
+        (void)closure;
+}
+
+bool
+XtpTerminalRenderHeld(const XtpTerminal *terminal)
+{
+        (void)terminal;
+        return false;
+}
+
 void
 XtpTerminalSetEffects(XtpTerminal *terminal, const XtpTerminalEffects *effects)
 {

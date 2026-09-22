@@ -1576,10 +1576,16 @@ VtRenderTerminal(Vt100Rec *vt, Boolean force_full)
             .abort = RenderAbort,
         };
 
+        int result;
+
         if (vt->vt.terminal == NULL)
                 return -1;
         VtSearchPrepareFrame(vt);
-        return XtpTerminalRender(vt->vt.terminal, &renderer, vt, force_full != False);
+        result = XtpTerminalRender(vt->vt.terminal, &renderer, vt, force_full != False);
+        /* Any paint during a hold draws the captured frame, so it is no longer owed. */
+        if (result == 0 && XtpTerminalRenderHeld(vt->vt.terminal))
+                vt->vt.sync_output_capture_pending = False;
+        return result;
 }
 
 void

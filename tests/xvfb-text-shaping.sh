@@ -161,3 +161,67 @@ fi
 mkdir "$cursor_done"
 wait "$terminal_pid" 2>/dev/null || true
 terminal_pid=
+
+# Unicode 18 simplified the Indic Conjunct Break rule (UAX #29 GB9c): a conjunct
+# linker now joins the following linking consonant without requiring a linking
+# consonant before it.  The visible consequence here is routing and artwork, not
+# advance: on the Unicode 17 backend this atom split into a tofu `?` cluster and a
+# separately routed consonant, and on Unicode 18 it is one cluster that the
+# Devanagari face shapes whole.  Both were measured; see
+# docs/maintainers/unicode-18-migration.md.  CPR is asserted separately, because the
+# advance is identical in both releases and cannot see the change.
+conjunct_log=$test_dir/indic-conjunct.log
+conjunct_cpr=$test_dir/indic-conjunct.cpr
+conjunct_done=$test_dir/indic-conjunct-done
+indic_atom=$(printf '?\340\245\215\340\244\244')
+"$fixture_root/run" shaping "$terminal" -debug +sb -geometry 12x4 \
+    -fa 'DejaVu Sans Mono:rgba=none' -fs 16 \
+    -xrm 'xterm.vt100.faceNameDoublesize:' \
+    -xrm 'xterm.vt100.faceNameEmoji:' \
+    -xrm 'xterm.vt100.graphemeWidth: unicode' \
+    -xrm 'xterm.vt100.internalBorder: 4' \
+    -xrm 'xterm.vt100.background: #000000' \
+    -xrm 'xterm.vt100.foreground: #FFFFFF' \
+    -xrm 'xterm.vt100.renderFont: true' \
+    -e bash -c 'stty raw -echo; printf "\033[2J\033[H\033[?25l%s\033[6n" "$2"; IFS= read -r -d R reply; printf "%sR" "$reply" >"$1"; printf "\033]2;indic-conjunct-ready\007"; while ! test -d "$3"; do sleep 0.05; done' \
+    bash "$conjunct_cpr" "$indic_atom" "$conjunct_done" \
+    >"$test_dir/indic-conjunct.out" 2>"$conjunct_log" &
+terminal_pid=$!
+
+xtp_wait_for_title "$conjunct_log" indic-conjunct-ready "indic conjunct" 360
+
+conjunct_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$conjunct_log" | tail -1)
+conjunct_cell=$(sed -n 's/.*VT100 resolved renderer=.* cell=\([0-9][0-9]*\)x[0-9][0-9]* .*/\1/p' "$conjunct_log" | tail -1)
+conjunct_height=$(sed -n 's/.*VT100 resolved renderer=.* cell=[0-9][0-9]*x\([0-9][0-9]*\) .*/\1/p' "$conjunct_log" | tail -1)
+conjunct_ink=$("$window_ink" "$conjunct_window" --expose 4 4 $((2 * conjunct_cell)) "$conjunct_height" 0x000000)
+conjunct_after=$("$window_ink" "$conjunct_window" --expose $((4 + 2 * conjunct_cell)) 4 "$conjunct_cell" "$conjunct_height" 0x000000)
+conjunct_advance=$(od -An -tx1 -v "$conjunct_cpr" | tr -d ' \n')
+
+# Advance first, and on its own: column 3 is two committed cells either way.
+if test "$conjunct_advance" != 1b5b313b3352
+then
+    echo "indic conjunct reported an unexpected cursor position: $conjunct_advance" >&2
+    exit 1
+fi
+# Then segmentation and routing: one atom of width two, shaped by the Devanagari
+# face rather than split with a tofu ASCII cluster.
+if ! grep -E -q -- 'route base=U\+003F width=2 presentation=none role=fallback glyphs=[1-9][0-9]* .*NotoSansDevanagari-Regular\.ttf' "$conjunct_log" || \
+   grep -E -q -- 'route base=U\+003F .*role=tofu' "$conjunct_log" || \
+   grep -E -q -- 'route base=U\+0924 ' "$conjunct_log"
+then
+    echo "the Unicode 18 conjunct atom did not route as one shaped cluster" >&2
+    grep -F -- 'font: route base' "$conjunct_log" >&2
+    exit 1
+fi
+if ! printf '%s\n' "$conjunct_ink" | grep -q '^class=mono ' || \
+   ! printf '%s\n' "$conjunct_after" | grep -q '^class=blank '
+then
+    echo "the conjunct atom drew no ink, or drew outside its two cells" >&2
+    printf 'atom: %s\nafter: %s\n' "$conjunct_ink" "$conjunct_after" >&2
+    exit 1
+fi
+printf '%-22s advance=%s %s\n' indic-conjunct-18 "$conjunct_advance" "$conjunct_ink"
+
+mkdir "$conjunct_done"
+wait "$terminal_pid" 2>/dev/null || true
+terminal_pid=

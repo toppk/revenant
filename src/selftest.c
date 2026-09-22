@@ -168,13 +168,19 @@ SelfTestEmojiPresentation(void)
         static const char technologist[] = "\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x92\xbb";
         XtpEmojiClusterStyle cluster;
 
-        if (strcmp(XtpEmojiUnicodeVersion(), "17.0") != 0 || !XtpEmojiHasProperty(0x1f600U) ||
+        if (strcmp(XtpEmojiUnicodeVersion(), "18.0") != 0 || !XtpEmojiHasProperty(0x1f600U) ||
             !XtpEmojiHasDefaultPresentation(0x1f600U) || !XtpEmojiHasProperty(0x263aU) ||
             XtpEmojiHasDefaultPresentation(0x263aU) || !XtpEmojiHasProperty(0x2764U) ||
             XtpEmojiHasDefaultPresentation(0x2764U) || !XtpEmojiHasProperty(0x2139U) ||
             XtpEmojiHasDefaultPresentation(0x2139U) || !XtpEmojiHasProperty(0x1fae8U) ||
             !XtpEmojiHasDefaultPresentation(0x1fae8U) || XtpEmojiHasProperty(0x65e5U) ||
             XtpEmojiHasDefaultPresentation(0x65e5U))
+                return -1;
+        /* Unicode 18.0 additions, with their emoji default presentation, and one
+         * codepoint that stayed unassigned for emoji purposes. */
+        if (!XtpEmojiHasProperty(0x1faddU) || !XtpEmojiHasDefaultPresentation(0x1faddU) ||
+            !XtpEmojiHasProperty(0x1f6d9U) || !XtpEmojiHasDefaultPresentation(0x1f6d9U) ||
+            XtpEmojiHasProperty(0x1f7ffU) || XtpEmojiHasDefaultPresentation(0x1f7ffU))
                 return -1;
         if (XtpEmojiResolveStyle(0x1f600U, 0, XTP_EMOJI_POLICY_UNICODE) != XTP_EMOJI_STYLE_EMOJI ||
             XtpEmojiResolveStyle(0x263aU, 0, XTP_EMOJI_POLICY_UNICODE) != XTP_EMOJI_STYLE_TEXT ||
@@ -230,10 +236,11 @@ SelfTestUnicodeScript(void)
         uint32_t codepoint = 0;
         size_t consumed = 0;
 
-        if (strcmp(XtpHanUnicodeVersion(), "17.0") != 0 || !XtpUnicodeScriptHan(0x65e5U) ||
-            !XtpUnicodeScriptHan(0x2f00U) || !XtpUnicodeScriptHan(0xf900U) ||
-            XtpUnicodeScriptHan(0x3042U) || XtpUnicodeScriptHan(0xac00U) ||
-            XtpUnicodeScriptHan(0x3001U) || XtpUnicodeScriptHan(0xff0cU))
+        if (strcmp(XtpHanUnicodeVersion(), "18.0") != 0 || !XtpUnicodeScriptHan(0x2b81eU) ||
+            !XtpUnicodeScriptHan(0x65e5U) || !XtpUnicodeScriptHan(0x2f00U) ||
+            !XtpUnicodeScriptHan(0xf900U) || XtpUnicodeScriptHan(0x3042U) ||
+            XtpUnicodeScriptHan(0xac00U) || XtpUnicodeScriptHan(0x3001U) ||
+            XtpUnicodeScriptHan(0xff0cU))
                 return -1;
         if (!XtpUtf8Decode(han, sizeof(han) - 1U, &codepoint, &consumed) || codepoint != 0x65e5U ||
             consumed != 3U ||
@@ -1863,6 +1870,74 @@ done:
         return result;
 }
 
+/*
+ * DECRQM, ANSI (CSI Ps $ p) and DEC private (CSI ? Ps $ p) forms, by exact reply.
+ * The reply must carry the requested number and the private marker of the request,
+ * and a known mode must report its real state: set/reset controls here keep a
+ * blanket "not recognized" answer from passing. Numbers across the signed 16-bit
+ * boundary must be echoed as sent -- 32793 is 25 + 32768, so a 15-bit truncation
+ * would answer DECTCEM's state for it. The backend parses these; this pins it.
+ */
+static int
+SelfTestModeQueries(void)
+{
+        static const struct
+        {
+                const char *setup;
+                const char *query;
+                const char *reply;
+        } cases[] = {
+            {"\033[4l", "\033[4$p", "\033[4;2$y"},
+            {"\033[4h", "\033[4$p", "\033[4;1$y"},
+            {"\033[4l", "\033[4$p", "\033[4;2$y"},
+            {"\033[20l", "\033[20$p", "\033[20;2$y"},
+            {"", "\033[9999$p", "\033[9999;0$y"},
+            {"", "\033[32767$p", "\033[32767;0$y"},
+            {"", "\033[32768$p", "\033[32768;0$y"},
+            {"\033[4h", "\033[32772$p", "\033[32772;0$y"},
+            {"\033[4l", "\033[65535$p", "\033[65535;0$y"},
+            {"\033[?25h", "\033[?25$p", "\033[?25;1$y"},
+            {"\033[?25l", "\033[?25$p", "\033[?25;2$y"},
+            {"\033[?25h", "\033[?4$p", "\033[?4;2$y"},
+            {"", "\033[?9999$p", "\033[?9999;0$y"},
+            {"", "\033[?32767$p", "\033[?32767;0$y"},
+            {"", "\033[?32768$p", "\033[?32768;0$y"},
+            {"\033[?25h", "\033[?32793$p", "\033[?32793;0$y"},
+            {"", "\033[?65535$p", "\033[?65535;0$y"},
+        };
+        SelfTestPtyCapture capture = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestCapturePty,
+            .closure = &capture,
+        };
+        XtpTerminal *terminal;
+        size_t index;
+        int result = 0;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        for (index = 0; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+                XtpTerminalFeed(terminal, (const uint8_t *)cases[index].setup,
+                                strlen(cases[index].setup));
+                capture = (SelfTestPtyCapture){0};
+                XtpTerminalFeed(terminal, (const uint8_t *)cases[index].query,
+                                strlen(cases[index].query));
+                if (!SelfTestPtyEquals(&capture, (const uint8_t *)cases[index].reply,
+                                       strlen(cases[index].reply))) {
+                        XtpLog(XTP_LOG_ERROR, "self-test",
+                               "DECRQM case %zu query=%s answered %zu bytes, expected %s", index,
+                               cases[index].query + 1, capture.used, cases[index].reply + 1);
+                        result = -1;
+                }
+        }
+        XtpTerminalFree(terminal);
+        return result;
+}
+
 static int
 SelfTestSynchronizedOutput(void)
 {
@@ -1913,6 +1988,136 @@ done:
                 XtpLog(XTP_LOG_ERROR, "self-test",
                        "synchronized output mismatch enabled=%s report length=%zu",
                        enabled ? "true" : "false", capture.used);
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+typedef struct
+{
+        unsigned int begins;
+        unsigned int ends;
+        unsigned int changed;
+} SelfTestHoldLog;
+
+static void
+SelfTestRenderHoldEffect(void *closure, bool held, bool changed)
+{
+        SelfTestHoldLog *log = closure;
+
+        if (held)
+                ++log->begins;
+        else
+                ++log->ends;
+        if (changed)
+                ++log->changed;
+}
+
+typedef struct
+{
+        bool saw_x;
+        bool saw_y;
+        bool reverse;
+} SelfTestHoldFrame;
+
+static void
+SelfTestHoldBegin(const XtpRenderFrame *frame, void *closure)
+{
+        ((SelfTestHoldFrame *)closure)->reverse = frame->reverse_colors;
+}
+
+static void
+SelfTestHoldCell(const XtpRenderCell *cell, void *closure)
+{
+        SelfTestHoldFrame *frame = closure;
+
+        if (cell->utf8_length == 1U && cell->utf8[0] == 'X')
+                frame->saw_x = true;
+        if (cell->utf8_length == 1U && cell->utf8[0] == 'Y')
+                frame->saw_y = true;
+}
+
+static int
+SelfTestHoldRender(XtpTerminal *terminal, SelfTestHoldFrame *frame)
+{
+        static const XtpRenderer renderer = {.begin = SelfTestHoldBegin, .cell = SelfTestHoldCell};
+
+        *frame = (SelfTestHoldFrame){0};
+        return XtpTerminalRender(terminal, &renderer, frame, true);
+}
+
+/*
+ * The render hold: a hold that begins after visible output captures exactly that
+ * frame, even with more output later in the same batch; the host's own mode changes
+ * and a resize report the same transitions libghostty reports for parsed ones; and
+ * nothing calls back after unregistration.
+ */
+static int
+SelfTestRenderHold(void)
+{
+        static const uint8_t output_then_hold[] = "X\033[?2026hY";
+        static const uint8_t release[] = "\033[?2026l";
+        static const uint8_t hold[] = "\033[?2026h";
+        static const uint8_t hide_then_hold[] = "\033[?25l\033[?2026h\033[?5h";
+        static const uint8_t restore[] = "\033[?5l\033[?25h";
+        SelfTestHoldLog log = {0};
+        SelfTestHoldFrame frame;
+        XtpTerminal *terminal;
+        int result = -1;
+
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetRenderHold(terminal, SelfTestRenderHoldEffect, &log);
+        if (XtpTerminalBackendIsStub()) {
+                /* The stub parses nothing and must never report or claim a hold. */
+                XtpTerminalFeed(terminal, hold, sizeof(hold) - 1U);
+                result = log.begins == 0 && !XtpTerminalRenderHeld(terminal) ? 0 : -1;
+                goto done;
+        }
+        XtpTerminalFeed(terminal, output_then_hold, sizeof(output_then_hold) - 1U);
+        if (log.begins != 1 || log.changed != 1 || !XtpTerminalRenderHeld(terminal) ||
+            SelfTestHoldRender(terminal, &frame) != 0 || !frame.saw_x || frame.saw_y)
+                goto done;
+        XtpTerminalFeed(terminal, release, sizeof(release) - 1U);
+        if (log.ends != 1 || XtpTerminalRenderHeld(terminal) ||
+            SelfTestHoldRender(terminal, &frame) != 0 || !frame.saw_x || !frame.saw_y)
+                goto done;
+        /* Nothing new since that render: the capture owes no paint. */
+        XtpTerminalFeed(terminal, hold, sizeof(hold) - 1U);
+        if (log.begins != 2 || log.changed != 1)
+                goto done;
+        /* The widget's timeout resets the mode directly; the hold must end with it. */
+        if (XtpTerminalSetMode(terminal, XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT, false) != 0 ||
+            log.ends != 2 || XtpTerminalRenderHeld(terminal))
+                goto done;
+        /* Only the cursor changed before this hold, which cell damage cannot see: it
+         * still owes a paint. Reverse video parsed during the hold stays out of the
+         * held frame and reaches the one after release. */
+        if (SelfTestHoldRender(terminal, &frame) != 0)
+                goto done;
+        XtpTerminalFeed(terminal, hide_then_hold, sizeof(hide_then_hold) - 1U);
+        if (log.begins != 3 || log.changed != 2 || SelfTestHoldRender(terminal, &frame) != 0 ||
+            frame.reverse)
+                goto done;
+        XtpTerminalFeed(terminal, release, sizeof(release) - 1U);
+        if (log.ends != 3 || SelfTestHoldRender(terminal, &frame) != 0 || !frame.reverse)
+                goto done;
+        XtpTerminalFeed(terminal, restore, sizeof(restore) - 1U);
+        /* A host resize ends the hold in libghostty; the frontend re-arms it. */
+        XtpTerminalFeed(terminal, hold, sizeof(hold) - 1U);
+        if (XtpTerminalResize(terminal, 70, 24, 8, 16) != 0 || log.begins != 5 || log.ends != 4 ||
+            !XtpTerminalRenderHeld(terminal))
+                goto done;
+        XtpTerminalSetRenderHold(terminal, NULL, NULL);
+        XtpTerminalFeed(terminal, release, sizeof(release) - 1U);
+        if (log.begins != 5 || log.ends != 4 || XtpTerminalRenderHeld(terminal))
+                goto done;
+        result = 0;
+done:
+        if (result != 0)
+                XtpLog(XTP_LOG_ERROR, "self-test",
+                       "render hold mismatch begins=%u ends=%u changed=%u held=%s", log.begins,
+                       log.ends, log.changed, XtpTerminalRenderHeld(terminal) ? "true" : "false");
         XtpTerminalFree(terminal);
         return result;
 }
@@ -6283,6 +6488,8 @@ XtpSelfTest(void)
             {"tty-output scroll", SelfTestScrollTtyOutput},
             {"focus", SelfTestFocus},
             {"synchronized output", SelfTestSynchronizedOutput},
+            {"mode queries", SelfTestModeQueries},
+            {"render hold", SelfTestRenderHold},
             {"OSC 52 clipboard", SelfTestOsc52},
             {"XTWINOPS title ops", SelfTestTitleOps},
             {"Kitty keyboard", SelfTestKittyKeyboardState},

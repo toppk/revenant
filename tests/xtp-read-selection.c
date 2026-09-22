@@ -2,6 +2,7 @@
 #include <X11/Xlib.h>
 
 #include <poll.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +33,10 @@ ReadCutBuffer(Display *display, int cut_buffer)
         XFree(value);
         return EXIT_SUCCESS;
 }
+
+/* With --describe, the reply is printed as its declared type and the exact bytes in
+ * hex, so a conversion can be judged by encoding rather than by how it looks. */
+static bool describe;
 
 static int
 ReadSelection(Display *display, const char *selection_name, const char *target_name)
@@ -67,7 +72,17 @@ ReadSelection(Display *display, const char *selection_name, const char *target_n
                                                        &value) != Success ||
                                     actual_type == None || actual_format != 8 || after != 0)
                                         goto done;
-                                if (items != 0 && fwrite(value, 1, items, stdout) != items) {
+                                if (describe) {
+                                        char *type = XGetAtomName(display, actual_type);
+                                        unsigned long index;
+
+                                        printf("type=%s bytes=", type != NULL ? type : "?");
+                                        for (index = 0; index < items; ++index)
+                                                printf("%02x", value[index]);
+                                        putchar('\n');
+                                        if (type != NULL)
+                                                XFree(type);
+                                } else if (items != 0 && fwrite(value, 1, items, stdout) != items) {
                                         XFree(value);
                                         goto done;
                                 }
@@ -93,8 +108,13 @@ main(int argc, char **argv)
         int cut_buffer;
         int result;
 
+        if (argc > 1 && strcmp(argv[1], "--describe") == 0) {
+                describe = true;
+                --argc;
+                ++argv;
+        }
         if (argc < 2 || argc > 3) {
-                fprintf(stderr, "usage: %s SELECTION [TARGET]\n", argv[0]);
+                fprintf(stderr, "usage: %s [--describe] SELECTION [TARGET]\n", argv[0]);
                 return EXIT_FAILURE;
         }
         display = XOpenDisplay(NULL);
