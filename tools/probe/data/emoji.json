@@ -457,5 +457,66 @@
       }
     ],
     "id": "capacity"
+  },
+  {
+    "id": "unicode18",
+    "title": "8. Unicode 18 changes (measured against a Unicode 17 backend)",
+    "samples": [
+      {
+        "label": "Question mark + virama + TA (Indic conjunct, UAX #29 GB9c)",
+        "text": "?्त",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "Unicode 18 simplified the conjunct-linker rule (UAX #29 GB9c): under mode 2027 this is ONE cluster where 17.0 made two. The advance is 2 in both releases, so width cannot see the change. Under the legacy contract the atoms stay separate in both releases. Any artwork difference depends on the fonts in use; judge it on the artwork case, not here."
+      },
+      {
+        "label": "Virama + KA (conjunct linker with no preceding consonant)",
+        "text": "्क",
+        "legacy": [
+          1
+        ],
+        "cluster": [
+          1
+        ],
+        "note": "Control. UAX #29 splits this in 17.0 and joins it in 18.0, but a terminal has no cell for a leading zero-width linker: both releases were measured as one atom with an advance of 1, so the change is invisible in this position."
+      },
+      {
+        "label": "Grinning face + ZWJ + U+1F7FF",
+        "text": "😀‍🟿",
+        "legacy": [
+          3
+        ],
+        "cluster": [
+          3
+        ],
+        "note": "U+1F7FF was Extended_Pictographic while unassigned, so 17.0 joined it to the emoji ZWJ sequence and a cluster-capable terminal reported 2. Unicode 18 assigns it as an ordinary symbol, so the sequence breaks in two and the cluster contract is 3. A terminal still reporting 2 here is using Unicode 17 data."
+      },
+      {
+        "label": "U+1FADD PICKLE, a base added in Unicode 18.0",
+        "text": "🫝",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "Width 2 under both contracts. Fonts lag new Unicode releases, so a missing-glyph box here is a font-coverage observation, not a width failure."
+      },
+      {
+        "label": "U+2B81E, a Han ideograph added in Unicode 18.0",
+        "text": "𫠞",
+        "legacy": [
+          2
+        ],
+        "cluster": [
+          2
+        ],
+        "note": "Already Wide by block before assignment, so the advance is unchanged; what changed is Script=Han membership, which a terminal may use for font routing."
+      }
+    ]
   }
 ]

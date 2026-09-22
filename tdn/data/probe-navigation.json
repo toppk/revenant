@@ -8,7 +8,8 @@
       ],
       "features": [
         "dec-mode-2027-grapheme-clusters",
-        "text-vs16-width"
+        "text-vs16-width",
+        "text-unicode-tables"
       ]
     },
     {
@@ -36,6 +37,16 @@
         "text-braille-drawing",
         "text-powerline-drawing",
         "text-procedural-glyphs"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Text, emoji and rendering",
+        "Faces and shaping"
+      ],
+      "features": [
+        "text-shaping",
+        "text-italic-face"
       ]
     },
     {
@@ -98,7 +109,9 @@
       ],
       "features": [
         "osc-52-read",
-        "osc-52-write"
+        "osc-52-write",
+        "osc-52-reply-target",
+        "osc-52-invalid-base64-clear"
       ]
     },
     {
@@ -145,6 +158,7 @@
       "features": [
         "dec-mode-1000-mouse",
         "dec-mode-1006-sgr-mouse",
+        "dec-mode-1007-alternate-scroll",
         "dec-mode-1004-focus",
         "osc-22-pointer-shape"
       ]
@@ -166,6 +180,7 @@
       ],
       "features": [
         "selection-copy-feedback",
+        "selection-drag-scroll",
         "search-scrollback-literal",
         "ui-search-overlay",
         "search-copy-match"
@@ -193,7 +208,8 @@
         "csi-da2",
         "csi-da3",
         "csi-xtversion",
-        "c0-enq-answerback"
+        "c0-enq-answerback",
+        "csi-decrqm"
       ]
     },
     {

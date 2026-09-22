@@ -182,6 +182,10 @@ Feature ID: `logging-session-transcript`. -/+l, -lf, logFile, logInhibit and the
 
 Feature ID: `x11-resource-identity`. Class/instance/WM_CLASS, invocation names, app-default lookup and migration compatibility.
 
+### Drag selection across scrolling
+
+Feature ID: `selection-drag-scroll`. An active mouse drag keeps its anchor on content while the viewport scrolls by wheel, key or autoscroll, extends to the content under the pointer, and ends only when its own button is released.
+
 ### Keyboard selection extension
 
 Feature ID: `selection-keyboard-extension`. Shift+Select-style keyboard extension with explicit anchor, focus and ownership rules.

@@ -111,6 +111,41 @@ class Emulator:
         return out
 
 
+class DecrqmEmulator:
+    """Answers DECRQM in both forms. With old=True it behaves as the previous
+    backend was measured to: ANSI queries go unanswered and private mode numbers
+    are truncated to 15 bits before lookup and in the reply."""
+
+    def __init__(self, old=False):
+        self.old = old
+        self.pending = b""
+        self.ansi = {4: False, 20: False}
+        self.private = {25: True}
+        self.pattern = re.compile(rb"\x1b\[(\??)(\d+)(h|l|\$p)")
+
+    def __call__(self, data):
+        self.pending += data
+        out = b""
+        end = 0
+        for match in self.pattern.finditer(self.pending):
+            end = match.end()
+            private = match[1] == b"?"
+            mode = int(match[2])
+            table = self.private if private else self.ansi
+            if match[3] != b"$p":
+                if mode in table:
+                    table[mode] = match[3] == b"h"
+                continue
+            if self.old and not private:
+                continue
+            if self.old:
+                mode &= 0x7FFF
+            status = 0 if mode not in table else (1 if table[mode] else 2)
+            out += b"\x1b[" + match[1] + str(mode).encode() + b";" + str(status).encode() + b"$y"
+        self.pending = self.pending[end:][-100:]
+        return out
+
+
 class ProbeAcceptance(unittest.TestCase):
 
     def test_prompt_fixture_explains_manual_pass_and_direct_exit(self):
@@ -146,10 +181,15 @@ class ProbeAcceptance(unittest.TestCase):
             with self.subTest(case=case), tempfile.TemporaryDirectory() as tmp:
                 path = Path(tmp) / "result.json"
                 sent = False
+                answered = 0
 
+                # emoji-sequences pauses once per regime pass, so answer every
+                # prompt rather than only the first.
                 def interact(output):
-                    nonlocal sent
-                    if not sent and b"Space/Enter: continue" in output:
+                    nonlocal sent, answered
+                    prompts = output.count(b"Space/Enter: continue")
+                    if prompts > answered:
+                        answered = prompts
                         sent = True
                         return b" "
                     return b""
@@ -282,7 +322,7 @@ class ProbeAcceptance(unittest.TestCase):
                 continue  # Explicit external process, tested through argv tests.
             with self.subTest(case=name):
                 args = case["command"].split() + ["--timeout", ".005", "--no-pause"]
-                if name.startswith("input keyboard") or name == "input mouse":
+                if name.startswith("input keyboard") or name in ("input mouse", "selection scroll"):
                     args += ["--seconds", ".06"]
                 if name == "rendering sync":
                     args += ["--frames", "1", "--frame-ms", "0", "--pause-ms", "0"]
@@ -294,7 +334,7 @@ class ProbeAcceptance(unittest.TestCase):
                 self.assertNotIn(b"panic:", output)
 
     def test_focused_emoji_sections_and_mode_restoration(self):
-        for section, count in [("flags", 6), ("mode-2027", 4), ("all", 76)]:
+        for section, count in [("flags", 6), ("mode-2027", 4), ("unicode18", 10), ("all", 86)]:
             with (
                 self.subTest(section=section),
                 tempfile.TemporaryDirectory() as directory,
@@ -326,6 +366,288 @@ class ProbeAcceptance(unittest.TestCase):
                     self.assertIn(b"5. Flags", output)
                     self.assertNotIn(b"4. ZWJ sequences", output)
                     self.assertNotIn(b"7. Capacity", output)
+
+    def test_sequence_artwork_runs_one_pass_per_regime_and_restores(self):
+        for initial in (True, False):
+            with self.subTest(initial=initial):
+                emulator = Emulator()
+                emulator.modes[2027] = initial
+                code, output, restored = run_probe(
+                    ["text", "emoji", "artwork", "emoji-sequences", "--no-pause"],
+                    respond=emulator,
+                )
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertTrue(restored)
+                # Both passes, each reporting the state the terminal answered.
+                self.assertIn(
+                    b"[legacy pass] Requested legacy; mode 2027=2; segmentation contract: legacy",
+                    output,
+                )
+                self.assertIn(
+                    b"[cluster pass] Requested cluster; mode 2027=1; segmentation contract: cluster",
+                    output,
+                )
+                self.assertLess(output.index(b"[legacy pass]"), output.index(b"[cluster pass]"))
+                # Regime-dependent guidance, not one blanket expectation.
+                self.assertIn(b"keeps separate atoms in both releases", output)
+                self.assertIn(b"Unicode 18 makes this TWO clusters", output)
+                self.assertEqual(emulator.modes.get(2027, False), initial)
+
+    def test_sequence_artwork_single_regime(self):
+        emulator = Emulator()
+        code, output, restored = run_probe(
+            ["text", "emoji", "artwork", "emoji-sequences", "--no-pause", "--regime", "cluster"],
+            respond=emulator,
+        )
+        self.assertEqual(code, 0, output[-2000:])
+        self.assertIn(b"[cluster pass]", output)
+        self.assertNotIn(b"[legacy pass]", output)
+        self.assertFalse(emulator.modes.get(2027, False))
+
+    def test_sequence_artwork_unanswered_mode_query_is_unknown(self):
+        class Silent2027(Emulator):
+            def __call__(self, data):
+                reply = super().__call__(data)
+                return reply.replace(b"\x1b[?2027;1$y", b"").replace(b"\x1b[?2027;2$y", b"")
+
+        emulator = Silent2027()
+        code, output, restored = run_probe(
+            [
+                "text",
+                "emoji",
+                "artwork",
+                "emoji-sequences",
+                "--no-pause",
+                "--timeout",
+                ".05",
+            ],
+            respond=emulator,
+        )
+        self.assertEqual(code, 0, output[-2000:])
+        self.assertTrue(restored)
+        self.assertIn(b"mode 2027=unknown; segmentation contract: unknown", output)
+        self.assertNotIn(b"segmentation contract: legacy", output)
+        self.assertIn(b"not confirmed active", output)
+        self.assertIn(b"without a segmentation expectation", output)
+
+    def test_other_artwork_cases_leave_mode_2027_alone(self):
+        emulator = Emulator()
+        emulator.modes[2027] = True
+        code, output, restored = run_probe(
+            ["text", "emoji", "artwork", "monochrome-emoji", "--no-pause"],
+            respond=emulator,
+        )
+        self.assertEqual(code, 0, output[-2000:])
+        self.assertIn(b"Mode 2027 left as found: 1; segmentation contract: cluster", output)
+        self.assertNotIn(b"\x1b[?2027l", output)
+        self.assertTrue(emulator.modes[2027])
+
+    def test_sync_boundaries_are_labelled_and_released(self):
+        emulator = Emulator()
+        code, output, restored = run_probe(
+            [
+                "rendering",
+                "sync",
+                "--mode",
+                "boundaries",
+                "--no-pause",
+                "--hold-ms",
+                "0",
+                "--pause-ms",
+                "0",
+            ],
+            respond=emulator,
+        )
+        self.assertEqual(code, 0, output[-2000:])
+        self.assertTrue(restored)
+        for label in (
+            b"[same write] output, then hold",
+            b"[same write] release, new frame, hold again",
+            b"[consecutive writes] release, new frame, hold again",
+        ):
+            self.assertIn(label, output)
+        # The same-write scenario sends the completed line, the hold and the held line
+        # together, in that order.
+        visible = output.index(b"VISIBLE: completed before the hold")
+        hold = output.index(b"\x1b[?2026h", visible)
+        self.assertLess(hold, output.index(b"HIDDEN until release: written after the hold"))
+        self.assertIn(b"Visual only; the parser may split or merge writes.", output)
+        self.assertFalse(emulator.modes.get(2026, False))
+
+    def run_mode_queries(self, emulator):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "modes.json"
+            code, output, restored = run_probe(
+                ["identity", "modes", "--no-pause", "--timeout", ".05", "--output", str(path)],
+                respond=emulator,
+            )
+            self.assertEqual(code, 0, output[-2000:])
+            self.assertTrue(restored)
+            findings = json.loads(path.read_text())[0]["findings"]
+        return output, findings
+
+    def test_mode_queries_exact_replies_and_restore(self):
+        emulator = DecrqmEmulator()
+        output, findings = self.run_mode_queries(emulator)
+        verdicts = [json.dumps(f) for f in findings]
+        self.assertEqual(len(findings), 14, verdicts)
+        self.assertTrue(all('"exact"' in v for v in verdicts), verdicts)
+        self.assertIn(b"\x1b[4$p", output)
+        self.assertIn(b"\x1b[?32793$p", output)
+        # IRM was reset and DECTCEM shown before the case; both come back.
+        self.assertFalse(emulator.ansi[4])
+        self.assertTrue(emulator.private[25])
+
+    def test_mode_queries_expose_the_old_backend(self):
+        emulator = DecrqmEmulator(old=True)
+        _, findings = self.run_mode_queries(emulator)
+        verdicts = [json.dumps(f) for f in findings]
+        ansi = [v for v in verdicts if "ANSI" in v]
+        self.assertEqual(len(ansi), 7, verdicts)
+        self.assertTrue(all('"no reply"' in v for v in ansi), ansi)
+        wrong = [v for v in verdicts if '"wrong mode"' in v]
+        self.assertEqual(len(wrong), 3, verdicts)  # 32768, 32793 and 65535
+        self.assertTrue(any("32793" in v and "answered mode 25" in v for v in wrong), wrong)
+
+    def test_clipboard_set_round_trip_is_compared_exactly(self):
+        request = re.compile(rb"\x1b\]52;([a-z]*);([^\x07\x1b]*)(?:\x07|\x1b\\)")
+        for altered, verdict in (
+            (False, b"Round trip: exact (6 bytes)"),
+            (True, b"Round trip: DIFFERS, sent"),
+            ("target", b"Round trip: DIFFERS, the reply names \"p\" instead of \"c\""),
+        ):
+            with self.subTest(altered=altered):
+                stored = {}
+                buffer = bytearray()
+
+                # Stores OSC 52 sets and answers queries; ALTERED hands back Latin-1,
+                # or with "target" the stored bytes under another selection.
+                def respond(data):
+                    buffer.extend(data)
+                    out = b""
+                    end = 0
+                    for match in request.finditer(bytes(buffer)):
+                        end = match.end()
+                        if match[2] != b"?":
+                            stored[match[1]] = base64.b64decode(match[2])
+                            continue
+                        value = stored.get(match[1], b"")
+                        named = match[1]
+                        if altered == "target":
+                            # The right bytes under the wrong selection.
+                            named = b"p" if match[1] != b"p" else b"c"
+                        elif altered:
+                            value = value.decode().encode("latin-1")
+                        out += b"\x1b]52;" + named + b";" + base64.b64encode(value) + b"\x1b\\"
+                    del buffer[:end]
+                    return out
+
+                code, output, restored = run_probe(
+                    ["clipboard", "set", "--text", "café!", "--no-pause"], respond=respond
+                )
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertTrue(restored)
+                self.assertIn(b"contents are not saved", output)
+                self.assertIn(verdict, output)
+                if not altered:
+                    self.assertIn(b"Conversion for other clients is not shown", output)
+
+    def test_mouse_scenarios_count_labelled_reports(self):
+        # Each step's input, then Space to advance; the counts are the probe's verdict.
+        cases = {
+            "counts": [
+                (b"Step 1/2", b"\x1b[<64;4;2M\x1b[<64;4;2m\x1b[<64;4;2M "),
+                (b"Step 2/2", b"\x1b[<65;4;2M\x1b[<0;4;2M "),
+            ],
+            "handoff": [
+                (b"Step 1/5", b"\x1b[<64;4;2M "),
+                (b"Step 2/5", b" "),
+                (b"Step 3/5", b"\x1b[<65;4;2M "),
+                (b"Step 4/5", b"\x1b[A\x1bOA\x1b[B "),
+                (b"Step 5/5", b"\x1b[<64;4;2M "),
+            ],
+        }
+        expected = {
+            "counts": [
+                b"wheel up 2, wheel down 0, wheel releases 1, other mouse reports 0",
+                b"wheel up 0, wheel down 1, wheel releases 0, other mouse reports 1",
+            ],
+            "handoff": [
+                b"wheel up 1, wheel down 0, wheel releases 0",
+                b"wheel up 0, wheel down 0, wheel releases 0, other mouse reports 0, cursor Up 0",
+                b"wheel up 0, wheel down 1,",
+                b"cursor Up 2, cursor Down 1",
+            ],
+        }
+        for scenario, steps in cases.items():
+            with self.subTest(scenario=scenario):
+                pending = list(steps)
+
+                def interact(output):
+                    if pending and pending[0][0] in output:
+                        return pending.pop(0)[1]
+                    return b""
+
+                code, output, restored = run_probe(
+                    ["input", "mouse", "--scenario", scenario, "--seconds", "5"],
+                    respond=Emulator(),
+                    interaction=interact,
+                )
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertEqual(pending, [])
+                self.assertTrue(restored)
+                self.assertIn(b"Human assessment", output)
+                self.assertIn(b"tests/xvfb-mouse-scroll.sh", output)
+                for verdict in expected[scenario]:
+                    self.assertIn(verdict, output)
+                if scenario == "handoff":
+                    self.assertIn(b"\x1b[?1049h", output)
+                    self.assertIn(b"\x1b[?1007h", output)
+                    self.assertIn(b"\x1b[?1007l", output)
+                    self.assertIn(b"\x1b[?1049l", output)
+
+    def test_text_contrast_sample_prints_both_themes(self):
+        code, output, restored = run_probe(
+            ["text", "contrast", "--no-pause"], respond=Emulator()
+        )
+        self.assertEqual(code, 0, output[-2000:])
+        self.assertTrue(restored)
+        self.assertIn(b"\x1b[30;107m", output)
+        self.assertIn(b"\x1b[97;40m", output)
+        self.assertIn("cafe\u0301".encode(), output)
+        self.assertIn("\U0001f6e0\ufe0e".encode(), output)
+        self.assertIn(b"human visual assessment", output)
+
+    def test_drag_scroll_fixture_checks_pasted_lines(self):
+        pastes = [
+            b"\x1b[200~ne 0172\rline 0173\rline 0174\rline 019\x1b[201~",
+            b"\x1b[200~line 0010\rline 0012\x1b[201~",
+            b"\x1b[200~line 0001\rgarbage\rline 0002\x1b[201~",
+            b"q",
+        ]
+
+        def interact(output):
+            if pastes and b"Space/Enter: finish" in output:
+                return pastes.pop(0)
+            return b""
+
+        code, output, restored = run_probe(
+            ["selection", "scroll", "--seconds", "5"],
+            respond=Emulator(),
+            interaction=interact,
+        )
+        self.assertEqual(code, 0, output[-2000:])
+        self.assertTrue(restored)
+        self.assertIn(b"line 0001", output)
+        self.assertIn(b"line 0300", output)
+        self.assertIn(b"\x1b[?2004h", output)
+        self.assertIn(
+            b'Pasted 4 line(s), first "ne 0172", last "line 019": complete lines 0173..0174'
+            b" consecutive. Whether the ends match",
+            output,
+        )
+        self.assertIn(b"NOT consecutive, line 0012 follows 0010.", output)
+        self.assertIn(b'MALFORMED interior line 2: "garbage".', output)
 
     def test_interrupts_cleanup_and_restore_tty(self):
         for args, marker, reset in [
@@ -390,10 +712,14 @@ class ProbeAcceptance(unittest.TestCase):
             self.assertEqual(code, 0, output)
             self.assertTrue(restored)
             self.assertIn("héllo Ü".encode(), output)
+            # Exact bytes, the reply's own target, and UTF-8 validity are all reported.
+            self.assertIn("héllo Ü".encode().hex().encode(), output)
+            self.assertIn(b"Reply names the requested target", output)
+            self.assertIn(b"valid UTF-8: true", output)
             result = json.loads(path.read_text())[0]
             self.assertEqual(result["outcome"], "unassessed")
             self.assertEqual(result["as-of"], "test-1")
-            self.assertEqual(result["feature_ids"], ["osc-52-read"])
+            self.assertEqual(result["feature_ids"], ["osc-52-read", "osc-52-reply-target"])
             self.assertEqual(
                 base64.b64decode(result["events"][0]["bytes_base64"]),
                 b"\x1b]52;p;?\x1b\\",
@@ -547,6 +873,8 @@ class ProbeAcceptance(unittest.TestCase):
             (b"Home / clipboard set / Settings", b"3\r"),
             (b"Home / clipboard set / Settings", b"7\r"),
             (b"Home / clipboard set", b"\r"),
+            # The case warns before replacing the selection and waits for consent.
+            (b"contents are not saved", b" "),
             (b"Probe complete.", b" "),
         ]
         if assess:

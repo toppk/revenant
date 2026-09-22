@@ -26,6 +26,18 @@
     "sequence": ""
   },
   {
+    "id": "text-unicode-tables",
+    "title": "Bundled Unicode tables",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Emoji and Unicode widths"
+    ],
+    "specifications": [
+      "unicode-ucd"
+    ],
+    "sequence": ""
+  },
+  {
     "id": "text-monochrome-emoji",
     "title": "Monochrome emoji fallback",
     "breadcrumb": [
@@ -154,6 +166,30 @@
     ],
     "specifications": [
       "unicode-ucd"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "text-shaping",
+    "title": "Ligatures / shaping",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Faces and shaping"
+    ],
+    "specifications": [
+      "harfbuzz"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "text-italic-face",
+    "title": "Italic face",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "Faces and shaping"
+    ],
+    "specifications": [
+      "xterm-manual"
     ],
     "sequence": ""
   },
@@ -435,6 +471,30 @@
     "sequence": ""
   },
   {
+    "id": "osc-52-reply-target",
+    "title": "OSC 52 reply target encoding",
+    "breadcrumb": [
+      "Window and desktop",
+      "OSC 52 clipboard"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "osc-52-invalid-base64-clear",
+    "title": "OSC 52 invalid-data handling",
+    "breadcrumb": [
+      "Window and desktop",
+      "OSC 52 clipboard"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": ""
+  },
+  {
     "id": "csi-20-t-report-icon-label",
     "title": "Report icon label",
     "breadcrumb": [
@@ -603,6 +663,18 @@
     "sequence": "CSI ?1006 h / l"
   },
   {
+    "id": "dec-mode-1007-alternate-scroll",
+    "title": "1007 alternate scroll",
+    "breadcrumb": [
+      "Input",
+      "Mouse and pointer"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI ?1007 h / l"
+  },
+  {
     "id": "dec-mode-1004-focus",
     "title": "1004 focus",
     "breadcrumb": [
@@ -659,6 +731,18 @@
     ],
     "specifications": [
       "revenant-feature-designs"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "selection-drag-scroll",
+    "title": "Drag selection across scrolling",
+    "breadcrumb": [
+      "Input",
+      "Selection and search"
+    ],
+    "specifications": [
+      "xterm-manual"
     ],
     "sequence": ""
   },
@@ -806,6 +890,18 @@
       "ecma-48"
     ],
     "sequence": "0x05"
+  },
+  {
+    "id": "csi-decrqm",
+    "title": "DECRQM",
+    "breadcrumb": [
+      "Identity and capabilities",
+      "Device reports"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI Ps $ p"
   },
   {
     "id": "dcs-xtgettcap",

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -192,6 +193,20 @@ func mouse(s *Session) {
 		s.send(modeSequence(m, false))
 	}
 	mode, _ := strconv.Atoi(s.opts.Mode)
+	switch s.opts.Scenario {
+	case "counts":
+		mouseCounts(s, mode)
+	case "handoff":
+		mouseHandoff(s, mode)
+	case "all":
+		mouseCounts(s, mode)
+		mouseHandoff(s, mode)
+		mouseCapture(s, mode)
+	default:
+		mouseCapture(s, mode)
+	}
+}
+func mouseCapture(s *Session, mode int) {
 	for _, m := range []int{mode, 1004, 1006} {
 		s.send(modeSequence(m, true))
 	}
@@ -206,6 +221,100 @@ func mouse(s *Session) {
 			s.say("Mouse/focus input: %q", data)
 		}
 	}
+}
+
+var sgrMouseReport = regexp.MustCompile("\x1b\\[<([0-9]+);[0-9]+;[0-9]+([Mm])")
+
+type mouseTally struct{ up, down, releases, other, keyUp, keyDown int }
+
+func tallyMouse(data []byte) mouseTally {
+	var t mouseTally
+	for _, m := range sgrMouseReport.FindAllSubmatch(data, -1) {
+		code, _ := strconv.Atoi(string(m[1]))
+		button := code &^ (4 | 8 | 16 | 32)
+		switch {
+		case (button == 64 || button == 65) && string(m[2]) == "m":
+			t.releases++
+		case button == 64:
+			t.up++
+		case button == 65:
+			t.down++
+		default:
+			t.other++
+		}
+	}
+	t.keyUp = bytes.Count(data, []byte(esc+"[A")) + bytes.Count(data, []byte(esc+"OA"))
+	t.keyDown = bytes.Count(data, []byte(esc+"[B")) + bytes.Count(data, []byte(esc+"OB"))
+	return t
+}
+func (t mouseTally) String() string {
+	return fmt.Sprintf("wheel up %d, wheel down %d, wheel releases %d, other mouse reports %d, cursor Up %d, cursor Down %d",
+		t.up, t.down, t.releases, t.other, t.keyUp, t.keyDown)
+}
+
+// A labelled step: the instruction, what to expect, then what the application received.
+func mouseStep(s *Session, label, instruction, expected string) mouseTally {
+	s.say("")
+	s.say("%s: %s", label, instruction)
+	s.say("  Expected: %s", expected)
+	s.say("  Space/Enter: next step | q/Esc: exit test")
+	var data []byte
+	deadline := time.Now().Add(seconds(s.opts.Seconds))
+	for time.Now().Before(deadline) {
+		chunk := s.read(minTime(deadline, time.Now().Add(100*time.Millisecond)))
+		if len(chunk) > 0 {
+			s.event("input", chunk)
+		}
+		data = append(data, chunk...)
+		if s.navigation(chunk) {
+			break
+		}
+	}
+	t := tallyMouse(data)
+	s.say("  Received: %s.", t)
+	return t
+}
+func mouseAssessment(s *Session, mode int) {
+	s.say("Human assessment: you know how many notches you turned; the probe counts what the")
+	s.say("application received (SGR encoding). The source tree's automated exact-byte check")
+	s.say("is tests/xvfb-mouse-scroll.sh, which injects the wheel under Xvfb.")
+	if mode == 9 {
+		s.say("Mode 9 reports buttons 1-3 only: expect no wheel reports in any step.")
+	}
+}
+func mouseCounts(s *Session, mode int) {
+	s.page("Report count")
+	mouseAssessment(s, mode)
+	on := modeSequence(mode, true) + modeSequence(1006, true)
+	s.send(on)
+	mouseStep(s, "Step 1/2, tracking on", "turn the wheel exactly 3 notches up.",
+		"3 wheel-up reports, whatever the terminal's local lines per notch; xterm reports no wheel releases.")
+	mouseStep(s, "Step 2/2, tracking on", "turn the wheel exactly 3 notches down.",
+		"3 wheel-down reports and no releases.")
+	s.send(modeSequence(mode, false) + modeSequence(1006, false))
+}
+func mouseHandoff(s *Session, mode int) {
+	s.preserveModes(1007, 1049)
+	s.page("Mode handoff")
+	mouseAssessment(s, mode)
+	on := modeSequence(mode, true) + modeSequence(1006, true)
+	off := modeSequence(mode, false) + modeSequence(1006, false)
+	s.send(on)
+	mouseStep(s, "Step 1/5, tracking on", "turn one notch up.", "exactly 1 wheel-up report.")
+	s.send(off)
+	mouseStep(s, "Step 2/5, tracking off", "turn one notch up; the terminal may scroll its own history.",
+		"nothing: a report here means tracking outlived the mode change.")
+	s.send(on)
+	mouseStep(s, "Step 3/5, tracking on again", "turn one notch down.",
+		"exactly 1 wheel-down report; the notch from step 2 is not replayed.")
+	s.send(off + modeSequence(1049, true) + esc + "[H" + esc + "[2J" + modeSequence(1007, true))
+	s.say("Alternate screen, mode 1007 (alternate scroll) set.")
+	mouseStep(s, "Step 4/5, tracking off", "turn one notch up.",
+		"xterm sends cursor Up keys, one per line it would scroll; a terminal without alternate scroll sends nothing.")
+	s.send(on)
+	mouseStep(s, "Step 5/5, tracking on", "turn one notch up.",
+		"exactly 1 wheel-up report and no cursor keys: tracking takes precedence over alternate scroll.")
+	s.send(off + modeSequence(1007, false) + modeSequence(1049, false))
 }
 func keyboard(s *Session) {
 	kind := strings.TrimPrefix(s.result.Case, "input keyboard ")

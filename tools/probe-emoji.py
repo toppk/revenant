@@ -253,6 +253,63 @@ SECTIONS = [
             ),
         ],
     ),
+    (
+        "8. Unicode 18 changes (measured against a Unicode 17 backend)",
+        [
+            (
+                "Question mark + virama + TA (Indic conjunct, UAX #29 GB9c)",
+                "?\u094d\u0924",
+                {2},
+                {2},
+                "Unicode 18 simplified the conjunct-linker rule (UAX #29 GB9c): "
+                "under mode 2027 this is ONE cluster where 17.0 made two. The "
+                "advance is 2 in both releases, so width cannot see the change. "
+                "Under the legacy contract the atoms stay separate in both "
+                "releases. Any artwork difference depends on the fonts in use; "
+                "judge it on the artwork case, not here.",
+            ),
+            (
+                "Virama + KA (conjunct linker with no preceding consonant)",
+                "\u094d\u0915",
+                {1},
+                {1},
+                "Control. UAX #29 splits this in 17.0 and joins it in 18.0, but "
+                "a terminal has no cell for a leading zero-width linker: both "
+                "releases were measured as one atom with an advance of 1, so "
+                "the change is invisible in this position.",
+            ),
+            (
+                "Grinning face + ZWJ + U+1F7FF",
+                "\U0001f600\u200d\U0001f7ff",
+                {3},
+                {3},
+                "U+1F7FF was Extended_Pictographic while unassigned, so 17.0 "
+                "joined it to the emoji ZWJ sequence and a cluster-capable "
+                "terminal reported 2. Unicode 18 assigns it as an ordinary "
+                "symbol, so the sequence breaks in two and the cluster contract "
+                "is 3. A terminal still reporting 2 here is using Unicode 17 "
+                "data.",
+            ),
+            (
+                "U+1FADD PICKLE, a base added in Unicode 18.0",
+                "\U0001fadd",
+                {2},
+                {2},
+                "Width 2 under both contracts. Fonts lag new Unicode releases, "
+                "so a missing-glyph box here is a font-coverage observation, "
+                "not a width failure.",
+            ),
+            (
+                "U+2B81E, a Han ideograph added in Unicode 18.0",
+                "\U0002b81e",
+                {2},
+                {2},
+                "Already Wide by block before assignment, so the advance is "
+                "unchanged; what changed is Script=Han membership, which a "
+                "terminal may use for font routing.",
+            ),
+        ],
+    ),
 ]
 
 

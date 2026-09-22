@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -178,6 +181,172 @@ func copyFixture(s *Session) {
 	s.say("Select and copy; inspect the flash, its expiry, the selection and exact paste contents.")
 	s.pause()
 }
+
+// The M4 study corpus, dark on light then light on dark; run it at several -fs sizes.
+func textContrast(s *Session) {
+	s.page("Fractional-size and contrast sample")
+	s.cleanup(func() { s.send(esc + "[0m") })
+	lines := []string{
+		"Hamburgefonstiv 0Oo1lI|{}[]",
+		"cafe\u0301 n\u0303 a\u0308 q\u0323\u0307 e\u0302\u0323",
+		esc + "[3mHamburgefonstiv 0Oo1lI|{}[]" + esc + "[23m",
+		" \U0001f6e0 \U0001f6e0\ufe0e x\U0001f6e0x",
+	}
+	for _, theme := range []struct{ label, sgr string }{
+		{"dark on light", esc + "[30;107m"}, {"light on dark", esc + "[97;40m"},
+	} {
+		s.say("%s:", theme.label)
+		for _, line := range lines {
+			s.say("%s %-28s %s", theme.sgr, line, esc+"[0m")
+		}
+	}
+	s.say("Ordinary text, combining marks, the italic face and a fitted text-presentation")
+	s.say("\U0001f6e0 (U+1F6E0, not emoji-presentation). Compare stroke weight between the two")
+	s.say("blocks, mark placement, and whether \U0001f6e0 stays inside its cell. Repeat with")
+	s.say("fractional sizes (for example -fs 7, 7.5, 8.25) and note the reported cell size.")
+	s.say("This is a human visual assessment; the measured study is")
+	s.say("docs/maintainers/linear-light-study.md.")
+	s.pause()
+}
+func dragScrollFixture(s *Session) {
+	s.preserveModes(2004)
+	for n := 1; n <= 300; n++ {
+		s.say("line %04d", n)
+	}
+	s.say("Drag across scrolling. Watching the highlight is a human visual assessment; the")
+	s.say("paste check is exact. After each drag, paste the selection here (middle-click):")
+	s.say(" 1. Press on a line, drag, turn the wheel while holding the button, drag on, release.")
+	s.say(" 2. Drag past the top or bottom edge until the view autoscrolls, come back, release.")
+	s.say(" 3. Repeat both dragging the other way.")
+	s.say("Each paste should run without gaps from where the drag began to where it ended.")
+	s.say("q/Esc: exit test | Space/Enter: finish")
+	s.send(modeSequence(2004, true))
+	var reader pasteReader
+	deadline := time.Now().Add(seconds(s.opts.Seconds))
+	for time.Now().Before(deadline) {
+		data := s.read(minTime(deadline, time.Now().Add(100*time.Millisecond)))
+		if len(data) > 0 {
+			s.event("input", data)
+		}
+		events := reader.feed(data)
+		if len(data) == 0 {
+			events = append(events, pasteEvent{keys: reader.idle()})
+		}
+		for _, event := range events {
+			if event.paste {
+				s.say("%s", numberedPaste(event.text))
+			} else if s.navigation(event.keys) {
+				return
+			}
+		}
+	}
+}
+
+var (
+	pasteStart = []byte(esc + "[200~")
+	pasteEnd   = []byte(esc + "[201~")
+)
+
+// Keys and bracketed pastes in arrival order; either delimiter may be split across reads.
+type pasteEvent struct {
+	paste bool
+	keys  []byte
+	text  string
+}
+type pasteReader struct {
+	pending []byte
+	body    []byte
+	inside  bool
+}
+
+func (r *pasteReader) feed(data []byte) []pasteEvent {
+	var events []pasteEvent
+	r.pending = append(r.pending, data...)
+	for {
+		if r.inside {
+			if i := bytes.Index(r.pending, pasteEnd); i >= 0 {
+				events = append(events, pasteEvent{paste: true, text: string(append(r.body, r.pending[:i]...))})
+				r.body, r.inside = nil, false
+				r.pending = r.pending[i+len(pasteEnd):]
+				continue
+			}
+			keep := delimiterPrefix(r.pending, pasteEnd)
+			r.body = append(r.body, r.pending[:len(r.pending)-keep]...)
+			r.pending = append([]byte(nil), r.pending[len(r.pending)-keep:]...)
+			return events
+		}
+		if i := bytes.Index(r.pending, pasteStart); i >= 0 {
+			if i > 0 {
+				events = append(events, pasteEvent{keys: append([]byte(nil), r.pending[:i]...)})
+			}
+			r.inside = true
+			r.pending = r.pending[i+len(pasteStart):]
+			continue
+		}
+		keep := delimiterPrefix(r.pending, pasteStart)
+		if len(r.pending) > keep {
+			events = append(events, pasteEvent{keys: append([]byte(nil), r.pending[:len(r.pending)-keep]...)})
+		}
+		r.pending = append([]byte(nil), r.pending[len(r.pending)-keep:]...)
+		return events
+	}
+}
+
+// After a quiet read a held partial opener is ordinary input, so a lone Esc still exits.
+func (r *pasteReader) idle() []byte {
+	if r.inside {
+		return nil
+	}
+	held := r.pending
+	r.pending = nil
+	return held
+}
+
+// The length of the longest suffix of data that begins delimiter.
+func delimiterPrefix(data, delimiter []byte) int {
+	for n := min(len(data), len(delimiter)-1); n > 0; n-- {
+		if bytes.HasSuffix(data, delimiter[:n]) {
+			return n
+		}
+	}
+	return 0
+}
+
+var (
+	numberedLine = regexp.MustCompile(`^line ([0-9]{4})$`)
+	lineBreak    = regexp.MustCompile("\r\n|\r|\n")
+)
+
+// Only the two ends of a paste may be partial; every interior line must be a complete
+// numbered line, and the complete lines must be consecutive.
+func numberedPaste(text string) string {
+	if text == "" {
+		return "Pasted nothing."
+	}
+	lines := lineBreak.Split(text, -1)
+	last := len(lines) - 1
+	summary := fmt.Sprintf("Pasted %d line(s), first %q, last %q", len(lines), lines[0], lines[last])
+	var numbers []int
+	for index, line := range lines {
+		m := numberedLine.FindStringSubmatch(line)
+		if m == nil {
+			if index != 0 && index != last {
+				return fmt.Sprintf("%s: MALFORMED interior line %d: %q.", summary, index+1, line)
+			}
+			continue
+		}
+		number, _ := strconv.Atoi(m[1])
+		if len(numbers) > 0 && number != numbers[len(numbers)-1]+1 {
+			return fmt.Sprintf("%s: NOT consecutive, line %04d follows %04d.", summary, number, numbers[len(numbers)-1])
+		}
+		numbers = append(numbers, number)
+	}
+	if len(numbers) < 2 {
+		return summary + ": insufficient evidence, fewer than two complete lines to compare."
+	}
+	return fmt.Sprintf("%s: complete lines %04d..%04d consecutive. Whether the ends match where the drag began and ended is your assessment.",
+		summary, numbers[0], numbers[len(numbers)-1])
+}
 func searchFixture(s *Session) {
 	width, _ := terminalSize(s.out)
 	for n := 0; n < 120; n++ {
@@ -229,7 +398,7 @@ func syncOutput(s *Session) {
 	s.send(modeSequence(2026, false) + modeSequence(25, false))
 	modes := []string{s.opts.Mode}
 	if s.opts.Mode == "compare" {
-		modes = []string{"off", "on"}
+		modes = []string{"off", "on", "boundaries"}
 	}
 	line := func(row int, text, style string, width int) {
 		if len(text) > width {
@@ -238,6 +407,10 @@ func syncOutput(s *Session) {
 		s.send(fmt.Sprintf("%s[%d;1H%s[0m%s[2K%s%s%s[0m", esc, row, esc, esc, style, text, esc))
 	}
 	for _, mode := range modes {
+		if mode == "boundaries" {
+			syncBoundaries(s, width)
+			continue
+		}
 		s.send(modeSequence(2026, false) + esc + "[0m" + esc + "[2J" + esc + "[H")
 		for frame := 1; frame <= s.opts.Frames; frame++ {
 			width, rows = terminalSize(s.out)
@@ -279,4 +452,54 @@ func syncOutput(s *Session) {
 		s.send(fmt.Sprintf("%s[%d;1H", esc, rows))
 		s.pause()
 	}
+}
+
+// Mode 2026 transitions inside one write and across consecutive writes. Each scenario
+// is labelled with what should be on screen while it holds. This is a visual check:
+// a PTY write is not guaranteed to reach the terminal's parser as one batch, nor two
+// writes as two, so a passing look is not proof of batch-boundary handling -- the
+// deterministic check feeds the parser directly (the xvfb-sync-output suite).
+func syncBoundaries(s *Session, width int) {
+	hold := time.Duration(s.opts.HoldMS) * time.Millisecond
+	at := func(row int, text string) string {
+		if len(text) > width-1 {
+			text = text[:width-1]
+		}
+		return fmt.Sprintf("%s[%d;1H%s[2K%s", esc, row, esc, text)
+	}
+	clear := modeSequence(2026, false) + esc + "[0m" + esc + "[2J" + esc + "[H"
+	title := func(name string) string {
+		return at(1, "Mode 2026 boundaries: "+name) +
+			at(2, "Visual only; the parser may split or merge writes.")
+	}
+
+	s.send(clear + title("[same write] output, then hold") +
+		at(4, "VISIBLE: completed before the hold") +
+		modeSequence(2026, true) + at(6, "HIDDEN until release: written after the hold"))
+	s.wait(hold)
+	s.send(modeSequence(2026, false))
+	s.wait(time.Duration(s.opts.PauseMS) * time.Millisecond)
+
+	for _, label := range []string{
+		"[same write] release, new frame, hold again",
+		"[consecutive writes] release, new frame, hold again",
+	} {
+		frame := title(label) + at(4, "VISIBLE: frame completed between the holds") +
+			at(5, "Expect no OLD line and no HIDDEN line while held.")
+		rehold := modeSequence(2026, true) + at(6, "HIDDEN until release: after the second hold")
+		s.send(clear + at(4, "OLD: must be replaced") + modeSequence(2026, true) + esc + "[2J" +
+			at(7, "HIDDEN: half-drawn in the first hold"))
+		if strings.HasPrefix(label, "[same write]") {
+			s.send(modeSequence(2026, false) + esc + "[2J" + frame + rehold)
+		} else {
+			s.send(modeSequence(2026, false))
+			s.send(esc + "[2J" + frame)
+			s.send(rehold)
+		}
+		s.wait(hold)
+		s.send(modeSequence(2026, false))
+		s.wait(time.Duration(s.opts.PauseMS) * time.Millisecond)
+	}
+	s.send(fmt.Sprintf("%s[%d;1H", esc, 8))
+	s.pause()
 }

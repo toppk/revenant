@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const oscEnd = "(?:\x07|\x1b\\\\|\\x9c)"
@@ -138,6 +140,87 @@ func identity(s *Session) {
 	s.say("Claims are what the terminal advertises; compare each code with its documented support.")
 }
 
+// DECRQM in both forms. Each reply is graded on three things, separately: the
+// private marker must match the request's, the mode number must be echoed exactly
+// (a 15-bit truncation turns 32793 into 25), and the status is reported as the
+// terminal gave it. Known modes are set and reset around their queries so that a
+// blanket "not recognized" cannot pass; both are restored afterwards.
+func modeQueries(s *Session) {
+	s.preserveModes(25)
+	irm := s.ansiMode(4)
+	s.cleanup(func() {
+		s.send(esc + "[4" + map[bool]string{true: "h", false: "l"}[irm == 1])
+	})
+	s.say("DECRQM replies, ANSI (CSI Ps $ p) and DEC private (CSI ? Ps $ p).")
+	s.say("One exact reply shows that request was answered; it does not establish")
+	s.say("support for any mode. Timeouts are reported, never read as a status.")
+	type query struct {
+		label, setup string
+		private      bool
+		mode         int
+		want         string
+	}
+	queries := []query{
+		{"ANSI IRM after set", esc + "[4h", false, 4, "1 set"},
+		{"ANSI IRM after reset", esc + "[4l", false, 4, "2 reset"},
+		{"ANSI unknown mode", "", false, 9999, "0 not recognized"},
+		{"ANSI 32767 (largest signed 16-bit)", "", false, 32767, "0 not recognized"},
+		{"ANSI 32768 (first past the signed boundary)", "", false, 32768, "0 not recognized"},
+		{"ANSI 32772 (IRM + 32768, with IRM set)", esc + "[4h", false, 32772, "0 not recognized"},
+		{"ANSI 65535 (largest 16-bit)", esc + "[4l", false, 65535, "0 not recognized"},
+		{"private DECTCEM after show", esc + "[?25h", true, 25, "1 set"},
+		{"private DECTCEM after hide", esc + "[?25l", true, 25, "2 reset"},
+		{"private unknown mode", esc + "[?25h", true, 9999, "0 not recognized"},
+		{"private 32767", "", true, 32767, "0 not recognized"},
+		{"private 32768", "", true, 32768, "0 not recognized"},
+		{"private 32793 (DECTCEM + 32768, with DECTCEM set)", "", true, 32793, "0 not recognized"},
+		{"private 65535", "", true, 65535, "0 not recognized"},
+	}
+	reply := regexp.MustCompile(`^\x1b\[(\??)([0-9]+);([0-9]+)\$y$`)
+	for _, q := range queries {
+		marker := ""
+		if q.private {
+			marker = "?"
+		}
+		if q.setup != "" {
+			s.send(q.setup)
+		}
+		raw := s.query(q.label, fmt.Sprintf("%s[%s%d$p", esc, marker, q.mode), "\x1b\\[\\??[0-9]+;[0-9]+\\$y")
+		verdict, detail := "no reply", "timed out; the status is unknown, not reset"
+		if m := reply.FindSubmatch(raw); m != nil {
+			number, _ := strconv.Atoi(string(m[2]))
+			switch {
+			case string(m[1]) != marker:
+				verdict = "wrong form"
+				detail = fmt.Sprintf("answered %q to a %s request", m[1], map[bool]string{true: "private", false: "ANSI"}[q.private])
+			case number != q.mode:
+				verdict = "wrong mode"
+				detail = fmt.Sprintf("answered mode %d for %d (truncated or aliased)", number, q.mode)
+			default:
+				verdict = "exact"
+				detail = fmt.Sprintf("status %s; this case expects %s", m[3], q.want)
+				if !strings.HasPrefix(q.want, string(m[3])+" ") {
+					verdict = "unexpected status"
+				}
+			}
+		}
+		s.say("  %-50s %s: %s", q.label, verdict, detail)
+		if s.result != nil {
+			s.result.Findings = append(s.result.Findings, Finding{q.label, verdict, detail})
+		}
+	}
+	s.pause()
+}
+
+// The ANSI form of DECRQM for one mode; 0 when unanswered or not recognized.
+func (s *Session) ansiMode(mode int) int {
+	raw := s.query(fmt.Sprintf("ANSI mode %d", mode), fmt.Sprintf("%s[%d$p", esc, mode), fmt.Sprintf("\x1b\\[%d;[0-4]\\$y", mode))
+	if len(raw) == 0 {
+		return 0
+	}
+	return int(raw[len(raw)-3] - '0')
+}
+
 type TcapReply struct {
 	Supported   bool
 	Name, Value []byte
@@ -181,32 +264,73 @@ func selectionTarget(target string) (string, bool) {
 func clipboard(s *Session) {
 	target, _ := selectionTarget(s.opts.Target)
 	action := strings.TrimPrefix(s.result.Case, "clipboard ")
+	// Every action but query replaces the selection, and nothing here saves it first.
+	if action != "query" {
+		s.say("This replaces the %q selection for every application; its current", target)
+		s.say("contents are not saved. Press q or Esc now to leave it untouched.")
+		s.pause()
+	}
 	switch action {
 	case "set":
-		s.osc(52, target+";"+base64.StdEncoding.EncodeToString([]byte(s.opts.Text)))
-		s.say("Requested selection %s = %q; query or paste to verify.", target, s.opts.Text)
+		sent := []byte(s.opts.Text)
+		s.osc(52, target+";"+base64.StdEncoding.EncodeToString(sent))
+		s.say("Requested selection %s = %q (%x).", target, s.opts.Text, sent)
+		// A round trip compares the bytes this terminal hands back with the bytes it was
+		// given. It cannot show how the terminal converts for other X clients (STRING
+		// Latin-1, UTF8_STRING): that needs an external owner and reader, which is what
+		// the xvfb-clipboard suite uses.
+		if value, named, ok := clipboardRead(s, target); ok {
+			// Exact means the reply names the selection that was set and carries its
+			// bytes; the right bytes under another target are not a round trip.
+			switch {
+			case named != target:
+				s.say("Round trip: DIFFERS, the reply names %q instead of %q.", named, target)
+			case !bytes.Equal(value, sent):
+				s.say("Round trip: DIFFERS, sent %x, read back %x.", sent, value)
+			default:
+				s.say("Round trip: exact (%d bytes). Conversion for other clients is not shown.", len(value))
+			}
+		}
 	case "clear":
 		s.osc(52, target+";")
 		s.say("Requested selection clear.")
 	case "invalid":
 		s.osc(52, target+";!!!!")
 		s.say("Sent invalid base64. xterm clears, libghostty ignores; inspect ownership/content.")
-	case "query":
-		raw := s.query("OSC 52", esc+"]52;"+target+";?"+s.terminator(), oscPattern("52;"))
-		if raw != nil {
-			parts := strings.SplitN(oscBody(raw, "52;"), ";", 2)
-			if len(parts) != 2 {
-				s.say("Malformed selection reply")
-				return
-			}
-			value, err := base64.StdEncoding.Strict().DecodeString(parts[1])
-			if err != nil {
-				s.say("Malformed base64: %v", err)
-			} else {
-				s.say("target=%q decoded (%d bytes)=%q", parts[0], len(value), value)
-			}
+		s.say("A query below shows the result where reads are permitted.")
+		if value, _, ok := clipboardRead(s, target); ok {
+			s.say("After invalid base64: %d bytes (%x).", len(value), value)
 		}
+	case "query":
+		clipboardRead(s, target)
 	}
+}
+
+// One OSC 52 read, reported exactly: the target the reply names (it should name the
+// requested one), the decoded bytes in hex, and whether they are valid UTF-8. A
+// timeout or refusal leaves the result unknown.
+func clipboardRead(s *Session, target string) ([]byte, string, bool) {
+	raw := s.query("OSC 52", esc+"]52;"+target+";?"+s.terminator(), oscPattern("52;"))
+	if raw == nil {
+		return nil, "", false
+	}
+	parts := strings.SplitN(oscBody(raw, "52;"), ";", 2)
+	if len(parts) != 2 {
+		s.say("Malformed selection reply")
+		return nil, "", false
+	}
+	value, err := base64.StdEncoding.Strict().DecodeString(parts[1])
+	if err != nil {
+		s.say("Malformed base64: %v", err)
+		return nil, "", false
+	}
+	named := "names the requested target"
+	if parts[0] != target {
+		named = fmt.Sprintf("names %q, not the requested %q", parts[0], target)
+	}
+	s.say("Reply %s; decoded %d bytes %x (%q), valid UTF-8: %t", named, len(value), value, value,
+		utf8.Valid(value))
+	return value, parts[0], true
 }
 func titles(s *Session) {
 	targets := []int{1, 2}

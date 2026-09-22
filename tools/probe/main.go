@@ -30,7 +30,7 @@ type Options struct {
 	Target, Text, Color, Mode, CWD, Font, Regime, Palette string
 	Caps, XRM                                             stringsFlag
 	Frames, FrameMS, HoldMS, PauseMS, Index               int
-	Program, Geometry                                     string
+	Program, Geometry, Scenario                           string
 }
 type Case struct {
 	ID, EntryFeature, Path, Title, Policy, Expected, Cleanup string
@@ -69,7 +69,7 @@ type Result struct {
 }
 
 func defaults() Options {
-	return Options{Timeout: .5, Seconds: 20, Target: "clipboard", Mode: "compare", Regime: "both", Frames: 8, FrameMS: 400, PauseMS: 150, Index: 1, Palette: "verify", Program: "xterm", Geometry: "100x40"}
+	return Options{Timeout: .5, Seconds: 20, Target: "clipboard", Mode: "compare", Regime: "both", Frames: 8, FrameMS: 400, PauseMS: 150, Index: 1, Palette: "verify", Program: "xterm", Geometry: "100x40", Scenario: "capture"}
 }
 func parseOptions(c *Case, args []string) (Options, error) { return parseOptionsTo(c, args, os.Stdout) }
 func caseFlags(c *Case, output io.Writer) (*flag.FlagSet, *Options) {
@@ -128,6 +128,8 @@ func caseFlags(c *Case, output io.Writer) (*flag.FlagSet, *Options) {
 					usage = "mouse tracking: 9 (press), 1000 (press/release), 1002 (drag), 1003 (all motion)"
 				}
 				fs.StringVar(&o.Mode, name, o.Mode, usage)
+			case "scenario":
+				fs.StringVar(&o.Scenario, name, o.Scenario, "mouse scenario: capture, counts, handoff, or all")
 			case "styles":
 				fs.BoolVar(&o.Styles, name, false, "cycle DECSCUSR styles after inspecting startup")
 			case "cwd":
@@ -208,8 +210,8 @@ func parseOptionsTo(c *Case, args []string, output io.Writer) (Options, error) {
 				return o, fmt.Errorf("unknown selection target %q", o.Target)
 			}
 		}
-		if c.Path == "rendering sync" && !slices.Contains([]string{"compare", "on", "off"}, o.Mode) {
-			return o, fmt.Errorf("mode must be compare, on, or off")
+		if c.Path == "rendering sync" && !slices.Contains([]string{"compare", "on", "off", "boundaries"}, o.Mode) {
+			return o, fmt.Errorf("mode must be compare, on, off, or boundaries")
 		}
 		if c.Path == "input mouse" {
 			if o.Mode == "compare" {
@@ -217,6 +219,9 @@ func parseOptionsTo(c *Case, args []string, output io.Writer) (Options, error) {
 			}
 			if !slices.Contains([]string{"9", "1000", "1002", "1003"}, o.Mode) {
 				return o, fmt.Errorf("mouse mode must be 9, 1000, 1002, or 1003")
+			}
+			if !slices.Contains([]string{"capture", "counts", "handoff", "all"}, o.Scenario) {
+				return o, fmt.Errorf("mouse scenario must be capture, counts, handoff, or all")
 			}
 		}
 		if strings.HasPrefix(c.Path, "colors dynamic ") && slices.Contains([]string{"colors dynamic set", "colors dynamic reset"}, c.Path) && !slices.Contains([]string{"foreground", "background", "cursor", "all"}, o.Target) {

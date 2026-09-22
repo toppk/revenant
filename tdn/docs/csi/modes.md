@@ -52,9 +52,24 @@ CSI ? Ps ; Pm $ y
 
 <!-- markdownlint-enable MD013 -->
 
+The ANSI form is the same without the private marker: `CSI Ps $ p` asks about
+ANSI mode `Ps` and is answered `CSI Ps ; Pm $ y`. A reply must use the marker of the
+request and echo its mode number exactly. Revenant's regression checks requests
+through 65535, the range its backend accepts for this parameter; within that range an
+unknown mode is answered with `Pm` = 0, never mapped onto a smaller mode. A terminal
+that stores the number in 15 bits answers `32793` (25 + 32768) with DECTCEM's state,
+which is a wrong answer, not an unknown one.
+
 DECRQM is the safest feature-detection tool for modes: a terminal that
 does not implement DECRQM at all sends nothing, so a timeout is still
-required. See [Queries](queries.md).
+required. Some terminals answer only the private form. See [Queries](queries.md).
+
+`just probe csi-decrqm mode-queries` sends both forms for known modes around their
+set and reset controls (IRM and DECTCEM, restored afterwards), for an unknown mode,
+and for 32767, 32768, 32772/32793 and 65535, and grades each reply on marker, echoed
+number and status separately; a timeout is shown as unknown. Its scope is those
+requests: one exact reply shows that request was answered, not that any other mode
+is supported.
 
 ## ANSI modes
 

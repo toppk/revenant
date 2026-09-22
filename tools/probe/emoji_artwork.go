@@ -1,9 +1,109 @@
 package main
 
+import "fmt"
+
 // These are visual acceptance cases. Do not turn successful output or CPR
 // into a pass: neither proves that the terminal drew the requested glyph.
+// The width regime changes how a sequence is segmented, so artwork has to say which
+// regime produced it. A DECRPM of 1/3 is the cluster contract and 2/4 legacy;
+// anything else -- no answer, or "not recognized" -- is unknown, and is never
+// reported as a confirmed legacy contract.
+func regimeContract(state int) string {
+	switch state {
+	case 1, 3:
+		return "cluster"
+	case 2, 4:
+		return "legacy"
+	}
+	return "unknown"
+}
+
+func regimeStateLabel(state int) string {
+	if regimeContract(state) == "unknown" {
+		return "unknown"
+	}
+	return fmt.Sprint(state)
+}
+
+// Artwork cases other than emoji-sequences do not select a regime; they report the
+// one they found and leave it alone.
+func reportRegime(s *Session) {
+	state := s.mode(2027)
+	s.say("Mode 2027 left as found: %s; segmentation contract: %s.", regimeStateLabel(state), regimeContract(state))
+}
+
+// Sequence artwork reuses the width runner's request, query and restore behavior:
+// one pass per requested regime, each showing the state actually reported.
+func sequencePasses(s *Session) {
+	s.preserveModes(2027)
+	regimes := []string{s.opts.Regime}
+	if s.opts.Regime == "both" {
+		regimes = []string{"legacy", "cluster"}
+	}
+	for index, regime := range regimes {
+		if index > 0 {
+			s.pause()
+			s.page("Emoji artwork: inspect every sample")
+		}
+		s.send(modeSequence(2027, regime == "cluster"))
+		state := s.mode(2027)
+		contract := regimeContract(state)
+		s.say("[%s pass] Requested %s; mode 2027=%s; segmentation contract: %s.", regime, regime, regimeStateLabel(state), contract)
+		if contract != regime {
+			s.say("The requested regime is not confirmed active; judge these samples without a segmentation expectation.")
+		}
+		s.say("Tofu, blank ink or a clipped/unrecognizable symbol is a failure.")
+		sequenceSamples(s, contract)
+	}
+}
+
+func sequenceSamples(s *Session, contract string) {
+	s.say("Joined sequences -- each bracket should draw one image, not its components:")
+	s.say("  Skin tone: [👍🏽] medium-tone thumbs up")
+	s.say("  ZWJ: [👩‍💻] woman technologist [👨‍👩‍👧‍👦] family")
+	s.say("  Regional flag: [🇺🇸] United States; keycap: [1\ufe0f\u20e3]")
+	s.say("  Tag flag: [🏴\U000e0067\U000e0062\U000e0065\U000e006e\U000e0067\U000e007f] England")
+	s.say("Single bases (artwork appears only if a font covers them):")
+	s.say("  Newer base: [🫩] face with bags under eyes (Unicode 16)")
+	s.say("  Unicode 18 base: [🫝] pickle; a missing glyph is a font observation")
+	s.say("Unicode 18 segmentation samples -- these are NOT all expected to join:")
+	s.say("  Indic conjunct: [?\u094d\u0924]")
+	switch contract {
+	case "cluster":
+		s.say("    Unicode 18 makes this one cluster (Unicode 17 made two). Expect the")
+		s.say("    question mark and the conjunct drawn together; what each face draws is")
+		s.say("    a font observation, not evidence of the Unicode version.")
+	case "legacy":
+		s.say("    The legacy contract keeps separate atoms in both releases: the question")
+		s.say("    mark and the conjunct may be drawn independently. Nothing here separates")
+		s.say("    Unicode 17 from 18.")
+	default:
+		s.say("    Regime unknown: record what is drawn without a segmentation expectation.")
+	}
+	s.say("  Sequence boundary: [😀\u200d\U0001f7ff]")
+	switch contract {
+	case "cluster":
+		s.say("    Unicode 18 makes this TWO clusters: the grinning face, then U+1F7FF as a")
+		s.say("    separate symbol (often a missing glyph in current fonts). Unicode 17")
+		s.say("    joined them into one cluster; what a font drew for that varied.")
+	case "legacy":
+		s.say("    Separate atoms in both releases: the grinning face, then a separate")
+		s.say("    symbol. It must not be drawn as one merged image.")
+	default:
+		s.say("    Regime unknown: record what is drawn without a segmentation expectation.")
+	}
+	s.say("Record Unicode/font versions and the regime reported for this pass.")
+}
+
 func emojiArtwork(s *Session) {
 	s.page("Emoji artwork: inspect every sample")
+	if s.result.CaseID == "emoji-sequences" {
+		sequencePasses(s)
+		s.say("Visual-only: remains unassessed unless you record a human assessment.")
+		s.pause()
+		return
+	}
+	reportRegime(s)
 	s.say("Tofu, blank ink or a clipped/unrecognizable symbol is a failure.")
 	switch s.result.CaseID {
 	case "monochrome-emoji":
@@ -53,14 +153,6 @@ func emojiArtwork(s *Session) {
 		s.say("Then edit around a borrowed cell: insert and delete text beside a symbol and")
 		s.say("watch resizing, repainting, selection and the cursor.")
 		s.say("Occupied neighbors must never be overdrawn: A🛠B A📦B")
-	case "emoji-sequences":
-		s.say("Skin tone: [👍🏽] medium-tone thumbs up")
-		s.say("ZWJ: [👩‍💻] woman technologist [👨‍👩‍👧‍👦] family")
-		s.say("Regional flag: [🇺🇸] United States; keycap: [1\ufe0f\u20e3]")
-		s.say("Tag flag: [🏴\U000e0067\U000e0062\U000e0065\U000e006e\U000e0067\U000e007f] England")
-		s.say("Newer base: [🫩] face with bags under eyes (Unicode 16)")
-		s.say("Each bracket should contain the named artwork, not detached components.")
-		s.say("Record Unicode/font versions and mode 2027; this case does not change it.")
 	}
 	s.say("Visual-only: remains unassessed unless you record a human assessment.")
 	s.pause()

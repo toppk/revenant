@@ -55,7 +55,7 @@ func TestSettingsShareCommandLineDefaultsAndValidation(t *testing.T) {
 }
 func TestEmojiSectionsPartitionAllSamples(t *testing.T) {
 	all := selectedWidthSections("text emoji all")
-	names := []string{"single", "variation-selectors", "skin-tones", "zwj", "flags", "boundaries", "capacity"}
+	names := []string{"single", "variation-selectors", "skin-tones", "zwj", "flags", "boundaries", "capacity", "unicode18"}
 	var combined []WidthSection
 	for _, name := range names {
 		combined = append(combined, selectedWidthSections("text emoji "+name)...)

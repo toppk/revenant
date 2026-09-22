@@ -18,7 +18,7 @@ func commonSettings(o Options) []string {
 var settingLabels = map[string]string{
 	"target": "Target", "text": "Text", "bel": "Use BEL terminator", "cap": "Capabilities",
 	"color": "Color", "index": "Palette index", "palette": "Palette", "seconds": "Capture time (s)",
-	"mode": "Mode", "styles": "Cycle cursor styles", "cwd": "Directory", "font": "Font name",
+	"mode": "Mode", "scenario": "Scenario", "styles": "Cycle cursor styles", "cwd": "Directory", "font": "Font name",
 	"regime": "Width mode", "frames": "Frames", "frame-ms": "Drawing time (ms)", "hold-ms": "Extra hold (ms)",
 	"pause-ms": "Between frames (ms)", "program": "Terminal executable", "geometry": "Window geometry",
 	"xrm": "X resources", "timeout": "Reply timeout (s)", "delay": "Stage delay (s)",
@@ -40,6 +40,8 @@ func settingChoices(c Case, name string) []string {
 		return []string{"both", "legacy", "cluster"}
 	case "palette":
 		return []string{"verify", "xterm", "tango", "solarized", "gruvbox", "nord"}
+	case "scenario":
+		return []string{"capture", "counts", "handoff", "all"}
 	case "mode":
 		if c.Path == "input mouse" {
 			return []string{"1000", "1002", "1003", "9"}

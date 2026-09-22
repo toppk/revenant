@@ -87,6 +87,86 @@ the remaining rows arrive. Resize during a hold to observe the geometry
 repaint exception; the next frame adapts to the new size. Ctrl+C exits, resets
 mode 2026, restores cursor visibility, and leaves the alternate screen.
 
+The TDN probe's version, `just probe dec-mode-2026-synchronized-output
+rendering-sync`, adds a third pass after off and on, also selectable alone with
+`--mode boundaries`. It labels three scenarios on screen with what must be
+visible while each holds: output followed by a hold in the same write; a release,
+a completed frame and a new hold in the same write; and the same transitions as
+consecutive writes. It is a visual check and says so: a PTY write is not one
+parser batch, and two writes may arrive as one, so a correct look is not proof
+that a terminal handles batch boundaries, and a wrong look under a multiplexer
+may be the multiplexer's. Revenant's deterministic check is the painted-frame
+helper in `tests/xvfb-sync-output.sh`, which feeds the parser one exact batch at a
+time and reads the window back. The probe releases mode 2026 on exit as before.
+
+The TDN probe's clipboard cases (`just probe osc-52-read clipboard-query`,
+`just probe osc-52-write clipboard-set --text 'café 🛠'`, and the clear and invalid
+cases) report replies exactly: the target a reply names, the decoded bytes in hex,
+and whether they are valid UTF-8. Every case except the query replaces the selection
+for all applications without saving it, so it says so and waits for consent first.
+After a set, the probe reads the selection back and compares bytes; that round trip
+shows only that the terminal returns what it was given. How a terminal converts for
+other X clients — `STRING` as Latin-1, `COMPOUND_TEXT`, an owner declaring one
+encoding while sending bytes that look like another — needs an external owner and
+reader, which Revenant's `xvfb-clipboard` suite provides; no in-terminal probe can
+show it.
+
+`just probe dec-mode-1006-sgr-mouse input-mouse` captures raw mouse bytes by
+default. `--scenario counts` and `--scenario handoff` (or `all`) run labelled steps
+instead: turn the wheel as each step asks, press Space, and the probe prints the
+wheel presses, wheel releases, other reports and cursor keys it received. The handoff
+steps switch tracking off and on between notches, then repeat on the alternate
+screen with mode 1007, and restore every mode they changed. Only you know how many
+notches you turned, so comparing the counts is a human assessment. Revenant's
+exact-byte evidence is `tests/xvfb-mouse-scroll.sh`, which injects real wheel and
+drag input under Xvfb and checks the application's bytes and the PRIMARY text.
+
+`just probe selection-drag-scroll selection-scroll` prints `line 0001` to
+`line 0300` and asks for drags across wheel scrolling, autoscroll and both
+directions. Paste each selection back (middle-click). Only the first and last line
+of a paste may be partial. The probe rejects any malformed or empty line between
+them, checks that the complete lines are consecutive, and names the first gap. It
+reports insufficient evidence when fewer than two complete lines arrive. Whether
+the ends are where the drag began and ended, and whether the highlight followed the
+pointer, is your judgement.
+
+`just probe text-shaping text-contrast` prints the corpus of the
+[linear-light study](../maintainers/linear-light-study.md): ordinary text,
+combining marks, the italic face and a fitted text-presentation 🛠, first dark on
+light and then light on dark. Run it at several `-fs` sizes, including fractional
+ones, and compare stroke weight between the two blocks, mark placement and whether
+🛠 stays inside its cell. The comparison is a human visual assessment, and the
+probe records no verdict. The study's pixel measurements come from
+`tools/text-contrast-study.py`.
+
+`just probe csi-decrqm mode-queries` checks DECRQM in both its ANSI and DEC private
+forms. Each reply is graded separately for the private marker, the echoed mode
+number and the status, so a terminal that answers only the private form, drops the
+marker, or truncates a 16-bit mode number to 15 bits is shown as such; unanswered
+requests are reported as timeouts, never as a status. IRM and DECTCEM are set and
+reset around their queries and restored afterwards. The deterministic check for
+Revenant's own replies is the `mode queries` case of `-self-test`; the probe is for
+comparing terminals, and one exact answer says nothing about modes it did not ask
+about.
+
+A terminal started with fd 0, 1 or 2 closed cannot be tested from inside it: by the
+time a probe runs, startup is over. `tests/pty-closed-stdio.py` is an external
+launcher that closes the descriptors named by a bit mask (1 = stdin, 2 = stdout,
+4 = stderr) and execs the terminal, reporting its own failures on fd 9. The same
+script, run as the terminal's command, checks the child's stdio, controlling
+terminal and PTY round trip, and reads the terminal's own fds 0–2 from `/proc`:
+
+```sh
+python3 tests/pty-closed-stdio.py launch 4 "$work" /usr/bin/xterm -fn no-such-font \
+    -e /bin/sh -c '"$0" "$1" child "$2"; echo "$?" >"$2/status"' \
+    python3 tests/pty-closed-stdio.py "$work"
+```
+
+The report lands in `$work/child`, and the child's exit status (3) in
+`$work/status`. `meson test xvfb-pty-closed-stdio` runs Revenant through all eight
+masks, and also checks a failed exec, a missing display and, through a preload
+that faults `/dev/null`, that a failed reservation stops startup before X or the PTY.
+
 For a sequence that differs between terminals, render it directly from the
 suspected font with `hb-shape` and `hb-view`; the
 [diagnostics guide](diagnostics.md#inspecting-one-font-with-harfbuzz) explains

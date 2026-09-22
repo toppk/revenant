@@ -3731,6 +3731,15 @@ features:
     specifications:
     - xterm-manual
     labels: []
+  selection-drag-scroll:
+    title: Drag selection across scrolling
+    kind: feature
+    category: practices
+    pages:
+    - practices/user-actions.md
+    specifications:
+    - xterm-manual
+    labels: []
   selection-keyboard-extension:
     title: Keyboard selection extension
     kind: feature
