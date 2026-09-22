@@ -31,6 +31,22 @@ item must keep an honest Present, Partial, or Missing status at the user-visible
 boundary. Kitty graphics remains Missing and is explicitly parked in the
 current TODO drain; this exception must not be reported as parity.
 
+## Next-release frontend compatibility batch
+
+The selected batch **T1a, C1, T1c, W1 and P2a** is implemented and reviewed.
+The [compatibility ledger](../compatibility/drift.md) records title actions and
+`sameName`, effective Color/Title/Window Ops permissions under `allowSendEvents`,
+exposed size-report gating, and hold-after-exit. Regression evidence lives in
+`xvfb-title-ops`, `xvfb-color-ops`, `xvfb-window-ops`, the size-report policy
+self-test and `xvfb-hold`. Native probes and their limitations are documented in
+[the probe reference](../reference/probes.md).
+
+T1b's UTF-8 title surface and other P2 options remain in `todo.md`. A separate
+startup defect was identified: `-geometry 40x5` is treated as widget pixels
+rather than a 40-column, 5-row request. Give it its own implementation and
+external geometry regression; it was not repaired by W1 or P2a.
+The completed batch does not replace the dependency release checkpoint below.
+
 ## Upstream integration follow-ups
 
 The September 2026 Ghostty/Monstar review is complete. Implemented behavior and
@@ -216,10 +232,10 @@ semantics and describes the implemented named-selection path.
 
 - Complete xterm's full Window Ops category. OSC 52, the title stack, the
   title reports, and the live menu toggle are implemented; `GetSelection`,
-  `SetSelection`, `GetIconTitle`, `GetWinTitle`, `PushTitle`, and `PopTitle`
-  consult the permission policy. Inventory and finish XTWINOPS manipulation
-  and geometry reports, then column/line resizing, checksums,
-  X properties, and status-line controls. Gate existing size reports too;
+  `SetSelection`, `GetIconTitle`, `GetWinTitle`, `PushTitle`, `PopTitle`, and
+  exposed CSI 14/16/18 size reports consult the permission policy. Finish the
+  remaining XTWINOPS manipulation and geometry reports, then column/line resizing,
+  checksums, X properties, and status-line controls;
   preserve libghostty parser ownership and track missing public hooks upstream.
   Require per-operation policy tests, live toggle coverage, and differential
   X11/window-manager checks before marking the category complete.
@@ -227,8 +243,8 @@ semantics and describes the implemented named-selection path.
   tested implementations.
 - Finish Title Ops compatibility beyond the working live toggle: independent
   OSC 1/OSC 0 icon updates, title encoding modes, UTF-8 title resources and
-  ICCCM/EWMH properties, title normalization/length rules, the translation
-  action, `allowSendEvents`, and `sameName`. Keep title-setting authorization
+  ICCCM/EWMH properties and title normalization/length rules. The translation
+  action, `allowSendEvents` interaction and `sameName` are complete. Keep title-setting authorization
   separate from Window Ops report and stack permissions. The maintainer
   handoff contains the source audit and acceptance scope.
 - Extend the now-honest command-line parser with the remaining process and

@@ -42,7 +42,7 @@ only after every slice lands.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| Active drain | T1 → W1 → C1 → P1 → P2 | Prefer frontend-owned work that can land against the current backend. |
+| Frontend work | T1b, P1, remaining P2 | Separate assignments; the selected five-slice release batch is complete. |
 | Decision needed | S4 | Choose viewport movement or history deletion before implementation. |
 | API-dependent | V3, F1, M1, T2, W2 | Obtain the named libghostty effects/state; do not add another parser. |
 | Parked | K1 → K2a → K2b → K2c; K3/K4 after K1 | Kitty graphics is explicitly bunted during this drain. |
@@ -54,28 +54,16 @@ conflicting ownership even within the same batch.
 
 ## T: Title and window compatibility
 
-- [ ] **T1 — Frontend-owned Title Ops parity (three review slices).** These
-      pieces need no new escape callback and should land in order. Preserve the
-      tested separation between Title Ops setting permission and Window Ops
-      reports/stack operations.
-      Probe: extend the title family with cases mapped to each slice; retain
-      `just probe csi-21-t-title-report titles-query --target both` for report
-      regression.
-      Accept: actual ICCCM/EWMH properties, menu/action state, resource reports,
-      isolated HOME, relevant locales, and differential xterm 411 behavior.
-
-      1. **T1a — Action and redundant-update policy.** Register
-         `allow-title-ops(on|off|toggle)` against the existing live state and
-         implement `sameName` without changing stack consumption.
-         TDN: `action-allow-title-ops`, `resource-same-name`.
-      2. **T1b — UTF-8 title surface.** Implement `utf8Title`, the
-         `utf8-title` menu/action, and synchronized ICCCM `WM_NAME` /
-         `WM_ICON_NAME` plus EWMH `_NET_WM_NAME` / `_NET_WM_ICON_NAME`,
-         including stale-property deletion.
-         TDN: `resource-utf8-title`, `x11-utf8-title-properties`.
-      3. **T1c — Send-event interaction.** Make `allowSendEvents` disable the
-         effective Title Ops permission and its toggle exactly as xterm does.
-         TDN: `policy-title-ops-send-events`.
+- [ ] **T1b — UTF-8 title surface.** Implement `utf8Title`, the `utf8-title`
+      menu/action, synchronized ICCCM `WM_NAME` / `WM_ICON_NAME` and EWMH
+      `_NET_WM_NAME` / `_NET_WM_ICON_NAME`, including stale-property deletion.
+      Preserve the completed Title Ops action, effective permission and
+      `sameName` behavior. Accept actual properties, locale coverage and
+      xterm-411 comparisons under isolated resources.
+      TDN: `resource-utf8-title`, `x11-utf8-title-properties`.
+      Supporting fixture: `just probe csi-21-t-title-report titles-query --target both`.
+      Probe gap: add UTF-8/property-specific cases; title reports alone do not
+      establish X property encoding or stale-property deletion.
 
 - [ ] **T2 — Parser-dependent Title Ops completion.** Obtain selector/raw-input
       effects for independent OSC 0/1/2 labels, title encoding modes, and the
@@ -91,18 +79,8 @@ conflicting ownership even within the same batch.
            `title-modes-utf8-input`, `title-modes-utf8-reports`,
            `title-input-normalization`, `title-input-byte-limit`.
 
-- [ ] **W1 — Window Ops audit and exposed reports.** Re-audit patch 411's
-      `tblWindowOps` against the pinned libghostty revision, then gate every
-      operation already exposed, including CSI 14/16/18 t, through the existing
-      live policy. Add exact permitted/denied reply tests and numeric/name/
-      wildcard/negation coverage. Do not claim the category complete for
-      operations that still lack callbacks.
-      Probe: extend the window-report family for 14/16/18 and live policy.
-      TDN: `policy-window-ops`, `csi-14-t-pixel-size-report`,
-           `csi-16-t-report-cell-size-in-pixels`, `csi-18-t-text-size`.
-
-- [ ] **W2 — Remaining Window Ops effects.** After W1 identifies the concrete
-      API gaps, obtain callbacks for window manipulation/reports and the
+- [ ] **W2 — Remaining Window Ops effects.** Using the API inventory in the
+      compatibility ledger, obtain callbacks for window manipulation/reports and the
       cross-family column, line, checksum, X-property and status-line controls.
       Use a window manager for stacking, minimize, maximize and fullscreen.
       Stop: preserve libghostty parser ownership and keep OSC 0/1/2 under Title
@@ -121,19 +99,6 @@ conflicting ownership even within the same batch.
            `osc-52-default-targets`, `osc-52-cut-buffers`,
            `osc-52-invalid-base64-clear`, `osc-52-reply-target`.
 
-## C: Remaining Color Ops policy
-
-- [ ] **C1 — Color Ops and `allowSendEvents`.** Apply xterm's effective
-      permission interaction to the existing live Color Ops gate and menu,
-      without changing per-item filtering or palette writes. Add startup,
-      live-toggle and mixed-list regressions.
-      Probe: extend the dynamic-color policy case for `allowSendEvents`.
-      TDN: `policy-color-ops-send-events`.
-
-      Keep `policy-kitty-color-ops` and
-      `osc-dynamic-colors-reverse-video` recorded as core/API differences; do
-      not fold them into this frontend-owned slice.
-
 ## P: Process and session behavior
 
 - [ ] **P1 — Session transcript logging.** Implement `-/+l`, `-lf`,
@@ -145,10 +110,10 @@ conflicting ownership even within the same batch.
       Probe gap: add a native session-log case and verify the file externally.
 
 - [ ] **P2 — Remaining option-driven process behavior.** Implement and review
-      login-shell invocation, hold-after-exit, wait-for-map startup, terminal
+      login-shell invocation, wait-for-map startup, terminal
       mode resources, and PTY message permission as independent slices. Do not
       disturb the completed `termName`/TERM contract or pre-X option scanner.
-      TDN: `startup-login-shell`, `startup-hold-after-exit`,
+      TDN: `startup-login-shell`,
            `startup-wait-for-map`, `resource-terminal-modes`,
            `pty-message-permission`.
       Probe gap: add one native case per slice that has observable child state.

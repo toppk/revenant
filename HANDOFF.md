@@ -444,14 +444,17 @@ an unbounded cleanup pass.
   behavioral support merely from `XtGetResourceList`: a parsed resource is not
   necessarily implemented, so the support catalog remains an explicit claim.
 - During the next option-driven process slice, add the accepted login-shell,
-  terminal-name/mode, hold, map timing, message-permission, and session-logging
+  terminal-mode, map timing, message-permission, and session-logging
   behaviors from the command-line feasibility study. Review the runtime
   stub/backend PTY branch and the placement of `TERM` policy in that startup
   ownership pass. Hard-coded startup prose that duplicates defaults also
   remains cleanup debt. The pre-X scanner and font resource aliases are already
   centralized; do not reintroduce independent argv scans. Terminal-name
-  integration is now complete (A2); the other process slices remain deferred.
-  TDN: `startup-login-shell`, `resource-terminal-modes`, `startup-hold-after-exit`,
+  integration (A2) and hold-after-exit (P2a) are complete; the other process slices
+  remain deferred. Hold drains child output, discards queued terminal-to-child
+  input after PTY closure, and reaps asynchronously; `xvfb-hold` covers pending
+  reaping, teardown and retained pixels. Failed exec still holds an empty screen.
+  TDN: `startup-login-shell`, `resource-terminal-modes`,
        `startup-wait-for-map`, `pty-message-permission`, `logging-session-transcript`.
 - When `vt_interaction.c` next receives material work, split X selection/paste,
   hyperlink launching, and mouse reporting into focused owners. Other local
@@ -1383,11 +1386,16 @@ three colors and the border across set, reset, an opacity change, and each
 policy shape, checks exact replies and scheme reports; `xvfb-color-ops`
 covers the live toggle.
 
-Remaining: `allowSendEvents` interaction, policy for libghostty's Kitty
+The `allowSendEvents` interaction is implemented: it blocks the blanket Color
+Ops permission, while the exception list still decides each operation. The menu
+and action change the configured flag. `xvfb-color-ops` covers startup combinations,
+live transitions, exact replies and pixels.
+
+Remaining: policy for libghostty's Kitty
 OSC 21 colors, and xterm's DECSCNM-relative OSC 10/11 addressing (libghostty
 addresses the normal colors, so under DECSCNM OSC 10 changes what is shown as
 the background).
-TDN: `policy-color-ops-send-events`, `policy-kitty-color-ops`,
+TDN: `policy-kitty-color-ops`,
      `osc-dynamic-colors-reverse-video`.
 
 ### Complete xterm Window Ops support — open
@@ -1399,9 +1407,15 @@ are the starting point, not completion of this work. The
 tracks the feature; TDN's [policy inventory](tdn/docs/policies/window-ops.md)
 maps the controls across sequence families.
 
-Deliver this in reviewable slices:
+W1's API inventory and size-report gate are complete; see the compatibility
+ledger. CSI 14/16/18 are policy-gated without gating unsolicited mode 2048 reports.
+The blanket permission requires `allowWindowOps` and not `allowSendEvents`;
+otherwise the exception list decides, including OSC 52. The Window Ops menu is
+insensitive while `allowSendEvents` is on. Remaining work is W2.
 
-1. Inventory every operation in xterm's `tblWindowOps` and every
+Deliver the remaining work in reviewable slices:
+
+1. Maintain the inventory of every operation in xterm's `tblWindowOps` and every
    `AllowWindowOps` call site against the pinned source. Record whether the
    selected libghostty exposes its effect or query, whether Revenant already
    implements it, and which policy check is missing. Preserve parser ownership
@@ -1411,8 +1425,8 @@ Deliver this in reviewable slices:
 2. Complete XTWINOPS window manipulation and reports: restore/minimize,
    move/resize in pixels or cells, raise/lower/refresh, maximize/fullscreen,
    window state and position, window/screen/cell geometry, title/icon reports,
-   and title push/pop. Apply policy to the existing `CSI 14 t`, `CSI 16 t`,
-   and `CSI 18 t` replies as well as newly implemented operations.
+   and title push/pop. Preserve the completed policy for `CSI 14 t`, `CSI 16 t`,
+   and `CSI 18 t` replies while adding newly exposed operations.
    TDN: `csi-1-t-de-iconify`, `csi-2-t-iconify`, `csi-3-t-move-window`,
         `csi-4-t-resize-window-in-pixels`, `csi-5-t-raise`, `csi-6-t-lower`,
         `csi-7-t-refresh`, `csi-8-t-resize-text-area-in-cells`, `csi-9-t-maximize`,
@@ -1435,7 +1449,8 @@ Deliver this in reviewable slices:
         `osc-52-invalid-base64-clear`, `osc-52-reply-target`.
 4. Make resources, the live menu, actions, configuration reporting, and support
    classifications agree. Preserve xterm's rule that `allowWindowOps: true`
-   overrides the deny list, while false applies per-operation restrictions;
+   overrides the deny list only while `allowSendEvents` is false; otherwise apply
+   per-operation restrictions;
    cover names, numeric aliases where supported by xterm, wildcards, negation,
    and restoration of the configured restrictions when toggled off.
    TDN: `policy-window-ops`.
@@ -1487,12 +1502,11 @@ The patch-411 source audit leaves these gaps:
   frontend rejection. Cover non-ASCII labels, invalid input, and boundary
   lengths rather than claiming parity from ASCII examples.
   TDN: `title-input-normalization`, `title-input-byte-limit`.
-- **Resource/action parity.** Register `allow-title-ops(on/off/toggle)` in the
-  translation action table, using the same live state and checkmark as the
-  menu. Honor xterm's `allowSendEvents` interaction: it disables effective
-  Title Ops and makes the permission toggle insensitive. Audit and implement
-  the `sameName` resource's suppression of redundant title/icon property
-  updates. These remain missing despite the working menu toggle.
+- **Completed resource/action parity.** `allow-title-ops(on/off/toggle)` and
+  `sameName` are implemented. Effective Title Ops requires `allowTitleOps` and
+  not `allowSendEvents`. The latter makes the menu insensitive; the action still
+  changes the configured flag. Suppressed writes do not prevent stack consumption.
+  `xvfb-title-ops` verifies actual properties and redundant-update counts.
   TDN: `action-allow-title-ops`, `policy-title-ops-send-events`, `resource-same-name`.
 
 Use `misc.c` (`ChangeGroup` and label setters), `charproc.c` (OSC dispatch,
