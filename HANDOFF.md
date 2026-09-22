@@ -6,6 +6,17 @@ priorities and the Ghostling capability comparison live in the
 [upstream reference guide](docs/maintainers/upstream.md). Avoid recording an uncommitted
 file list or a single transient commit as project state here.
 
+The September 2026 upstream integration review is complete. The coordinated
+Unicode 18 migration, synchronized-output captures, mode-query coverage, clipboard
+encoding, closed-stdio startup and mouse/selection fixes are recorded in the
+[compatibility ledger](docs/compatibility/drift.md) and
+[Unicode migration record](docs/maintainers/unicode-18-migration.md).
+The [roadmap](docs/maintainers/roadmap.md#upstream-integration-follow-ups) owns the
+Ghostty 1.4.0 release checkpoint and deferred feature/study decisions. The
+[linear-light study](docs/maintainers/linear-light-study.md) recommends no default
+rendering change; its initial emoji-overflow finding was withdrawn after correcting
+the capture coordinates. Do not implement the withdrawn fix.
+
 ## Testing scope in every implementer handoff
 
 The maintainer must state the testing scope in every implementation assignment

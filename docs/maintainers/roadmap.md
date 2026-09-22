@@ -31,6 +31,41 @@ item must keep an honest Present, Partial, or Missing status at the user-visible
 boundary. Kitty graphics remains Missing and is explicitly parked in the
 current TODO drain; this exception must not be reported as parity.
 
+## Upstream integration follow-ups
+
+The September 2026 Ghostty/Monstar review is complete. Implemented behavior and
+regression evidence live in the [compatibility ledger](../compatibility/drift.md);
+Unicode provenance lives in the [migration record](unicode-18-migration.md).
+The temporary implementation queue has been retired. Remaining decisions are:
+
+- **Ghostty 1.4.0 release checkpoint (maintainer-owned):** when the release is
+  available, compare its exact commit against the adopted development pin
+  `27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c`. Review intervening API and data changes,
+  adopt an exact release commit, and repeat Unicode work only for an actual delta.
+  Run the required supported-build/package matrix once at the final dependency
+  checkpoint, including the no-skips release gate. Verify backend/data provenance,
+  isolated and installed-font behavior, and representative shell/editor/multiplexer
+  use. Keep xterm-411 as the compatibility oracle until a separate migration.
+- **Alternate scroll (mode 1007):** a separate feature proposal, not part of the
+  wheel-release or drag fixes. Decide the resource/default policy before adding
+  cursor-key synthesis; respect application cursor mode, tracking precedence,
+  configured scroll amounts and Mouse Ops policy. The existing mouse handoff
+  probe exposes today's unsupported behavior.
+- **Mouse differences:** pixel coordinates in mode 1016 are currently zero-based,
+  unlike xterm's one-based reports; mode 1003 reports motion within the same cell.
+  Keep these differences explicit in the ledger and review them as separate
+  compatibility work rather than silently changing M3's accepted behavior.
+- **Rendering study:** defer linear-light composition and fractional raster phases
+  this release; preserve fontconfig hinting and explicit font precedence. The
+  [study](linear-light-study.md) separates simulated contrast from human readability.
+  Corrected captures show no fitted-emoji ink outside its cell, so no fitting fix
+  is authorized by the withdrawn overflow claim. Whether hinting clips part of
+  the fitted raster remains an unproven, nonblocking research question.
+- **Evidence closeout:** refresh versioned TDN evidence when citing the landed
+  synchronized-output and input changes. Keep visual readability and interactive
+  probe assessments unassessed until someone actually records observations;
+  automated byte/pixel checks support only the behavior they assert.
+
 ## Capability baseline
 
 This matrix reflects the maintained status on 2026-09-14. “Partial” means

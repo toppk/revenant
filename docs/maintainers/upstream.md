@@ -11,23 +11,28 @@ The ignored `upstream/` directory holds local checkouts used for building,
 research, and behavioral comparison. These repositories are not vendored into
 Revenant, and their presence is not required for a stub build.
 
-`tools/fetch-libghostty` currently follows Ghostty's moving `main` branch in
-preparation for 1.4. It fetches that reference and leaves the checkout detached
-at the exact resolved commit. Builds made after separate fetches are therefore
-not reproducible until this temporary reference is replaced with the Ghostty
-1.4 release tag. The other checkouts are also working references: inspect their
-current revision before relying on a behavior or API, and record any resulting
-Revenant compatibility decision in the
-[xterm differences ledger](../compatibility/drift.md) or
-[roadmap](roadmap.md).
+`tools/fetch-libghostty` pins an exact Ghostty development commit and leaves the
+checkout detached at that revision. Use `tools/fetch-libghostty --print-reference`
+to read the configured pin. A local checkout may have been advanced independently;
+inspect the actual build inputs and binary provenance rather than assuming the
+checkout and configured pin agree.
+
+The maintainer selects dependency revisions. The coordinated Unicode 18 migration adopted
+`27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c`; see the
+[provenance and behavior record](unicode-18-migration.md). When Ghostty 1.4.0 is released,
+review the intervening changes and pin its exact release commit. Do not replace
+the fetcher's full-hash contract with a moving branch or repeat the Unicode
+migration unless the release introduces a relevant data delta. The other checkouts are also working references:
+record compatibility decisions in the
+[xterm differences ledger](../compatibility/drift.md) or [roadmap](roadmap.md).
 
 ## Checkouts
 
 | Directory | Repository | Role in Revenant |
 | --- | --- | --- |
-| `upstream/ghostty` | <https://github.com/ghostty-org/ghostty> | Source of the selected `libghostty-vt` build. It owns VT parsing, terminal state, reflow, key and mouse encoding, history, selection primitives, and other terminal-core facilities. `tools/fetch-libghostty` currently resolves `main` to an exact detached commit; switch the configured reference to the 1.4 release tag when available. |
+| `upstream/ghostty` | <https://github.com/ghostty-org/ghostty> | Source of the selected `libghostty-vt` build. It owns VT parsing, terminal state, reflow, key and mouse encoding, history, selection primitives, and other terminal-core facilities. `tools/fetch-libghostty` selects an exact development commit. Adopt the exact Ghostty 1.4.0 release commit after a maintainer review when it is available. |
 | `upstream/ghostling` | <https://github.com/ghostty-org/ghostling> | Minimal C consumer of `libghostty-vt` and the functional-baseline reference for Revenant. Its integrations show which terminal capabilities can already be exposed by a thin host application. It is a reference, not a linked dependency. |
-| `upstream/xterm-snapshots` | <https://github.com/ThomasDickey/xterm-snapshots> | The xterm source-code behavioral oracle, detached at the exact `xterm-411` tag. Advance it only as part of an intentional compatibility-baseline migration. |
+| `upstream/xterm-snapshots` | <https://github.com/ThomasDickey/xterm-snapshots> | The xterm source-code behavioral oracle is the exact `xterm-411` tag. The working checkout may be ahead; inspect the pinned tag for baseline comparisons. Advance the oracle only as part of an intentional compatibility-baseline migration. |
 | `upstream/xterm.dev` | <https://github.com/xterm-x11/xterm.dev> | Source for the xterm project website and published documentation. It is useful for release notes and public documentation, but is not the source-code behavioral oracle. |
 
 The neighboring `/home/toppk/workspace/xterm` repository remains useful as a

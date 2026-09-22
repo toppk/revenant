@@ -6,6 +6,10 @@ that the pinned libghostty C API exposes every hook. Read `HANDOFF.md` and
 contains only open work; durable implementation contracts belong in the handoff
 and supporting docs.
 
+The September 2026 Ghostty/Monstar review is complete. Remaining release and
+feature decisions live in the [roadmap](docs/maintainers/roadmap.md#upstream-integration-follow-ups);
+they do not replace this file's compatibility IDs or expand their scope.
+
 Each ID is an open, bounded implementation/review unit. `TDN:` names the
 feature slugs in `tdn/data/features.yaml`; chunk IDs are work units, not slugs.
 `Probe:` is a runnable **Go** command: `just probe FEATURE-SLUG CASE-ID [OPTIONS]`.
