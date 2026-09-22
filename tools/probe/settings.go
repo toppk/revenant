@@ -21,7 +21,7 @@ var settingLabels = map[string]string{
 	"mode": "Mode", "scenario": "Scenario", "styles": "Cycle cursor styles", "cwd": "Directory", "font": "Font name",
 	"regime": "Width mode", "frames": "Frames", "frame-ms": "Drawing time (ms)", "hold-ms": "Extra hold (ms)",
 	"pause-ms": "Between frames (ms)", "program": "Terminal executable", "geometry": "Window geometry",
-	"xrm": "X resources", "timeout": "Reply timeout (s)", "delay": "Stage delay (s)",
+	"xrm": "X resources", "status": "Exit status", "timeout": "Reply timeout (s)", "delay": "Stage delay (s)",
 	"no-pause": "Skip stage pauses",
 }
 

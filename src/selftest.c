@@ -1870,6 +1870,97 @@ done:
         return result;
 }
 
+/* The capture comes first so SelfTestCapturePty can share the closure. */
+typedef struct
+{
+        SelfTestPtyCapture capture;
+        unsigned int allowed_mask;
+        char calls[64];
+} SelfTestSizePolicy;
+
+static bool
+SelfTestSizeAllowed(unsigned int op, void *closure)
+{
+        SelfTestSizePolicy *policy = closure;
+        size_t used = strlen(policy->calls);
+
+        (void)snprintf(policy->calls + used, sizeof(policy->calls) - used, "%s%u",
+                       used != 0 ? "," : "", op);
+        return (policy->allowed_mask & (1U << op)) != 0;
+}
+
+/* CSI 14/16/18 t share libghostty's SIZE callback with mode 2048: the report policy
+ * must gate only requests the observer saw, and never an in-band report. */
+static int
+SelfTestSizeReportPolicy(void)
+{
+        static const struct
+        {
+                const char *first;
+                const char *second;
+                unsigned int allowed_mask;
+                const char *expected;
+                const char *calls;
+        } steps[] = {
+            {"\033[14t\033[16t\033[18t", NULL, 0, "", "14,16,18"},
+            {"\033[?2048h", NULL, 0, "\033[48;24;80;384;640t", ""},
+            {"\033[14;2t\033[16;1t\033[?2048l\033[?2048h", NULL, 0, "\033[48;24;80;384;640t", ""},
+            {"\033[14t\033[?2048l\033[16t\033[?2048h\033[18t", NULL, 1U << 16,
+             "\033[6;16;8t\033[48;24;80;384;640t", "14,16,18"},
+            {"\033[14t\033[?2048l\033[?2048h", NULL, 0, "\033[48;24;80;384;640t", "14"},
+            {"\033[1", "4t", 0, "", "14"},
+            {"\033[1", "8t", 1U << 18, "\033[8;24;80t", "18"},
+            {"\033[18", "t\033[?2048l\033[?2048h", 0, "\033[48;24;80;384;640t", "18"},
+            {"\033[14;", "2t\033[?2048l\033[?2048h", 0, "\033[48;24;80;384;640t", ""},
+        };
+        SelfTestSizePolicy policy = {0};
+        XtpTerminalEffects effects = {
+            .write_pty = SelfTestCapturePty,
+            .size_report_allowed = SelfTestSizeAllowed,
+            .closure = &policy,
+        };
+        XtpTerminal *terminal;
+        size_t index;
+        int result = -1;
+
+        if (XtpTerminalBackendIsStub())
+                return 0;
+        terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        if (terminal == NULL)
+                return -1;
+        XtpTerminalSetEffects(terminal, &effects);
+        for (index = 0; index < XtNumber(steps); ++index) {
+                policy = (SelfTestSizePolicy){.allowed_mask = steps[index].allowed_mask};
+                XtpTerminalFeed(terminal, (const uint8_t *)steps[index].first,
+                                strlen(steps[index].first));
+                if (steps[index].second != NULL)
+                        XtpTerminalFeed(terminal, (const uint8_t *)steps[index].second,
+                                        strlen(steps[index].second));
+                if (!SelfTestPtyEquals(&policy.capture, (const uint8_t *)steps[index].expected,
+                                       strlen(steps[index].expected)) ||
+                    strcmp(policy.calls, steps[index].calls) != 0) {
+                        XtpLog(XTP_LOG_ERROR, "self-test",
+                               "size-report policy step %zu: bytes=%zu calls=%s expected calls=%s",
+                               index, policy.capture.used, policy.calls, steps[index].calls);
+                        goto done;
+                }
+        }
+        /* An unsolicited 2048 report after a resize is not a Window Op either. */
+        policy = (SelfTestSizePolicy){0};
+        if (XtpTerminalResize(terminal, 100, 30, 9, 18) != 0 ||
+            !SelfTestPtyEquals(&policy.capture, (const uint8_t *)"\033[48;30;100;540;900t",
+                               strlen("\033[48;30;100;540;900t")) ||
+            policy.calls[0] != '\0') {
+                XtpLog(XTP_LOG_ERROR, "self-test", "size-report policy resize: bytes=%zu calls=%s",
+                       policy.capture.used, policy.calls);
+                goto done;
+        }
+        result = 0;
+done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
 /*
  * DECRQM, ANSI (CSI Ps $ p) and DEC private (CSI ? Ps $ p) forms, by exact reply.
  * The reply must carry the requested number and the private marker of the request,
@@ -4622,6 +4713,44 @@ SelfTestWindowOps(void)
             {"PushTitle,PopTitle", true, false},
         };
 
+        /* CSI 14/16/18 t; 16 is gated by GetScreenSizeChars (19), as in xterm. */
+        static const struct
+        {
+                const char *list;
+                bool pixels;
+                bool cell;
+                bool chars;
+                unsigned int ignored;
+        } size_cases[] = {
+            {"GetWinSizePixels", false, true, true, 0},
+            {"14", false, true, true, 0},
+            {"16", true, true, true, 1},
+            {"GetScreenSizeChars", true, false, true, 0},
+            {"19", true, false, true, 0},
+            {"getwinsizechars", true, true, false, 0},
+            {"GetWinSize*", false, true, false, 0},
+            {"*,~GetWinSizeChars", false, false, true, 0},
+            {"GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop", true, true,
+             true, 2},
+        };
+
+        for (index = 0; index < XtNumber(size_cases); ++index) {
+                XtpWindowOps ops;
+
+                XtpWindowOpsParse(size_cases[index].list, &ops);
+                if (XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_GET_WIN_SIZE_PIXELS) !=
+                        size_cases[index].pixels ||
+                    XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_GET_SCREEN_SIZE_CHARS) !=
+                        size_cases[index].cell ||
+                    XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_GET_WIN_SIZE_CHARS) !=
+                        size_cases[index].chars ||
+                    ops.ignored_entries != size_cases[index].ignored ||
+                    !XtpWindowOpAllowed(true, &ops, XTP_WINDOW_OP_GET_WIN_SIZE_PIXELS)) {
+                        XtpLog(XTP_LOG_ERROR, "self-test", "window-ops size mismatch list=%s",
+                               size_cases[index].list);
+                        return -1;
+                }
+        }
         for (index = 0; index < XtNumber(title_cases); ++index) {
                 XtpWindowOps ops;
 
@@ -6461,6 +6590,7 @@ XtpSelfTest(void)
         };
         static const SelfTestCase backend_cases[] = {
             {"terminal reports", SelfTestTerminalReports},
+            {"size-report policy", SelfTestSizeReportPolicy},
             {"cursor-blink policy", SelfTestCursorBlinkPolicy},
             {"cursor-blink report", SelfTestCursorBlinkReports},
             {"default-color", SelfTestDefaultColors},

@@ -19,6 +19,10 @@ ssize_t XtpPtyRead(XtpPty *pty, void *buffer, size_t length);
 int XtpPtyQueue(XtpPty *pty, const void *buffer, size_t length);
 int XtpPtyFlush(XtpPty *pty);
 size_t XtpPtyPending(const XtpPty *pty);
+/* 1 once the child is reaped (it is then forgotten), 0 while it runs, -1 on error. */
+int XtpPtyReap(XtpPty *pty, int *status);
+/* Drops bytes queued for writing to the child; returns the byte count. */
+size_t XtpPtyDiscard(XtpPty *pty);
 int XtpPtyResize(XtpPty *pty, uint16_t columns, uint16_t rows, uint32_t cell_width,
                  uint32_t cell_height);
 

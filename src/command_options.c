@@ -26,6 +26,8 @@ XrmOptionDescRec XtpCommandOptions[] = {
     {"-fe", "*vt100.faceNameEmoji", XrmoptionSepArg, NULL},
     {"-fs", "*vt100.faceSize", XrmoptionSepArg, NULL},
     {"-b", "*vt100.internalBorder", XrmoptionSepArg, NULL},
+    {"-hold", "*hold", XrmoptionNoArg, (XPointer) "on"},
+    {"+hold", "*hold", XrmoptionNoArg, (XPointer) "off"},
     {"-samename", "*sameName", XrmoptionNoArg, (XPointer) "on"},
     {"+samename", "*sameName", XrmoptionNoArg, (XPointer) "off"},
     {"-sb", "*vt100.scrollBar", XrmoptionNoArg, (XPointer) "true"},
@@ -174,6 +176,7 @@ static const OptionHelp option_help[] = {
     {"-cr color", "text cursor color"},
     {"-/+pc", "turn on/off PC-style bright bold colors"},
     {"-mc milliseconds", "multiclick time in milliseconds"},
+    {"-/+hold", "turn on/off logic that retains window after exit"},
     {"-/+samename", "turn on/off the no-flicker option for title and icon name"},
     {"-/+sb", "turn on/off scrollbar"},
     {"-rightbar", "force scrollbar right (default left)"},
@@ -261,6 +264,9 @@ FindOption(const char *argument)
                         ++matches;
                         match.kind = special_options[special].kind;
                         match.option = special_options[special].option;
+                        /* Like xterm, -h and -v stay help and version beside -hold and -vb. */
+                        if (match.kind == OPTION_HELP || match.kind == OPTION_VERSION)
+                                return match;
                 }
         }
         for (index = 0; index < XtpCommandOptionCount; ++index) {

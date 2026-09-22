@@ -169,6 +169,32 @@ class ProbeAcceptance(unittest.TestCase):
         self.assertIn(b"PASS: each jump puts the named prompt at the top", output)
         self.assertNotIn(b"Pipe must contain", output)
 
+    def test_session_hold_ends_with_marker_and_selected_status(self):
+        command = [str(BINARY), "startup-hold-after-exit", "session-hold"]
+        for status in (0, 3, 255):
+            with self.subTest(status=status):
+                done = subprocess.run(
+                    command + ["--status", str(status)],
+                    stdin=subprocess.DEVNULL,
+                    capture_output=True,
+                    timeout=10,
+                )
+                self.assertEqual(done.returncode, status, done.stderr)
+                self.assertTrue(
+                    done.stdout.endswith(f"\nPROBE-HOLD-END status={status}".encode()),
+                    done.stdout,
+                )
+                self.assertEqual(done.stderr, b"")
+        done = subprocess.run(command + ["--status", "256"], capture_output=True, timeout=10)
+        self.assertEqual(done.returncode, 2)
+        self.assertIn(b"status must be 0..255", done.stderr)
+        code, output, restored = run_probe(
+            ["startup-hold-after-exit", "session-hold", "--status", "3"]
+        )
+        self.assertEqual(code, 3)
+        self.assertTrue(restored)
+        self.assertTrue(output.endswith(b"\r\nPROBE-HOLD-END status=3"), output)
+
     def test_emoji_artwork_does_not_claim_automatic_success(self):
         samples = {
             "monochrome-emoji": "🛠 Installed demo-1.0",
@@ -806,6 +832,90 @@ class ProbeAcceptance(unittest.TestCase):
                 self.assertIn(b"\x1b]10;rgb:1010/2020/3030", tail)
                 self.assertIn(b"Requested the original foreground rgb:1010/2020/3030 back", output)
 
+    def test_window_reports_classify_and_compare(self):
+        replies = {b"14": b"\x1b[4;312;480t", b"16": b"\x1b[6;13;6t", b"18": b"\x1b[8;24;80t"}
+        for mode, verdicts in (
+            (
+                "reply",
+                [
+                    b'Startup: CSI 14 t (text area height;width in pixels): reply "\\x1b[4;312;480t"',
+                    b"CSI 18 t 24x80 against the kernel's 24x80 rows x columns: same",
+                    b"CSI 16 t x CSI 18 t = 312x480 against CSI 14 t 312x480: same",
+                ],
+            ),
+            ("mismatch", [b"CSI 16 t x CSI 18 t = 325x480 against CSI 14 t 312x480: DIFFERENT"]),
+            ("silence", [b"Startup: CSI 16 t (cell height;width in pixels): silence"]),
+            (
+                "wrong",
+                [b'Startup: CSI 14 t (text area height;width in pixels): unexpected bytes "\\x1b[8;24;80t'],
+            ),
+            ("timeout", [b"Startup: CSI 18 t (text area rows;columns): timeout, no reply and no status reply."]),
+        ):
+            with self.subTest(mode=mode):
+                emulator = Emulator()
+                buffer = bytearray()
+                request = re.compile(rb"\x1b\[(14|16|18)t|\x1b\[5n")
+
+                def respond(data):
+                    buffer.extend(data)
+                    out = emulator(data) or b""
+                    end = 0
+                    for match in request.finditer(bytes(buffer)):
+                        end = match.end()
+                        if match[0] == b"\x1b[5n":
+                            if mode != "timeout":
+                                out += b"\x1b[0n"
+                        elif mode in ("reply", "mismatch"):
+                            reply = replies[match[1]]
+                            if mode == "mismatch" and match[1] == b"18":
+                                reply = b"\x1b[8;25;80t"
+                            out += reply
+                        elif mode == "wrong":
+                            out += replies[b"18"]
+                    del buffer[:end]
+                    return out
+
+                code, output, restored = run_probe(
+                    ["window", "reports", "--no-pause", "--timeout", ".2"], respond=respond
+                )
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertTrue(restored)
+                self.assertIn(b"GetScreenSizeChars (19)", output)
+                for verdict in verdicts:
+                    self.assertIn(verdict, output)
+                if mode in ("silence", "wrong", "timeout"):
+                    self.assertNotIn(b"against CSI 14 t", output)
+
+    def test_window_reports_cleanup_reminder_on_interrupt(self):
+        for key in (b"q", b"\x1b"):
+            with self.subTest(key=key), tempfile.TemporaryDirectory() as directory:
+                sent = False
+
+                def interact(output):
+                    nonlocal sent
+                    stage = b"Toggle Allow Window Ops in the menu"
+                    if not sent and stage in output and b"continue" in output[output.index(stage):]:
+                        sent = True
+                        return key
+                    return b""
+
+                path = Path(directory) / "result.json"
+                code, output, restored = run_probe(
+                    ["window", "reports", "--timeout", ".1", "--output", str(path)],
+                    respond=Emulator(),
+                    interaction=interact,
+                )
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertTrue(sent)
+                self.assertTrue(restored)
+                self.assertEqual(json.loads(path.read_text())[0]["outcome"], "stopped")
+                note = output.index(b"Note now whether the entry is checked")
+                self.assertLess(note, output.index(b"\x1b[14t"))
+                self.assertIn(b"sends only queries", output)
+                self.assertNotIn(b"changes no terminal state", output)
+                self.assertIn(b"Set Allow Window Ops back to the state you noted", output)
+                self.assertNotIn(b"After the first toggle", output)
+
     def test_text_contrast_sample_prints_both_themes(self):
         code, output, restored = run_probe(
             ["text", "contrast", "--no-pause"], respond=Emulator()
@@ -1164,7 +1274,7 @@ class ProbeAcceptance(unittest.TestCase):
             (b"Home", ("resize", 20, 8)),
             (b"Resize to at least", ("resize", 100, 30)),
             (b"Home", b"\x1b[<65;8;6M"),
-            (b"4 / 6", b"\x1b[Hq"),
+            (b"4 / 7", b"\x1b[Hq"),
         ]
         offset = 0
 

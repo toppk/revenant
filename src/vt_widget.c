@@ -1976,8 +1976,11 @@ XtpVtWindowOpAllowed(Widget widget, XtpWindowOp op)
 {
         Vt100Rec *vt = VtAsRecord(widget);
 
-        return XtpWindowOpAllowed(vt->vt.allow_window_ops != False, &vt->vt.window_ops, op) ? True
-                                                                                            : False;
+        /* As in xterm, allowSendEvents blocks the blanket permission; the list still decides. */
+        return XtpWindowOpAllowed(vt->vt.allow_window_ops && !vt->vt.allow_send_events,
+                                  &vt->vt.window_ops, op)
+                   ? True
+                   : False;
 }
 
 Boolean
@@ -2056,8 +2059,10 @@ XtpVtSetAllowWindowOps(Widget widget, Boolean enabled)
 
         vt->vt.allow_window_ops = enabled ? True : False;
         XtpLog(XTP_LOG_INFO, "selection",
-               "allowWindowOps=%s GetSelection=%s SetSelection=%s GetWinTitle=%s PushTitle=%s",
+               "allowWindowOps=%s effective=%s GetSelection=%s SetSelection=%s GetWinTitle=%s "
+               "PushTitle=%s",
                vt->vt.allow_window_ops ? "true" : "false",
+               vt->vt.allow_window_ops && !vt->vt.allow_send_events ? "true" : "false",
                XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_GET_SELECTION) ? "allowed" : "denied",
                XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_SET_SELECTION) ? "allowed" : "denied",
                XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_GET_WIN_TITLE) ? "allowed" : "denied",

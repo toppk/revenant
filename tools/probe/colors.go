@@ -129,8 +129,8 @@ func dynamicColors(s *Session) {
 }
 
 // Sends REQUEST and a status request, then classifies everything that came back:
-// the expected color reply, the status reply, and any other bytes, reported separately.
-func colorPolicyQuery(s *Session, label, request, prefix string) string {
+// the expected reply, the status reply, and any other bytes, reported separately.
+func statusQuery(s *Session, label, request, what string, expected *regexp.Regexp) string {
 	querying := s.querying
 	s.querying = true
 	defer func() { s.querying = querying; s.navPending = nil; s.navEscape = time.Time{} }()
@@ -147,9 +147,7 @@ func colorPolicyQuery(s *Session, label, request, prefix string) string {
 	}
 	acked := bytes.Contains(reply, ack)
 	rest := bytes.Replace(reply, ack, nil, 1)
-	color := regexp.MustCompile("\x1b\\]" + regexp.QuoteMeta(prefix) +
-		"rgb:[0-9a-fA-F]{1,4}/[0-9a-fA-F]{1,4}/[0-9a-fA-F]{1,4}(?:\x07|\x1b\\\\)")
-	found := color.Find(rest)
+	found := expected.Find(rest)
 	if found != nil {
 		rest = bytes.Replace(rest, found, nil, 1)
 	}
@@ -157,7 +155,7 @@ func colorPolicyQuery(s *Session, label, request, prefix string) string {
 	case len(reply) == 0:
 		s.say("%s: timeout, no reply and no status reply.", label)
 	case len(rest) > 0 && acked:
-		s.say("%s: unexpected bytes %q with the status reply; not a valid %sreply.", label, reply, prefix)
+		s.say("%s: unexpected bytes %q with the status reply; not a valid %sreply.", label, reply, what)
 	case len(rest) > 0:
 		s.say("%s: unexpected bytes %q and no status reply.", label, reply)
 	case found != nil && acked:
@@ -170,6 +168,11 @@ func colorPolicyQuery(s *Session, label, request, prefix string) string {
 		s.say("%s: silence (the terminal answered the status request, not the query).", label)
 	}
 	return ""
+}
+func colorPolicyQuery(s *Session, label, request, prefix string) string {
+	color := regexp.MustCompile("\x1b\\]" + regexp.QuoteMeta(prefix) +
+		"rgb:[0-9a-fA-F]{1,4}/[0-9a-fA-F]{1,4}/[0-9a-fA-F]{1,4}(?:\x07|\x1b\\\\)")
+	return statusQuery(s, label, request, prefix, color)
 }
 func colorsDynamicPolicy(s *Session) {
 	s.say("Startup resources decide this case: allowColorOps, allowSendEvents, disallowedColorOps.")

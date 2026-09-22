@@ -353,6 +353,8 @@ typedef struct
                                              size_t *length, void *closure);
         /* XTWINOPS 20-23 with the raw second and third parameters (0 when absent). */
         void (*title_op)(XtpTitleOp op, unsigned int target, unsigned int slot, void *closure);
+        /* May CSI 14/16/18 t be answered? NULL answers every one. */
+        bool (*size_report_allowed)(unsigned int op, void *closure);
         /* OSC 7/9/1337 working-directory report as the application sent it, borrowed
          * for the call; zero length means the application cleared it. */
         void (*working_directory_changed)(const uint8_t *bytes, size_t length, void *closure);

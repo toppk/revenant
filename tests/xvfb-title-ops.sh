@@ -269,7 +269,10 @@ press_blocked()
 }
 
 for titles in true false; do
-    serve_terminal -xrm 'XTerm*allowSendEvents: true' -xrm "XTerm*allowTitleOps: $titles"
+    # allowSendEvents also blocks the Window Ops blanket; an empty list keeps reports and
+    # the stack available, as in the XTerm(411) measurement.
+    serve_terminal -xrm 'XTerm*allowSendEvents: true' -xrm "XTerm*allowTitleOps: $titles" \
+        -xrm 'XTerm*disallowedWindowOps:'
     mark blocked
     send '\033]2;blocked\033\\\033]2;blocked\033\\\033]0;blocked0\033\\'
     test "$(notifications blocked WM_NAME)" = 0 ||

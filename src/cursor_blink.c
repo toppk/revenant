@@ -170,8 +170,12 @@ CompleteCsi(XtpCursorBlinkObserver *observer, uint8_t final,
         if (observer->csi_invalid)
                 return;
         if (final == 't' && !observer->csi_private && observer->csi_intermediate_count == 0U &&
-            observer->csi_parameter_count >= 1U && observer->csi_first_parameter >= 20U &&
-            observer->csi_first_parameter <= 23U) {
+            observer->csi_parameter_count >= 1U &&
+            ((observer->csi_first_parameter >= 20U && observer->csi_first_parameter <= 23U) ||
+             /* Size reports, in the single-parameter form libghostty answers. */
+             (observer->csi_parameter_count == 1U &&
+              (observer->csi_first_parameter == 14U || observer->csi_first_parameter == 16U ||
+               observer->csi_first_parameter == 18U)))) {
                 if (effects != NULL && effects->window_op != NULL) {
                         size_t count = observer->csi_parameter_count < XTP_CSI_OBSERVED_PARAMETERS
                                            ? observer->csi_parameter_count

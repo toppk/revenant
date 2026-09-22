@@ -57,6 +57,15 @@ func readReady(f *os.File, wait time.Duration) (bool, error) {
 	}
 	return p.Revents != 0, nil
 }
+
+// The kernel's window size for the terminal: columns, rows and pixel width/height (0 if unset).
+func terminalPixels(f *os.File) (columns, rows, width, height int, ok bool) {
+	var size struct{ Rows, Columns, X, Y uint16 }
+	if ioctl(f.Fd(), syscall.TIOCGWINSZ, unsafe.Pointer(&size)) != nil {
+		return 0, 0, 0, 0, false
+	}
+	return int(size.Columns), int(size.Rows), int(size.X), int(size.Y), true
+}
 func terminalSize(f *os.File) (int, int) {
 	var size struct{ Rows, Columns, X, Y uint16 }
 	if ioctl(f.Fd(), syscall.TIOCGWINSZ, unsafe.Pointer(&size)) != nil || size.Columns == 0 || size.Rows == 0 {

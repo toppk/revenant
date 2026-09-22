@@ -130,6 +130,35 @@ reports insufficient evidence when fewer than two complete lines arrive. Whether
 the ends are where the drag began and ended, and whether the highlight followed the
 pointer, is your judgement.
 
+`just probe policy-window-ops window-reports` sends CSI 14, 16 and 18 t one at a
+time. It names the settings that decide each report, including xterm's gating of
+CSI 16 t by `GetScreenSizeChars`, and states each reply's units: text area in
+pixels, cell in pixels, text area in characters. Each report is labelled reply,
+silence (only the status request was answered), unexpected bytes, reply without
+the status reply, or timeout. The replies are compared with each other and with
+the kernel's window size (rows, columns and, when set, pixels). The case then
+queries again after you toggle Allow Window Ops twice in the menu. The probe
+itself sends only queries, but the menu changes persist after it ends. It asks
+you to note the entry's state first and to restore it when the case finishes,
+and reminds you again on q/Esc. The same case answers `csi-14-t-pixel-size-report`,
+`csi-16-t-report-cell-size-in-pixels` and `csi-18-t-text-size`. Registration is not
+support evidence: exact bytes and geometry against the X window are checked by
+`tests/xvfb-window-ops.sh`.
+
+`just probe startup-hold-after-exit session-hold` is a child fixture, not a case
+to run from a shell: it prints a final `PROBE-HOLD-END status=N` marker without a
+newline and exits with `--status N` (0 to 255). Launch the built probe as the
+terminal's own `-e` command, with no shell in between:
+
+```sh
+revenant -hold -e build-probe/probe startup-hold-after-exit session-hold --status 3
+```
+
+Without `-hold` the window closes when the probe exits; with it the window stays,
+showing the marker, until you close it. Whether the window remained is judged from
+outside the terminal; the fixture only supplies the output and the exit.
+`tests/xvfb-hold.sh` checks the same behaviour automatically.
+
 `just probe policy-color-ops-send-events colors-dynamic-policy` names the startup
 resources that decide Color Ops (`allowColorOps`, `allowSendEvents`,
 `disallowedColorOps`). It then queries the default foreground and palette color 1

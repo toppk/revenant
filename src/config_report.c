@@ -1018,7 +1018,7 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
                 if (strcmp(name, "title") == 0 || strcmp(name, "iconName") == 0 ||
                     strcmp(name, "iconGeometry") == 0 || strcmp(name, "menuLocale") == 0 ||
                     strcmp(name, "termName") == 0 || strcmp(name, "pipeCommandOutput") == 0 ||
-                    strcmp(name, "sameName") == 0)
+                    strcmp(name, "sameName") == 0 || strcmp(name, "hold") == 0)
                         return "supported";
                 return "unsupported";
         }
@@ -1523,8 +1523,8 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "Resolve the SELECT action token to CLIPBOARD rather than PRIMARY.",
             "Milliseconds allowed between clicks in a multi-click selection gesture.",
             "Override character classes used for double-click word selection.",
-            "Permit every window operation; consulted for OSC 52 and XTWINOPS title ops.",
-            "Window operations refused unless allowWindowOps is true; selection and title ops.",
+            "Blanket Window Ops permission unless allowSendEvents; OSC 52, titles, 14/16/18 t.",
+            "Refused unless allowWindowOps is effective; selection, titles and 14/16/18 t.",
             "Largest control string accepted; only enforced for OSC 52 selection writes.",
             "Minimum diagnostic severity: debug, info, warning, or error.",
             "Legacy Boolean alias used only when logLevel is unset.",
@@ -1533,7 +1533,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "Skip title/icon updates that repeat the last requested label.",
             "Configured blanket permission, effective only while allowSendEvents is false; "
             "otherwise disallowedColorOps decides. Live menu and allow-color-ops.",
-            "True blocks Title Ops and the Color Ops blanket; synthetic events stay accepted.",
+            "True blocks Title Ops and the Color/Window Ops blankets; synthetic events accepted.",
             "Refused unless allowColorOps is true and allowSendEvents is false.",
             "Permit mouse and focus reports; live toggle. Named deny-list exceptions pending.",
             "Permit capability operations; live toggle currently gates XTGETTCAP replies only.",

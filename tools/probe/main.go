@@ -29,7 +29,7 @@ type Options struct {
 	Output, Terminal, Version, Configuration, Observation string
 	Target, Text, Color, Mode, CWD, Font, Regime, Palette string
 	Caps, XRM                                             stringsFlag
-	Frames, FrameMS, HoldMS, PauseMS, Index               int
+	Frames, FrameMS, HoldMS, PauseMS, Index, Status       int
 	Program, Geometry, Scenario                           string
 }
 type Case struct {
@@ -153,6 +153,8 @@ func caseFlags(c *Case, output io.Writer) (*flag.FlagSet, *Options) {
 				fs.StringVar(&o.Geometry, name, o.Geometry, "spawned terminal geometry")
 			case "xrm":
 				fs.Var(&o.XRM, name, "additional X resource for explicit spawn; repeatable")
+			case "status":
+				fs.IntVar(&o.Status, name, 0, "exit status, 0..255")
 			}
 		}
 	}
@@ -181,6 +183,9 @@ func parseOptionsTo(c *Case, args []string, output io.Writer) (Options, error) {
 	}
 	if o.Frames < 1 || o.Frames > 10000 || o.FrameMS < 0 || o.FrameMS > 3600000 || o.HoldMS < 0 || o.HoldMS > 3600000 || o.PauseMS < 0 || o.PauseMS > 3600000 {
 		return o, fmt.Errorf("invalid frame count or duration")
+	}
+	if o.Status < 0 || o.Status > 255 {
+		return o, fmt.Errorf("status must be 0..255")
 	}
 	if o.Index < 0 || o.Index > 255 {
 		return o, fmt.Errorf("index must be 0..255")
@@ -586,6 +591,10 @@ func run(args []string) (code int) {
 	// Explicit spawning has no need to acquire the caller's terminal.
 	if selected != nil && selected.Path == "colors palette spawn" {
 		return spawnPalette(opts)
+	}
+	// The hold fixture is the terminal's child and ends with the requested status.
+	if selected != nil && selected.Path == "startup hold" {
+		return sessionHold(opts)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()

@@ -473,6 +473,80 @@ func titleSameName(s *Session) {
 	s.say("Exact counts come from tests/xvfb-title-ops.sh, which observes PropertyNotify events.")
 	s.pause()
 }
+
+// CSI 14/16/18 t: queried one at a time, each classified as reply, silence, unexpected
+// bytes or timeout, and compared with the kernel's window size.
+func windowReports(s *Session) {
+	s.say("Startup settings: allowWindowOps (the blanket permission, blocked while")
+	s.say("allowSendEvents is true) and disallowedWindowOps, which decides when the blanket is")
+	s.say("off. Names: GetWinSizePixels (14), GetWinSizeChars (18). xterm gates CSI 16 t by")
+	s.say("GetScreenSizeChars (19); \"16\" names nothing.")
+	s.say("This case sends only queries, but it asks you to change Allow Window Ops in the menu,")
+	s.say("and that change persists after the case ends. Note now whether the entry is checked,")
+	s.say("and set it back when the case finishes or when you quit with q/Esc.")
+	s.cleanup(func() {
+		s.say("Set Allow Window Ops back to the state you noted at the start; this case cannot.")
+	})
+	reports := []struct {
+		number int
+		units  string
+	}{
+		{14, "text area height;width in pixels"},
+		{16, "cell height;width in pixels"},
+		{18, "text area rows;columns"},
+	}
+	query := func(stage string) map[int][2]int {
+		values := map[int][2]int{}
+		for _, report := range reports {
+			reply := regexp.MustCompile(fmt.Sprintf("\\x1b\\[%d;([0-9]+);([0-9]+)t", report.number-10))
+			label := fmt.Sprintf("%s CSI %d t (%s)", stage, report.number, report.units)
+			found := statusQuery(s, label, fmt.Sprintf("%s[%dt", esc, report.number), "", reply)
+			if match := reply.FindStringSubmatch(found); match != nil {
+				first, _ := strconv.Atoi(match[1])
+				second, _ := strconv.Atoi(match[2])
+				values[report.number] = [2]int{first, second}
+			}
+		}
+		compareWindowReports(s, values)
+		return values
+	}
+	query("Startup:")
+	s.say("Toggle Allow Window Ops in the menu (Ctrl+right-click), then continue. With it off,")
+	s.say("only the reports your disallowedWindowOps list permits answer. While allowSendEvents")
+	s.say("is true the entry is greyed, and the list alone decides.")
+	s.pause()
+	query("After the first toggle:")
+	s.say("Toggle it again, back to the state you noted, and continue.")
+	s.pause()
+	query("After the second toggle:")
+	s.say("The source tree checks exact bytes and geometry in tests/xvfb-window-ops.sh.")
+	s.pause()
+}
+
+// Compares the replies with each other and with TIOCGWINSZ; a missing value is not compared.
+func compareWindowReports(s *Session, values map[int][2]int) {
+	columns, rows, width, height, ok := terminalPixels(s.out)
+	if chars, have := values[18]; have && ok {
+		s.say("CSI 18 t %dx%d against the kernel's %dx%d rows x columns: %s", chars[0], chars[1], rows, columns,
+			sameOrDifferent(chars[0] == rows && chars[1] == columns))
+	}
+	if pixels, have := values[14]; have && ok && width > 0 && height > 0 {
+		s.say("CSI 14 t %dx%d against the kernel's %dx%d pixels: %s", pixels[0], pixels[1], height, width,
+			sameOrDifferent(pixels[0] == height && pixels[1] == width))
+	}
+	cell, haveCell := values[16]
+	chars, haveChars := values[18]
+	if pixels, have := values[14]; have && haveCell && haveChars {
+		s.say("CSI 16 t x CSI 18 t = %dx%d against CSI 14 t %dx%d: %s", cell[0]*chars[0], cell[1]*chars[1],
+			pixels[0], pixels[1], sameOrDifferent(cell[0]*chars[0] == pixels[0] && cell[1]*chars[1] == pixels[1]))
+	}
+}
+func sameOrDifferent(same bool) string {
+	if same {
+		return "same"
+	}
+	return "DIFFERENT"
+}
 func font(s *Session) {
 	if s.result.Case == "font set" {
 		if s.opts.Font == "" {

@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 typedef struct
@@ -54,6 +55,10 @@ typedef struct
         XtpTitleStack title_stack;
         const char *term_name;
         Boolean same_name;
+        Boolean hold;
+        /* The child's side of the PTY is gone and the window is held (hold). */
+        Boolean child_finished;
+        XtIntervalId reap_timer;
         /* Last validated OSC 7 directory for future consumers; NULL when unknown. */
         char *working_directory;
         char hostname[256];
@@ -97,6 +102,7 @@ typedef struct
         Boolean debug;
         Boolean report_config;
         Boolean same_name;
+        Boolean hold;
 } AppResources;
 
 static XtResource application_resources[] = {
@@ -162,6 +168,15 @@ static XtResource application_resources[] = {
         XtOffsetOf(AppResources, same_name),
         XtRImmediate,
         (XtPointer)True,
+    },
+    {
+        "hold",
+        "Hold",
+        XtRBoolean,
+        sizeof(Boolean),
+        XtOffsetOf(AppResources, hold),
+        XtRImmediate,
+        (XtPointer)False,
     },
 };
 
@@ -403,7 +418,7 @@ FlushPtyOutput(App *app)
 {
         int result;
 
-        if (app->pty == NULL)
+        if (app->pty == NULL || app->child_finished)
                 return;
         result = XtpPtyFlush(app->pty);
         if (result > 0) {
@@ -425,6 +440,10 @@ WritePtyBytes(App *app, const uint8_t *bytes, size_t length)
 
         if (app->pty == NULL || length == 0)
                 return;
+        if (app->child_finished) {
+                XtpLog(XTP_LOG_DEBUG, "pty", "write dropped bytes=%zu: child finished", length);
+                return;
+        }
         before = XtpPtyPending(app->pty);
         if (XtpPtyQueue(app->pty, bytes, length) != 0) {
                 XtpLog(XTP_LOG_ERROR, "pty", "cannot queue write bytes=%zu errno=%d", length,
@@ -912,13 +931,31 @@ ReportLabel(App *app, char code, const char *label)
 }
 
 static Boolean
-TitleOpAllowed(App *app, XtpWindowOp op, unsigned int number)
+WindowOpAllowed(App *app, XtpWindowOp op, unsigned int number)
 {
         if (XtpVtWindowOpAllowed(app->vt, op))
                 return True;
         XtpLog(XTP_LOG_INFO, "shell", "XTWINOPS %u denied by window-ops policy (%s)", number,
                XtpWindowOpName(op));
         return False;
+}
+
+/* CSI 16 t is gated by GetScreenSizeChars, as in xterm. */
+static bool
+TerminalSizeReportAllowed(unsigned int op, void *closure)
+{
+        App *app = closure;
+
+        switch (op) {
+        case 14:
+                return WindowOpAllowed(app, XTP_WINDOW_OP_GET_WIN_SIZE_PIXELS, op);
+        case 16:
+                return WindowOpAllowed(app, XTP_WINDOW_OP_GET_SCREEN_SIZE_CHARS, op);
+        case 18:
+                return WindowOpAllowed(app, XTP_WINDOW_OP_GET_WIN_SIZE_CHARS, op);
+        default:
+                return true;
+        }
 }
 
 /* XTWINOPS 22/23: target 0 saves both labels, 1 the icon name, 2 the title;
@@ -931,7 +968,7 @@ TerminalTitleOp(XtpTitleOp op, unsigned int target, unsigned int slot, void *clo
 
         switch (op) {
         case XTP_TITLE_OP_REPORT_ICON:
-                if (TitleOpAllowed(app, XTP_WINDOW_OP_GET_ICON_TITLE, 20)) {
+                if (WindowOpAllowed(app, XTP_WINDOW_OP_GET_ICON_TITLE, 20)) {
                         char *label = ShellLabel(app, XtNiconName);
 
                         if (label != NULL)
@@ -940,7 +977,7 @@ TerminalTitleOp(XtpTitleOp op, unsigned int target, unsigned int slot, void *clo
                 }
                 return;
         case XTP_TITLE_OP_REPORT_WINDOW:
-                if (TitleOpAllowed(app, XTP_WINDOW_OP_GET_WIN_TITLE, 21)) {
+                if (WindowOpAllowed(app, XTP_WINDOW_OP_GET_WIN_TITLE, 21)) {
                         char *label = ShellLabel(app, XtNtitle);
 
                         if (label != NULL)
@@ -949,7 +986,7 @@ TerminalTitleOp(XtpTitleOp op, unsigned int target, unsigned int slot, void *clo
                 }
                 return;
         case XTP_TITLE_OP_PUSH:
-                if (!TitleOpAllowed(app, XTP_WINDOW_OP_PUSH_TITLE, 22))
+                if (!WindowOpAllowed(app, XTP_WINDOW_OP_PUSH_TITLE, 22))
                         return;
                 if (target == XTP_TITLE_TARGET_BOTH || target == XTP_TITLE_TARGET_ICON)
                         entry.icon_name = ShellLabel(app, XtNiconName);
@@ -962,7 +999,7 @@ TerminalTitleOp(XtpTitleOp op, unsigned int target, unsigned int slot, void *clo
                 XtpTitleEntryFree(&entry);
                 return;
         case XTP_TITLE_OP_POP:
-                if (!TitleOpAllowed(app, XTP_WINDOW_OP_POP_TITLE, 23))
+                if (!WindowOpAllowed(app, XTP_WINDOW_OP_POP_TITLE, 23))
                         return;
                 if (!XtpTitleStackPop(&app->title_stack, slot, &entry)) {
                         XtpLog(XTP_LOG_INFO, "shell", "title pop ignored: stack empty");
@@ -1001,6 +1038,7 @@ ApplyTerminalEffects(App *app)
             .cursor_blink_reset = TerminalCursorBlinkReset,
             .clipboard_write = TerminalClipboardWrite,
             .title_op = TerminalTitleOp,
+            .size_report_allowed = TerminalSizeReportAllowed,
             .working_directory_changed = TerminalWorkingDirectory,
             .working_directory_dropped = TerminalWorkingDirectoryDropped,
             .unknown_apc = TerminalUnknownApc,
@@ -1088,6 +1126,9 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
         SyncTerminalModeChecks(app);
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
+        /* As in xterm, the entry is insensitive while allowSendEvents blocks the blanket. */
+        XtpMenusSetSensitive(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
+                             !XtpVtAllowSendEvents(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS, XtpVtAllowTitleOps(app->vt));
         /* As in xterm, the entry is insensitive while allowSendEvents blocks Title Ops. */
         XtpMenusSetSensitive(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS,
@@ -1289,6 +1330,47 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
         }
 }
 
+/* Polled, like pipe helpers, so the PTY child's SIGCHLD handling stays untouched. */
+static void
+ReapHeldChild(XtPointer closure, XtIntervalId *timer)
+{
+        App *app = closure;
+        int status = 0;
+
+        (void)timer;
+        app->reap_timer = (XtIntervalId)0;
+        switch (XtpPtyReap(app->pty, &status)) {
+        case 1:
+                if (WIFEXITED(status))
+                        XtpLog(XTP_LOG_INFO, "pty", "held child exited status=%d",
+                               WEXITSTATUS(status));
+                else if (WIFSIGNALED(status))
+                        XtpLog(XTP_LOG_INFO, "pty", "held child killed signal=%d",
+                               WTERMSIG(status));
+                return;
+        case 0:
+                app->reap_timer = XtAppAddTimeOut(app->context, 100, ReapHeldChild, app);
+                return;
+        default:
+                XtpLog(XTP_LOG_WARNING, "pty", "cannot reap held child errno=%d", errno);
+                return;
+        }
+}
+
+/* hold: keep the window and its last output; the user closes it. */
+static void
+HoldAfterChildExit(App *app)
+{
+        size_t dropped;
+
+        app->child_finished = True;
+        StopWatchingPtyOutput(app);
+        dropped = XtpPtyDiscard(app->pty);
+        XtpLog(XTP_LOG_INFO, "pty", "child finished; holding the window dropped-queued-input=%zu",
+               dropped);
+        ReapHeldChild(app, NULL);
+}
+
 static void
 PtyReady(XtPointer closure, int *source, XtInputId *input_id)
 {
@@ -1344,7 +1426,10 @@ PtyReady(XtPointer closure, int *source, XtInputId *input_id)
                 app->pty_input = (XtInputId)0;
                 XtpLog(XTP_LOG_INFO, "progress", "cleared reason=exit");
                 XtpVtSetProgress(app->vt, XTP_PROGRESS_REMOVE, -1);
-                app->running = False;
+                if (app->hold)
+                        HoldAfterChildExit(app);
+                else
+                        app->running = False;
         }
 }
 
@@ -1540,6 +1625,8 @@ WireApplication(App *app, const AppResources *resources)
         XtpLog(XTP_LOG_INFO, "config", "termName=%s", app->term_name);
         app->same_name = resources->same_name;
         XtpLog(XTP_LOG_INFO, "config", "sameName=%s", app->same_name ? "true" : "false");
+        app->hold = resources->hold;
+        XtpLog(XTP_LOG_INFO, "config", "hold=%s", app->hold ? "true" : "false");
         app->pipe_command = resources->pipe_command;
         XtpLog(XTP_LOG_INFO, "config", "pipeCommandOutput=%s",
                app->pipe_command != NULL && *app->pipe_command != '\0' ? app->pipe_command
@@ -1550,6 +1637,9 @@ WireApplication(App *app, const AppResources *resources)
         XtpMenusCreate(&app->menus, app->shell, resources->menu_locale, MenuDispatch, app);
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
+        /* As in xterm, the entry is insensitive while allowSendEvents blocks the blanket. */
+        XtpMenusSetSensitive(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
+                             !XtpVtAllowSendEvents(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS, XtpVtAllowTitleOps(app->vt));
         /* As in xterm, the entry is insensitive while allowSendEvents blocks Title Ops. */
         XtpMenusSetSensitive(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS,
@@ -1629,6 +1719,10 @@ StartChild(App *app, char **command)
 static void
 DestroyApplication(App *app)
 {
+        if (app->reap_timer != (XtIntervalId)0) {
+                XtRemoveTimeOut(app->reap_timer);
+                app->reap_timer = (XtIntervalId)0;
+        }
         if (app->pty_input != (XtInputId)0) {
                 XtRemoveInput(app->pty_input);
                 app->pty_input = (XtInputId)0;

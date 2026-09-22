@@ -408,6 +408,13 @@ key_test_tool = executable(
     install: false,
 )
 
+close_window_tool = executable(
+    'xtp-close-window',
+    'tests/xtp-close-window.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
 property_watch_tool = executable(
     'xtp-watch-properties',
     'tests/xtp-watch-properties.c',
@@ -635,6 +642,31 @@ if build_with_ghostty and xvfb.found()
         ],
         depends: [wheel_test_tool, selection_reader_tool],
         timeout: 240,
+        is_parallel: false,
+    )
+    test(
+        'xvfb-hold',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-hold.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            selection_test_tool.full_path(),
+            selection_reader_tool.full_path(),
+            close_window_tool.full_path(),
+            window_ink_test_tool.full_path(),
+            resize_test_tool.full_path(),
+            key_test_tool.full_path(),
+        ],
+        depends: [
+            selection_test_tool,
+            selection_reader_tool,
+            close_window_tool,
+            window_ink_test_tool,
+            resize_test_tool,
+            key_test_tool,
+        ],
+        timeout: 120,
         is_parallel: false,
     )
     test(
@@ -1041,8 +1073,11 @@ if build_with_ghostty and xvfb.found()
             files('tests/window-ops.py'),
             window_ops_test_tool.full_path(),
             selection_reader_tool.full_path(),
+            xwininfo.full_path(),
+            selection_owner_tool.full_path(),
         ],
-        timeout: 45,
+        depends: [selection_reader_tool, selection_owner_tool],
+        timeout: 240,
         is_parallel: false,
     )
     test(

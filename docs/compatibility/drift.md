@@ -233,8 +233,8 @@ menu toggle.
 
 `allowSendEvents` is read only at startup: the Allow SendEvents menu entry stays
 inert. Unlike xterm, Revenant accepts synthetic key and button events whatever
-its value. Title Ops also consults it (see the title stack section below). Font,
-Mouse, Tcap and Window Ops do not.
+its value. Title Ops and Window Ops also consult it (see the title stack and window
+report sections below). Font, Mouse and Tcap Ops do not.
 
 ### Major default keyboard-input drift
 
@@ -367,9 +367,9 @@ the observer's own removal note. Remaining differences from xterm:
   stays the `iconName` resource value and an icon report or icon push sees
   that value; OSC 0 updates only the title.
 - `titleModes` (hex-encoded reports, `CSI > Ps t`) is not implemented.
-- `allowSendEvents` does not disable `allowWindowOps`. In xterm it also blocks the
-  Window Ops blanket permission, leaving `disallowedWindowOps` to decide reports
-  and the stack. Revenant keeps Window Ops independent of it.
+- `allowSendEvents: true` blocks the Window Ops blanket permission, as in xterm, so
+  `disallowedWindowOps` alone decides reports and the stack (see the window report
+  section below).
 
 `allowTitleOps` defaults to true and the **Allow Title Ops** menu entry
 changes it immediately. False blocks the displayed title changes exposed by
@@ -418,6 +418,56 @@ The icon name is covered only where Revenant sets it today, on pop.
 Revenant cannot lift `allowSendEvents` while running, so that recovery is not
 exercised; the stack consumption is checked through its own log instead. Title
 reports and pushes stay under Window Ops.
+
+### XTWINOPS window reports and the Window Ops inventory
+
+**What the pinned libghostty exposes.** Compared with xterm's `tblWindowOps`:
+- **CSI 14, 16 and 18 t** (text area in pixels, cell in pixels, text area in
+  characters) reach Revenant only through the `SIZE` callback. libghostty answers
+  them only in the single-parameter form, so xterm's `CSI 14 ; 2 t` (outer window
+  size) goes unanswered. The callback does not say which report asked. Revenant's
+  existing cursor-blink control observer, which already reports XTWINOPS 20-23,
+  now also notes CSI 14/16/18 t just before libghostty sees the final byte, so each
+  report is gated separately. `SIZE` calls without such a note (mode 2048 in-band
+  reports) are not Window Ops and stay ungated.
+- **Titles and the stack** (20-23 t) go through the same observer.
+- **OSC 52 selection access** goes through the clipboard callbacks.
+- **No public hook**, and left for W2: every window manipulation (1-10: restore,
+  minimize, move, resize, raise, lower, refresh, maximize, fullscreen), the other
+  reports (11 state, 13 position, 15 and 19 screen size), 24+ (`SetWinLines`),
+  `DECCOLM` (`ColumnMode`; libghostty implements mode 3 behind mode 40 without a
+  hook), `DECRQCRA` (`GetChecksum`/`SetChecksum`), OSC 3 (`SetXprop`) and the
+  status line.
+
+**Measured against XTerm(411)** with the same requests, each followed by a status
+request:
+- **Replies:** `4;height;width` for the text area in pixels, `6;height;width` for
+  the cell, and `8;rows;columns`. The text-area reply matches the window's X size
+  minus the internal border on each side.
+- **Names and numbers:** `GetWinSizePixels` (14) and `GetWinSizeChars` (18) gate
+  their reports. CSI 16 t is gated by `GetScreenSizeChars` (19) in xterm, so a
+  list naming `16` changes nothing. Revenant reproduces both, along with
+  wildcards, `~` negation and the `allowWindowOps` blanket permission.
+- **allowSendEvents** blocks that blanket permission for every Window Ops user:
+  reports, the title stack and OSC 52. The list still decides, as with Color Ops,
+  and the Allow Window Ops menu entry is insensitive, as with Title Ops. For OSC 52,
+  with `allowWindowOps: true` and an external owner holding CLIPBOARD, both
+  terminals matched in each case:
+  - `*` refused the write and silenced the query;
+  - `GetSelection` allowed the write and silenced the query;
+  - `SetSelection` refused the write and answered the query with the owner's text.
+
+  xterm delivers that query reply asynchronously around a following status
+  request.
+- **Mode 2048** in-band reports use the same libghostty callback. Backend
+  self-tests confirm that a denied CSI 14/16/18 t never suppresses them and that
+  they never open the gate for an explicit request. That holds for consecutive and
+  split requests, and an ignored extra-parameter form leaves no pending state.
+- **Denials are silent,** split requests are handled, and replies to neighbouring
+  requests arrive in order either way.
+
+xterm's `allow-window-ops` action, which changes the configured value while the
+entry is insensitive, is not registered in Revenant.
 
 ### Synchronized output (DEC private mode 2026)
 
@@ -771,6 +821,23 @@ preserve xterm and wcwidth application arithmetic. `graphemeWidth: unicode`
 changes the initial and reset default; applications may still select or reset
 the mode explicitly.
 
+### Hold after the child exits
+
+`-hold`, `+hold` and the `hold` resource follow xterm patch 411, measured with
+isolated resources. By default the terminal exits when its child does. With hold
+set, the window stays after the child exits with any status, keeps its last
+output, including a final line without a newline, and reaps the child. It
+redraws on expose and resize and still allows selection. Key input is discarded.
+Closing the window exits the terminal with status 0, as closing it while the
+child still runs does. Neither terminal passes the child's exit status on, so the
+terminal exits with status 0 in every case above.
+
+One difference remains when the command cannot be run. xterm-411 retries a failed
+`-e` command through `$SHELL -c`, so a held window shows the shell's
+"No such file or directory" message. Revenant's child exits with status 127
+without printing anything, so the held window is empty. Revenant does not retry
+through the shell.
+
 ### Command-line diagnostics and extensions
 
 Revenant accepts only options whose effect it implements or whose behavior is
@@ -785,6 +852,8 @@ all remaining arguments for the child.
 Like xterm/Xrm, Revenant accepts an unambiguous prefix of any single-dash
 option: for example, `-geo`, `-clas`, `-h`, and `-v`. Exact options take
 precedence, while ambiguous prefixes such as `-fo` and `-bo` are rejected.
+As in xterm, `-h` and `-v` always mean `-help` and `-version`, although `-hold`
+shares the `-h` prefix; `-ho` selects `-hold`.
 The xterm-compatible informational forms are `-help` and `-version`. Revenant
 additionally accepts GNU-style `--help` and `--version`; double-dash options do
 not abbreviate. Its version line identifies the installed product and project

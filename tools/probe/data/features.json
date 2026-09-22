@@ -591,6 +591,54 @@
     "sequence": ""
   },
   {
+    "id": "policy-window-ops",
+    "title": "Complete Window Ops policy",
+    "breadcrumb": [
+      "Window and desktop",
+      "Window reports"
+    ],
+    "specifications": [
+      "xterm-manual"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "csi-14-t-pixel-size-report",
+    "title": "Report text-area / window size in pixels",
+    "breadcrumb": [
+      "Window and desktop",
+      "Window reports"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI 14 t"
+  },
+  {
+    "id": "csi-16-t-report-cell-size-in-pixels",
+    "title": "Report cell size in pixels",
+    "breadcrumb": [
+      "Window and desktop",
+      "Window reports"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI 16 t"
+  },
+  {
+    "id": "csi-18-t-text-size",
+    "title": "18 size in cells",
+    "breadcrumb": [
+      "Window and desktop",
+      "Window reports"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI 18 t"
+  },
+  {
     "id": "osc-8-hyperlinks",
     "title": "OSC 8 hyperlinks",
     "breadcrumb": [
@@ -960,6 +1008,18 @@
     ],
     "specifications": [
       "xterm-control-sequences-dcs-xtgettcap"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "startup-hold-after-exit",
+    "title": "Hold the window after child exit",
+    "breadcrumb": [
+      "Startup and process",
+      "Child exit"
+    ],
+    "specifications": [
+      "xterm-manual"
     ],
     "sequence": ""
   },

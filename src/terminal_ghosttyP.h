@@ -69,6 +69,8 @@ struct XtpTerminal
         bool reverse_colors;
         bool bold_colors;
         bool allow_color_ops;
+        /* CSI 14/16/18 t the observer saw, until libghostty asks for the size. */
+        unsigned int pending_size_report;
         bool allow_mouse_ops;
         bool allow_tcap_ops;
         XtpTcapOps tcap_ops;

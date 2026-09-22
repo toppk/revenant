@@ -198,6 +198,35 @@ XtpPtyFlush(XtpPty *pty)
         return 1;
 }
 
+int
+XtpPtyReap(XtpPty *pty, int *status)
+{
+        pid_t result;
+
+        if (pty == NULL || pty->child <= 0)
+                return -1;
+        do
+                result = waitpid(pty->child, status, WNOHANG);
+        while (result < 0 && errno == EINTR);
+        if (result == pty->child) {
+                pty->child = -1;
+                return 1;
+        }
+        return result == 0 ? 0 : -1;
+}
+
+size_t
+XtpPtyDiscard(XtpPty *pty)
+{
+        size_t dropped = pty != NULL ? pty->output_length : 0;
+
+        if (pty != NULL) {
+                pty->output_offset = 0;
+                pty->output_length = 0;
+        }
+        return dropped;
+}
+
 size_t
 XtpPtyPending(const XtpPty *pty)
 {

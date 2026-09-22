@@ -66,7 +66,7 @@ The two original structural gaps are complete:
 | `-/+ie` | `ptyInitialErase`: take erase char from the PTY | `pty.c` termios | Read `VERASE`, feed backarrow mode | READY |
 | `-/+im` | `useInsertMode`: termcap capability tweak | Only affects xterm's `TERMCAP` export | No TERMCAP export in Revenant | SKIP |
 | `-baudrate rate` | Set PTY line speed | `pty.c` termios | `cfsetspeed`; low value but trivial | READY |
-| `-/+hold` | Keep window after child exits | Event loop | Stop tearing down on `SIGCHLD`; keep rendering | READY |
+| `-/+hold` | Keep window after child exits | Event loop | At PTY EOF keep the window, reap the child and drop later input | DONE |
 | `-/+wf` | `waitForMap`: delay exec until mapped | Event loop | Defer `pty` spawn to first `MapNotify` | READY |
 | `-/+ut` | utmp/wtmp entries | None; xterm uses `utempter` | Link `libutempter`; policy and packaging decision | ROADMAP #6 |
 | `-/+mesg` | `messages`: `mesg y/n` on the PTY | `pty.c` | `chmod` slave | READY |
@@ -209,7 +209,7 @@ The two original structural gaps are complete:
    and shell identity before `XtOpenDisplay`; Xvfb tests pin resource aliases
    and the resulting WM properties.
 3. **Slice C — process options** in `pty.c`: `-ls`, `-tn`, `-tm`, `-ie`,
-   `-hold`, `-wf`, `-mesg`, `-baudrate`, `-lc`/`-lcc`. Session transcript
+   `-wf`, `-mesg`, `-baudrate`, `-lc`/`-lcc` (`-hold` is done). Session transcript
    logging (`-l`/`-lf`) is a separate TODO P1 slice shared with the menu action.
 4. **Slice D — startup application of existing menu modes**: `-rv`, `-aw`,
    `-rw`, `-132`, `-j`, `-mb`/`-nb`, `-fc`, `-sh`,

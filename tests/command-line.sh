@@ -55,6 +55,12 @@ cmp "$test_dir/self-test" "$test_dir/out"
 run 0 -h
 grep -q "^$program .* usage:\$" "$test_dir/out"
 
+run 0 -he
+grep -q "^$program .* usage:\$" "$test_dir/out"
+
+run 0 -ho -version
+cmp "$test_dir/version" "$test_dir/out"
+
 run 0 -v
 cmp "$test_dir/version" "$test_dir/out"
 

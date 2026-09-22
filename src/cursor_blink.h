@@ -33,8 +33,9 @@ typedef void (*XtpCursorBlinkResetFn)(void *closure);
 /* Called before the byte at offset changes blink_requested or resets policy. */
 typedef void (*XtpCursorBlinkBeforeChangeFn)(size_t offset, void *closure);
 
-/* Called for XTWINOPS 20-23 (CSI Ps ; ... t) that libghostty parses without
- * a public hook; parameters holds the first XTP_CSI_OBSERVED_PARAMETERS. */
+/* Called for XTWINOPS 20-23 (CSI Ps ; ... t) that libghostty parses without a public
+ * hook, and for CSI 14/16/18 t just before libghostty answers them; parameters holds
+ * the first XTP_CSI_OBSERVED_PARAMETERS. */
 #define XTP_CSI_OBSERVED_PARAMETERS 3U
 typedef void (*XtpWindowOpFn)(unsigned int op, unsigned int parameter_count,
                               const unsigned int *parameters, size_t offset, void *closure);

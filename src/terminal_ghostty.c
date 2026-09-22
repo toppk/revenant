@@ -330,6 +330,14 @@ SizeEffect(GhosttyTerminal handle, void *userdata, GhosttySizeReportSize *size)
         (void)handle;
         if (terminal == NULL || size == NULL)
                 return false;
+        if (terminal->pending_size_report != 0U) {
+                unsigned int op = terminal->pending_size_report;
+
+                terminal->pending_size_report = 0U;
+                if (terminal->effects.size_report_allowed != NULL &&
+                    !terminal->effects.size_report_allowed(op, terminal->effects.closure))
+                        return false;
+        }
         size->columns = terminal->geometry_columns;
         size->rows = terminal->geometry_rows;
         size->cell_width = terminal->geometry_cell_width;
@@ -980,6 +988,10 @@ CursorBlinkWindowOp(unsigned int op, unsigned int parameter_count, const unsigne
         XtpTerminal *terminal = feed->terminal;
 
         CursorBlinkBeforeChange(offset, closure);
+        if (op == 14U || op == 16U || op == 18U) {
+                terminal->pending_size_report = op;
+                return;
+        }
         if (terminal->effects.title_op != NULL)
                 terminal->effects.title_op(
                     (XtpTitleOp)op, parameter_count >= 2U ? parameters[1] : 0U,
@@ -1677,6 +1689,7 @@ XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
                 if (feed.written < length)
                         ghostty_terminal_vt_write(terminal->handle, bytes + feed.written,
                                                   length - feed.written);
+                terminal->pending_size_report = 0U;
                 if (SyncCursorBlinkMode(terminal) != 0)
                         XtpLog(XTP_LOG_ERROR, "terminal",
                                "cannot synchronize application cursor blink mode");

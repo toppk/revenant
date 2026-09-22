@@ -133,6 +133,18 @@
     {
       "breadcrumb": [
         "Window and desktop",
+        "Window reports"
+      ],
+      "features": [
+        "policy-window-ops",
+        "csi-14-t-pixel-size-report",
+        "csi-16-t-report-cell-size-in-pixels",
+        "csi-18-t-text-size"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Window and desktop",
         "Hyperlinks"
       ],
       "features": [
@@ -223,6 +235,15 @@
       ],
       "features": [
         "dcs-xtgettcap"
+      ]
+    },
+    {
+      "breadcrumb": [
+        "Startup and process",
+        "Child exit"
+      ],
+      "features": [
+        "startup-hold-after-exit"
       ]
     },
     {
