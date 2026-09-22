@@ -60,6 +60,26 @@ then
     exit 1
 fi
 
+grep -E -B 1 '^XTerm\*sameName:[[:space:]]+true$' "$report" | \
+    grep -q '\[compiled default\] \[supported\]'
+same_name_report=$test_dir/same-name-report
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+    "$fixture_root/run" base "$terminal" +samename \
+    -xrm 'XTerm*VT100.translations: #override <Key>F2: allow-title-ops(off)' \
+    -report-config >"$same_name_report" 2>>"$log"
+grep -E -B 1 '^XTerm\*sameName:[[:space:]]+off$' "$same_name_report" | \
+    grep -q '\[command line\] \[supported\]'
+grep -F -q '! [supported] action allow-title-ops()' "$same_name_report"
+grep -E -B 1 '^XTerm\*allowSendEvents:[[:space:]]+false$' "$report" | \
+    grep -q '\[compiled default\] \[partially supported\]'
+send_events_report=$test_dir/send-events-report
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+    "$fixture_root/run" base "$terminal" -xrm 'XTerm*allowSendEvents: true' \
+    -xrm 'XTerm*VT100.translations: #override <Key>F2: allow-color-ops(off)' \
+    -report-config >"$send_events_report" 2>>"$log"
+grep -E -q '^XTerm\*allowSendEvents:[[:space:]]+true$' "$send_events_report"
+grep -F -q '! [supported] action allow-color-ops()' "$send_events_report"
+
 term_name_report=$test_dir/term-name-report
 HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
     "$fixture_root/run" base "$terminal" -tn '' -report-config >"$term_name_report" 2>>"$log"

@@ -28,6 +28,8 @@ static void SetRenderFontAction(Widget widget, XEvent *event, String *params, Ca
 static void SetFontLineDrawingAction(Widget widget, XEvent *event, String *params,
                                      Cardinal *num_params);
 static void SetSelectAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+static void AllowTitleOpsAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+static void AllowColorOpsAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void ReportFontRoutingAction(Widget widget, XEvent *event, String *params,
                                     Cardinal *num_params);
 static void PopupMenuAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
@@ -37,6 +39,8 @@ static XtActionsRec actions[] = {
     {"larger-vt-font", LargerFontAction},
     {"smaller-vt-font", SmallerFontAction},
     {"set-render-font", SetRenderFontAction},
+    {"allow-title-ops", AllowTitleOpsAction},
+    {"allow-color-ops", AllowColorOpsAction},
     {"set-font-linedrawing", SetFontLineDrawingAction},
     {"set-select", SetSelectAction},
     {"report-font-routing", ReportFontRoutingAction},
@@ -286,6 +290,8 @@ static XtResource resources[] = {
     {"selectToClipboard", "SelectToClipboard", XtRBoolean, sizeof(Boolean),
      OFFSET(select_to_clipboard), XtRImmediate, (XtPointer)False},
     {"allowWindowOps", "AllowWindowOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_window_ops),
+     XtRImmediate, (XtPointer)False},
+    {"allowSendEvents", "AllowSendEvents", XtRBoolean, sizeof(Boolean), OFFSET(allow_send_events),
      XtRImmediate, (XtPointer)False},
     {"allowTitleOps", "AllowTitleOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_title_ops),
      XtRImmediate, (XtPointer)True},
@@ -1052,8 +1058,11 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
         XtpFontOpsParse(vt->vt.disallowed_font_ops, &vt->vt.font_ops);
         XtpColorOpsParse(vt->vt.disallowed_color_ops, &vt->vt.color_ops);
         XtpLog(XTP_LOG_INFO, "terminal",
-               "color-ops resources allowColorOps=%s disallowedColorOps=%s unconsulted-entries=%u",
+               "color-ops resources allowColorOps=%s allowSendEvents=%s effective=%s "
+               "disallowedColorOps=%s unconsulted-entries=%u",
                vt->vt.allow_color_ops ? "true" : "false",
+               vt->vt.allow_send_events ? "true" : "false",
+               vt->vt.allow_color_ops && !vt->vt.allow_send_events ? "true" : "false",
                vt->vt.disallowed_color_ops != NULL ? vt->vt.disallowed_color_ops : "(unset)",
                vt->vt.color_ops.ignored_entries);
         XtpWindowOpsParse(vt->vt.disallowed_window_ops, &vt->vt.window_ops);
@@ -1556,6 +1565,68 @@ ParseToggleParam(Boolean current, String *params, Cardinal num_params, Boolean *
         return False;
 }
 
+typedef enum
+{
+        VT_TOGGLE_INVALID,
+        VT_TOGGLE_FLIP,
+        VT_TOGGLE_ON,
+        VT_TOGGLE_OFF,
+} VtToggle;
+
+/* xterm's decodeToggle: no argument or "toggle" flips; "on"/"off" ignore case. */
+static VtToggle
+DecodeXtermToggle(String *params, Cardinal num_params)
+{
+        if (num_params == 0 || (num_params == 1 && strcasecmp(params[0], "toggle") == 0))
+                return VT_TOGGLE_FLIP;
+        if (num_params == 1 && strcasecmp(params[0], "on") == 0)
+                return VT_TOGGLE_ON;
+        if (num_params == 1 && strcasecmp(params[0], "off") == 0)
+                return VT_TOGGLE_OFF;
+        return VT_TOGGLE_INVALID;
+}
+
+/* xterm's handle_toggle: acts on the configured flag; invalid or redundant requests ring. */
+static Boolean
+ToggleRequested(Widget widget, Boolean current, String *params, Cardinal num_params,
+                const char *subsystem, const char *action, const char *resource)
+{
+        VtToggle toggle = DecodeXtermToggle(params, num_params);
+
+        if (toggle == VT_TOGGLE_INVALID || (toggle == VT_TOGGLE_ON && current) ||
+            (toggle == VT_TOGGLE_OFF && !current)) {
+                XtpLog(XTP_LOG_INFO, subsystem, "%s left %s=%s", action, resource,
+                       current ? "true" : "false");
+                XBell(XtDisplay(widget), 0);
+                return False;
+        }
+        return True;
+}
+
+static void
+AllowTitleOpsAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
+{
+        Boolean current = XtpVtAllowTitleOps(widget);
+
+        if (!VtAcceptLocalKeyAction(VtAsRecord(widget), event, XTP_LOCAL_ACTION_ALLOW_TITLE_OPS))
+                return;
+        if (ToggleRequested(widget, current, params, *num_params, "shell", "allow-title-ops",
+                            "allowTitleOps"))
+                XtpVtSetAllowTitleOps(widget, !current);
+}
+
+static void
+AllowColorOpsAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
+{
+        Boolean current = XtpVtAllowColorOps(widget);
+
+        if (!VtAcceptLocalKeyAction(VtAsRecord(widget), event, XTP_LOCAL_ACTION_ALLOW_COLOR_OPS))
+                return;
+        if (ToggleRequested(widget, current, params, *num_params, "terminal", "allow-color-ops",
+                            "allowColorOps"))
+                XtpVtSetAllowColorOps(widget, !current);
+}
+
 static void
 SetRenderFontAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
 {
@@ -1933,18 +2004,49 @@ XtpVtAllowColorOps(Widget widget)
         return VtAsRecord(widget)->vt.allow_color_ops;
 }
 
+Boolean
+XtpVtAllowSendEvents(Widget widget)
+{
+        return VtAsRecord(widget)->vt.allow_send_events;
+}
+
+/* xterm's AllowXtermOps: allowSendEvents blocks the blanket permission, not the exceptions. */
+Boolean
+XtpVtEffectiveAllowColorOps(Widget widget)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        return vt->vt.allow_color_ops && !vt->vt.allow_send_events;
+}
+
 void
 XtpVtSetAllowColorOps(Widget widget, Boolean enabled)
 {
-        VtAsRecord(widget)->vt.allow_color_ops = enabled ? True : False;
-        XtpLog(XTP_LOG_INFO, "terminal", "allowColorOps=%s", enabled ? "true" : "false");
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        vt->vt.allow_color_ops = enabled ? True : False;
+        XtpLog(XTP_LOG_INFO, "terminal", "allowColorOps=%s effective=%s",
+               enabled ? "true" : "false", XtpVtEffectiveAllowColorOps(widget) ? "true" : "false");
+        if (vt->vt.terminal != NULL)
+                XtpTerminalSetColorOpsPolicy(vt->vt.terminal, XtpVtEffectiveAllowColorOps(widget),
+                                             &vt->vt.color_ops);
+}
+
+/* xterm's AllowTitleOps has no exceptions: allowSendEvents blocks every label change. */
+Boolean
+XtpVtEffectiveAllowTitleOps(Widget widget)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        return vt->vt.allow_title_ops && !vt->vt.allow_send_events;
 }
 
 void
 XtpVtSetAllowTitleOps(Widget widget, Boolean enabled)
 {
         VtAsRecord(widget)->vt.allow_title_ops = enabled ? True : False;
-        XtpLog(XTP_LOG_INFO, "shell", "allowTitleOps=%s", enabled ? "true" : "false");
+        XtpLog(XTP_LOG_INFO, "shell", "allowTitleOps=%s effective=%s", enabled ? "true" : "false",
+               XtpVtEffectiveAllowTitleOps(widget) ? "true" : "false");
 }
 
 void

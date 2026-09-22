@@ -130,6 +130,48 @@ reports insufficient evidence when fewer than two complete lines arrive. Whether
 the ends are where the drag began and ended, and whether the highlight followed the
 pointer, is your judgement.
 
+`just probe policy-color-ops-send-events colors-dynamic-policy` names the startup
+resources that decide Color Ops (`allowColorOps`, `allowSendEvents`,
+`disallowedColorOps`). It then queries the default foreground and palette color 1
+at startup, after a write, and after you turn Allow Color Ops off and on again.
+Each query is followed by a status request, and the probe reports what came back:
+- a valid reply;
+- silence, when only the status request was answered;
+- unexpected bytes, such as a reply for another color or a malformed one, which are
+  shown rather than counted as silence;
+- a reply without the status reply;
+- a timeout, when nothing came back.
+
+Before changing the foreground it explains the cleanup limit. On exit, q/Esc
+included, it requests the original foreground back if the startup query read it;
+otherwise it can only request a reset to the configured default (OSC 110). Both
+are refused while SetColor is denied, so run it in a disposable terminal and close
+that terminal afterwards. Exact bytes and pixels are checked
+by `tests/xvfb-color-ops.sh`.
+
+`just probe action-allow-title-ops titles-policy` saves the labels, then asks you
+to turn Title Ops off and on, with the `allow-title-ops` action or the menu,
+between titled steps. Before any change it names the startup settings that decide
+labels (`allowTitleOps`, `allowSendEvents`) and those that decide reports and the
+stack (Window Ops). After each step it reports the window label, including an empty
+one. It then says only what it observed: the reported label matches or differs
+from the requested one, or no report arrived. A missing report is not explained,
+because the query may be refused, unsupported or slow. `just probe policy-title-ops-send-events titles-policy` runs the same case
+for the `allowSendEvents` scenarios. With `allowSendEvents` true, labels never
+change, the menu entry is greyed, and the action still changes the configured
+value. `just probe
+resource-same-name titles-same-name` sends repeated and changed labels in groups and
+shows the `xprop -spy` command to watch them from outside. Both are human-guided.
+
+Both cases request a push of the labels at the start and a pop on exit, including
+q/Esc, and say so before changing any label. Neither is guaranteed: both are Window
+Ops stack operations. The pop restores the labels only if those operations are
+permitted and Title Ops is effective, meaning `allowTitleOps` is on and
+`allowSendEvents` is false. Turning Allow Title Ops on cannot restore anything while
+`allowSendEvents` is true. Run the cases in a disposable terminal. Exact property-notification counts and
+the action's argument handling are checked by `tests/xvfb-title-ops.sh`, which
+counts `PropertyNotify` events with an external observer.
+
 `just probe text-shaping text-contrast` prints the corpus of the
 [linear-light study](../maintainers/linear-light-study.md): ordinary text,
 combining marks, the italic face and a fitted text-presentation 🛠, first dark on

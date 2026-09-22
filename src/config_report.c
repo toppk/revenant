@@ -864,7 +864,8 @@ KnownTranslationAction(const char *action)
                strcmp(action, "select-start") == 0 || strcmp(action, "select-extend") == 0 ||
                strcmp(action, "select-end") == 0 || strcmp(action, "start-extend") == 0 ||
                strcmp(action, "insert-selection") == 0 || strcmp(action, "mouse-press") == 0 ||
-               strcmp(action, "mouse-motion") == 0;
+               strcmp(action, "mouse-motion") == 0 || strcmp(action, "allow-title-ops") == 0 ||
+               strcmp(action, "allow-color-ops") == 0;
 }
 
 static bool
@@ -1016,7 +1017,8 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
         if (entry->scope == XTP_RESOURCE_APPLICATION) {
                 if (strcmp(name, "title") == 0 || strcmp(name, "iconName") == 0 ||
                     strcmp(name, "iconGeometry") == 0 || strcmp(name, "menuLocale") == 0 ||
-                    strcmp(name, "termName") == 0 || strcmp(name, "pipeCommandOutput") == 0)
+                    strcmp(name, "termName") == 0 || strcmp(name, "pipeCommandOutput") == 0 ||
+                    strcmp(name, "sameName") == 0)
                         return "supported";
                 return "unsupported";
         }
@@ -1050,7 +1052,7 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "allowTitleOps") == 0 || strcmp(name, "allowWindowOps") == 0 ||
             strcmp(name, "allowMouseOps") == 0 || strcmp(name, "allowTcapOps") == 0 ||
             strcmp(name, "disallowedTcapOps") == 0 || strcmp(name, "disallowedWindowOps") == 0 ||
-            strcmp(name, "maxStringParse") == 0)
+            strcmp(name, "maxStringParse") == 0 || strcmp(name, "allowSendEvents") == 0)
                 return "partially supported";
         if (strcmp(name, "allowFontOps") == 0 || strcmp(name, "disallowedFontOps") == 0 ||
             strncmp(name, "color", 5) == 0 || strcmp(name, "pointerColor") == 0 ||
@@ -1476,7 +1478,9 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             {"xterm.logLevel", "XTerm.LogLevel", "warning"},
             {"xterm.debug", "XTerm.Debug", "false"},
             {"xterm.vt100.allowTitleOps", "XTerm.VT100.AllowTitleOps", "true"},
+            {"xterm.sameName", "XTerm.SameName", "true"},
             {"xterm.vt100.allowColorOps", "XTerm.VT100.AllowColorOps", "true"},
+            {"xterm.vt100.allowSendEvents", "XTerm.VT100.AllowSendEvents", "false"},
             {"xterm.vt100.disallowedColorOps", "XTerm.VT100.DisallowedColorOps",
              "SetColor,GetColor,GetAnsiColor"},
             {"xterm.vt100.allowMouseOps", "XTerm.VT100.AllowMouseOps", "true"},
@@ -1500,7 +1504,9 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "XTerm*logLevel",
             "XTerm*debug",
             "XTerm*allowTitleOps",
+            "XTerm*sameName",
             "XTerm*allowColorOps",
+            "XTerm*allowSendEvents",
             "XTerm*disallowedColorOps",
             "XTerm*allowMouseOps",
             "XTerm*allowTcapOps",
@@ -1522,9 +1528,13 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "Largest control string accepted; only enforced for OSC 52 selection writes.",
             "Minimum diagnostic severity: debug, info, warning, or error.",
             "Legacy Boolean alias used only when logLevel is unset.",
-            "Permit application title changes and applying saved labels on pop; live menu toggle.",
-            "Permit every color operation; live toggle. False applies disallowedColorOps.",
-            "Color operations refused unless allowColorOps is true.",
+            "Permit title changes and saved-label pops unless allowSendEvents; menu, "
+            "allow-title-ops.",
+            "Skip title/icon updates that repeat the last requested label.",
+            "Configured blanket permission, effective only while allowSendEvents is false; "
+            "otherwise disallowedColorOps decides. Live menu and allow-color-ops.",
+            "True blocks Title Ops and the Color Ops blanket; synthetic events stay accepted.",
+            "Refused unless allowColorOps is true and allowSendEvents is false.",
             "Permit mouse and focus reports; live toggle. Named deny-list exceptions pending.",
             "Permit capability operations; live toggle currently gates XTGETTCAP replies only.",
             "GetTcap gates capability replies when allowTcapOps is false; SetTcap pending.",
@@ -1544,6 +1554,8 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "partially supported",
             "partially supported",
             "supported",
+            "supported",
+            "partially supported",
             "supported",
             "partially supported",
             "partially supported",

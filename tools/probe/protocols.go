@@ -383,6 +383,96 @@ func titles(s *Session) {
 		s.pause()
 	}
 }
+
+// Saves both labels, reports the window label after each request, and restores on exit.
+// Reports the window label; ok is false when no report arrived (an empty title is a reply).
+func titlePolicyReport(s *Session) (label string, ok bool) {
+	raw := s.query("Label l", esc+"[21t", oscPattern("l"))
+	if raw == nil {
+		s.say("No title report arrived; CSI 21 t may be refused (Window Ops), unsupported or slow.")
+		return "", false
+	}
+	label = oscBody(raw, "l")
+	s.say("Window label now %q.", label)
+	return label, true
+}
+
+// Explains the cleanup limit before any label changes, then requests a save of both labels.
+func titlePolicySave(s *Session) {
+	s.say("This case now requests a push of both labels (CSI 22 t) and, on exit including q/Esc,")
+	s.say("a pop (CSI 23 t). Either may be refused: they are Window Ops stack operations. The pop")
+	s.say("restores the labels only if the stack operations are permitted and Title Ops is")
+	s.say("effective (allowTitleOps on and allowSendEvents false); turning Allow Title Ops on")
+	s.say("cannot help while allowSendEvents is true. Otherwise the changed labels stay: use a")
+	s.say("disposable terminal.")
+	s.send(esc + "[22;0t")
+	s.cleanup(func() {
+		s.send(esc + "[23;0t")
+		s.say("Requested a pop of the saved labels. It restores them only if the stack operations")
+		s.say("were permitted and Title Ops is effective; this case cannot confirm either.")
+	})
+}
+func titlePolicy(s *Session) {
+	titlePolicySave(s)
+	s.say("Startup settings that decide labels: allowTitleOps and allowSendEvents. Reports")
+	s.say("and the title stack are Window Ops (allowWindowOps, disallowedWindowOps) instead.")
+	s.say("Configured versus effective: the menu check mark and the allow-title-ops action")
+	s.say("show and change the configured allowTitleOps. Labels change only while it is on and")
+	s.say("allowSendEvents is false. With allowSendEvents true, xterm greys the menu entry; the")
+	s.say("action still changes the configured value (a redundant on/off rings the bell), but no")
+	s.say("label changes, and a pop consumes a saved entry without restoring it.")
+	s.say("Bind the action to try it, for example:")
+	s.say("  -xrm 'XTerm*VT100.translations: #override Ctrl<Key>F2: allow-title-ops(off)\\n Ctrl<Key>F3: allow-title-ops(on)'")
+	steps := []struct{ label, ask string }{
+		{"probe policy start", "Title Ops as configured at startup."},
+		{"probe policy off", "Now turn Title Ops off (allow-title-ops(off) or the menu), then continue. The label should not change."},
+		{"probe policy on", "Now turn Title Ops on again, then continue. The label should change unless allowSendEvents is true."},
+		{"probe policy redundant", "Invoke allow-title-ops(on) while it is on: xterm rings the bell and changes nothing. Then continue."},
+	}
+	for index, step := range steps {
+		if index > 0 {
+			s.say("%s", step.ask)
+			s.pause()
+		} else {
+			s.say("%s", step.ask)
+		}
+		s.osc(2, step.label)
+		s.say("Requested %q.", step.label)
+		switch label, ok := titlePolicyReport(s); {
+		case !ok:
+			s.say("Observed: no report, so the reported label cannot be compared.")
+		case label == step.label:
+			s.say("Observed: the reported label matches the requested one.")
+		default:
+			s.say("Observed: the reported label %q differs from the requested %q.", label, step.label)
+		}
+	}
+	s.say("Property changes are measured externally by tests/xvfb-title-ops.sh.")
+	s.pause()
+}
+func titleSameName(s *Session) {
+	titlePolicySave(s)
+	s.say("Count WM_NAME changes from another terminal while this runs:")
+	s.say("  xprop -spy -id \"$WINDOWID\" WM_NAME   (xterm sets WINDOWID; otherwise use xwininfo)")
+	s.say("Space/Enter sends each group.")
+	for _, group := range []struct {
+		labels []string
+		expect string
+	}{
+		{[]string{"probe same A", "probe same A"}, "sameName on (the default): one change; off: two."},
+		{[]string{"probe same B", "probe same B", "probe same C"}, "on: two changes; off: three."},
+	} {
+		s.pause()
+		for _, label := range group.labels {
+			s.osc(2, label)
+		}
+		s.say("Sent %q. Expected: %s", group.labels, group.expect)
+		titlePolicyReport(s)
+	}
+	s.say("A label changed by another client is not rewritten by a repeated request while sameName is on.")
+	s.say("Exact counts come from tests/xvfb-title-ops.sh, which observes PropertyNotify events.")
+	s.pause()
+}
 func font(s *Session) {
 	if s.result.Case == "font set" {
 		if s.opts.Font == "" {

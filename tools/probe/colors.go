@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Palette struct {
@@ -124,6 +126,95 @@ func dynamicColors(s *Session) {
 		sample()
 		s.pause()
 	}
+}
+
+// Sends REQUEST and a status request, then classifies everything that came back:
+// the expected color reply, the status reply, and any other bytes, reported separately.
+func colorPolicyQuery(s *Session, label, request, prefix string) string {
+	querying := s.querying
+	s.querying = true
+	defer func() { s.querying = querying; s.navPending = nil; s.navEscape = time.Time{} }()
+	ack := []byte(esc + "[0n")
+	request += esc + "[5n"
+	s.event("request", []byte(request))
+	s.send(request)
+	reply := []byte{}
+	deadline := time.Now().Add(seconds(s.opts.Timeout))
+	for time.Now().Before(deadline) && len(reply) < maxReply && !bytes.Contains(reply, ack) {
+		data := s.read(minTime(deadline, time.Now().Add(100*time.Millisecond)))
+		s.event("received", data)
+		reply = append(reply, data...)
+	}
+	acked := bytes.Contains(reply, ack)
+	rest := bytes.Replace(reply, ack, nil, 1)
+	color := regexp.MustCompile("\x1b\\]" + regexp.QuoteMeta(prefix) +
+		"rgb:[0-9a-fA-F]{1,4}/[0-9a-fA-F]{1,4}/[0-9a-fA-F]{1,4}(?:\x07|\x1b\\\\)")
+	found := color.Find(rest)
+	if found != nil {
+		rest = bytes.Replace(rest, found, nil, 1)
+	}
+	switch {
+	case len(reply) == 0:
+		s.say("%s: timeout, no reply and no status reply.", label)
+	case len(rest) > 0 && acked:
+		s.say("%s: unexpected bytes %q with the status reply; not a valid %sreply.", label, reply, prefix)
+	case len(rest) > 0:
+		s.say("%s: unexpected bytes %q and no status reply.", label, reply)
+	case found != nil && acked:
+		s.say("%s: reply %q", label, found)
+		return string(found)
+	case found != nil:
+		s.say("%s: reply %q without the status reply; the status request was not answered.", label, found)
+		return string(found)
+	default:
+		s.say("%s: silence (the terminal answered the status request, not the query).", label)
+	}
+	return ""
+}
+func colorsDynamicPolicy(s *Session) {
+	s.say("Startup resources decide this case: allowColorOps, allowSendEvents, disallowedColorOps.")
+	s.say("xterm blocks the blanket permission while allowSendEvents is true; operations missing")
+	s.say("from disallowedColorOps are still allowed. Compare in a disposable terminal, e.g.:")
+	s.say("  xterm -xrm 'XTerm*allowSendEvents: true' -xrm 'XTerm*disallowedColorOps: GetColor'")
+	s.say("")
+	s.say("This case changes the default foreground. On exit, including q/Esc, it requests the")
+	s.say("original foreground back if the startup query read it; otherwise it can only request")
+	s.say("a reset to the configured default (OSC 110). Both are refused while SetColor is")
+	s.say("denied, so the change can outlive the case: close the disposable terminal then.")
+	query := func(stage string) string {
+		fg := colorPolicyQuery(s, stage+" OSC 10", esc+"]10;?"+s.terminator(), "10;")
+		colorPolicyQuery(s, stage+" OSC 4;1", esc+"]4;1;?"+s.terminator(), "4;1;")
+		return fg
+	}
+	original := query("Startup:")
+	restore := ""
+	if original != "" {
+		restore = strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(original, esc+"]10;"), st), "\a")
+	}
+	s.cleanup(func() {
+		if restore != "" {
+			s.osc(10, restore)
+			s.say("Requested the original foreground %s back; applied only if SetColor is allowed.", restore)
+		} else {
+			s.resetColor(10)
+			s.say("Requested a reset to the configured default foreground (OSC 110), since the original")
+			s.say("was unreadable; applied only if SetColor is allowed.")
+		}
+	})
+	s.osc(10, "#ffe080")
+	s.say("Requested foreground #ffe080 (SetColor); this line shows whether it applied.")
+	query("After the write:")
+	s.say("Now turn Allow Color Ops off (menu, or bind allow-color-ops(off)) and continue.")
+	s.pause()
+	s.osc(10, "#60c0ff")
+	s.say("Requested foreground #60c0ff; with the blanket permission off, SetColor decides.")
+	query("Allow Color Ops off:")
+	s.say("Turn Allow Color Ops on again and continue. With allowSendEvents true the menu and")
+	s.say("action still change the setting, but the blanket permission stays blocked.")
+	s.pause()
+	query("Allow Color Ops on:")
+	s.say("The source tree checks exact bytes and pixels in tests/xvfb-color-ops.sh.")
+	s.pause()
 }
 func scheme(s *Session) {
 	raw := s.query("Color scheme", esc+"[?996n", "\x1b\\[\\?997;[12]n")

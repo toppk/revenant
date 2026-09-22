@@ -165,7 +165,7 @@ list parser. GetTcap suppresses generated XTGETTCAP replies; it does not
 change the capability database. `termName` (`-tn`) supplies both the child's
 `TERM` and the `TN` reply, so they cannot disagree. XTSETTCAP remains
 unimplemented. `allowSendEvents` does not override these
-permissions.
+permissions; so far it affects only Color Ops.
 
 `allowFontOps` (true) and `disallowedFontOps` (`SetFont,GetFont`) are accepted
 preparation with no font-changing effect. The menu remains disabled until an
@@ -198,10 +198,43 @@ list's successive selectors stay aligned, and replies to denied queries and to
 those substitutes are dropped, so permitted items in the same list still take
 effect as in xterm and nothing denied is ever painted or reported. A public
 libghostty color-policy hook is an upstream API ask, and the observer
-extension should be removed when one exists. Remaining differences: `allowSendEvents` does not
-override the permission, libghostty's Kitty OSC 21 colors are not covered,
-and under DECSCNM libghostty addresses the normal colors, so OSC 10 changes
-what is shown as the background where xterm changes the visible foreground.
+extension should be removed when one exists. Remaining differences: libghostty's
+Kitty OSC 21 colors are not covered, and under DECSCNM libghostty addresses the
+normal colors, so OSC 10 changes what is shown as the background where xterm
+changes the visible foreground.
+
+`allowSendEvents` (default false) interacts with Color Ops as it does in xterm:
+- **Blanket permission:** it applies only while `allowColorOps` is true and
+  `allowSendEvents` is false.
+- **What is refused:** `disallowedColorOps` still selects each refusal. With an
+  empty list every operation stays allowed; with `GetColor` only the dynamic-color
+  queries go silent. Palette writes (OSC 4 sets, including inside a mixed list) are
+  never gated.
+- **Live changes:** the Allow Color Ops menu entry stays sensitive. The entry and
+  the new `allow-color-ops(on|off|toggle)` action change the configured value, and
+  the check mark shows it. While `allowSendEvents` is true the blanket permission
+  stays blocked whatever that value is. Arguments and bells behave as for
+  `allow-title-ops`.
+
+Measured under Xvfb against XTerm(411), with the same requests, the default
+exceptions, an empty list, `GetColor` only and `SetColor` only, both
+implementations matched across all sixteen startup combinations. The comparison
+covered:
+- exact replies and silences;
+- pixel-verified background and palette writes;
+- mixed lists. The OSC 10 write inside an `OSC 10;#aabbcc;?` request is applied
+  exactly when SetColor is allowed, whatever GetColor allows. xterm was checked by
+  querying after re-enabling the permission, because its reverse-video
+  default-colored cells keep the previous foreground.
+
+The live sequences also matched: every `allow-color-ops` argument form (none,
+`toggle`, `on`, `off`, `ON`, `OFF`, `true`, a bogus word, two arguments) and the
+menu toggle.
+
+`allowSendEvents` is read only at startup: the Allow SendEvents menu entry stays
+inert. Unlike xterm, Revenant accepts synthetic key and button events whatever
+its value. Title Ops also consults it (see the title stack section below). Font,
+Mouse, Tcap and Window Ops do not.
 
 ### Major default keyboard-input drift
 
@@ -334,7 +367,9 @@ the observer's own removal note. Remaining differences from xterm:
   stays the `iconName` resource value and an icon report or icon push sees
   that value; OSC 0 updates only the title.
 - `titleModes` (hex-encoded reports, `CSI > Ps t`) is not implemented.
-- `allowSendEvents` does not disable `allowWindowOps` or `allowTitleOps`.
+- `allowSendEvents` does not disable `allowWindowOps`. In xterm it also blocks the
+  Window Ops blanket permission, leaving `disallowedWindowOps` to decide reports
+  and the stack. Revenant keeps Window Ops independent of it.
 
 `allowTitleOps` defaults to true and the **Allow Title Ops** menu entry
 changes it immediately. False blocks the displayed title changes exposed by
@@ -342,6 +377,47 @@ libghostty and applying saved labels on pop. A permitted pop still consumes
 its stack entry, matching xterm. Reports and pushes remain governed by Window
 Ops, independently of this setting. The OSC 1/OSC 0 icon limitation above
 also applies when Title Ops is enabled.
+
+The `allow-title-ops` action changes the same live state that the menu entry
+shows. Its arguments behave as XTerm(411)'s, measured with the same key bindings:
+
+- **Change the state:** no argument or `toggle` flips it; `on` and `off` set it
+  and ignore case.
+- **Bell, no change:** `on` while on, `off` while off, any other word (including
+  `true`), or more than one argument.
+
+xterm's error bell also marks the window urgent under `bellIsUrgent`. Revenant's
+is a plain `XBell`, like its other actions' errors.
+
+`sameName` (default true; `-samename`/`+samename`) skips a title or icon-name
+write that repeats the label last requested, as xterm does. Under Xvfb, counting
+`WM_NAME` and `WM_ICON_NAME` notifications externally, Revenant matched
+XTerm(411) exactly:
+
+- **Repeated labels:** titles A, A, B, B cause two notifications with sameName on
+  and four with it off.
+- **Comparison with the last request:** the comparison is with the last request,
+  not the live property. After another client changes `WM_NAME`, resending the
+  previous title leaves the other client's value, as in xterm.
+- **Title stack:** a pop whose label equals the current one writes nothing. It
+  still consumes its entry, so the next pop restores the entry beneath it.
+
+The icon name is covered only where Revenant sets it today, on pop.
+
+`allowSendEvents: true` blocks Title Ops completely. Measured against XTerm(411):
+- **No exceptions:** no title or icon label changes with `allowTitleOps` true or
+  false.
+- **Action:** `allow-title-ops` still changes the configured value, with the same
+  arguments and bells. The effective permission stays denied.
+- **Menu:** unlike Allow Color Ops, the Allow Title Ops menu entry is insensitive,
+  so a click changes nothing. Its check mark shows the configured value.
+- **Stack pops** still consume their entries while restoration is refused. In
+  xterm, two pushes and a blocked pop, followed by `allow-send-events(off)`, left
+  one entry, which the next pop restored.
+
+Revenant cannot lift `allowSendEvents` while running, so that recovery is not
+exercised; the stack consumption is checked through its own log instead. Title
+reports and pushes stay under Window Ops.
 
 ### Synchronized output (DEC private mode 2026)
 

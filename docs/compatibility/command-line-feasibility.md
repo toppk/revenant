@@ -74,7 +74,7 @@ The two original structural gaps are complete:
 | `-C` | Intercept console messages (`TIOCCONS`) | `pty.c` | Root-only, distro-disabled | SKIP |
 | `-into windowId` | Reparent into a foreign window | `XReparentWindow` after realize | Small Xlib change; used by tabbed | READY |
 | `-/+sm` | Session management | `XtSessionConnect` | Xt SM support; modest, low demand | ROADMAP #6 |
-| `-/+samename` | Skip redundant title/icon updates | Title callback | Compare before `XtSetValues` | READY |
+| `-/+samename` | Skip redundant title/icon updates | Title callback | Compare before `XtSetValues` | DONE |
 | `-ziconbeep percent` | Beep and mark icon on hidden output | Bell + `XUrgencyHint` while unmapped | Pair with `bellIsUrgent` work | READY |
 
 ## Window, geometry, and appearance

@@ -103,6 +103,8 @@ typedef enum
         XTP_LOCAL_ACTION_PIPE_OUTPUT,
         XTP_LOCAL_ACTION_FONT_LINEDRAWING,
         XTP_LOCAL_ACTION_START_SEARCH,
+        XTP_LOCAL_ACTION_ALLOW_TITLE_OPS,
+        XTP_LOCAL_ACTION_ALLOW_COLOR_OPS,
 } LocalKeyAction;
 
 typedef struct
@@ -257,6 +259,7 @@ typedef struct
         Boolean disowning_selections;
         Boolean allow_window_ops;
         Boolean allow_title_ops;
+        Boolean allow_send_events;
         Boolean allow_color_ops;
         Boolean allow_font_ops;
         String disallowed_font_ops;

@@ -90,7 +90,8 @@
         "osc-104-palette-reset",
         "csi-996-n-color-scheme-query",
         "osc-50-font-query",
-        "osc-50-font-set"
+        "osc-50-font-set",
+        "policy-color-ops-send-events"
       ]
     },
     {
@@ -123,7 +124,10 @@
         "csi-20-t-report-icon-label",
         "csi-21-t-title-report",
         "csi-22-t-push-title",
-        "csi-23-t-pop"
+        "csi-23-t-pop",
+        "action-allow-title-ops",
+        "resource-same-name",
+        "policy-title-ops-send-events"
       ]
     },
     {

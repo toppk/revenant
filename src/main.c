@@ -53,6 +53,7 @@ typedef struct
         Boolean running;
         XtpTitleStack title_stack;
         const char *term_name;
+        Boolean same_name;
         /* Last validated OSC 7 directory for future consumers; NULL when unknown. */
         char *working_directory;
         char hostname[256];
@@ -95,6 +96,7 @@ typedef struct
         String log_level;
         Boolean debug;
         Boolean report_config;
+        Boolean same_name;
 } AppResources;
 
 static XtResource application_resources[] = {
@@ -151,6 +153,15 @@ static XtResource application_resources[] = {
         XtOffsetOf(AppResources, report_config),
         XtRImmediate,
         (XtPointer)False,
+    },
+    {
+        "sameName",
+        "SameName",
+        XtRBoolean,
+        sizeof(Boolean),
+        XtOffsetOf(AppResources, same_name),
+        XtRImmediate,
+        (XtPointer)True,
     },
 };
 
@@ -542,14 +553,32 @@ TerminalClipboardRead(XtpClipboardTarget target, uint8_t **bytes, size_t *length
         return result;
 }
 
+/* xterm's sameName compares with the shell's last request, not the live property. */
+static Boolean
+ShellLabelUnchanged(App *app, const char *resource, const char *value)
+{
+        String current = NULL;
+
+        if (!app->same_name)
+                return False;
+        XtVaGetValues(app->shell, resource, &current, NULL);
+        if (current == NULL || strcmp(current, value) != 0)
+                return False;
+        XtpLog(XTP_LOG_INFO, "shell", "%s unchanged; sameName skipped the update", resource);
+        return True;
+}
+
 static void
 TerminalTitle(const char *title, size_t length, void *closure)
 {
         App *app = closure;
         char *value;
 
-        if (!XtpVtAllowTitleOps(app->vt)) {
-                XtpLog(XTP_LOG_INFO, "shell", "title change denied by allowTitleOps");
+        if (!XtpVtEffectiveAllowTitleOps(app->vt)) {
+                XtpLog(XTP_LOG_INFO, "shell",
+                       "title change denied allowTitleOps=%s allowSendEvents=%s",
+                       XtpVtAllowTitleOps(app->vt) ? "true" : "false",
+                       XtpVtAllowSendEvents(app->vt) ? "true" : "false");
                 return;
         }
         value = malloc(length + 1U);
@@ -557,8 +586,10 @@ TerminalTitle(const char *title, size_t length, void *closure)
                 return;
         memcpy(value, title, length);
         value[length] = '\0';
-        XtVaSetValues(app->shell, XtNtitle, value, NULL);
-        XtpLogBytePreview(XTP_LOG_INFO, "shell", "title changed", title, length);
+        if (!ShellLabelUnchanged(app, XtNtitle, value)) {
+                XtVaSetValues(app->shell, XtNtitle, value, NULL);
+                XtpLogBytePreview(XTP_LOG_INFO, "shell", "title changed", title, length);
+        }
         free(value);
 }
 
@@ -849,11 +880,15 @@ ShellLabel(App *app, const char *resource)
 static void
 SetShellLabel(App *app, const char *resource, const char *value)
 {
-        if (!XtpVtAllowTitleOps(app->vt)) {
-                XtpLog(XTP_LOG_INFO, "shell", "title restoration denied by allowTitleOps");
+        if (!XtpVtEffectiveAllowTitleOps(app->vt)) {
+                XtpLog(XTP_LOG_INFO, "shell",
+                       "title restoration denied allowTitleOps=%s allowSendEvents=%s",
+                       XtpVtAllowTitleOps(app->vt) ? "true" : "false",
+                       XtpVtAllowSendEvents(app->vt) ? "true" : "false");
                 return;
         }
-        XtVaSetValues(app->shell, resource, value, NULL);
+        if (!ShellLabelUnchanged(app, resource, value))
+                XtVaSetValues(app->shell, resource, value, NULL);
         if (strcmp(resource, XtNtitle) == 0 &&
             XtpTerminalSetTitle(app->terminal, value, strlen(value)) != 0)
                 XtpLog(XTP_LOG_ERROR, "shell", "cannot restore backend title");
@@ -983,7 +1018,7 @@ ApplyTerminalEffects(App *app)
         XtpTerminalSetAllowMouseOps(app->terminal, XtpVtAllowMouseOps(app->vt));
         XtpTerminalSetTcapOpsPolicy(app->terminal, XtpVtAllowTcapOps(app->vt),
                                     XtpVtTcapOps(app->vt));
-        XtpTerminalSetColorOpsPolicy(app->terminal, XtpVtAllowColorOps(app->vt),
+        XtpTerminalSetColorOpsPolicy(app->terminal, XtpVtEffectiveAllowColorOps(app->vt),
                                      XtpVtColorOps(app->vt));
 }
 
@@ -1054,6 +1089,9 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS, XtpVtAllowTitleOps(app->vt));
+        /* As in xterm, the entry is insensitive while allowSendEvents blocks Title Ops. */
+        XtpMenusSetSensitive(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS,
+                             !XtpVtAllowSendEvents(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_COLOR_OPS, XtpVtAllowColorOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_FONT_OPS, XtpVtAllowFontOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TCAP_OPS, XtpVtAllowTcapOps(app->vt));
@@ -1202,9 +1240,8 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
                 XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowFontOps(app->vt));
                 return;
         case XTP_MENU_ITEM_ALLOW_COLOR_OPS:
+                /* Toggles the configured flag; allowSendEvents may still block the effect. */
                 XtpVtSetAllowColorOps(app->vt, !XtpVtAllowColorOps(app->vt));
-                XtpTerminalSetColorOpsPolicy(app->terminal, XtpVtAllowColorOps(app->vt),
-                                             XtpVtColorOps(app->vt));
                 XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowColorOps(app->vt));
                 return;
         case XTP_MENU_ITEM_RENDER_FONT:
@@ -1501,6 +1538,8 @@ WireApplication(App *app, const AppResources *resources)
                              ? resources->term_name
                              : XTP_TERM_NAME_DEFAULT;
         XtpLog(XTP_LOG_INFO, "config", "termName=%s", app->term_name);
+        app->same_name = resources->same_name;
+        XtpLog(XTP_LOG_INFO, "config", "sameName=%s", app->same_name ? "true" : "false");
         app->pipe_command = resources->pipe_command;
         XtpLog(XTP_LOG_INFO, "config", "pipeCommandOutput=%s",
                app->pipe_command != NULL && *app->pipe_command != '\0' ? app->pipe_command
@@ -1512,6 +1551,9 @@ WireApplication(App *app, const AppResources *resources)
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS, XtpVtAllowTitleOps(app->vt));
+        /* As in xterm, the entry is insensitive while allowSendEvents blocks Title Ops. */
+        XtpMenusSetSensitive(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS,
+                             !XtpVtAllowSendEvents(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_COLOR_OPS, XtpVtAllowColorOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_FONT_OPS, XtpVtAllowFontOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TCAP_OPS, XtpVtAllowTcapOps(app->vt));

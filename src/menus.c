@@ -383,6 +383,19 @@ XtpMenusSetChecked(XtpMenus *menus, XtpMenuItem item, Boolean checked)
 }
 
 void
+XtpMenusSetSensitive(XtpMenus *menus, XtpMenuItem item, Boolean sensitive)
+{
+        Cardinal index;
+
+        for (index = 0; index < menus->binding_count; ++index) {
+                if (menus->bindings[index].item == item) {
+                        XtSetSensitive(menus->bindings[index].widget, sensitive);
+                        return;
+                }
+        }
+}
+
+void
 XtpMenusSetOpacity(XtpMenus *menus, int percent, Boolean available)
 {
         if (menus->opacity_slider == NULL)

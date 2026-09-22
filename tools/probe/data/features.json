@@ -435,6 +435,18 @@
     "sequence": "OSC 50 ; font ST"
   },
   {
+    "id": "policy-color-ops-send-events",
+    "title": "Color Ops and synthetic events",
+    "breadcrumb": [
+      "Text, emoji and rendering",
+      "OSC colors and fonts"
+    ],
+    "specifications": [
+      "xterm-manual"
+    ],
+    "sequence": ""
+  },
+  {
     "id": "apc-kitty-static-images",
     "title": "Kitty static inline images",
     "breadcrumb": [
@@ -541,6 +553,42 @@
       "xterm-control-sequences"
     ],
     "sequence": "CSI 23 t"
+  },
+  {
+    "id": "action-allow-title-ops",
+    "title": "Title Ops translation action",
+    "breadcrumb": [
+      "Window and desktop",
+      "CSI title operations"
+    ],
+    "specifications": [
+      "xterm-manual"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "resource-same-name",
+    "title": "Suppress redundant title updates",
+    "breadcrumb": [
+      "Window and desktop",
+      "CSI title operations"
+    ],
+    "specifications": [
+      "xterm-manual"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "policy-title-ops-send-events",
+    "title": "Title Ops and synthetic events",
+    "breadcrumb": [
+      "Window and desktop",
+      "CSI title operations"
+    ],
+    "specifications": [
+      "xterm-manual"
+    ],
+    "sequence": ""
   },
   {
     "id": "osc-8-hyperlinks",

@@ -408,6 +408,13 @@ key_test_tool = executable(
     install: false,
 )
 
+property_watch_tool = executable(
+    'xtp-watch-properties',
+    'tests/xtp-watch-properties.c',
+    dependencies: x11_dep,
+    install: false,
+)
+
 xtst_dep = dependency('xtst', required: false)
 wheel_test_tool = executable(
     'xtp-send-wheel',
@@ -1064,8 +1071,11 @@ if build_with_ghostty and xvfb.found()
             files('tests/title-ops.py'),
             xprop.full_path(),
             window_ops_test_tool.full_path(),
+            key_test_tool.full_path(),
+            property_watch_tool.full_path(),
         ],
-        timeout: 90,
+        depends: [key_test_tool, property_watch_tool],
+        timeout: 180,
         is_parallel: false,
     )
     test(
@@ -1267,8 +1277,11 @@ if build_with_ghostty and xvfb.found()
             python3.full_path(),
             files('tests/color-ops.py'),
             window_ops_test_tool.full_path(),
+            key_test_tool.full_path(),
+            window_ink_test_tool.full_path(),
         ],
-        timeout: 90,
+        depends: [key_test_tool, window_ink_test_tool],
+        timeout: 240,
         is_parallel: false,
     )
     test(

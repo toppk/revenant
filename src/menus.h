@@ -77,6 +77,7 @@ void XtpMenusPopup(XtpMenus *menus, const char *name, XEvent *event);
 void XtpMenusSetScrollbar(XtpMenus *menus, Boolean visible);
 void XtpMenusSetRenderFont(XtpMenus *menus, Boolean enabled, Boolean available);
 void XtpMenusSetChecked(XtpMenus *menus, XtpMenuItem item, Boolean checked);
+void XtpMenusSetSensitive(XtpMenus *menus, XtpMenuItem item, Boolean sensitive);
 void XtpMenusSetOpacity(XtpMenus *menus, int percent, Boolean available);
 int XtpMenusOpacity(const XtpMenus *menus);
 void XtpMenusDestroy(XtpMenus *menus, Display *display);

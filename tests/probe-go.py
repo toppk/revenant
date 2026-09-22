@@ -606,6 +606,206 @@ class ProbeAcceptance(unittest.TestCase):
                     self.assertIn(b"\x1b[?1007l", output)
                     self.assertIn(b"\x1b[?1049l", output)
 
+    def test_title_policy_and_same_name_cases_restore_labels(self):
+        for args, markers in (
+            (
+                ["titles", "policy", "--no-pause"],
+                [b"allow-title-ops(off)", b"probe policy off", b"probe policy redundant"],
+            ),
+            (
+                ["titles", "same-name", "--no-pause"],
+                [b"xprop -spy", b"probe same A", b"probe same C", b"PropertyNotify"],
+            ),
+        ):
+            with self.subTest(case=args[1]):
+                code, output, restored = run_probe(args, respond=Emulator())
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertTrue(restored)
+                for marker in markers:
+                    self.assertIn(marker, output)
+                push, pop = output.find(b"\x1b[22;0t"), output.rfind(b"\x1b[23;0t")
+                self.assertGreaterEqual(push, 0)
+                self.assertGreater(pop, push)
+                self.assertIn(b"Requested a pop of the saved labels", output)
+
+    def test_title_policy_reports_only_what_it_observed(self):
+        for mode, verdicts, absent in (
+            ("matching", [b"Observed: the reported label matches the requested one."], b"differs"),
+            (
+                "unchanged",
+                [b'Observed: the reported label "original" differs from the requested "probe policy'],
+                b"matches",
+            ),
+            (
+                "empty",
+                [b'Window label now "".', b'Observed: the reported label "" differs from the requested'],
+                b"No title report arrived",
+            ),
+            (
+                "no-report",
+                [b"No title report arrived", b"Observed: no report, so the reported label cannot be compared."],
+                b"Window label now",
+            ),
+        ):
+            with self.subTest(mode=mode):
+                emulator = Emulator()
+                state = {"label": b"" if mode == "empty" else b"original"}
+                request = re.compile(rb"\x1b\]2;([^\x07\x1b]*)(?:\x07|\x1b\\)|\x1b\[21t")
+                buffer = bytearray()
+
+                def respond(data):
+                    buffer.extend(data)
+                    out = emulator(data) or b""
+                    end = 0
+                    for match in request.finditer(bytes(buffer)):
+                        end = match.end()
+                        if match[0] == b"\x1b[21t":
+                            if mode != "no-report":
+                                out += b"\x1b]l" + state["label"] + b"\x1b\\"
+                        elif mode == "matching":
+                            state["label"] = match[1]
+                    del buffer[:end]
+                    return out
+
+                code, output, restored = run_probe(
+                    ["titles", "policy", "--no-pause", "--timeout", ".1"], respond=respond
+                )
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertTrue(restored)
+                for verdict in verdicts:
+                    self.assertIn(verdict, output)
+                self.assertNotIn(absent, output)
+                self.assertNotIn(b"Effective:", output)
+                first_label = output.index(b"\x1b]2;probe policy start")
+                self.assertLess(output.index(b"allowTitleOps and allowSendEvents"), first_label)
+                self.assertLess(
+                    output.index(b"restores the labels only if the stack operations"), first_label
+                )
+                self.assertIn(b"cannot help while allowSendEvents is true", output)
+                self.assertIn(b"this case cannot confirm either", output)
+
+    def test_title_cases_interrupted_request_pop_after_warning(self):
+        for args, stage, key, first_label in (
+            (["titles", "policy"], b"Now turn Title Ops off", b"q", b"probe policy start"),
+            (["titles", "policy"], b"Now turn Title Ops off", b"\x1b", b"probe policy start"),
+            (["titles", "same-name"], b"Space/Enter sends each group", b"q", b"probe same A"),
+        ):
+            with self.subTest(case=args[1], key=key), tempfile.TemporaryDirectory() as directory:
+                sent = False
+
+                def interact(output):
+                    nonlocal sent
+                    if not sent and stage in output and b"continue" in output[output.index(stage):]:
+                        sent = True
+                        return key
+                    return b""
+
+                path = Path(directory) / "result.json"
+                code, output, restored = run_probe(
+                    args + ["--timeout", ".01", "--output", str(path)],
+                    respond=Emulator(),
+                    interaction=interact,
+                )
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertTrue(sent)
+                self.assertTrue(restored)
+                self.assertEqual(json.loads(path.read_text())[0]["outcome"], "stopped")
+                warning = output.index(b"restores the labels only if the stack operations")
+                push = output.index(b"\x1b[22;0t")
+                self.assertLess(warning, push)
+                if first_label in output:
+                    self.assertLess(warning, output.index(first_label))
+                self.assertGreater(output.rfind(b"\x1b[23;0t"), push)
+                self.assertIn(b"Requested a pop of the saved labels", output)
+                self.assertNotIn(b"probe same C", output)
+
+    def color_policy_responder(self, behaviour):
+        emulator = Emulator()
+        buffer = bytearray()
+        request = re.compile(rb"\x1b\](10|4;1);\?(?:\x07|\x1b\\)|\x1b\[5n")
+
+        def respond(data):
+            buffer.extend(data)
+            out = emulator(data) or b""
+            end = 0
+            for match in request.finditer(bytes(buffer)):
+                end = match.end()
+                if match[0] == b"\x1b[5n":
+                    if behaviour not in ("timeout", "no-ack"):
+                        out += b"\x1b[0n"
+                    continue
+                value = b"rgb:1010/2020/3030" if match[1] == b"10" else b"rgb:cdcd/0000/0000"
+                if behaviour in ("reply", "no-ack"):
+                    out += b"\x1b]" + match[1] + b";" + value + b"\x1b\\"
+                elif behaviour == "wrong-target":
+                    out += b"\x1b]11;" + value + b"\x1b\\"
+                elif behaviour == "malformed":
+                    out += b"\x1b]" + match[1] + b";rgb:zz\x1b\\"
+            del buffer[:end]
+            return out
+
+        return respond
+
+    def test_color_policy_labels_each_kind_of_response(self):
+        for behaviour, verdict, restored_original in (
+            ("reply", b'Startup: OSC 10: reply "\\x1b]10;rgb:1010/2020/3030\\x1b\\\\"', True),
+            ("silence", b"Startup: OSC 10: silence (the terminal answered the status request", False),
+            ("timeout", b"Startup: OSC 10: timeout, no reply and no status reply.", False),
+            ("wrong-target", b'Startup: OSC 10: unexpected bytes "\\x1b]11;rgb:1010', False),
+            ("malformed", b'Startup: OSC 10: unexpected bytes "\\x1b]10;rgb:zz', False),
+            ("no-ack", b"without the status reply; the status request was not answered.", True),
+        ):
+            with self.subTest(behaviour=behaviour):
+                code, output, restored = run_probe(
+                    ["colors", "dynamic-policy", "--no-pause", "--timeout", ".2"],
+                    respond=self.color_policy_responder(behaviour),
+                )
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertTrue(restored)
+                self.assertIn(verdict, output)
+                if behaviour in ("wrong-target", "malformed"):
+                    self.assertIn(b"with the status reply; not a valid", output)
+                    self.assertNotIn(b"Startup: OSC 10: silence", output)
+                self.assertIn(b"allowColorOps, allowSendEvents, disallowedColorOps", output)
+                warning = output.index(b"Both are refused")
+                self.assertLess(warning, output.index(b"\x1b]10;#ffe080"))
+                tail = output[output.rfind(b"#60c0ff"):]
+                if restored_original:
+                    self.assertIn(b"\x1b]10;rgb:1010/2020/3030\x1b\\", tail)
+                    self.assertIn(b"Requested the original foreground rgb:1010/2020/3030 back", tail)
+                else:
+                    self.assertIn(b"\x1b]110", tail)
+                    self.assertIn(b"Requested a reset to the configured default foreground", tail)
+                    self.assertNotIn(b"Requested the original foreground", tail)
+
+    def test_color_policy_interrupted_requests_original_back(self):
+        for key in (b"q", b"\x1b"):
+            with self.subTest(key=key), tempfile.TemporaryDirectory() as directory:
+                sent = False
+
+                def interact(output):
+                    nonlocal sent
+                    stage = b"Now turn Allow Color Ops off"
+                    if not sent and stage in output and b"continue" in output[output.index(stage):]:
+                        sent = True
+                        return key
+                    return b""
+
+                path = Path(directory) / "result.json"
+                code, output, restored = run_probe(
+                    ["colors", "dynamic-policy", "--timeout", ".2", "--output", str(path)],
+                    respond=self.color_policy_responder("reply"),
+                    interaction=interact,
+                )
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertTrue(sent)
+                self.assertTrue(restored)
+                self.assertEqual(json.loads(path.read_text())[0]["outcome"], "stopped")
+                self.assertNotIn(b"#60c0ff", output)
+                tail = output[output.index(b"\x1b]10;#ffe080"):]
+                self.assertIn(b"\x1b]10;rgb:1010/2020/3030", tail)
+                self.assertIn(b"Requested the original foreground rgb:1010/2020/3030 back", output)
+
     def test_text_contrast_sample_prints_both_themes(self):
         code, output, restored = run_probe(
             ["text", "contrast", "--no-pause"], respond=Emulator()

@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Exercise the live dynamic-color permission gate through real PTY replies."""
+"""Exercise the live dynamic-color permission gate through real PTY replies.
+
+color-ops.py DIR true|false   the scripted menu checks
+color-ops.py DIR serve        run DIR/go.N commands (published by rename):
+                              send:HEX  write the bytes, then require exactly the DSR ack
+                              ask:HEX   the same, saving the bytes before the ack to res.N,
+                                        so an empty result is silence, not a timeout
+                              quit      stop, after checking that no input is pending
+Any other input, a timeout or EOF writes "ERROR ..." to res.N.
+"""
 import os
 from pathlib import Path
 import select
@@ -42,9 +51,68 @@ def checkpoint(name):
         time.sleep(.01)
 
 
+ACK = b"\x1b[0n"
+
+
+class UnexpectedInput(Exception):
+    pass
+
+
+def until_ack(seconds=2):
+    data = b""
+    deadline = time.monotonic() + seconds
+    while not data.endswith(ACK):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise UnexpectedInput(f"timed out after {data!r}")
+        if select.select([0], [], [], remaining)[0]:
+            chunk = os.read(0, 4096)
+            if not chunk:
+                raise UnexpectedInput(f"EOF after {data!r}")
+            data += chunk
+    return data[: -len(ACK)]
+
+
+def pending():
+    if select.select([0], [], [], 0)[0]:
+        data = os.read(0, 4096)
+        if data:
+            raise UnexpectedInput(f"unexpected input {data!r}")
+
+
+def serve():
+    step = 0
+    while True:
+        step += 1
+        go = directory / f"go.{step}"
+        while not go.exists():
+            time.sleep(0.01)
+        command = go.read_text().strip()
+        result = b""
+        try:
+            pending()
+            if command.startswith(("send:", "ask:")):
+                os.write(1, bytes.fromhex(command.split(":", 1)[1]) + b"\x1b[5n")
+                result = until_ack()
+                if command.startswith("send:") and result:
+                    raise UnexpectedInput(f"unexpected input {result!r}")
+            elif command == "quit":
+                time.sleep(0.3)
+                pending()
+        except UnexpectedInput as error:
+            result = f"ERROR {error}".encode()
+        (directory / f"res.{step}").write_bytes(result)
+        (directory / f"done.{step}").touch()
+        if command == "quit":
+            return
+
+
 saved = termios.tcgetattr(0)
 tty.setraw(0)
 try:
+    if sys.argv[2] == "serve":
+        serve()
+        sys.exit(0)
     osc(10, '#aa5500')
     if initial:
         expect(10, ['aa', '55', '00'])
