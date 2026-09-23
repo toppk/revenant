@@ -726,16 +726,17 @@ printf '\n== newer bases and tag sequences ==\n'
 # bases newer than E15.0 that a staged face covers and no suite touched, and three
 # of the four tag sequences it measures unexercised.  These rows sample that space
 # rather than enumerate it.
-newer_bases=$(printf '\U0001FA75\U0001FADF\U0001FA8A\U0001FACD')
+# POSIX printf does not decode Unicode escapes (Ubuntu /bin/sh is dash).
+newer_bases=$(python3 -c 'print("\U0001FA75\U0001FADF\U0001FA8A\U0001FACD", end="")')
 # E15.0 and E16.0, which the modern monochrome face covers.
-newer_text_bases=$(printf '\U0001FA75\U0001FADF')
+newer_text_bases=$(python3 -c 'print("\U0001FA75\U0001FADF", end="")')
 # E17.0, which it does not: see the font-gap case below.
-newest_bases=$(printf '\U0001FA8A\U0001FACD')
-tag_eng=$(printf '\U0001F3F4\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F')
-tag_wls=$(printf '\U0001F3F4\U000E0067\U000E0062\U000E0077\U000E006C\U000E0073\U000E007F')
+newest_bases=$(python3 -c 'print("\U0001FA8A\U0001FACD", end="")')
+tag_eng=$(python3 -c 'print("\U0001F3F4\U000E0067\U000E0062\U000E0065\U000E006E\U000E0067\U000E007F", end="")')
+tag_wls=$(python3 -c 'print("\U0001F3F4\U000E0067\U000E0062\U000E0077\U000E006C\U000E0073\U000E007F", end="")')
 # Syntactically valid and outside the RGI set, so it separates "the font has this
 # ligature" from "the renderer split the atom".
-tag_usca=$(printf '\U0001F3F4\U000E0075\U000E0073\U000E0063\U000E0061\U000E007F')
+tag_usca=$(python3 -c 'print("\U0001F3F4\U000E0075\U000E0073\U000E0063\U000E0061\U000E007F", end="")')
 
 artwork_failures=
 start_sample newer-bases-row routing-modern "$newer_bases" 16 unicode true true 1 unicode

@@ -7,8 +7,8 @@ description: release checklist and workflow
 
 # Releasing
 
-Use a release branch, package validation before tagging, and immutable release
-candidates. Fix forward; never move a published tag or replace published assets.
+Use a release branch and package validation before tagging. Published releases
+and any optional published candidates are immutable. Fix forward; never move a published tag or replace published assets.
 The Release workflow is dispatch-only and **never publishes automatically**.
 Both its `validate` and `draft` modes use the same package-build, complete-test,
 no-skips and install-check jobs.
@@ -28,13 +28,13 @@ an independent maintainer checkpoint. Keep xterm-411 as the comparison oracle.
    deploys the documentation site.
 3. Validate exact candidate commits without creating tags or releases. Keep CI
    fixes in separate commits from changelog/version bookkeeping as they are made.
-4. Once healthy, create `v0.8.0-rc.1`, prepare its draft, inspect the packages,
-   then publish as a prerelease. Further source fixes get new commits and RC
-   numbers; published candidate tags never move.
-5. Bring the tested history back to `master` without rewriting it. Prefer a
-   fast-forward while master is frozen; otherwise validate the resulting merge
-   commit before release. Do not squash/rebase after tagging an RC merely to
-   clean up the history.
+4. For 0.8, use validation artifacts for build/test verification; no published
+   RC or RC tag is required. The validation version `0.8.0-rc.1` may be reused
+   across attempts: the source SHA and run ID identify each artifact set.
+5. Bring the tested changes back to `master` without rewriting published
+   history. Untagged branch fixes may be squashed into a coherent commit; keep
+   feature commits intact and retain the validation branch as the audit trail.
+   Revalidate the resulting SHA. Do not squash/rebase a tagged candidate.
 6. Prepare final notes/version bookkeeping, validate that exact final commit
    with the final version, then tag, build its draft, verify and publish.
    Binary versions are embedded, so RC artifacts cannot be renamed or promoted

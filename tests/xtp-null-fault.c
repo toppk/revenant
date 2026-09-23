@@ -64,15 +64,30 @@ Record(const char *format, ...)
         char line[256];
         va_list arguments;
         int length;
+        int saved_errno = errno;
+        size_t offset = 0;
+        size_t count;
 
         if (log_fd < 0)
                 return;
         va_start(arguments, format);
         length = vsnprintf(line, sizeof(line), format, arguments);
         va_end(arguments);
-        if (length > 0)
-                (void)write(log_fd, line,
-                            (size_t)length < sizeof(line) ? (size_t)length : sizeof(line) - 1);
+        if (length > 0) {
+                count = (size_t)length < sizeof(line) ? (size_t)length : sizeof(line) - 1;
+                while (offset < count) {
+                        ssize_t written = write(log_fd, line + offset, count - offset);
+
+                        if (written > 0)
+                                offset += (size_t)written;
+                        else if (written < 0 && errno == EINTR)
+                                continue;
+                        else
+                                break;
+                }
+        }
+        /* Logging must not change the result of the intercepted operation. */
+        errno = saved_errno;
 }
 
 static int

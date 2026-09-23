@@ -49,9 +49,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libxtst-dev libx11-xcb-dev \
-            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
+            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev libharfbuzz-bin \
             libnotify-dev dbus xvfb xfonts-base x11-utils x11-xserver-utils \
             rpm2cpio cpio unzip curl fontconfig
+      - name: Install font audit dependencies
+        run: python3 -m pip install --user --break-system-packages "fonttools==$FONTTOOLS_VERSION"
       - name: Restore staged font fixtures
         id: fixtures
         uses: actions/cache@v6
@@ -61,7 +63,6 @@ jobs:
       - name: Stage pinned font fixtures
         if: steps.fixtures.outputs.cache-hit != 'true'
         run: |
-          python3 -m pip install --user --break-system-packages "fonttools==$FONTTOOLS_VERSION"
           tools/stage-font-fixtures
       - name: Describe the libghostty build for the Zig cache key
         id: zigkey
@@ -116,9 +117,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang meson ninja-build pkgconf python3 jq \
             libx11-dev libxt-dev libxaw7-dev libxmu-dev libxtst-dev libx11-xcb-dev \
-            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
+            libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev libharfbuzz-bin \
             libnotify-dev dbus xvfb xfonts-base x11-utils x11-xserver-utils \
             rpm2cpio cpio unzip curl fontconfig
+      - name: Install font audit dependencies
+        run: python3 -m pip install --user --break-system-packages "fonttools==$FONTTOOLS_VERSION"
       - name: Restore staged font fixtures
         id: fixtures
         uses: actions/cache@v6
@@ -128,7 +131,6 @@ jobs:
       - name: Stage pinned font fixtures
         if: steps.fixtures.outputs.cache-hit != 'true'
         run: |
-          python3 -m pip install --user --break-system-packages "fonttools==$FONTTOOLS_VERSION"
           tools/stage-font-fixtures
       - name: Describe the libghostty build for the Zig cache key
         id: zigkey

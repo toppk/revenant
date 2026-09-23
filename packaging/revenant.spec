@@ -13,6 +13,7 @@ BuildRequires:  gcc
 BuildRequires:  meson >= 1.3
 BuildRequires:  ninja-build
 BuildRequires:  python3
+BuildRequires:  python3-fonttools
 BuildRequires:  pandoc
 BuildRequires:  pkgconfig(x11)
 BuildRequires:  pkgconfig(xt)

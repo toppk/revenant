@@ -360,7 +360,8 @@ run_unicode_case routing sequence-ligature-fallback 👩‍💻 color 2 \
 # preceding emoji ZWJ sequence; 18.0 assigns it as an ordinary symbol, so the atom
 # now breaks in two.  Cursor advance changes with the segmentation (2 -> 3) and is
 # asserted from CPR, independently of what either atom is routed to or draws.
-zwj_extpict=$(printf '\U0001F600\u200d\U0001F7FF')
+# POSIX printf does not decode Unicode escapes (Ubuntu /bin/sh is dash).
+zwj_extpict=$(python3 -c 'print("\U0001F600\u200d\U0001F7FF", end="")')
 run_case routing zwj-extpict-break-18 "$zwj_extpict" color 3 \
     'base=U+1F600 width=2 presentation=emoji role=emoji glyphs=1' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true \
@@ -368,7 +369,7 @@ run_case routing zwj-extpict-break-18 "$zwj_extpict" color 3 \
 # A base added in Unicode 18.0: no staged face covers it, so the route is deliberate
 # tofu.  That is a fixture limitation, not a renderer defect, and the committed width
 # still has to be the Unicode 18 width -- which is the part this case guards.
-e18_base=$(printf '\U0001FADD')
+e18_base=$(python3 -c 'print("\U0001FADD", end="")')
 run_case routing e18-base-width "$e18_base" mono 2 \
     'base=U+1FADD width=2 presentation=emoji role=tofu' \
     'Noto Color Emoji' 'Noto Sans Mono CJK JP' unicode true \
@@ -384,9 +385,9 @@ run_case routing e18-base-width "$e18_base" mono 2 \
 # list.  Every case runs in mode 2027, because the complete grapheme is the atom
 # under test; the effective file is the discriminator, since the route line reports
 # the *requested* bold/italic attributes either way.
-zwj_man_laptop=$(printf '\U0001F468\u200D\U0001F4BB')
-man=$(printf '\U0001F468')
-bulb=$(printf '\U0001F4A1')
+zwj_man_laptop=$(python3 -c 'print("\U0001F468\u200D\U0001F4BB", end="")')
+man=$(python3 -c 'print("\U0001F468", end="")')
+bulb=$(python3 -c 'print("\U0001F4A1", end="")')
 bold=$(printf '\033[1m')
 italic=$(printf '\033[3m')
 styled_family='XTP Styled Emoji'
