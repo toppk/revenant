@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+"""Validate dispatch inputs after checkout; emit validated workflow outputs."""
+
+import os
+import re
+import subprocess
+import sys
+from release_version import versions
+
+
+def check(mode, source, tag, version, head, workflow_sha):
+    if mode == "validate":
+        if tag or not re.fullmatch(r"[0-9a-f]{40}", source):
+            raise ValueError("validate requires a full source SHA and no tag")
+        if source != head:
+            raise ValueError("checked-out source does not match requested SHA")
+    elif mode == "draft":
+        if source or version or not tag.startswith("v"):
+            raise ValueError(
+                "draft requires a vVERSION tag, no source or version override"
+            )
+        version = tag[1:]
+    else:
+        raise ValueError("mode must be validate or draft")
+    if head != workflow_sha:
+        raise ValueError(
+            "dispatch --ref must select the same commit as the source/tag; workflow and source must agree"
+        )
+    values = versions(version)
+    return {"sha": head, "version": values["app"], "prerelease": values["prerelease"]}
+
+
+def main():
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    try:
+        values = check(
+            *(
+                os.environ.get(name, "")
+                for name in ("MODE", "SOURCE", "TAG", "VERSION")
+            ),
+            head,
+            os.environ.get("WORKFLOW_SHA", ""),
+        )
+        pin = subprocess.check_output(
+            ["tools/fetch-libghostty", "--print-reference"], text=True
+        ).strip()
+        if not re.fullmatch(r"[0-9a-f]{40}", pin):
+            raise ValueError("release candidates require an exact libghostty commit")
+    except (ValueError, subprocess.CalledProcessError) as error:
+        sys.exit(str(error))
+    for key, value in values.items():
+        print(f"{key}={value}")
+
+
+if __name__ == "__main__":
+    main()

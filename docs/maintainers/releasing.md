@@ -7,141 +7,158 @@ description: release checklist and workflow
 
 # Releasing
 
-Releases are built by `.github/workflows/release.yml`. It is intentionally
-dispatch-only: pushing a tag makes that revision eligible for release, but
-does **not** start a build. A maintainer pushes the release commit and tag,
-then dispatches the workflow against that tag.
+Use a release branch, package validation before tagging, and immutable release
+candidates. Fix forward; never move a published tag or replace published assets.
+The Release workflow is dispatch-only and **never publishes automatically**.
+Both its `validate` and `draft` modes use the same package-build, complete-test,
+no-skips and install-check jobs.
 
-## Release checklist
+## Current release plan
 
-1. Keep the predicted next release at the top of `CHANGELOG.md`, for example
-   `## 0.5.0 — Unreleased`, while `meson.build` reports `0.5.0-dev`. Add
-   development bullets under `### Features`, `### Bug fixes`, or `### Other`.
-   Bullets added during development may omit commit links; the release commit
-   adds them. Soft-wrap long bullets normally: `packaging/release-notes` joins
-   continuation lines when it renders the GitHub release body.
+For 0.8, freeze features at the accepted UTF-8 title and login-shell work. Ship
+against the exact tested libghostty development commit in
+`tools/fetch-libghostty`; do not wait for Ghostty 1.4.0. Its eventual release is
+an independent maintainer checkpoint. Keep xterm-411 as the comparison oracle.
 
-2. Freeze the libghostty input before preparing the release. During development
-   `tools/fetch-libghostty` may follow a moving branch such as `main` to test an
-   unreleased Ghostty version. A Revenant release must replace that branch with
-   an immutable upstream release tag or the exact tested commit. When the next
-   Ghostty release has no tag yet, as with early 1.4 development, pinning the
-   full commit is the correct fallback:
+1. Land the CI/packaging preparation as ordinary commits. The workflow must be
+   present on the default branch before GitHub will offer manual dispatch.
+2. Create `release/0.8`, open a PR to `master`, and restrict it to release
+   blockers, packaging/CI fixes and release documentation. Ordinary test and
+   documentation workflows also run on pushes to `release/**`. Only `master`
+   deploys the documentation site.
+3. Validate exact candidate commits without creating tags or releases. Keep CI
+   fixes in separate commits from changelog/version bookkeeping as they are made.
+4. Once healthy, create `v0.8.0-rc.1`, prepare its draft, inspect the packages,
+   then publish as a prerelease. Further source fixes get new commits and RC
+   numbers; published candidate tags never move.
+5. Bring the tested history back to `master` without rewriting it. Prefer a
+   fast-forward while master is frozen; otherwise validate the resulting merge
+   commit before release. Do not squash/rebase after tagging an RC merely to
+   clean up the history.
+6. Prepare final notes/version bookkeeping, validate that exact final commit
+   with the final version, then tag, build its draft, verify and publish.
+   Binary versions are embedded, so RC artifacts cannot be renamed or promoted
+   byte-for-byte into final-version artifacts. Final packages must be rebuilt
+   and checked.
 
-    ```sh
-    rg '^readonly reference=' tools/fetch-libghostty
-    tools/fetch-libghostty
-    ```
+This is a bounded release preparation, not a requirement to drain `todo.md`.
+Do not introduce additional features while fixing packaging failures.
 
-   Land the pin as an ordinary change before the release commit and include it
-   in the changelog's commit reconciliation. Do not release while the reference
-   is a moving branch.
+## Validation before tags
 
-3. Before creating any release bookkeeping commit, run the complete suite from
-   the release-candidate commit and require its test inventory to be complete:
+From the frozen release branch, push the exact commit and run the complete
+local compiler/sanitizer/stub matrix before release. The normal Test workflow
+covers these too; real-backend GCC, Clang and ASan use the no-skips gate.
+Then dispatch the same package pipeline used for release drafts:
 
-    ```sh
-    meson compile -C build
-    meson test -C build --print-errorlogs
-    tools/check-release-tests build
-    ```
+```sh
+source_sha=$(git rev-parse HEAD)
+git push origin release/0.8
+gh workflow run release.yml --ref release/0.8 \
+  -f mode=validate -f source="$source_sha" -f version=0.8.0-rc.1
+```
 
-   Do not substitute a focused test for this gate. The release workflow runs
-   the same complete suite for every package, but this local check catches a
-   release-blocking failure before anything is pushed. Once a branch or tag is
-   public, preserve its history: fix forward with a new commit and, if needed,
-   a new patch release rather than force-pushing a rewritten release.
+The workflow's dispatch commit must equal `source`; a branch advancing between
+selection and dispatch causes a fail-fast identity mismatch, not a mixed build.
+Use the Actions run URL/ID to follow this particular run. Do not infer its
+identity from whichever run happens to be newest.
 
-4. Prepare one bookkeeping commit containing only `CHANGELOG.md` and the
-   project-version line in `meson.build`:
+Download the `package-*` artifacts and `candidate-manifest` from that run into
+one empty directory (each package artifact contains one file), then check:
 
-   - Review the whole release entry for concise, user-facing language.
-   - Replace `Unreleased` with the release date and add a short summary.
-   - Trace every bullet to the commits that implement it. Each bullet must end
-     with one or more links in the form
-     `([abc1234](https://github.com/toppk/revenant/commit/<full-hash>))`;
-     a bullet without a commit link is not releasable. Reconcile in both
-     directions against `git log --oneline <previous-tag>..HEAD`: every bullet
-     gets its commits, and every user-visible commit gets a bullet. Pure
-     refactors, test-only changes, and CI work may be folded into one
-     `### Other` bullet, but the commits must still be linked. One commit may
-     support several bullets, and one bullet may cite several commits.
-   - Open the next predicted release above it.
-   - Advance the project version to that next release's `-dev` version.
+```sh
+packaging/release-manifest --check "$candidate_dir" 0.8.0-rc.1 "$source_sha"
+```
 
-   Render the notes before committing, then verify the commit's file boundary:
+Validation mode does not require a completed changelog and creates neither a
+tag nor a release. Package results, the manifest and failure diagnostics remain
+available as Actions artifacts for 30 days. Inspect successful package install
+checks and do representative interactive shell/editor/multiplexer testing.
+A code fix creates a new candidate commit; repeat only the affected local checks
+while iterating, then the complete candidate gates before publication.
 
-    ```sh
-    version="${VERSION:?export VERSION first}"
-    previous_tag="${PREVIOUS_TAG:?export PREVIOUS_TAG first}"
-    git log --oneline "$previous_tag"..HEAD
-    packaging/release-notes "$version"
-    git add CHANGELOG.md meson.build
-    git commit -m "release: $version"
-    git diff-tree --no-commit-id --name-only -r HEAD
-    ```
+## Candidate and final drafts
 
-   The final command must list only `CHANGELOG.md` and `meson.build`.
+Prepare the `0.8.0` changelog entry with user-facing bullets linked to their
+implementing commits. RC notes use that base entry (which may stay `Unreleased`)
+and link to the exact candidate source; do not add a new changelog heading or
+advance the development version for every RC. Draft preparation rejects missing
+entries and unlinked bullets before building.
 
-   The prediction is intentionally cheap: if the next planned minor release
-   becomes a patch release, correct the heading and development version in
-   that later release commit.
+For the final release only, date the entry, reconcile its bullets against
+`git log <previous-tag>..HEAD`, open the next development entry, and advance
+Meson's project version in a separate bookkeeping commit containing only
+`CHANGELOG.md` and `meson.build`. Validate this final commit with `version=0.8.0`.
 
-5. Tag the release commit and push the branch and tag:
+Once the selected commit is validated, tag that commit and dispatch at the tag:
 
-    ```sh
-    version="${VERSION:?export VERSION first}"
-    tag="v$version"
-    git tag "$tag"
-    git push origin master "$tag"
-    ```
+```sh
+version=0.8.0-rc.1                  # use 0.8.0 for the final draft
+tag="v$version"
+git tag -a "$tag" "$source_sha" -m "Revenant $version"
+git push origin "$tag"
+gh workflow run release.yml --ref "$tag" -f mode=draft -f tag="$tag"
+```
 
-6. Explicitly dispatch the workflow with the pushed tag, from the CLI or the
-   Actions tab. Tag creation and tag push do not perform this step:
+Draft mode rebuilds and checks all packages; it does not promote unverified
+Actions downloads. It writes an attestation for each of the five packages and
+for `release-manifest.json`, and creates a draft with all six files attached.
+RC drafts are explicitly prereleases and not latest. Final drafts also remain
+not latest until publication. The workflow refuses an existing release rather
+than replacing its assets. The source and workflow SHAs are the same, and every
+build job checks out that SHA instead of repeatedly resolving a movable branch.
 
-    ```sh
-    tag="v${VERSION:?export VERSION first}"
-    gh workflow run release.yml -f tag="$tag"
-    gh run watch
-    ```
+## Verify, then publish explicitly
 
-7. When the run finishes, verify the published release rather than treating a
-   green workflow as the finish line:
+Before publishing, enable **release immutability** in the repository's release
+settings and restrict updates/deletion of release tags with a tag ruleset. These
+are repository settings, not declarations that YAML can apply. Enable them after
+the draft-first workflow is installed. Existing releases are not retroactively
+made immutable. GitHub's
+[immutable-release procedure](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases)
+requires assets to be attached before publishing the draft.
 
-    ```sh
-    version="${VERSION:?export VERSION first}"
-    tag="v$version"
-    verify_dir=$(mktemp -d)
-    gh release download "$tag" --dir "$verify_dir"
-    for asset in "$verify_dir"/*
-    do
-      gh attestation verify "$asset" --repo toppk/revenant
-    done
-    tar -xzf "$verify_dir/revenant-$version-linux-$(uname -m).tar.gz" \
-      -C "$verify_dir"
-    test "$("$verify_dir/revenant-$version-linux-$(uname -m)/revenant" \
-      --version)" = "revenant $version"
-    gh release view "$tag"
-    ```
+Inspect the workflow result and its exact commit, release notes, and downloaded
+assets. A green build alone is not the publication decision:
 
-   Confirm that all five assets are present, every attestation verifies, the
-   binary version matches the tag, and the release body contains Highlights,
-   Changes, and Artifacts rendered from the intended changelog entry.
+```sh
+verify_dir=$(mktemp -d)
+gh release download "$tag" --dir "$verify_dir"
+packaging/release-manifest --check "$verify_dir" "$version" "$source_sha"
+for asset in "$verify_dir"/*; do
+  gh attestation verify "$asset" --repo toppk/revenant \
+    --signer-workflow toppk/revenant/.github/workflows/release.yml \
+    --source-digest "$source_sha" --signer-digest "$source_sha"
+done
+# Confirm that the remote tag has not changed since validation.
+git fetch --no-tags origin "refs/tags/$tag"
+test "$(git rev-parse 'FETCH_HEAD^{commit}')" = "$source_sha"
+```
+
+Require six assets, matching identities/hashes and verified provenance. Inspect
+installed package/binary versions and desktop integration, and run representative
+interactive use before the explicit publication step. The workflow already tests
+tarballs after extraction, and installs the deb, rpm and Arch packages.
+
+```sh
+# Candidate: explicitly not latest.
+gh release edit "$tag" --verify-tag --draft=false --prerelease --latest=false
+# Final instead: explicitly stable and latest.
+# gh release edit "$tag" --verify-tag --draft=false --prerelease=false --latest
+```
+
+After publishing, check the release's state and download/verify the published
+assets again. If a published final release has a defect, make a patch release;
+if an RC has a defect, publish the next RC. Never delete and recreate a public
+release/tag as a repair strategy.
 
 ## What the workflow does
 
-- **Check tag** fails immediately if the tag does not exist on `origin`,
-  derives the package version by stripping the leading `v` (`v0.3.0` →
-  `0.3.0`), and renders the changelog entry with `packaging/release-notes` so a
-  missing entry or an unlinked bullet fails in seconds rather than after the
-  builds. Every packaging path passes that value through Meson's
-  `release-version` option, overriding the next-development version in the
-  tagged source. Installed-package checks require `revenant --version` and
-  `xterm+ --version` to match the tag exactly.
-- Every build job checks out the Revenant tag itself, so its packaging scripts
-  come from that tagged commit. `tools/fetch-libghostty` pins one exact Ghostty
-  commit; advance that pin as an ordinary reviewed change before a release.
-  Every artifact in one release therefore builds the same libghostty source.
+- **Resolve candidate identity** validates either a full SHA plus application version
+  (`validate`) or an existing version tag (`draft`). The workflow's dispatch ref
+  must resolve to the same commit. Every downstream checkout uses the resolved
+  SHA, and libghostty must be pinned to a full commit. Draft mode also checks the
+  remote tag and linked changelog notes before spending time on builds.
 - **tar.gz** builds on x86_64 and aarch64 runners. The archive is
   `revenant-<version>-linux-<arch>.tar.gz` containing a stripped `revenant`,
   an `xterm+` symlink, `README.md`, and `LICENSES/`.
@@ -202,16 +219,15 @@ then dispatches the workflow against that tag.
   released library never depends on the build host. The x86_64-v3 floor is
   stated in the install guide and in every release body; drop to
   `x86_64_v2` or `baseline` only in response to user reports.
-- **GitHub release** downloads every artifact, signs a build-provenance
-  attestation for each with `actions/attest-build-provenance` (verify with
-  `gh attestation verify FILE --repo toppk/revenant`), renders the release body
-  with `packaging/release-notes` (highlights, changes with linked commits, an
-  artifact table with SHA-256 sums, and the CPU floor), and publishes the
-  release.
-- The package artifacts that carry builds to the release job expire after
-  one day; nothing deletes them earlier. The job fails if `CHANGELOG.md` has no
-  entry for the version or any change bullet lacks a valid trailing commit
-  link.
+- **Artifact assembly** requires exactly five expected package files and records
+  their hashes, version, source/workflow SHA, libghostty SHA and run identity in
+  `release-manifest.json`. Package artifacts, this manifest and diagnostic logs
+  are retained for 30 days. Logs are uploaded even on package-job failure and
+  are never included in release assets.
+- **Draft mode only** attests the packages and manifest, renders linked release
+  notes, checks the remote tag again, and creates a new unpublished GitHub
+  release with every asset attached. It never publishes. An existing release
+  is refused rather than updated. Validation mode creates no GitHub release.
 
 The synthetic sbix fixture is byte-exact only for the fontTools release
 pinned in the workflow's `FONTTOOLS_VERSION`; regenerate
@@ -225,32 +241,43 @@ needs a newer Zig.
 
 ## Building packages locally
 
-Each job calls a script under `packaging/` that works outside CI too.
-All of them need the build dependencies from [Install](../getting-started/install.md),
-Zig on `PATH`, and `tools/fetch-libghostty` run first; output lands in
-`dist/`. The version argument names the package and is compiled into the
-binary through Meson's `release-version` override.
+Every job calls scripts under `packaging/` that work outside CI. They require
+the build/test dependencies, Zig on PATH, and the pinned Ghostty/fixture inputs.
+The application version is passed through Meson's `release-version` override;
+package metadata uses native ordering so an RC upgrades to the final release:
+
+| Surface | Example candidate | Final |
+| --- | --- | --- |
+| Tag | `v0.8.0-rc.1` | `v0.8.0` |
+| Binary and tarball | `0.8.0-rc.1` | `0.8.0` |
+| Debian/RPM version | `0.8.0~rc.1` | `0.8.0` |
+| Arch pkgver | `0.8.0rc1` | `0.8.0` |
+
+`packaging/release-version` owns this mapping. Each native-package CI job uses
+its package manager to check `rc.1 < rc.2 < rc.10 < final` before building.
+Package file names reflect the native version; `revenant --version` and
+`xterm+ --version` always show the canonical application version.
 
 ```sh
-version="${VERSION:?export VERSION first}"
-packaging/build-tarball "$version"
-packaging/build-deb "$version"      # Debian/Ubuntu: also needs debhelper
-packaging/build-rpm "$version"      # Fedora: also needs rpm-build
+packaging/build-tarball 0.8.0-rc.1
+packaging/build-deb 0.8.0-rc.1
+packaging/build-rpm 0.8.0-rc.1
+packaging/build-arch 0.8.0-rc.1
+python3 tests/release-packaging.py
 ```
 
-## Recovering from a failed release
+## Recovering from failures
 
-If a published release is wrong, remove the release and remote tag, fix
-forward, prepare a new release commit, recreate the tag, and dispatch again.
-Do not amend an asset or silently move a published tag while leaving the old
-release in place.
-
-```sh
-tag="v${VERSION:?export VERSION first}"
-gh release delete "$tag" --yes --cleanup-tag
-git tag -d "$tag"
-# Land the fix, then repeat the release checklist.
-```
+- **Validation failure:** inspect retained logs, commit the fix normally, and
+  validate the new SHA. No release or tag needs repairing.
+- **Transient infrastructure failure with unchanged source:** rerun the failed
+  jobs at the same commit. Do not move a tag to retry a download or runner outage.
+- **Failed or partial unpublished draft:** inspect it before doing anything.
+  An unpublished incomplete draft may be deleted and rebuilt at the **same tag
+  and commit**, without deleting or moving the tag. The workflow will not overwrite
+  an existing draft. If source changes, allocate the next candidate tag instead.
+- **Published RC/final defect:** fix forward with a new RC/patch version. Keep
+  the published tag, assets and history intact.
 
 ## Known gaps
 

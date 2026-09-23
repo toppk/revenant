@@ -4,7 +4,9 @@ Newest release first. Development changes collect under the predicted next
 version. A release commit dates that entry, links the commits it describes,
 opens the next development entry, and advances the source version. Release
 artifacts take their version from the tag, not from the development version in
-`meson.build`.
+`meson.build`. Release candidates use the upcoming release entry without
+advancing the development version; their notes link to the exact candidate
+commit. Published tags and assets are never replaced.
 
 ## 0.8.0 — Unreleased
 

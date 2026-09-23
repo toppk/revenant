@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+"""Usage: packaging/release-version VERSION [app|base|deb|rpm|arch|prerelease]."""
+
+import sys
+from release_version import versions
+
+if len(sys.argv) not in (2, 3):
+    sys.exit(__doc__)
+try:
+    values = versions(sys.argv[1])
+    print(values[sys.argv[2] if len(sys.argv) == 3 else "app"])
+except (ValueError, KeyError) as error:
+    sys.exit(str(error))

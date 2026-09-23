@@ -18,6 +18,7 @@ BuildRequires:  pkgconfig(x11)
 BuildRequires:  pkgconfig(xt)
 BuildRequires:  pkgconfig(xaw7)
 BuildRequires:  pkgconfig(xmu)
+BuildRequires:  pkgconfig(xtst)
 BuildRequires:  pkgconfig(fontconfig)
 BuildRequires:  pkgconfig(xft)
 BuildRequires:  pkgconfig(xrender)
@@ -34,7 +35,7 @@ interface and X resource contract while using libghostty-vt as its terminal
 core. It installs as revenant, with an xterm+ compatibility symlink.
 
 %build
-%meson -Dlibghostty=enabled -Dlibnotify=enabled -Dxvfb-tests=enabled -Dman=enabled -Drelease-version=%{version}
+%meson -Dlibghostty=enabled -Dlibnotify=enabled -Dxvfb-tests=enabled -Dman=enabled -Drelease-version=%{app_version}
 %meson_build
 
 %install

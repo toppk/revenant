@@ -3,10 +3,25 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: Existing git tag to release, e.g. v0.1.0
+      mode:
+        description: Validate packages only, or prepare an unpublished release draft
         required: true
+        default: validate
+        type: choice
+        options: [validate, draft]
+      source:
+        description: Full source commit SHA (validate only; dispatch workflow at the same commit)
         type: string
+      version:
+        description: Application version, e.g. 0.8.0-rc.1 (validate only)
+        type: string
+      tag:
+        description: Existing immutable candidate/final tag (draft only; dispatch at this tag)
+        type: string
+
+concurrency:
+  group: packages-${{ inputs.tag || inputs.source }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -19,22 +34,46 @@ env:
 
 jobs:
   prepare:
-    name: Check tag
+    name: Resolve candidate identity
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      version: ${{ steps.identity.outputs.version }}
+      sha: ${{ steps.identity.outputs.sha }}
+      prerelease: ${{ steps.identity.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
-      - run: git ls-remote --exit-code --tags origin "refs/tags/${{ inputs.tag }}"
-      - id: version
-        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+        with:
+          ref: ${{ inputs.source || inputs.tag }}
+      - name: Validate exact source and workflow identity
+        id: identity
+        env:
+          MODE: ${{ inputs.mode }}
+          SOURCE: ${{ inputs.source }}
+          TAG: ${{ inputs.tag }}
+          VERSION: ${{ inputs.version }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: packaging/check-release-inputs >> "$GITHUB_OUTPUT"
+      - name: Confirm the remote tag points to the checked-out commit
+        if: inputs.mode == 'draft'
         env:
           TAG: ${{ inputs.tag }}
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.tag }}
-      - name: Check the changelog entry before building anything
-        run: packaging/release-notes "${{ steps.version.outputs.version }}" /nonexistent >/dev/null
+        run: |
+          git fetch --no-tags origin "refs/tags/$TAG"
+          test "$(git rev-parse 'FETCH_HEAD^{commit}')" = "$(git rev-parse HEAD)"
+      - name: Check publication notes before building
+        if: inputs.mode == 'draft'
+        env:
+          VERSION: ${{ steps.identity.outputs.version }}
+          RELEASE_SOURCE_SHA: ${{ steps.identity.outputs.sha }}
+        run: packaging/release-notes "$VERSION" /nonexistent >/dev/null
+      - name: Record candidate identity
+        env:
+          VERSION: ${{ steps.identity.outputs.version }}
+          SOURCE_SHA: ${{ steps.identity.outputs.sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          printf 'Version: %s\nSource: %s\nWorkflow: %s\nGhostty: %s\n' \
+            "$VERSION" "$SOURCE_SHA" "$WORKFLOW_SHA" "$(tools/fetch-libghostty --print-reference)" >> "$GITHUB_STEP_SUMMARY"
 
   fixtures:
     name: Font fixtures
@@ -43,7 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.prepare.outputs.sha }}
       - name: Restore staged fixtures for the pinned font sources
         id: cache
         uses: actions/cache@v6
@@ -72,11 +111,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.prepare.outputs.sha }}
       - run: |
           sudo apt-get update
           sudo apt-get install -y build-essential meson ninja-build pkgconf python3 pandoc jq \
-            libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
+            libx11-dev libxt-dev libxaw7-dev libxmu-dev libxtst-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev libnotify-dev \
             xvfb xfonts-base x11-utils x11-xserver-utils dbus
       - name: Describe the libghostty build for the Zig cache key
@@ -104,12 +143,31 @@ jobs:
           key: font-fixtures-${{ hashFiles('tools/stage-font-fixtures', 'tools/font-fixtures/**') }}-fonttools${{ env.FONTTOOLS_VERSION }}
           fail-on-cache-miss: true
       - run: packaging/build-tarball "${{ needs.prepare.outputs.version }}"
+      - name: Verify the packaged tarball after extraction
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          verify_dir=$(mktemp -d)
+          archive="revenant-$VERSION-linux-$(uname -m)"
+          tar -xzf "dist/$archive.tar.gz" -C "$verify_dir"
+          test "$("$verify_dir/$archive/revenant" --version)" = "revenant $VERSION"
+          test "$("$verify_dir/$archive/xterm+" --version)" = "revenant $VERSION"
       - uses: actions/upload-artifact@v7
         with:
-          name: tarball-${{ matrix.arch }}
+          name: package-tarball-${{ matrix.arch }}
           path: dist/*.tar.gz
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 30
+      - name: Retain test and configure logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: diagnostics-tarball-${{ matrix.arch }}
+          path: |
+            **/meson-logs/**
+            **/test-results/**
+          if-no-files-found: ignore
+          retention-days: 30
 
   deb:
     name: deb (ubuntu-latest, x86_64)
@@ -118,11 +176,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.prepare.outputs.sha }}
       - run: |
           sudo apt-get update
           sudo apt-get install -y build-essential debhelper meson ninja-build pkgconf python3 pandoc jq \
-            libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
+            libx11-dev libxt-dev libxaw7-dev libxmu-dev libxtst-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev libnotify-dev \
             xvfb xfonts-base x11-utils x11-xserver-utils dbus
       - name: Describe the libghostty build for the Zig cache key
@@ -149,8 +207,13 @@ jobs:
           path: font-fixtures-stage
           key: font-fixtures-${{ hashFiles('tools/stage-font-fixtures', 'tools/font-fixtures/**') }}-fonttools${{ env.FONTTOOLS_VERSION }}
           fail-on-cache-miss: true
+      - run: packaging/check-version-order deb
       - run: packaging/build-deb "${{ needs.prepare.outputs.version }}"
-      - run: |
+      - name: Check Debian package version and install
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          test "$(dpkg-deb -f dist/*.deb Version)" = "$(packaging/release-version "$VERSION" deb)-1"
           sudo apt-get install -y ./dist/*.deb
           test "$(revenant --version)" = "revenant ${{ needs.prepare.outputs.version }}"
           test "$(xterm+ --version)" = "revenant ${{ needs.prepare.outputs.version }}"
@@ -159,10 +222,20 @@ jobs:
           test -f /usr/share/icons/hicolor/256x256/apps/revenant.png
       - uses: actions/upload-artifact@v7
         with:
-          name: deb-x86_64
+          name: package-deb-x86_64
           path: dist/*.deb
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 30
+      - name: Retain test and configure logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: diagnostics-deb-x86_64
+          path: |
+            **/meson-logs/**
+            **/test-results/**
+          if-no-files-found: ignore
+          retention-days: 30
 
   rpm:
     name: rpm (fedora-latest, x86_64)
@@ -172,12 +245,12 @@ jobs:
     steps:
       - run: |
           dnf install -y git rpm-build gcc meson ninja-build python3 pandoc jq xz \
-            libX11-devel libXt-devel libXaw-devel libXmu-devel libxcb-devel \
+            libX11-devel libXt-devel libXaw-devel libXmu-devel libXtst-devel libxcb-devel \
             fontconfig-devel libXft-devel libXrender-devel cairo-devel harfbuzz-devel libnotify-devel dbus-daemon \
             xorg-x11-server-Xvfb xorg-x11-fonts-misc xprop xwininfo xrdb
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.prepare.outputs.sha }}
       - run: git config --global --add safe.directory '*'
       - name: Describe the libghostty build for the Zig cache key
         id: zigkey
@@ -203,8 +276,13 @@ jobs:
           path: font-fixtures-stage
           key: font-fixtures-${{ hashFiles('tools/stage-font-fixtures', 'tools/font-fixtures/**') }}-fonttools${{ env.FONTTOOLS_VERSION }}
           fail-on-cache-miss: true
+      - run: packaging/check-version-order rpm
       - run: packaging/build-rpm "${{ needs.prepare.outputs.version }}"
-      - run: |
+      - name: Check RPM package version and install
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          test "$(rpm -qp --qf '%{VERSION}' dist/*.rpm)" = "$(packaging/release-version "$VERSION" rpm)"
           dnf install -y ./dist/*.rpm
           test "$(revenant --version)" = "revenant ${{ needs.prepare.outputs.version }}"
           test "$(xterm+ --version)" = "revenant ${{ needs.prepare.outputs.version }}"
@@ -213,10 +291,20 @@ jobs:
           test -f /usr/share/icons/hicolor/256x256/apps/revenant.png
       - uses: actions/upload-artifact@v7
         with:
-          name: rpm-x86_64
+          name: package-rpm-x86_64
           path: dist/*.rpm
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 30
+      - name: Retain test and configure logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: diagnostics-rpm-x86_64
+          path: |
+            **/meson-logs/**
+            **/test-results/**
+          if-no-files-found: ignore
+          retention-days: 30
 
   arch:
     name: pkg.tar.zst (archlinux-latest, x86_64)
@@ -226,12 +314,12 @@ jobs:
     steps:
       - run: |
           pacman -Syu --noconfirm --needed base-devel git meson ninja pkgconf python pandoc jq xz \
-            libx11 libxt libxaw libxmu libxcb fontconfig libxft libxrender cairo harfbuzz libnotify dbus \
+            libx11 libxt libxaw libxmu libxtst libxcb fontconfig libxft libxrender cairo harfbuzz libnotify dbus \
             xorg-server-xvfb xorg-fonts-misc xorg-mkfontscale xorg-xprop xorg-xwininfo xorg-xrdb
           mkfontdir /usr/share/fonts/misc
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.prepare.outputs.sha }}
       - run: git config --global --add safe.directory '*'
       - name: Describe the libghostty build for the Zig cache key
         id: zigkey
@@ -257,9 +345,14 @@ jobs:
           path: font-fixtures-stage
           key: font-fixtures-${{ hashFiles('tools/stage-font-fixtures', 'tools/font-fixtures/**') }}-fonttools${{ env.FONTTOOLS_VERSION }}
           fail-on-cache-miss: true
+      - run: packaging/check-version-order arch
       - run: packaging/build-arch "${{ needs.prepare.outputs.version }}"
-      - run: |
+      - name: Check Arch package version and install
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
           pacman -U --noconfirm ./dist/*.pkg.tar.zst
+          test "$(pacman -Q revenant)" = "revenant $(packaging/release-version "$VERSION" arch)-1"
           test "$(revenant --version)" = "revenant ${{ needs.prepare.outputs.version }}"
           test "$(xterm+ --version)" = "revenant ${{ needs.prepare.outputs.version }}"
           test -f /usr/share/applications/revenant.desktop
@@ -267,13 +360,23 @@ jobs:
           test -f /usr/share/icons/hicolor/256x256/apps/revenant.png
       - uses: actions/upload-artifact@v7
         with:
-          name: arch-x86_64
+          name: package-arch-x86_64
           path: dist/*.pkg.tar.zst
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 30
+      - name: Retain test and configure logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: diagnostics-arch-x86_64
+          path: |
+            **/meson-logs/**
+            **/test-results/**
+          if-no-files-found: ignore
+          retention-days: 30
 
   release:
-    name: GitHub release
+    name: Verify artifact set and optionally prepare a draft
     needs: [prepare, tarball, deb, rpm, arch]
     runs-on: ubuntu-latest
     permissions:
@@ -283,21 +386,48 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ needs.prepare.outputs.sha }}
       - uses: actions/download-artifact@v8
         with:
+          pattern: package-*
           path: dist
           merge-multiple: true
-      - run: ls -l dist
+      - name: Record source and artifact identities
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: packaging/release-manifest dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: candidate-manifest
+          path: dist/release-manifest.json
+          if-no-files-found: error
+          retention-days: 30
       - uses: actions/attest-build-provenance@v3
+        if: inputs.mode == 'draft'
         with:
           subject-path: dist/*
       - name: Render release notes from CHANGELOG.md
-        run: packaging/release-notes "${{ needs.prepare.outputs.version }}" dist | tee release-notes.md
-      - uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ inputs.tag }}
-          name: Revenant ${{ needs.prepare.outputs.version }}
-          body_path: release-notes.md
-          files: dist/*
-          fail_on_unmatched_files: true
+        if: inputs.mode == 'draft'
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_SOURCE_SHA: ${{ needs.prepare.outputs.sha }}
+        run: packaging/release-notes "$VERSION" dist > release-notes.md
+      - name: Create a new draft with all assets attached
+        if: inputs.mode == 'draft'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          SOURCE_SHA: ${{ needs.prepare.outputs.sha }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+        run: |
+          git fetch --no-tags origin "refs/tags/$TAG"
+          test "$(git rev-parse 'FETCH_HEAD^{commit}')" = "$SOURCE_SHA"
+          # gh release create refuses an existing release. Never update published assets.
+          gh release create "$TAG" --verify-tag --draft --latest=false \
+            --prerelease="$PRERELEASE" --title "Revenant $VERSION" \
+            --notes-file release-notes.md dist/*

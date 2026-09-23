@@ -1,13 +1,13 @@
 # Built in place from a git checkout by packaging/build-arch; not for the AUR.
 pkgname=revenant
-pkgver=${REVENANT_RELEASE_VERSION:?set by packaging/build-arch}
+pkgver=${REVENANT_PACKAGE_VERSION:?set by packaging/build-arch}
 pkgrel=1
 pkgdesc='xterm-compatible X11 terminal emulator built on libghostty-vt'
 arch=(x86_64 aarch64)
 url='https://github.com/toppk/revenant'
 license=(MIT)
 depends=(libx11 libxt libxaw libxmu libxcb fontconfig libxft libxrender cairo harfbuzz libnotify)
-makedepends=(meson ninja pkgconf python pandoc)
+makedepends=(meson ninja pkgconf python pandoc libxtst)
 checkdepends=(xorg-server-xvfb xorg-fonts-misc xorg-xprop xorg-xwininfo xorg-xrdb dbus)
 options=(!debug)
 # zig >= 0.16 must be on PATH; the source tree is $REVENANT_SOURCE.
@@ -15,7 +15,7 @@ _source=${REVENANT_SOURCE:?set by packaging/build-arch}
 
 build() {
     arch-meson "$_source" "$_source/build-arch" -Dlibghostty=enabled -Dlibnotify=enabled \
-        -Dxvfb-tests=enabled -Dman=enabled -Drelease-version="$pkgver"
+        -Dxvfb-tests=enabled -Dman=enabled -Drelease-version="$REVENANT_RELEASE_VERSION"
     meson compile -C "$_source/build-arch"
 }
 

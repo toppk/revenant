@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""Verify RC numbering and RC-to-final upgrades with the native package manager."""
+
+import subprocess
+import sys
+from release_version import versions
+
+if len(sys.argv) != 2 or sys.argv[1] not in ("deb", "rpm", "arch"):
+    sys.exit("usage: packaging/check-version-order deb|rpm|arch")
+kind = sys.argv[1]
+values = [
+    versions(value)[kind]
+    for value in ("0.8.0-rc.1", "0.8.0-rc.2", "0.8.0-rc.10", "0.8.0")
+]
+for before, after in zip(values, values[1:]):
+    if kind == "deb":
+        subprocess.run(["dpkg", "--compare-versions", before, "lt", after], check=True)
+    else:
+        command = (
+            ["rpm", "--eval", f'%{{lua:print(rpm.vercmp("{before}", "{after}"))}}']
+            if kind == "rpm"
+            else ["vercmp", before, after]
+        )
+        result = int(subprocess.check_output(command, text=True).strip())
+        if result >= 0:
+            sys.exit(f"{kind}: {before} does not precede {after}")
+print(f"{kind}: " + " < ".join(values))

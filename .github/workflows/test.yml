@@ -2,7 +2,7 @@ name: Test
 
 on:
   push:
-    branches: [master]
+    branches: [master, "release/**"]
   pull_request:
   workflow_dispatch:
 
@@ -37,6 +37,7 @@ jobs:
           go test ./...
           go build -o ../../build-probe/probe .
       - run: python3 tests/probe-go.py build-probe/probe
+      - run: python3 tests/release-packaging.py
 
   compilers:
     name: GCC, Clang, and stub backend
@@ -47,7 +48,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang meson ninja-build pkgconf python3 jq \
-            libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
+            libx11-dev libxt-dev libxaw7-dev libxmu-dev libxtst-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
             libnotify-dev dbus xvfb xfonts-base x11-utils x11-xserver-utils \
             rpm2cpio cpio unzip curl fontconfig
@@ -91,12 +92,14 @@ jobs:
             -Dlibghostty=enabled -Dlibnotify=enabled -Dxvfb-tests=enabled
           meson compile -C build-gcc
           meson test -C build-gcc --print-errorlogs
+          tools/check-release-tests build-gcc
       - name: Run the complete suite with Clang
         run: |
           CC=clang meson setup build-clang \
             -Dlibghostty=enabled -Dlibnotify=enabled -Dxvfb-tests=enabled
           meson compile -C build-clang
           meson test -C build-clang --print-errorlogs
+          tools/check-release-tests build-clang
       - name: Run the stub-backend suite
         run: |
           CC=gcc meson setup build-stub -Dlibghostty=disabled -Dlibnotify=disabled
@@ -112,7 +115,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang meson ninja-build pkgconf python3 jq \
-            libx11-dev libxt-dev libxaw7-dev libxmu-dev libx11-xcb-dev \
+            libx11-dev libxt-dev libxaw7-dev libxmu-dev libxtst-dev libx11-xcb-dev \
             libfontconfig-dev libxft-dev libxrender-dev libcairo2-dev libharfbuzz-dev \
             libnotify-dev dbus xvfb xfonts-base x11-utils x11-xserver-utils \
             rpm2cpio cpio unzip curl fontconfig

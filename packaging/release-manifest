@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""Write an artifact identity manifest, or verify one before publication.
+
+Create: VERSION=... SOURCE_SHA=... WORKFLOW_SHA=... RUN_ID=... RUN_ATTEMPT=...
+        packaging/release-manifest DIST
+Check:  packaging/release-manifest --check DIST VERSION SOURCE_SHA
+"""
+
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+from release_version import versions
+
+MANIFEST = "release-manifest.json"
+
+
+def inventory(directory, version):
+    v = versions(version)
+    patterns = [
+        rf"revenant-{re.escape(version)}-linux-x86_64\.tar\.gz",
+        rf"revenant-{re.escape(version)}-linux-aarch64\.tar\.gz",
+        rf"revenant_{re.escape(v['deb'])}-1_amd64\.deb",
+        rf"revenant-{re.escape(v['rpm'])}-1(?:\.[A-Za-z0-9]+)*\.x86_64\.rpm",
+        rf"revenant-{re.escape(v['arch'])}-1-x86_64\.pkg\.tar\.zst",
+    ]
+    files = sorted(p for p in directory.iterdir() if p.name != MANIFEST)
+    if len(files) != 5 or any(
+        sum(bool(re.fullmatch(pattern, p.name)) for p in files) != 1
+        for pattern in patterns
+    ):
+        raise ValueError(
+            "expected exactly two tarballs, one deb, one rpm and one Arch package for this version"
+        )
+    result = []
+    for path in files:
+        if not path.is_file() or path.is_symlink():
+            raise ValueError(f"not a regular artifact: {path}")
+        with path.open("rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        result.append(
+            {"name": path.name, "size": path.stat().st_size, "sha256": digest}
+        )
+    return result
+
+
+def check_identity(version, source, workflow):
+    versions(version)
+    if not re.fullmatch(r"[0-9a-f]{40}", source) or source != workflow:
+        raise ValueError("source and workflow must be the same full commit SHA")
+
+
+def main(args):
+    if len(args) == 4 and args[0] == "--check":
+        directory, version, source = Path(args[1]), args[2], args[3]
+        manifest = json.loads((directory / MANIFEST).read_text())
+        check_identity(version, source, manifest["workflow_sha"])
+        if (
+            manifest["schema"] != 1
+            or manifest["version"] != version
+            or manifest["source_sha"] != source
+            or not re.fullmatch(r"[0-9a-f]{40}", manifest["libghostty_sha"])
+            or manifest["artifacts"] != inventory(directory, version)
+        ):
+            raise ValueError("release manifest identity or artifact hashes differ")
+        print("Release manifest and all five artifact hashes match")
+    elif len(args) == 1:
+        directory = Path(args[0])
+        version, source, workflow = (
+            os.environ[name] for name in ("VERSION", "SOURCE_SHA", "WORKFLOW_SHA")
+        )
+        check_identity(version, source, workflow)
+        pin = subprocess.check_output(
+            ["tools/fetch-libghostty", "--print-reference"], text=True
+        ).strip()
+        if not re.fullmatch(r"[0-9a-f]{40}", pin):
+            raise ValueError("libghostty must be pinned to a full SHA")
+        manifest = {
+            "schema": 1,
+            "version": version,
+            "source_sha": source,
+            "workflow_sha": workflow,
+            "libghostty_sha": pin,
+            "run_id": os.environ["RUN_ID"],
+            "run_attempt": os.environ["RUN_ATTEMPT"],
+            "artifacts": inventory(directory, version),
+        }
+        (directory / MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n")
+    else:
+        sys.exit(__doc__)
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except (KeyError, ValueError, OSError, subprocess.CalledProcessError) as error:
+        sys.exit(str(error))

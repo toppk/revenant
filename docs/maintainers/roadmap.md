@@ -41,11 +41,12 @@ exposed size-report gating, and hold-after-exit. Regression evidence lives in
 self-test and `xvfb-hold`. Native probes and their limitations are documented in
 [the probe reference](../reference/probes.md).
 
-T1b's UTF-8 title surface and other P2 options remain in `todo.md`. A separate
-startup defect was identified: `-geometry 40x5` is treated as widget pixels
-rather than a 40-column, 5-row request. Give it its own implementation and
-external geometry regression; it was not repaired by W1 or P2a.
-The completed batch does not replace the dependency release checkpoint below.
+The UTF-8 title surface (T1b), startup geometry correction, and login-shell
+invocation (P2b) are also implemented and reviewed. Feature scope is frozen for
+0.8. Follow the [release-candidate plan](releasing.md#current-release-plan):
+validate exact commits on `release/0.8`, publish immutable RCs, and fix forward.
+The release uses the tested Ghostty development pin; adopting Ghostty 1.4.0 is a
+subsequent checkpoint, not a prerequisite for 0.8.
 
 ## Upstream integration follow-ups
 

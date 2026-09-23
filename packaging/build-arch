@@ -4,6 +4,7 @@ set -euo pipefail
 version=${1:?version}
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root"
+package_version=$(packaging/release-version "$version" arch)
 
 # makepkg refuses to run as root; CI containers start that way.
 if [[ $EUID -eq 0 ]]; then
@@ -18,7 +19,7 @@ cp packaging/PKGBUILD "$pkgdir/"
 mkdir -p dist
 (
     cd "$pkgdir"
-    REVENANT_RELEASE_VERSION="$version" REVENANT_SOURCE="$root" PKGDEST="$root/dist" \
+    REVENANT_RELEASE_VERSION="$version" REVENANT_PACKAGE_VERSION="$package_version" REVENANT_SOURCE="$root" PKGDEST="$root/dist" \
         makepkg --noconfirm --nodeps --noextract --cleanbuild --force
 )
-ls dist/revenant-"$version"-1-*.pkg.tar.zst
+ls dist/revenant-"$package_version"-1-*.pkg.tar.zst

@@ -2,7 +2,7 @@ name: Documentation
 
 on:
   push:
-    branches: [master]
+    branches: [master, "release/**"]
     paths:
       - docs/**
       - docs-theme/**
@@ -50,7 +50,7 @@ jobs:
           path: site
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
     needs: build
     runs-on: ubuntu-latest
     environment:

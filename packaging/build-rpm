@@ -4,11 +4,12 @@ set -euo pipefail
 version=${1:?version}
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root"
+package_version=$(packaging/release-version "$version" rpm)
 
 rpmbuild -bb --build-in-place \
-    --define "version $version" \
+    --define "version $package_version" --define "app_version $version" \
     --define "_topdir $root/build-rpm" \
     packaging/revenant.spec
 mkdir -p dist
-find build-rpm/RPMS -name "revenant-$version-*.rpm" -exec mv {} dist/ \;
+find build-rpm/RPMS -name "revenant-$package_version-*.rpm" -exec mv {} dist/ \;
 ls dist/*.rpm

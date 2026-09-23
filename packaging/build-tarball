@@ -3,6 +3,7 @@
 set -euo pipefail
 version=${1:?version}
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+version=$("$root/packaging/release-version" "$version")
 arch=$(uname -m)
 name="revenant-$version-linux-$arch"
 build="$root/build-release"
