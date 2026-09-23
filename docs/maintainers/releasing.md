@@ -8,12 +8,72 @@ description: release checklist and workflow
 # Releasing
 
 Use a release branch and package validation before tagging. Published releases
-and any optional published candidates are immutable. Fix forward; never move a published tag or replace published assets.
+and any optional published candidates are immutable. Fix forward; never move a
+published tag or replace published assets.
 The Release workflow is dispatch-only and **never publishes automatically**.
 Both its `validate` and `draft` modes use the same package-build, complete-test,
 no-skips and install-check jobs.
 
-## Current release plan
+## 0.8.0 retrospective and next-release changes
+
+The 0.8.0 release avoided force pushes and tag replacement. Master advanced
+normally; three branch fixes were consolidated into one follow-up commit while
+preserving the already-pushed workflow and feature commits. The final tag was
+created once, and the published release is immutable.
+
+What worked:
+
+- Untagged validation exposed real portability and dependency problems before
+  publication: fortified `write` diagnostics, shell Unicode escapes under dash,
+  a missing fontTools dependency on cache hits, and an incorrect Fedora package
+  name. Fixing these was necessary; rerunning an unchanged failing job was not.
+- Five native package jobs exercised builds, full tests, installation and version
+  checks. The manifest and attestations bound the shipped assets to one source
+  and workflow commit.
+- Draft-first publication kept incomplete assets out of the public release.
+
+What did not work:
+
+- We started package validation before ordinary CI was green, then canceled it.
+- Using an RC package version for build-only verification created a second
+  version to rebuild without providing a UAT benefit.
+- Release notes and history consolidation happened after the successful trial,
+  changing the identity that still needed final validation.
+- Final validation of `fb1745c` took 14m44s
+  ([run 35826352413](https://github.com/toppk/revenant/actions/runs/35826352413)).
+  Draft creation rebuilt the same source and version for another 12m19s
+  ([run 35863346353](https://github.com/toppk/revenant/actions/runs/35863346353)).
+  Rebuilding did not preserve the already-verified artifacts; promotion should.
+
+The next workflow change should implement **build once, promote by run ID**.
+This is a proposed replacement, not a capability of the current `draft` mode:
+
+1. Finish feature selection, history consolidation, release notes and version
+   bookkeeping before the final candidate build. Use the intended final package
+   version even in untagged validation; use RC versions only for actual UAT.
+2. Require successful ordinary CI for the chosen source. Hosted compiler,
+   sanitizer and stub results count; do not repeat the full matrix locally by
+   default. During iteration, select checks according to the changed inputs.
+   A packaging-only dependency correction does not require another unrelated
+   renderer matrix before retrying packaging.
+3. Build and test all five packages once. Generate the manifest and attest all
+   six assets in this successful validation run, before any release tag exists.
+4. Promote that explicit run ID without rebuilding. A promotion job must verify
+   the trusted repository and workflow, successful run, source/workflow SHA,
+   intended version, exact asset set, hashes and attestations. Missing, expired,
+   partial or mismatched artifacts must fail closed. Never select "latest run".
+5. Create the tag only after promotion checks pass, pointing at the verified
+   source. Attach those exact bytes to a draft, verify the draft downloads, then
+   publish on maintainer instruction. Verify the published state and bytes.
+
+A new source, version or packaging input requires a new validated artifact set.
+A retry of draft creation or publication does not require rebuilding valid,
+retained artifacts. Retain the manifest's original build run ID during promotion.
+Test rejection paths before adopting this workflow, especially wrong SHA/version,
+foreign workflow, failed run, missing artifact and modified bytes. Do not weaken
+hash/provenance verification to save time; remove duplicate compilation instead.
+
+## 0.8 release procedure (current workflow)
 
 For 0.8, freeze features at the accepted UTF-8 title and login-shell work. Ship
 against the exact tested libghostty development commit in
@@ -33,8 +93,9 @@ an independent maintainer checkpoint. Keep xterm-411 as the comparison oracle.
    across attempts: the source SHA and run ID identify each artifact set.
 5. Bring the tested changes back to `master` without rewriting published
    history. Untagged branch fixes may be squashed into a coherent commit; keep
-   feature commits intact and retain the validation branch as the audit trail.
-   Revalidate the resulting SHA. Do not squash/rebase a tagged candidate.
+   feature commits intact. Keep the validation branch until publication checks
+   finish, then delete it as described below. Revalidate the resulting SHA.
+   Do not squash/rebase a tagged candidate.
 6. Prepare final notes/version bookkeeping, validate that exact final commit
    with the final version, then tag, build its draft, verify and publish.
    Binary versions are embedded, so RC artifacts cannot be renamed or promoted
@@ -46,9 +107,10 @@ Do not introduce additional features while fixing packaging failures.
 
 ## Validation before tags
 
-From the frozen release branch, push the exact commit and run the complete
-local compiler/sanitizer/stub matrix before release. The normal Test workflow
-covers these too; real-backend GCC, Clang and ASan use the no-skips gate.
+From the frozen release branch, push the exact commit and require the complete
+compiler/sanitizer/stub matrix before release. Successful hosted Test results
+count; do not duplicate that matrix locally by default. Real-backend GCC,
+Clang and ASan use the no-skips gate.
 Then dispatch the same package pipeline used for release drafts:
 
 ```sh
@@ -151,6 +213,28 @@ After publishing, check the release's state and download/verify the published
 assets again. If a published final release has a defect, make a patch release;
 if an RC has a defect, publish the next RC. Never delete and recreate a public
 release/tag as a repair strategy.
+
+## Clean up the release branch
+
+After publication and verification of the public downloads, delete the temporary
+release branch on the remote and locally. First confirm that its intended changes
+are present on `master`, including any squashed fixes, and that no unreleased work
+remains on it. The published tag, manifest and attestations identify what shipped;
+a permanent release branch is not required for that purpose.
+
+For example, after releasing 0.8.0:
+
+```sh
+git switch master
+git push origin --delete release/0.8
+git branch -d release/0.8
+```
+
+If the branch was squash-merged, Git may refuse `-d` because its original commits
+are not ancestors of master. After verifying the consolidated changes, use
+`git branch -D release/0.8` to remove only that local branch reference. Do not
+remove or move the release tag. Keep a release branch only when it has an explicit
+ongoing maintenance purpose.
 
 ## What the workflow does
 
