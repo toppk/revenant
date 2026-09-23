@@ -169,6 +169,139 @@ class ProbeAcceptance(unittest.TestCase):
         self.assertIn(b"PASS: each jump puts the named prompt at the top", output)
         self.assertNotIn(b"Pipe must contain", output)
 
+    # Stand-in terminals for the login-shell launcher. Each records its pids, arguments and
+    # resource environment in $SIDE so the test can check what the launcher did.
+    LOGIN_SHELL_TERMINALS = {
+        "rules": (
+            "args, login, command = sys.argv[1:], None, None\n"
+            "resource = False\n"
+            "for i, arg in enumerate(args):\n"
+            "    if arg == '-e':\n"
+            "        command = args[i + 1:]\n"
+            "        break\n"
+            "    if arg in ('-ls', '+ls'): login = arg == '-ls'\n"
+            "    if i and args[i - 1] == '-xrm' and arg.startswith('*loginShell:'):\n"
+            "        resource = arg.split(':')[1].strip() == 'true'\n"
+            "login = resource if login is None else login\n"
+            "if command:\n"
+            "    os.execv(command[0], command)\n"
+            "shell = os.environ['SHELL']\n"
+            "name = os.path.basename(shell)\n"
+            "os.execv(shell, [('-' + name) if login else name])\n"
+        ),
+        "wrong": (
+            "open(os.environ['PROBE_ARGV_REPORT'], 'w').write('exe\\t/wrong/executable\\nargv\\twrong-argv\\n')\n"
+        ),
+        "malformed": "open(os.environ['PROBE_ARGV_REPORT'], 'w').write('garbage\\n')\n",
+        "hanging": (
+            "import subprocess, time\n"
+            "child = subprocess.Popen(['sleep', '60'])\n"
+            "detached = subprocess.Popen(['sleep', '61'], start_new_session=True)\n"
+            "record(child.pid, detached.pid)\n"
+            "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+            "time.sleep(60)\n"
+        ),
+    }
+
+    def login_shell_terminal(self, directory, name):
+        terminal = Path(directory) / name
+        terminal.write_text(
+            f"#!{sys.executable}\n"
+            "import os, signal, sys\n"
+            "def record(*pids):\n"
+            "    with open(os.environ['SIDE'], 'a') as side:\n"
+            "        side.write(repr((os.getpid(), pids, sys.argv[1:], {k: os.environ.get(k) for k in"
+            " ('HOME', 'XENVIRONMENT', 'XFILESEARCHPATH', 'XUSERFILESEARCHPATH', 'XAPPLRESDIR')})) + '\\n')\n"
+            "record()\n" + self.LOGIN_SHELL_TERMINALS[name]
+        )
+        terminal.chmod(0o755)
+        return terminal
+
+    def login_shell_launch(self, directory, name, *extra, env=None, timeout=60):
+        side = Path(directory) / f"{name}.side"
+        done = subprocess.run(
+            [str(BINARY), "startup-login-shell", "login-shell", "--program",
+             str(self.login_shell_terminal(directory, name)), *extra],
+            stdin=subprocess.DEVNULL, capture_output=True, timeout=timeout,
+            env=dict(env or os.environ, SIDE=str(side)),
+        )
+        records = [eval(line) for line in side.read_text().splitlines()] if side.exists() else []
+        return done, records
+
+    def assertGone(self, pids):
+        deadline = time.monotonic() + 5
+        for pid in pids:
+            while True:
+                try:
+                    state = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+                except (FileNotFoundError, ProcessLookupError):
+                    break
+                if state == "Z" or time.monotonic() > deadline:
+                    self.assertEqual(state, "Z", f"launched pid {pid} survived")
+                    break
+                time.sleep(0.05)
+
+    def test_login_shell_launcher_validates_reports(self):
+        with tempfile.TemporaryDirectory() as directory:
+            hostile = Path(directory) / "resources"
+            hostile.write_text("*loginShell: true\n")
+            done, records = self.login_shell_launch(
+                directory, "rules", "--seconds", "5", "--xrm", "XTerm*deliberate: on",
+                env=dict(os.environ, XENVIRONMENT=str(hostile), XFILESEARCHPATH=str(hostile)),
+            )
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            self.assertEqual(done.stdout.count(b"  matches xterm-411: exe "), 6, done.stdout)
+            self.assertIn(b'argv ["-probe"]', done.stdout)
+            self.assertIn(b'Deliberate override after the baseline: -xrm "XTerm*deliberate: on"', done.stdout)
+            self.assertEqual(len(records), 6)
+            for _, _, args, env in records:
+                self.assertEqual(args[:4], ["-xrm", "*loginShell: false", "-xrm", "XTerm*deliberate: on"])
+                self.assertNotEqual(env["HOME"], os.environ.get("HOME"))
+                for name in ("XENVIRONMENT", "XFILESEARCHPATH", "XUSERFILESEARCHPATH", "XAPPLRESDIR"):
+                    self.assertEqual(env[name], "/dev/null", name)
+            for name, message in (
+                ("wrong", b'FAIL: executable "/wrong/executable"'),
+                ("malformed", b"FAIL: malformed report line"),
+            ):
+                with self.subTest(terminal=name):
+                    done, _ = self.login_shell_launch(directory, name, "--seconds", "2")
+                    self.assertEqual(done.returncode, 1, done.stdout)
+                    self.assertEqual(done.stdout.count(message), 6, done.stdout)
+                    self.assertNotIn(b"matches", done.stdout)
+
+    def test_login_shell_launcher_stops_descendants(self):
+        with tempfile.TemporaryDirectory() as directory:
+            done, records = self.login_shell_launch(directory, "hanging", "--seconds", "0.3")
+            self.assertEqual(done.returncode, 1, done.stdout)
+            self.assertEqual(done.stdout.count(b"FAIL: no report within 0.3s"), 6, done.stdout)
+            self.assertNotIn(b"survived", done.stdout)
+            self.assertEqual(len([pids for _, pids, _, _ in records if pids]), 6)
+            self.assertGone([pid for own, pids, _, _ in records for pid in (own, *pids)])
+            side = Path(directory) / "interrupt.side"
+            probe = subprocess.Popen(
+                [str(BINARY), "startup-login-shell", "login-shell", "--program",
+                 str(self.login_shell_terminal(directory, "hanging")), "--seconds", "30"],
+                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                env=dict(os.environ, SIDE=str(side)),
+            )
+            try:
+                deadline = time.monotonic() + 10
+                while "(" not in (side.read_text() if side.exists() else "") or \
+                        not any(eval(line)[1] for line in side.read_text().splitlines()):
+                    self.assertLess(time.monotonic(), deadline, "stand-in did not start")
+                    time.sleep(0.05)
+                probe.send_signal(signal.SIGINT)
+                output, _ = probe.communicate(timeout=10)
+            finally:
+                if probe.poll() is None:
+                    probe.kill()
+                    probe.wait()
+            self.assertEqual(probe.returncode, 130, output)
+            self.assertIn(b"interrupted; the launched terminal and its children were stopped", output)
+            self.assertNotIn(b"survived", output)
+            records = [eval(line) for line in side.read_text().splitlines()]
+            self.assertGone([pid for own, pids, _, _ in records for pid in (own, *pids)])
+
     def test_session_hold_ends_with_marker_and_selected_status(self):
         command = [str(BINARY), "startup-hold-after-exit", "session-hold"]
         for status in (0, 3, 255):
@@ -344,7 +477,7 @@ class ProbeAcceptance(unittest.TestCase):
         catalog = json.loads(subprocess.check_output([str(BINARY), "list", "--json"]))
         for case in catalog:
             name = case["path"]
-            if name == "colors palette spawn":
+            if name in ("colors palette spawn", "startup login-shell"):
                 continue  # Explicit external process, tested through argv tests.
             with self.subTest(case=name):
                 args = case["command"].split() + ["--timeout", ".005", "--no-pause"]

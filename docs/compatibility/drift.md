@@ -890,6 +890,31 @@ The PTY size's pixel fields cover the text area in Revenant (480x312 for 80x24
 cells of 6x13), while xterm reports the whole window (484x316); the character
 fields and the CSI 14 t reply agree.
 
+### Login shell (`-ls`, `loginShell`)
+
+Without `-e`, Revenant starts the shell as xterm patch 411 does. The shell is
+`$SHELL` when that is an absolute path to an executable file. Otherwise it is
+the password-file shell when `/etc/shells` lists it, and otherwise `/bin/sh`.
+`argv[0]` is the shell's basename, with a leading dash when `loginShell` is set
+(`-ls`, `+ls`, or `XTerm*vt100.loginShell`). The options take precedence over a
+`*loginShell` resource in either order, and an application-level
+`XTerm.loginShell` is ignored because the resource belongs to the vt100
+widget. A command given with `-e` runs exactly as given. If the shell cannot
+be executed, the terminal shows `revenant: Could not exec PATH: reason` for five
+seconds and the child exits with status 30. With `-hold` the message stays.
+Measured with isolated resources and an external `/proc` observer, the
+executable, argv, failure timing and cleanup match XTerm(411).
+
+Remaining differences are outside the executable and argv:
+
+- xterm unsets `SHELL` when `/etc/shells` does not list it, sets it to the shell
+  it falls back to, and exports `XTERM_SHELL`. Revenant leaves `SHELL` as
+  inherited and does not set `XTERM_SHELL`.
+- xterm's `validShells` resource and its `/bin/login -p` path are not
+  implemented.
+- The failure message names the program as Revenant is installed; xterm's says
+  `xterm`.
+
 ### Hold after the child exits
 
 `-hold`, `+hold` and the `hold` resource follow xterm patch 411, measured with

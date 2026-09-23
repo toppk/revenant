@@ -119,6 +119,8 @@ Boolean XtpVtUtf8Title(Widget widget);
 void XtpVtSetUtf8Title(Widget widget, Boolean enabled);
 /* Whether the locale's codeset is UTF-8, which xterm treats as UTF-8 mode. */
 Boolean XtpVtUtf8Locale(Widget widget);
+/* loginShell: the shell, not an -e command, starts with a leading dash in argv[0]. */
+Boolean XtpVtLoginShell(Widget widget);
 Boolean XtpVtAllowColorOps(Widget widget);
 Boolean XtpVtAllowFontOps(Widget widget);
 void XtpVtSetAllowFontOps(Widget widget, Boolean enabled);

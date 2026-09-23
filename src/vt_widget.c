@@ -300,6 +300,8 @@ static XtResource resources[] = {
      XtRImmediate, (XtPointer)False},
     {"allowTitleOps", "AllowTitleOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_title_ops),
      XtRImmediate, (XtPointer)True},
+    {"loginShell", "LoginShell", XtRBoolean, sizeof(Boolean), OFFSET(login_shell), XtRImmediate,
+     (XtPointer)False},
     {"utf8Title", "Utf8Title", XtRString, sizeof(String), OFFSET(utf8_title_name), XtRString,
      (XtPointer) "default"},
     {"allowMouseOps", "AllowMouseOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_mouse_ops),
@@ -2103,6 +2105,12 @@ Boolean
 XtpVtUtf8Title(Widget widget)
 {
         return VtAsRecord(widget)->vt.utf8_title != XTP_UTF8_TITLE_FALSE;
+}
+
+Boolean
+XtpVtLoginShell(Widget widget)
+{
+        return VtAsRecord(widget)->vt.login_shell;
 }
 
 Boolean

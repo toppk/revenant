@@ -121,7 +121,11 @@ func caseFlags(c *Case, output io.Writer) (*flag.FlagSet, *Options) {
 			case "palette":
 				fs.StringVar(&o.Palette, name, o.Palette, "named palette: xterm/tango/solarized/gruvbox/nord/verify")
 			case "seconds":
-				fs.Float64Var(&o.Seconds, name, o.Seconds, "input capture duration")
+				usage := "input capture duration"
+				if c.Path == "startup login-shell" {
+					usage = "seconds to wait for each launched child's report"
+				}
+				fs.Float64Var(&o.Seconds, name, o.Seconds, usage)
 			case "mode":
 				usage := "synchronized output: compare/off/on"
 				if c.Path == "input mouse" {
@@ -485,6 +489,9 @@ func run(args []string) (code int) {
 			}
 		}
 	}()
+	if path := os.Getenv(argvReportEnv); path != "" {
+		return argvReport(path)
+	}
 	if len(args) == 2 && args[0] == "features" && args[1] == "--json" {
 		json.NewEncoder(os.Stdout).Encode(features)
 		return 0
@@ -591,6 +598,10 @@ func run(args []string) (code int) {
 	// Explicit spawning has no need to acquire the caller's terminal.
 	if selected != nil && selected.Path == "colors palette spawn" {
 		return spawnPalette(opts)
+	}
+	// The login-shell case launches the terminal; it needs no terminal of its own.
+	if selected != nil && selected.Path == "startup login-shell" {
+		return loginShellLaunch(opts)
 	}
 	// The hold fixture is the terminal's child and ends with the requested status.
 	if selected != nil && selected.Path == "startup hold" {

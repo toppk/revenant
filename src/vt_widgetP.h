@@ -261,6 +261,7 @@ typedef struct
         Boolean disowning_selections;
         Boolean allow_window_ops;
         Boolean allow_title_ops;
+        Boolean login_shell;
         String utf8_title_name;
         /* Resolved XtpUtf8Title; nonzero writes the EWMH labels in a UTF-8 locale. */
         int utf8_title;

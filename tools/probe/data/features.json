@@ -1048,6 +1048,18 @@
     "sequence": ""
   },
   {
+    "id": "startup-login-shell",
+    "title": "Login-shell startup",
+    "breadcrumb": [
+      "Startup and process",
+      "Shell invocation"
+    ],
+    "specifications": [
+      "xterm-manual"
+    ],
+    "sequence": ""
+  },
+  {
     "id": "diagnostics-unknown-apc",
     "title": "Unknown APC diagnostics",
     "breadcrumb": [

@@ -646,6 +646,21 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
     )
     test(
+        'xvfb-login-shell',
+        find_program('sh'),
+        args: [
+            files('tests/xvfb-login-shell.sh'),
+            xvfb.full_path(),
+            xterm_plus.full_path(),
+            selection_test_tool.full_path(),
+            selection_reader_tool.full_path(),
+            close_window_tool.full_path(),
+        ],
+        depends: [selection_test_tool, selection_reader_tool, close_window_tool],
+        timeout: 120,
+        is_parallel: false,
+    )
+    test(
         'xvfb-hold',
         find_program('sh'),
         args: [

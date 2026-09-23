@@ -145,6 +145,37 @@ and reminds you again on q/Esc. The same case answers `csi-14-t-pixel-size-repor
 support evidence: exact bytes and geometry against the X window are checked by
 `tests/xvfb-window-ops.sh`.
 
+`just probe startup-login-shell login-shell --program TERMINAL` is an external
+launcher, run from an ordinary shell rather than inside the terminal under test:
+
+```sh
+build-probe/probe startup-login-shell login-shell --program build-u18-gcc/revenant
+```
+
+It starts `TERMINAL` six times with `SHELL` set to the probe binary: by default,
+with `-ls`, with `+ls`, with the `loginShell` resource, with `+ls` over the
+resource, and with `-ls -e`. The copy each terminal starts writes its own
+`/proc/self/exe` and argv to a file named in its environment, then exits. Each
+report must name the probe binary itself and give exactly xterm-411's argv: the
+shell's basename, dashed for a login shell, and a `-e` command as given. A
+missing, malformed or different report is a failure and the probe exits 1; it
+exits 0 only when all six match. The shell's appearance is not evidence; these
+argv reports are.
+
+Launches are isolated from the caller's resources. `HOME` is a fresh directory,
+and `XENVIRONMENT`, `XFILESEARCHPATH`, `XUSERFILESEARCHPATH` and `XAPPLRESDIR`
+are `/dev/null`. Every launch starts with `-xrm '*loginShell: false'`, which also
+overrides the server's resource database, before its own options. `--xrm` adds a
+deliberate override after that baseline, and the probe prints each one, since
+expectations assume it leaves `loginShell` alone. `--seconds` bounds each wait.
+
+Each launch runs in its own process group, and its environment carries a marker.
+After each scenario, on a timeout, or on Ctrl-C or SIGTERM, the probe signals the
+group and every marked process (TERM, then KILL, each within a second), so
+children that started their own session are stopped too. A process still alive
+afterwards is a failure; an interruption exits 130. `tests/xvfb-login-shell.sh`
+checks the same rules through `/proc`.
+
 `just probe startup-hold-after-exit session-hold` is a child fixture, not a case
 to run from a shell: it prints a final `PROBE-HOLD-END status=N` marker without a
 newline and exits with `--status N` (0 to 255). Launch the built probe as the

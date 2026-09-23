@@ -250,6 +250,15 @@
     },
     {
       "breadcrumb": [
+        "Startup and process",
+        "Shell invocation"
+      ],
+      "features": [
+        "startup-login-shell"
+      ]
+    },
+    {
+      "breadcrumb": [
         "Diagnostics",
         "Unknown controls"
       ],

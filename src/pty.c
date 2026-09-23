@@ -6,10 +6,13 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <pty.h>
+#include <pwd.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -37,9 +40,65 @@ WindowSize(uint16_t columns, uint16_t rows, uint32_t cell_width, uint32_t cell_h
         return size;
 }
 
+/* xterm's validProgram. */
+static bool
+ExecutableFile(const char *path)
+{
+        struct stat info;
+
+        return path != NULL && path[0] == '/' && strstr(path, "/..") == NULL &&
+               stat(path, &info) == 0 && S_ISREG(info.st_mode) && access(path, X_OK) == 0;
+}
+
+static bool
+ListedShell(const char *path)
+{
+        const char *entry;
+        bool listed = false;
+
+        if (!ExecutableFile(path))
+                return false;
+        setusershell();
+        while (!listed && (entry = getusershell()) != NULL)
+                listed = strcmp(entry, path) == 0;
+        endusershell();
+        return listed;
+}
+
+char *
+XtpPtyResolveShell(void)
+{
+        const char *shell = getenv("SHELL");
+        struct passwd *entry;
+
+        if (ExecutableFile(shell))
+                return strdup(shell);
+        entry = getpwuid(getuid());
+        if (entry != NULL && entry->pw_shell != NULL && ListedShell(entry->pw_shell))
+                return strdup(entry->pw_shell);
+        return strdup("/bin/sh");
+}
+
+char *
+XtpPtyShellName(const char *shell_path, bool login)
+{
+        const char *slash = strrchr(shell_path, '/');
+        const char *name = slash != NULL ? slash + 1 : shell_path;
+        size_t length = strlen(name);
+        char *result = malloc(length + 2U);
+
+        if (result == NULL)
+                return NULL;
+        result[0] = '-';
+        memcpy(result + 1, name, length + 1U);
+        if (!login)
+                memmove(result, result + 1, length + 1U);
+        return result;
+}
+
 XtpPty *
-XtpPtySpawn(char *const argv[], const char *term_name, uint16_t columns, uint16_t rows,
-            uint32_t cell_width, uint32_t cell_height)
+XtpPtySpawn(const char *shell_path, char *const argv[], const char *term_name, uint16_t columns,
+            uint16_t rows, uint32_t cell_width, uint32_t cell_height)
 {
         XtpPty *pty;
         struct winsize size = WindowSize(columns, rows, cell_width, cell_height);
@@ -66,16 +125,28 @@ XtpPtySpawn(char *const argv[], const char *term_name, uint16_t columns, uint16_
                     term_name != NULL && *term_name != '\0' ? term_name : XTP_TERM_NAME_DEFAULT, 1);
                 (void)setenv("TERM_PROGRAM", XTP_PROGRAM_NAME, 1);
                 (void)setenv("TERM_PROGRAM_VERSION", XTP_VERSION, 1);
-                execvp(argv[0], argv);
-                _exit(127);
+                if (shell_path == NULL) {
+                        execvp(argv[0], argv);
+                        _exit(127);
+                }
+                execv(shell_path, argv);
+                /* xterm leaves the message on screen for five seconds, then exits with ERROR_EXEC.
+                 */
+                fprintf(stderr, "%s: Could not exec %s: %s\n", XTP_PROGRAM_NAME, shell_path,
+                        strerror(errno));
+                (void)fflush(stderr);
+                (void)sleep(5);
+                _exit(30);
         }
 
         flags = fcntl(pty->master, F_GETFL);
         if (flags >= 0)
                 (void)fcntl(pty->master, F_SETFL, flags | O_NONBLOCK);
         (void)fcntl(pty->master, F_SETFD, FD_CLOEXEC);
-        XtpLog(XTP_LOG_INFO, "pty", "spawned pid=%ld master-fd=%d command=%s size=%ux%u cell=%ux%u",
-               (long)pty->child, pty->master, argv[0], columns, rows, cell_width, cell_height);
+        XtpLog(XTP_LOG_INFO, "pty",
+               "spawned pid=%ld master-fd=%d command=%s argv0=%s size=%ux%u cell=%ux%u",
+               (long)pty->child, pty->master, shell_path != NULL ? shell_path : argv[0], argv[0],
+               columns, rows, cell_width, cell_height);
         return pty;
 }
 

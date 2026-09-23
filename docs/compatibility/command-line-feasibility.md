@@ -59,7 +59,7 @@ The two original structural gaps are complete:
 | `-display name` | Xt standard | Xt | — | XT |
 | `-class string` | Override application class before Xt init | Single pre-X scan, then `XtOpenDisplay`/shell identity | WM_CLASS, app-default resolution, and `CustomTerm*resource` lookup are covered under Xvfb | DONE |
 | `-name string` | Override instance name (`xterm.` resources, icon, title) | Same scan; `-e` defaults icon/title to the child basename | WM_CLASS, `custom*resource`, command provenance, WM_NAME, and WM_ICON_NAME are covered under Xvfb | DONE |
-| `-/+ls` | `loginShell`: prefix `argv[0]` with `-` | `pty.c` exec | One line at exec time | READY |
+| `-/+ls` | `loginShell`: prefix `argv[0]` with `-` | `pty.c` exec | xterm's shell choice and basename `argv[0]`, dashed when set; `-e` unaffected | DONE |
 | `-tn name` | `termName`: `TERM` for the child | `pty.c` environment and libghostty `OPT_TERMINFO_NAME` from one resolved name | XTGETTCAP `TN` reports the child's `TERM`; Tcap Ops gates the reply | DONE |
 | `-ti termid` | `decTerminalID`: DA responses (vt100/220/…) | libghostty answers DA itself; no terminal-ID option in the reviewed API | Needs an ID option or DA callback | BLOCKED |
 | `-tm string` | `ttyModes`: stty-style keywords for the PTY | `pty.c` termios | Parse the small keyword language, apply with `tcsetattr` | READY |
@@ -209,7 +209,7 @@ The two original structural gaps are complete:
    and shell identity before `XtOpenDisplay`; Xvfb tests pin resource aliases
    and the resulting WM properties.
 3. **Slice C — process options** in `pty.c`: `-ls`, `-tn`, `-tm`, `-ie`,
-   `-wf`, `-mesg`, `-baudrate`, `-lc`/`-lcc` (`-hold` is done). Session transcript
+   `-wf`, `-mesg`, `-baudrate`, `-lc`/`-lcc` (`-hold` and `-ls` are done). Session transcript
    logging (`-l`/`-lf`) is a separate TODO P1 slice shared with the menu action.
 4. **Slice D — startup application of existing menu modes**: `-rv`, `-aw`,
    `-rw`, `-132`, `-j`, `-mb`/`-nb`, `-fc`, `-sh`,

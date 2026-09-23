@@ -47,6 +47,7 @@ vt100	maxStringParse	MaxStringParse	integer	600000		Largest control string, in b
 vt100	internalBorder	BorderWidth	dimension	2		Padding in pixels between the text and the window edge.
 vt100	columns	Columns	integer	80		Initial number of columns when no geometry is given.
 vt100	rows	Rows	integer	24		Initial number of rows when no geometry is given.
+vt100	loginShell	LoginShell	boolean	false		Start the shell as a login shell, as xterm -ls does: argv[0] is the shell's name with a leading dash, such as -bash. It has no effect on a command given with -e. The shell is $SHELL when that is an absolute path to an executable file, otherwise the password-file shell when /etc/shells lists it, otherwise /bin/sh. -ls and +ls set it.
 vt100	geometry	Geometry	string	(unset)		Initial size in characters and position in pixels, in the standard X form WIDTHxHEIGHT+X+Y, as in xterm. -geometry sets it. The size replaces columns and rows, and a zero size becomes one; negative offsets count from the right and bottom edges of the screen. When it is unset, the application geometry resource is read the same way, whereas xterm ignores the size given there.
 vt100	alwaysHighlight	AlwaysHighlight	boolean	false		Draw a filled block cursor even when the window does not have focus.
 vt100	cursorBlink	CursorBlink	string	false		Configured cursor blink operand: false, true, always, or never. false and true combine with the application's DECSCUSR or mode 12 request under cursorBlinkXOR; always and never ignore the application. A reset restores this value.

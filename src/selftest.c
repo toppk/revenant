@@ -528,7 +528,7 @@ SelfTestPty(void)
                     "\"$TERM_PROGRAM_VERSION\"",
             NULL,
         };
-        XtpPty *pty = XtpPtySpawn(command, NULL, 80, 24, 8, 16);
+        XtpPty *pty = XtpPtySpawn(NULL, command, NULL, 80, 24, 8, 16);
         char output[256];
         size_t used = 0;
         int attempts;
@@ -671,7 +671,7 @@ SelfTestPtyQueue(void)
             (char *)"stty raw -echo; printf R; sleep 0.2; exec cat",
             NULL,
         };
-        XtpPty *pty = XtpPtySpawn(command, NULL, 80, 24, 8, 16);
+        XtpPty *pty = XtpPtySpawn(NULL, command, NULL, 80, 24, 8, 16);
         uint8_t *payload = NULL;
         uint8_t buffer[8192];
         size_t received = 0;
@@ -2437,6 +2437,35 @@ done:
         XtpTitleEntryFree(&entry);
         XtpTitleStackClear(&stack);
         return result;
+}
+
+/* xterm names the shell by its basename, with a leading dash for a login shell. */
+static int
+SelfTestShellName(void)
+{
+        static const struct
+        {
+                const char *path;
+                bool login;
+                const char *expected;
+        } cases[] = {
+            {"/bin/bash", false, "bash"},
+            {"/bin/bash", true, "-bash"},
+            {"/usr/local/bin/fish", true, "-fish"},
+            {"sh", true, "-sh"},
+        };
+
+        for (size_t index = 0; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+                char *name = XtpPtyShellName(cases[index].path, cases[index].login);
+                bool match = name != NULL && strcmp(name, cases[index].expected) == 0;
+
+                free(name);
+                if (!match) {
+                        XtpLog(XTP_LOG_ERROR, "self-test", "shell name mismatch case=%zu", index);
+                        return -1;
+                }
+        }
+        return 0;
 }
 
 /* Labels xterm's ChangeGroup hands to Xt; the Latin-1 and C1 rows match XTerm(411) properties. */
@@ -6628,6 +6657,7 @@ XtpSelfTest(void)
             {"window-ops policy", SelfTestWindowOps},
             {"title stack", SelfTestTitleStack},
             {"title encoding", SelfTestTitleEncoding},
+            {"shell name", SelfTestShellName},
             {"emoji-presentation", SelfTestEmojiPresentation},
             {"box-glyphs", SelfTestBoxGlyphs},
             {"braille and Powerline glyphs", SelfTestProceduralGlyphs},

@@ -1849,19 +1849,37 @@ RealizeApplication(App *app)
         XtAddEventHandler(app->shell, StructureNotifyMask, True, ShellEvent, app);
 }
 
+/* Without -e, the shell runs as xterm runs it, named by its basename, dashed for loginShell. */
 static int
 StartChild(App *app, char **command)
 {
+        char *shell_path = NULL;
+        char *shell_argv[2] = {NULL, NULL};
+
         if (XtpTerminalBackendIsStub())
                 return 0;
-
-        app->pty = XtpPtySpawn(command, app->term_name, (uint16_t)XtpVtColumns(app->vt),
+        if (command == NULL) {
+                shell_path = XtpPtyResolveShell();
+                shell_argv[0] = shell_path != NULL
+                                    ? XtpPtyShellName(shell_path, XtpVtLoginShell(app->vt))
+                                    : NULL;
+                if (shell_argv[0] == NULL) {
+                        free(shell_path);
+                        return -1;
+                }
+                XtpLog(XTP_LOG_INFO, "startup", "shell=%s argv0=%s loginShell=%s", shell_path,
+                       shell_argv[0], XtpVtLoginShell(app->vt) ? "true" : "false");
+                command = shell_argv;
+        }
+        app->pty = XtpPtySpawn(shell_path, command, app->term_name, (uint16_t)XtpVtColumns(app->vt),
                                (uint16_t)XtpVtRows(app->vt), XtpVtCellWidth(app->vt),
                                XtpVtCellHeight(app->vt));
-        if (app->pty == NULL) {
+        if (app->pty == NULL)
                 XtpLog(XTP_LOG_ERROR, "pty", "cannot start command=%s", command[0]);
+        free(shell_argv[0]);
+        free(shell_path);
+        if (app->pty == NULL)
                 return -1;
-        }
         app->pty_input = XtAppAddInput(app->context, XtpPtyFd(app->pty),
                                        (XtPointer)(uintptr_t)XtInputReadMask, PtyReady, app);
         return 0;
@@ -1955,7 +1973,6 @@ main(int argc, char **argv)
         AppResources resources;
         XtpCommandLine command_line;
         char **command = NULL;
-        char *default_command[2];
         int status = EXIT_FAILURE;
         XrmDatabase command_database = NULL;
 
@@ -2001,16 +2018,10 @@ main(int argc, char **argv)
         }
 
         command = command_line.command;
-        if (command == NULL) {
-                default_command[0] = getenv("SHELL");
-                if (default_command[0] == NULL || default_command[0][0] == '\0')
-                        default_command[0] = (char *)"/bin/sh";
-                default_command[1] = NULL;
-                command = default_command;
-        }
         command_database = XtpConfigCommandDatabase(command_line.xt_argc, command_line.xt_argv,
                                                     command_line.application_name);
-        XtpLog(XTP_LOG_INFO, "startup", "child command=%s", command[0]);
+        XtpLog(XTP_LOG_INFO, "startup", "child command=%s",
+               command != NULL ? command[0] : "(shell)");
 
         memset(&app, 0, sizeof(app));
         (void)setlocale(LC_ALL, "");

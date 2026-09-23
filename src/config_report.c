@@ -1047,7 +1047,7 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "graphemeWidth") == 0 || strcmp(name, "colorGlyphs") == 0 ||
             strcmp(name, "limitFontsets") == 0 || strcmp(name, "limitFontHeight") == 0 ||
             strcmp(name, "limitFontWidth") == 0 || strncmp(name, "faceSize", 8) == 0 ||
-            ansi_palette)
+            strcmp(name, "loginShell") == 0 || ansi_palette)
                 return "supported";
         if (strcmp(name, "allowColorOps") == 0 || strcmp(name, "disallowedColorOps") == 0 ||
             strcmp(name, "allowTitleOps") == 0 || strcmp(name, "allowWindowOps") == 0 ||
