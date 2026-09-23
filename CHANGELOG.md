@@ -8,11 +8,100 @@ artifacts take their version from the tag, not from the development version in
 advancing the development version; their notes link to the exact candidate
 commit. Published tags and assets are never replaced.
 
-## 0.8.0 — Unreleased
+## 0.9.0 — Unreleased
 
 ### Other
 
 - Development changes will be recorded here.
+
+## 0.8.0 — 2026-09-23
+
+Text-emoji rendering repairs, synchronized-output and selection fixes, and a
+focused xterm-411 compatibility update for titles, window reports, geometry,
+and shell startup. This release tracks a pinned libghostty development commit;
+it does not wait for Ghostty 1.4.0.
+
+### Features
+
+- Render and fit monochrome text emoji through a dedicated `faceNameEmojiText` role,
+  with bounded presentation-aware fallback discovery. Explicit font precedence and
+  committed cell widths are preserved; drawing stays inside the assigned cells.
+  ([0a7e03c](https://github.com/toppk/revenant/commit/0a7e03c6e9b9458d0fc9534b06bf903f18bb6316), [e80d8bb](https://github.com/toppk/revenant/commit/e80d8bb1504a3775d590afc0ab405e6b01bf7bb5))
+- Update Unicode tables and the pinned libghostty backend together to Unicode 18.0. This
+  release uses development revision `27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c`, ahead of
+  Ghostty 1.4.0. New emoji still require installed fonts with coverage; the pinned
+  fixtures do not supply Unicode 18 emoji artwork.
+  ([0087b61](https://github.com/toppk/revenant/commit/0087b619f572fb4b96f73db9b07e883ccf09d74b))
+- Add `-hold`/`+hold` and the `hold` resource to retain the window and its final output
+  after the child exits. Held windows continue to repaint, reap late-exiting children,
+  and discard further keyboard input.
+  ([0de64fe](https://github.com/toppk/revenant/commit/0de64fedb9088a13f603c6b32dca57ee18fc390e))
+- Add `-ls`/`+ls` and the `loginShell` resource. Shell selection and login-shell argv
+  follow the measured xterm-411 behavior; explicit `-e` commands retain their existing
+  invocation semantics.
+  ([160c02d](https://github.com/toppk/revenant/commit/160c02d76525aaa4840022c8cccdb42583b21d0d))
+- Add UTF-8 window and icon title properties, the `utf8Title` resource, and
+  `set-utf8-title` action. Title changes and stack restoration update or remove EWMH
+  properties according to locale and policy. Backend limitations, including OSC 1
+  delivery and raw-byte title parsing, remain documented.
+  ([712f7b7](https://github.com/toppk/revenant/commit/712f7b7048cbf103195f7ef4ae9c0e92626591ba))
+- Add `sameName` with `-samename`/`+samename`, title and color permission actions, and
+  `allowSendEvents` policy interactions. Repeated title requests can be suppressed;
+  configured permissions, effective permissions, and menu sensitivity follow the
+  measured xterm rules. This does not add synthetic-input filtering.
+  ([156b4f2](https://github.com/toppk/revenant/commit/156b4f2fbe49e44a5447701143d92367c62a1258))
+
+### Bug fixes
+
+- Capture the completed visible frame at synchronized-output hold boundaries, including
+  transitions within one parser batch. Reverse video, dynamic colors, and cursor
+  visibility/style parsed during a hold stay hidden until release.
+  ([0087b61](https://github.com/toppk/revenant/commit/0087b619f572fb4b96f73db9b07e883ccf09d74b))
+- Decode incoming X selections by their declared type, including COMPOUND_TEXT and
+  Latin-1 STRING, for paste and OSC 52 reads. Unsupported types fall back to STRING;
+  unsupported INCR transfers remain explicitly unavailable. Stalled-reader tests verify
+  complete large OSC 52 replies.
+  ([0087b61](https://github.com/toppk/revenant/commit/0087b619f572fb4b96f73db9b07e883ccf09d74b))
+- Reserve closed standard descriptors before opening X or the PTY, and stop startup if
+  reservation fails. This prevents warnings from being written into a connection that
+  reused stderr.
+  ([0087b61](https://github.com/toppk/revenant/commit/0087b619f572fb4b96f73db9b07e883ccf09d74b))
+- Send wheel presses without wheel-release reports and keep selection drags active
+  across wheel scrolling. Local scrolling updates the selection under the pointer.
+  Alternate-scroll mode 1007 remains unimplemented.
+  ([0087b61](https://github.com/toppk/revenant/commit/0087b619f572fb4b96f73db9b07e883ccf09d74b))
+- Incorporate backend fixes for ANSI DECRQM replies and exact mode-number
+  reporting through the supported 16-bit range, preventing high mode numbers
+  from aliasing smaller ones.
+  ([0087b61](https://github.com/toppk/revenant/commit/0087b619f572fb4b96f73db9b07e883ccf09d74b))
+- Gate CSI 14/16/18 window-size reports through Window Ops policy while preserving
+  unsolicited mode 2048 reports. Apply the `allowSendEvents` interaction to the blanket
+  Window Ops permission and its menu sensitivity.
+  ([0de64fe](https://github.com/toppk/revenant/commit/0de64fedb9088a13f603c6b32dca57ee18fc390e))
+- Interpret startup geometry dimensions as columns and rows, compute negative offsets
+  from the resulting window size, and preserve user size, position, and gravity hints.
+  Single-offset forms and zero-sized requests now have measured, tested behavior.
+  ([783c280](https://github.com/toppk/revenant/commit/783c280a5fe6e63a1b0f95a4c5b7862818e98206))
+
+### Other
+
+- Explain configured emoji font roles, Fontconfig substitutions, monochrome coverage,
+  and routing misses in welcome and diagnostic output. Keep candidate matching distinct
+  from the font that actually served an atom.
+  ([bd0bcf5](https://github.com/toppk/revenant/commit/bd0bcf50b695349486aa227fe482e6c6a7c23798))
+- Expand deterministic coverage for styled emoji fitting, whole-sequence fallback,
+  reload/rollback painting, Unicode data provenance, and scoped font coverage. Automated
+  routing and containment evidence remains separate from human legibility assessment.
+  ([e0c20d4](https://github.com/toppk/revenant/commit/e0c20d4b8b3b2d0684c6cea5b5e60ca601d2bcba), [0bdf234](https://github.com/toppk/revenant/commit/0bdf2344c13df01997b0d11ed54702c797424df6), [5198427](https://github.com/toppk/revenant/commit/51984270fcb35ccddefdc4f13aefd35d5bfc04a9), [050e027](https://github.com/toppk/revenant/commit/050e027875dc08d299df6026a28d970884fe24d2), [0087b61](https://github.com/toppk/revenant/commit/0087b619f572fb4b96f73db9b07e883ccf09d74b))
+- Expand native probes and TDN mappings for emoji artwork, mode queries, synchronized-output
+  boundaries, clipboard behavior, drag scrolling, title and color policies,
+  window reports, hold, and login-shell startup.
+  ([de5fac0](https://github.com/toppk/revenant/commit/de5fac022e8d896313513b9ade617d245031566c), [89c0f89](https://github.com/toppk/revenant/commit/89c0f89070228fcd83472690df407a3cfc4915f0), [156b4f2](https://github.com/toppk/revenant/commit/156b4f2fbe49e44a5447701143d92367c62a1258), [0de64fe](https://github.com/toppk/revenant/commit/0de64fedb9088a13f603c6b32dca57ee18fc390e), [712f7b7](https://github.com/toppk/revenant/commit/712f7b7048cbf103195f7ef4ae9c0e92626591ba), [160c02d](https://github.com/toppk/revenant/commit/160c02d76525aaa4840022c8cccdb42583b21d0d))
+- Add validation-only package builds tied to an exact source SHA, five-artifact
+  manifests, native prerelease version ordering, and draft-first release preparation.
+  Fix fortified-build logging and Ubuntu shell/dependency assumptions exposed by hosted
+  validation.
+  ([f305a2c](https://github.com/toppk/revenant/commit/f305a2c44afab31d831e18ae0fb62619465f3601), [ede0588](https://github.com/toppk/revenant/commit/ede0588e08b126716dd8c90f2a23d753ba9d1cb6))
 
 ## 0.7.0 — 2026-09-14
 
