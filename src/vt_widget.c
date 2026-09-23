@@ -1,6 +1,7 @@
 #include "vt_widgetP.h"
 
 #include "diagnostics.h"
+#include "title_encoding.h"
 #include "vt_font.h"
 
 #include <X11/Shell.h>
@@ -11,6 +12,7 @@
 
 #include <ctype.h>
 #include <float.h>
+#include <langinfo.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +31,7 @@ static void SetFontLineDrawingAction(Widget widget, XEvent *event, String *param
                                      Cardinal *num_params);
 static void SetSelectAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void AllowTitleOpsAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+static void Utf8TitleAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void AllowColorOpsAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void ReportFontRoutingAction(Widget widget, XEvent *event, String *params,
                                     Cardinal *num_params);
@@ -40,6 +43,7 @@ static XtActionsRec actions[] = {
     {"smaller-vt-font", SmallerFontAction},
     {"set-render-font", SetRenderFontAction},
     {"allow-title-ops", AllowTitleOpsAction},
+    {"set-utf8-title", Utf8TitleAction},
     {"allow-color-ops", AllowColorOpsAction},
     {"set-font-linedrawing", SetFontLineDrawingAction},
     {"set-select", SetSelectAction},
@@ -296,6 +300,8 @@ static XtResource resources[] = {
      XtRImmediate, (XtPointer)False},
     {"allowTitleOps", "AllowTitleOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_title_ops),
      XtRImmediate, (XtPointer)True},
+    {"utf8Title", "Utf8Title", XtRString, sizeof(String), OFFSET(utf8_title_name), XtRString,
+     (XtPointer) "default"},
     {"allowMouseOps", "AllowMouseOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_mouse_ops),
      XtRImmediate, (XtPointer)True},
     {"allowTcapOps", "AllowTcapOps", XtRBoolean, sizeof(Boolean), OFFSET(allow_tcap_ops),
@@ -1006,6 +1012,24 @@ ResolveCopyFlashColor(Vt100Rec *vt)
         vt->vt.copy_flash_has_color = True;
 }
 
+/* Like xterm's default locale setting, a UTF-8 codeset is UTF-8 mode; others are not. */
+static void
+ResolveUtf8Title(Vt100Rec *vt)
+{
+        const char *codeset = nl_langinfo(CODESET);
+        XtpUtf8Title value = XTP_UTF8_TITLE_DEFAULT;
+
+        vt->vt.utf8_locale = codeset != NULL && strcmp(codeset, "UTF-8") == 0;
+        if (!XtpUtf8TitleParse(vt->vt.utf8_title_name, &value))
+                XtpLog(XTP_LOG_WARNING, "shell",
+                       "utf8Title=%s is not true, false, always or default",
+                       vt->vt.utf8_title_name != NULL ? vt->vt.utf8_title_name : "(null)");
+        vt->vt.utf8_title = (int)XtpUtf8TitleResolve(value, vt->vt.utf8_locale);
+        XtpLog(XTP_LOG_INFO, "config", "utf8Title=%s resolved=%d locale-utf8=%s",
+               vt->vt.utf8_title_name != NULL ? vt->vt.utf8_title_name : "(null)",
+               vt->vt.utf8_title, vt->vt.utf8_locale ? "true" : "false");
+}
+
 static void
 Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
 {
@@ -1029,6 +1053,7 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
                 vt->vt.cursor_off_time = 0;
         if (vt->vt.copy_flash_duration < 0)
                 vt->vt.copy_flash_duration = 0;
+        ResolveUtf8Title(vt);
         ResolveCopyFlashColor(vt);
         ResolveBackgroundOpacity(vt);
         vt->vt.opaque_background_pixel = VtOpaquePixel(vt, vt->core.background_pixel);
@@ -1617,6 +1642,18 @@ AllowTitleOpsAction(Widget widget, XEvent *event, String *params, Cardinal *num_
 }
 
 static void
+Utf8TitleAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
+{
+        Boolean current = XtpVtUtf8Title(widget);
+
+        if (!VtAcceptLocalKeyAction(VtAsRecord(widget), event, XTP_LOCAL_ACTION_UTF8_TITLE))
+                return;
+        if (ToggleRequested(widget, current, params, *num_params, "shell", "set-utf8-title",
+                            "utf8Title"))
+                XtpVtSetUtf8Title(widget, !current);
+}
+
+static void
 AllowColorOpsAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
 {
         Boolean current = XtpVtAllowColorOps(widget);
@@ -2060,6 +2097,27 @@ XtpVtEffectiveAllowTitleOps(Widget widget)
         Vt100Rec *vt = VtAsRecord(widget);
 
         return vt->vt.allow_title_ops && !vt->vt.allow_send_events;
+}
+
+Boolean
+XtpVtUtf8Title(Widget widget)
+{
+        return VtAsRecord(widget)->vt.utf8_title != XTP_UTF8_TITLE_FALSE;
+}
+
+Boolean
+XtpVtUtf8Locale(Widget widget)
+{
+        return VtAsRecord(widget)->vt.utf8_locale;
+}
+
+void
+XtpVtSetUtf8Title(Widget widget, Boolean enabled)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        vt->vt.utf8_title = enabled ? XTP_UTF8_TITLE_TRUE : XTP_UTF8_TITLE_FALSE;
+        XtpLog(XTP_LOG_INFO, "shell", "utf8Title=%s", enabled ? "true" : "false");
 }
 
 void

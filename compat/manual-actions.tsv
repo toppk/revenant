@@ -17,6 +17,7 @@ larger-vt-font		Switch to the next larger configured font slot.
 smaller-vt-font		Switch to the next smaller configured font slot.
 set-render-font	[on|off|toggle]	Switch between the Xft and bitmap renderers.
 allow-title-ops	[on|off|toggle]	Change Allow Title Ops, the same live permission the menu entry shows. With no parameter or toggle it flips; on and off ignore case. As in xterm, asking for the state already in effect, or any other parameter, rings the bell and changes nothing.
+set-utf8-title	[on|off|toggle]	Change utf8Title, which decides whether later label changes write or delete the UTF-8 EWMH labels. Arguments behave as for allow-title-ops. It works in every locale, although the menu entry is insensitive in a UTF-8 locale, as in xterm; labels already set keep their properties until they next change.
 allow-color-ops	[on|off|toggle]	Change Allow Color Ops, the configured permission the menu entry shows. Arguments behave as for allow-title-ops. While allowSendEvents is true the change is recorded but the blanket permission stays blocked, as in xterm.
 set-font-linedrawing	[on|off|toggle]	Change forceBoxChars: draw supported procedural terminal glyphs from cell geometry instead of the font.
 popup-menu	name	Post the named popup menu: mainMenu, vtMenu, or fontMenu.

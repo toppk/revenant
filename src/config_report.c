@@ -866,7 +866,7 @@ KnownTranslationAction(const char *action)
                strcmp(action, "select-end") == 0 || strcmp(action, "start-extend") == 0 ||
                strcmp(action, "insert-selection") == 0 || strcmp(action, "mouse-press") == 0 ||
                strcmp(action, "mouse-motion") == 0 || strcmp(action, "allow-title-ops") == 0 ||
-               strcmp(action, "allow-color-ops") == 0;
+               strcmp(action, "allow-color-ops") == 0 || strcmp(action, "set-utf8-title") == 0;
 }
 
 static bool
@@ -1051,9 +1051,10 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
                 return "supported";
         if (strcmp(name, "allowColorOps") == 0 || strcmp(name, "disallowedColorOps") == 0 ||
             strcmp(name, "allowTitleOps") == 0 || strcmp(name, "allowWindowOps") == 0 ||
-            strcmp(name, "allowMouseOps") == 0 || strcmp(name, "allowTcapOps") == 0 ||
-            strcmp(name, "disallowedTcapOps") == 0 || strcmp(name, "disallowedWindowOps") == 0 ||
-            strcmp(name, "maxStringParse") == 0 || strcmp(name, "allowSendEvents") == 0)
+            strcmp(name, "utf8Title") == 0 || strcmp(name, "allowMouseOps") == 0 ||
+            strcmp(name, "allowTcapOps") == 0 || strcmp(name, "disallowedTcapOps") == 0 ||
+            strcmp(name, "disallowedWindowOps") == 0 || strcmp(name, "maxStringParse") == 0 ||
+            strcmp(name, "allowSendEvents") == 0)
                 return "partially supported";
         if (strcmp(name, "allowFontOps") == 0 || strcmp(name, "disallowedFontOps") == 0 ||
             strncmp(name, "color", 5) == 0 || strcmp(name, "pointerColor") == 0 ||
@@ -1480,6 +1481,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             {"xterm.debug", "XTerm.Debug", "false"},
             {"xterm.vt100.allowTitleOps", "XTerm.VT100.AllowTitleOps", "true"},
             {"xterm.sameName", "XTerm.SameName", "true"},
+            {"xterm.vt100.utf8Title", "XTerm.VT100.Utf8Title", "default"},
             {"xterm.vt100.allowColorOps", "XTerm.VT100.AllowColorOps", "true"},
             {"xterm.vt100.allowSendEvents", "XTerm.VT100.AllowSendEvents", "false"},
             {"xterm.vt100.disallowedColorOps", "XTerm.VT100.DisallowedColorOps",
@@ -1506,6 +1508,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "XTerm*debug",
             "XTerm*allowTitleOps",
             "XTerm*sameName",
+            "XTerm*utf8Title",
             "XTerm*allowColorOps",
             "XTerm*allowSendEvents",
             "XTerm*disallowedColorOps",
@@ -1532,6 +1535,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "Permit title changes and saved-label pops unless allowSendEvents; menu, "
             "allow-title-ops.",
             "Skip title/icon updates that repeat the last requested label.",
+            "Write or delete the UTF-8 EWMH labels in a UTF-8 locale; menu, set-utf8-title.",
             "Configured blanket permission, effective only while allowSendEvents is false; "
             "otherwise disallowedColorOps decides. Live menu and allow-color-ops.",
             "True blocks Title Ops and the Color/Window Ops blankets; synthetic events accepted.",
@@ -1557,6 +1561,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "supported",
             "supported",
             "partially supported",
+            "supported",
             "supported",
             "partially supported",
             "partially supported",

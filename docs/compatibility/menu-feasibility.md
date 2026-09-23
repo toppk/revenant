@@ -117,7 +117,7 @@ configured and forced policy.
 | render-font | Xft vs bitmap | — | — | DONE |
 | utf8-mode | UTF-8 vs Latin-1 | Ghostty is UTF-8 only | iconv possible; recommend permanently on (DRIFT) | BLOCKED |
 | utf8-fonts | `utf8Fonts` slot set | None | Only meaningful with utf8-mode | ROADMAP |
-| utf8-title | UTF-8 `_NET_WM_NAME` | Title callback | Set EWMH property | READY |
+| utf8-title | UTF-8 `_NET_WM_NAME` | Title callback and pop path | `utf8Title`, `set-utf8-title()`; EWMH labels written or deleted; entry state follows the locale as in xterm | DONE |
 | allow-color-ops | Gate dynamic-color OSC 10–19 and 110–119 | Selector observer enforces the live backend permission | Sets, queries, resets, deny-list exceptions and palette queries gated; remaining differences in drift ledger | PARTIAL |
 | allow-font-ops | Gate OSC 50 | No public OSC 50 callback | Policy/resources and menu identity prepared; entry stays insensitive until fontescape | BLOCKED |
 | allow-mouse-ops | Gate mouse and focus reports | Encoder master gate | Live toggle; requested modes preserved; named deny-list exceptions pending | PARTIAL |
@@ -151,7 +151,7 @@ record "Tek 4014 not planned" in the [xterm differences ledger](drift.md).
 
 1. Slice A: the generic mode helper and eight mode-backed items are complete.
    Continue with signals ×6; allowsends; visualbell/bellIsUrgent/
-   poponbell; utf8-title; delete-is-del; and logging.
+   poponbell; delete-is-del; and logging. (utf8-title is done.)
 2. Slice B, ride the roadmap: scrollbar family with #2; selection policies
    and fontsel with #4; named Mouse Ops exceptions;
    allow-bold-fonts and font-packed with #5.

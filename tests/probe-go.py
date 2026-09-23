@@ -654,6 +654,52 @@ class ProbeAcceptance(unittest.TestCase):
                 self.assertGreater(pop, push)
                 self.assertIn(b"Requested a pop of the saved labels", output)
 
+    def test_utf8_title_property_corpus(self):
+        for slug in ("resource-utf8-title", "x11-utf8-title-properties"):
+            with self.subTest(slug=slug), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "result.json"
+                code, output, restored = run_probe(
+                    [slug, "titles-utf8", "--no-pause", "--output", str(path)],
+                    respond=Emulator(),
+                )
+                self.assertEqual(code, 0, output[-2000:])
+                self.assertTrue(restored)
+                self.assertEqual(
+                    json.loads(path.read_text())[0]["outcome"], "unassessed"
+                )
+                payloads = re.findall(rb"\x1b\]([012]);([^\x1b]*)\x1b\\", output)
+                self.assertEqual(len(payloads), 36)
+                for offset, stage in enumerate(
+                    (
+                        "as found",
+                        "UTF-8 Titles ON",
+                        "UTF-8 Titles OFF",
+                        "UTF-8 Titles ON again",
+                    )
+                ):
+                    group = payloads[offset * 9 : (offset + 1) * 9]
+                    self.assertEqual([int(code) for code, _ in group], [2, 1, 0] * 3)
+                    for code, payload in group[:6]:
+                        self.assertTrue(
+                            payload.startswith(stage.encode() + b" OSC" + code)
+                        )
+                    for _, payload in group[3:6]:
+                        self.assertIn("café — 日本語 🛠".encode(), payload)
+                    self.assertEqual([payload for _, payload in group[6:]], [b""] * 3)
+                for prop in (
+                    b"WM_NAME",
+                    b"WM_ICON_NAME",
+                    b"_NET_WM_NAME",
+                    b"_NET_WM_ICON_NAME",
+                ):
+                    self.assertIn(b"-f " + prop + b" 8x", output)
+                self.assertLess(
+                    output.index(b"manual changes persist"), output.index(b"\x1b]2;")
+                )
+                self.assertIn(b"absent versus present-empty", output)
+                self.assertIn(b"Requested a pop", output)
+                self.assertIn(b"Restore the UTF-8 Titles setting you noted", output)
+
     def test_title_policy_reports_only_what_it_observed(self):
         for mode, verdicts, absent in (
             ("matching", [b"Observed: the reported label matches the requested one."], b"differs"),
@@ -712,18 +758,47 @@ class ProbeAcceptance(unittest.TestCase):
 
     def test_title_cases_interrupted_request_pop_after_warning(self):
         for args, stage, key, first_label in (
-            (["titles", "policy"], b"Now turn Title Ops off", b"q", b"probe policy start"),
-            (["titles", "policy"], b"Now turn Title Ops off", b"\x1b", b"probe policy start"),
-            (["titles", "same-name"], b"Space/Enter sends each group", b"q", b"probe same A"),
+            (
+                ["titles", "policy"],
+                b"Now turn Title Ops off",
+                b"q",
+                b"probe policy start",
+            ),
+            (
+                ["titles", "policy"],
+                b"Now turn Title Ops off",
+                b"\x1b",
+                b"probe policy start",
+            ),
+            (
+                ["titles", "same-name"],
+                b"Space/Enter sends each group",
+                b"q",
+                b"probe same A",
+            ),
+            (["titles", "utf8"], b"Stage: UTF-8 Titles OFF", b"q", b"as found OSC2"),
+            (["titles", "utf8"], b"Stage: UTF-8 Titles OFF", b"\x1b", b"as found OSC2"),
         ):
-            with self.subTest(case=args[1], key=key), tempfile.TemporaryDirectory() as directory:
+            with (
+                self.subTest(case=args[1], key=key),
+                tempfile.TemporaryDirectory() as directory,
+            ):
                 sent = False
+                answered = 0
 
                 def interact(output):
-                    nonlocal sent
-                    if not sent and stage in output and b"continue" in output[output.index(stage):]:
+                    nonlocal sent, answered
+                    if (
+                        not sent
+                        and stage in output
+                        and b"continue" in output[output.index(stage) :]
+                    ):
                         sent = True
                         return key
+                    prompts = output.count(b"Space/Enter: continue")
+                    if args[1] == "utf8" and not sent and prompts > answered:
+                        answered = prompts
+                        return b" "
                     return b""
 
                 path = Path(directory) / "result.json"
@@ -736,7 +811,9 @@ class ProbeAcceptance(unittest.TestCase):
                 self.assertTrue(sent)
                 self.assertTrue(restored)
                 self.assertEqual(json.loads(path.read_text())[0]["outcome"], "stopped")
-                warning = output.index(b"restores the labels only if the stack operations")
+                warning = output.index(
+                    b"restores the labels only if the stack operations"
+                )
                 push = output.index(b"\x1b[22;0t")
                 self.assertLess(warning, push)
                 if first_label in output:

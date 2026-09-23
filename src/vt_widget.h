@@ -114,6 +114,11 @@ Boolean XtpVtAllowSendEvents(Widget widget);
 Boolean XtpVtEffectiveAllowColorOps(Widget widget);
 Boolean XtpVtEffectiveAllowTitleOps(Widget widget);
 void XtpVtSetAllowTitleOps(Widget widget, Boolean enabled);
+/* Whether label changes write the UTF-8 EWMH properties (in a UTF-8 locale). */
+Boolean XtpVtUtf8Title(Widget widget);
+void XtpVtSetUtf8Title(Widget widget, Boolean enabled);
+/* Whether the locale's codeset is UTF-8, which xterm treats as UTF-8 mode. */
+Boolean XtpVtUtf8Locale(Widget widget);
 Boolean XtpVtAllowColorOps(Widget widget);
 Boolean XtpVtAllowFontOps(Widget widget);
 void XtpVtSetAllowFontOps(Widget widget, Boolean enabled);

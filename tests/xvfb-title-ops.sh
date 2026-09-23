@@ -361,3 +361,118 @@ for same in default true false; do
     test "$actual" = "$expected" || { echo "sameName $same: got [$actual], expected [$expected]" >&2; exit 1; }
 done
 echo 'Allow Title Ops resources, live menu, action, sameName, reports, and pop policy verified'
+
+# UTF-8 labels (utf8Title). Expected property types and bytes are XTerm(411)'s,
+# measured with isolated resources, except where a comment says otherwise.
+bindings='XTerm*VT100.translations: #override <Key>F9: set-utf8-title(toggle)\n<Key>F10: set-utf8-title(on)\n<Key>F11: set-utf8-title(off)'
+
+labels()
+{
+    "$xprop" -id "$window" -f WM_NAME 8x -f _NET_WM_NAME 8x -f WM_ICON_NAME 8x \
+        -f _NET_WM_ICON_NAME 8x WM_NAME _NET_WM_NAME WM_ICON_NAME _NET_WM_ICON_NAME |
+        sed -e 's/:  not found\./=absent/' -e 's/ = /=/' -e 's/0x//g' -e 's/, //g' | tr '\n' ' '
+}
+
+expect_labels()
+{
+    got=$(labels)
+    test "$got" = "$2 " || { printf '%s:\n  got    %s\n  wanted %s\n' "$1" "$got" "$2" >&2; exit 1; }
+    echo "utf8   $1"
+}
+
+utf8_title_log()
+{
+    grep -c 'shell: utf8Title=' "$log" || true
+}
+
+press_utf8()
+{
+    before=$(utf8_title_log)
+    "$keys" "$window" keysym "$1" >/dev/null
+    attempt=0
+    while test "$(utf8_title_log)" -le "$before"; do
+        attempt=$((attempt + 1))
+        test "$attempt" -lt 200 || { echo "$1 did not change utf8Title" >&2; exit 1; }
+        sleep 0.02
+    done
+    grep 'shell: utf8Title=' "$log" | tail -1 | grep -q "utf8Title=$2" ||
+        { echo "$1 left the wrong utf8Title" >&2; exit 1; }
+}
+
+LC_ALL=C.UTF-8
+export LC_ALL
+serve_terminal -T 'Tést ☃' -n 'icône'
+icon='WM_ICON_NAME(STRING)=6963f46e65'
+expect_labels 'UTF-8 startup: Xt labels only' \
+    "WM_NAME(COMPOUND_TEXT)=54e97374201b2547e298831b2540 _NET_WM_NAME=absent $icon _NET_WM_ICON_NAME=absent"
+send '\033]2;plain\033\\'
+expect_labels 'ASCII' "WM_NAME(STRING)=706c61696e _NET_WM_NAME(UTF8_STRING)=706c61696e $icon _NET_WM_ICON_NAME=absent"
+send '\033]2;h\303\251llo\033\\'
+expect_labels 'Latin-1' "WM_NAME(STRING)=68e96c6c6f _NET_WM_NAME(UTF8_STRING)=68c3a96c6c6f $icon _NET_WM_ICON_NAME=absent"
+snow="WM_NAME(COMPOUND_TEXT)=736e6f77201b2547e298831b2540 _NET_WM_NAME(UTF8_STRING)=736e6f7720e29883 $icon _NET_WM_ICON_NAME=absent"
+send '\033]2;snow \342\230\203\033\\'
+expect_labels 'beyond Latin-1' "$snow"
+mark utf8-repeat
+send '\033]2;snow \342\230\203\033\\'
+expect_labels 'repeated label' "$snow"
+test "$(notifications utf8-repeat WM_NAME)/$(notifications utf8-repeat _NET_WM_NAME)" = 0/0 ||
+    { echo 'sameName rewrote a repeated UTF-8 label' >&2; exit 1; }
+send '\033]2;a\302\205b\033\\'
+expect_labels 'C1 control' "WM_NAME(STRING)=613f62 _NET_WM_NAME(UTF8_STRING)=613f62 $icon _NET_WM_ICON_NAME=absent"
+# xterm's OSC parser turns an empty OSC 2 into "xterm" before this point (T2).
+send '\033]2;\033\\'
+expect_labels 'empty label' "WM_NAME(STRING)= _NET_WM_NAME(UTF8_STRING)= $icon _NET_WM_ICON_NAME=absent"
+send '\033]2;s\303\251t \342\230\203\033\\\033[22;0t\033]2;other\033\\\033[23;0t'
+expect_labels 'stack restoration' \
+    "WM_NAME(COMPOUND_TEXT)=73e974201b2547e298831b2540 _NET_WM_NAME(UTF8_STRING)=73c3a97420e29883 $icon _NET_WM_ICON_NAME(UTF8_STRING)=6963c3b46e65"
+press_utf8 F11 false
+mark utf8-off
+send '\033]2;after\033\\'
+expect_labels 'set-utf8-title(off) deletes on the next change' \
+    "WM_NAME(STRING)=6166746572 _NET_WM_NAME=absent $icon _NET_WM_ICON_NAME(UTF8_STRING)=6963c3b46e65"
+test "$(notifications utf8-off _NET_WM_NAME)" = 1 && grep -qx '_NET_WM_NAME deleted' "$case_dir/props" ||
+    { echo 'the stale _NET_WM_NAME was not deleted' >&2; exit 1; }
+send '\033[22;1t\033[23;1t'
+expect_labels 'the stale icon label goes when the icon changes' \
+    "WM_NAME(STRING)=6166746572 _NET_WM_NAME=absent $icon _NET_WM_ICON_NAME=absent"
+press_utf8 F10 true
+send '\033]2;again \342\230\203\033\\'
+again="WM_NAME(COMPOUND_TEXT)=616761696e201b2547e298831b2540 _NET_WM_NAME(UTF8_STRING)=616761696e20e29883 $icon _NET_WM_ICON_NAME=absent"
+expect_labels 'set-utf8-title(on)' "$again"
+before=$(utf8_title_log)
+"$toggle" "$window" utf8title >/dev/null
+sleep 0.5
+test "$(utf8_title_log)" = "$before" || { echo 'the UTF-8 locale menu entry was sensitive' >&2; exit 1; }
+echo 'utf8   UTF-8 locale: menu entry insensitive'
+"$toggle" "$window" title >/dev/null
+xtp_wait_for_log "$log" 'shell: allowTitleOps=false' 'deny titles'
+send '\033]2;denied \342\230\203\033\\\033[22;0t\033[23;0t'
+expect_labels 'denied change and pop' "$again"
+stop_serving
+
+serve_terminal -xrm 'XTerm*utf8Title: false'
+send '\033]2;plain\033\\'
+expect_labels 'utf8Title false' \
+    'WM_NAME(STRING)=706c61696e _NET_WM_NAME=absent WM_ICON_NAME(STRING)=737461727469636f6e _NET_WM_ICON_NAME=absent'
+press_utf8 F9 true
+send '\033]2;plain2\033\\'
+expect_labels 'set-utf8-title(toggle)' \
+    'WM_NAME(STRING)=706c61696e32 _NET_WM_NAME(UTF8_STRING)=706c61696e32 WM_ICON_NAME(STRING)=737461727469636f6e _NET_WM_ICON_NAME=absent'
+stop_serving
+
+LC_ALL=C
+serve_terminal -T 'Tést' -n 'icône'
+icon='WM_ICON_NAME(STRING)=6963c3b46e65'
+expect_labels 'C startup' "WM_NAME(STRING)=54c3a97374 _NET_WM_NAME=absent $icon _NET_WM_ICON_NAME=absent"
+send '\033[22;0t\033]2;other\033\\\033[23;0t'
+expect_labels 'C locale stack restoration' "WM_NAME(STRING)=54c3a97374 _NET_WM_NAME=absent $icon _NET_WM_ICON_NAME=absent"
+send '\033]2;plain\033\\'
+expect_labels 'C locale ASCII' "WM_NAME(STRING)=706c61696e _NET_WM_NAME=absent $icon _NET_WM_ICON_NAME=absent"
+"$toggle" "$window" utf8title >/dev/null
+xtp_wait_for_log "$log" 'shell: utf8Title=true' 'the C locale menu entry'
+# As with xterm's utf8Title true in the C locale, Latin-1 fits STRING and EWMH is untouched.
+send '\033]2;h\303\251llo\033\\'
+expect_labels 'C locale menu toggle' "WM_NAME(STRING)=68e96c6c6f _NET_WM_NAME=absent $icon _NET_WM_ICON_NAME=absent"
+stop_serving
+unset LC_ALL
+echo 'utf8Title resource, action, menu, locales, sameName, denial and stack verified against properties'

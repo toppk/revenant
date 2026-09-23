@@ -105,6 +105,7 @@ typedef enum
         XTP_LOCAL_ACTION_START_SEARCH,
         XTP_LOCAL_ACTION_ALLOW_TITLE_OPS,
         XTP_LOCAL_ACTION_ALLOW_COLOR_OPS,
+        XTP_LOCAL_ACTION_UTF8_TITLE,
 } LocalKeyAction;
 
 typedef struct
@@ -260,6 +261,10 @@ typedef struct
         Boolean disowning_selections;
         Boolean allow_window_ops;
         Boolean allow_title_ops;
+        String utf8_title_name;
+        /* Resolved XtpUtf8Title; nonzero writes the EWMH labels in a UTF-8 locale. */
+        int utf8_title;
+        Boolean utf8_locale;
         Boolean allow_send_events;
         Boolean allow_color_ops;
         Boolean allow_font_ops;

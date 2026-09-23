@@ -419,6 +419,56 @@ Revenant cannot lift `allowSendEvents` while running, so that recovery is not
 exercised; the stack consumption is checked through its own log instead. Title
 reports and pushes stay under Window Ops.
 
+### UTF-8 title properties (`utf8Title`)
+
+Every label change goes through a port of xterm's `ChangeGroup`, whether it
+comes from an OSC title or a title-stack pop. `WM_NAME` or `WM_ICON_NAME` is set
+through Xt, which picks `STRING` or `COMPOUND_TEXT`. In a UTF-8 locale, the
+matching `_NET_WM_NAME` or `_NET_WM_ICON_NAME` is then written as `UTF8_STRING`
+when `utf8Title` is set, or deleted when it is not. In other locales the EWMH
+labels are left alone. `utf8Title` accepts true, false, always and default;
+default means true in a UTF-8 locale and false elsewhere. `set-utf8-title()`
+and the font menu's **UTF-8 Titles** entry change it. As in xterm, the entry
+follows the locale rather than the flag: checked and insensitive in a UTF-8
+locale, unchecked and sensitive elsewhere. `sameName` also skips an EWMH label
+whose bytes already match. Labels saved on the stack are read back in the
+current locale, as xterm's `property_to_string` does.
+
+Measured with isolated resources, Revenant writes the same property types and
+bytes as XTerm(411) in these cases:
+
+- **Startup:** `-T`/`-n` labels go through Xt alone; no EWMH label exists until
+  the first change.
+- **UTF-8 locale:** ASCII, Latin-1, beyond-Latin-1 and C1 labels (U+0085 becomes
+  `?`). Also repeated labels, stack restoration, which also writes
+  `_NET_WM_ICON_NAME`, and denied changes and pops.
+- **Turning `utf8Title` off:** `_NET_WM_NAME` is deleted on the next title
+  change. A stale `_NET_WM_ICON_NAME` remains until the icon label changes, as
+  in xterm.
+- **C locale:** labels restored from the stack, including non-ASCII startup
+  labels, and Latin-1 labels with `utf8Title` true.
+
+Distribution app-defaults may differ. Fedora's `XTerm` file sets
+`*VT100*utf8Title: true`, and Revenant reads it through the shared class.
+
+The remaining differences come from xterm's parser, which Revenant does not
+have. Its title input is libghostty's decoded UTF-8, and no second parser is
+added (T2):
+
+- With `utf8Title` off, xterm's OSC collector clears bit 7 of every OSC 0/2 byte
+  (`AsciiOf`) before `ChangeGroup`, so "héllo" becomes "hC)llo". Revenant
+  receives the decoded characters and encodes them unchanged.
+- In C and other 8-bit locales, xterm parses raw bytes. C1 bytes inside a
+  UTF-8 sequence, such as the 0x98 in U+2603, end the OSC, so the title is
+  not changed.
+- An empty OSC 0/1/2 becomes the literal "xterm" in xterm's `do_osc`. Revenant
+  sets an empty `WM_NAME` and a zero-length `_NET_WM_NAME`.
+- `allowC1Printable` is not a Revenant resource. In xterm it also makes
+  `utf8Title` effective, widens the Latin-1 set to 0x80-0x9f and makes the
+  parser keep C1 bytes, so title properties differ whenever it is true.
+- OSC 1 still does not reach the frontend, so `_NET_WM_ICON_NAME` changes only
+  on stack restoration.
+
 ### XTWINOPS window reports and the Window Ops inventory
 
 **What the pinned libghostty exposes.** Compared with xterm's `tblWindowOps`:

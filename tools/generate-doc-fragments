@@ -181,7 +181,7 @@ def options_fragment():
 
 
 def actions_fragment(rows):
-    known = re.findall(r'\{"([a-z-]+)",', c_table(ROOT / "src/vt_widget.c", "static XtActionsRec actions[] = {"))
+    known = re.findall(r'\{"([a-z0-9-]+)",', c_table(ROOT / "src/vt_widget.c", "static XtActionsRec actions[] = {"))
     names = [r[0] for r in rows]
     problems = [f"{n} has no description" for n in known if n not in names]
     problems += [f"{n} is described but the program has no such action" for n in names if n not in known]

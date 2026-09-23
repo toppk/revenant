@@ -55,15 +55,18 @@ conflicting ownership even within the same batch.
 ## T: Title and window compatibility
 
 - [ ] **T1b — UTF-8 title surface.** Implement `utf8Title`, the `utf8-title`
-      menu/action, synchronized ICCCM `WM_NAME` / `WM_ICON_NAME` and EWMH
+      menu entry and `set-utf8-title` action, synchronized ICCCM `WM_NAME` / `WM_ICON_NAME` and EWMH
       `_NET_WM_NAME` / `_NET_WM_ICON_NAME`, including stale-property deletion.
       Preserve the completed Title Ops action, effective permission and
       `sameName` behavior. Accept actual properties, locale coverage and
       xterm-411 comparisons under isolated resources.
       TDN: `resource-utf8-title`, `x11-utf8-title-properties`.
       Supporting fixture: `just probe csi-21-t-title-report titles-query --target both`.
-      Probe gap: add UTF-8/property-specific cases; title reports alone do not
-      establish X property encoding or stale-property deletion.
+      Probe: `just probe resource-utf8-title titles-utf8` (also mapped to
+      `x11-utf8-title-properties`), with the external `xprop` observer printed
+      by the case. Capture types, bytes and absent versus empty properties;
+      title reports alone do not establish encoding or stale-property deletion.
+      Establish the xterm-411 baseline before implementing the terminal change.
 
 - [ ] **T2 — Parser-dependent Title Ops completion.** Obtain selector/raw-input
       effects for independent OSC 0/1/2 labels, title encoding modes, and the

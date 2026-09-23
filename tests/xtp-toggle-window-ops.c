@@ -58,9 +58,11 @@ main(int argc, char **argv)
         if (argc < 2 || argc > 3 ||
             (argc == 3 && strcmp(argv[2], "title") != 0 && strcmp(argv[2], "color") != 0 &&
              strcmp(argv[2], "mouse") != 0 && strcmp(argv[2], "tcap") != 0 &&
-             strcmp(argv[2], "linedrawing") != 0 && strcmp(argv[2], "reverse") != 0)) {
+             strcmp(argv[2], "linedrawing") != 0 && strcmp(argv[2], "utf8title") != 0 &&
+             strcmp(argv[2], "reverse") != 0)) {
                 fprintf(stderr,
-                        "usage: %s SHELL-WINDOW [title|color|mouse|tcap|linedrawing|reverse]\n",
+                        "usage: %s SHELL-WINDOW "
+                        "[title|color|mouse|tcap|linedrawing|utf8title|reverse]\n",
                         argv[0]);
                 return EXIT_FAILURE;
         }
@@ -121,6 +123,7 @@ main(int argc, char **argv)
                 int row_height;
                 int separator_height;
                 int rows = strcmp(argv[2], "linedrawing") == 0 ? 13
+                           : strcmp(argv[2], "utf8title") == 0 ? 6
                            : strcmp(argv[2], "color") == 0     ? 5
                            : strcmp(argv[2], "mouse") == 0     ? 3
                            : strcmp(argv[2], "tcap") == 0      ? 2
@@ -135,6 +138,8 @@ main(int argc, char **argv)
                 event.xmotion.y -= row_height * rows;
                 if (rows == 13)
                         event.xmotion.y -= 2 * separator_height;
+                else if (rows == 6)
+                        event.xmotion.y -= separator_height;
                 XFreeFont(display, font);
         }
         /* Reverse Video is the third row of the VT Options menu, counted from the top. */

@@ -579,6 +579,30 @@
     "sequence": ""
   },
   {
+    "id": "resource-utf8-title",
+    "title": "UTF-8 Titles setting",
+    "breadcrumb": [
+      "Window and desktop",
+      "CSI title operations"
+    ],
+    "specifications": [
+      "xterm-manual"
+    ],
+    "sequence": ""
+  },
+  {
+    "id": "x11-utf8-title-properties",
+    "title": "ICCCM and EWMH title properties",
+    "breadcrumb": [
+      "Window and desktop",
+      "CSI title operations"
+    ],
+    "specifications": [
+      "xterm-manual"
+    ],
+    "sequence": ""
+  },
+  {
     "id": "policy-title-ops-send-events",
     "title": "Title Ops and synthetic events",
     "breadcrumb": [

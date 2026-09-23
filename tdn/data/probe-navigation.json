@@ -127,6 +127,8 @@
         "csi-23-t-pop",
         "action-allow-title-ops",
         "resource-same-name",
+        "resource-utf8-title",
+        "x11-utf8-title-properties",
         "policy-title-ops-send-events"
       ]
     },

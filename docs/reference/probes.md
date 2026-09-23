@@ -201,6 +201,49 @@ permitted and Title Ops is effective, meaning `allowTitleOps` is on and
 the action's argument handling are checked by `tests/xvfb-title-ops.sh`, which
 counts `PropertyNotify` events with an external observer.
 
+`just probe resource-utf8-title titles-utf8` (also launchable as
+`just probe x11-utf8-title-properties titles-utf8`) supplies an X11 property
+inspection corpus. It pauses for initial properties, then for UTF-8 Titles as
+found, on, off and on again, and for ASCII, UTF-8 and empty labels sent through
+OSC 2, 1 and 0 separately. Missing selectors are recorded separately from property
+encoding; this does not add OSC 1 support to a terminal. `--no-pause` only dumps
+the corpus and cannot establish the intermediate properties.
+
+Use a disposable terminal. The menu entry is named `utf8-title`; the action is
+`set-utf8-title`. In a UTF-8 locale the menu can be insensitive, so launch the
+terminal with explicit action bindings, for example:
+
+```sh
+revenant -xrm 'XTerm*VT100.translations: #override <Key>F10: set-utf8-title(on)\n<Key>F11: set-utf8-title(off)'
+```
+
+F10 requests on and F11 requests off. Record the startup `utf8Title` resource;
+xterm's menu check follows UTF-8 mode, not necessarily the current title setting.
+In another terminal, use `xwininfo` to select the
+**test terminal's top-level window**, then set `id` to that ID. At each pause run:
+
+```sh
+xprop -id "$id" -f WM_NAME 8x -f WM_ICON_NAME 8x \
+  -f _NET_WM_NAME 8x -f _NET_WM_ICON_NAME 8x \
+  WM_NAME WM_ICON_NAME _NET_WM_NAME _NET_WM_ICON_NAME
+```
+
+This external observer prints property types and raw hexadecimal bytes. Keep
+snapshots with their stage/sample names, distinguishing absent properties from
+present empty ones. Capture immediately after toggles too, before a new label:
+that separates toggle behavior from the next update's deletion or recreation.
+The probe prints the exact requested UTF-8 payload bytes, but makes no automatic
+encoding or support verdict. Compare with xterm-411 using the same locale and
+resources; repeat in separately launched C and UTF-8 locales with `utf8Title`
+false/true, recording `allowC1Printable`, `sameName`, Ops policy and terminal
+version. A CSI title report is not evidence of an X property's type or bytes.
+
+UTF-8 Titles menu changes persist. Note and restore the initial setting manually,
+including after q/Esc. Label cleanup requests the same conditional stack pop as
+the title-policy cases above; it cannot guarantee restoration. Results remain
+`unassessed` without an assessment. No xterm comparison or terminal support
+record is implied by running the probe's own tests.
+
 `just probe text-shaping text-contrast` prints the corpus of the
 [linear-light study](../maintainers/linear-light-study.md): ordinary text,
 combining marks, the italic face and a fitted text-presentation 🛠, first dark on

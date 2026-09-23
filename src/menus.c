@@ -128,7 +128,7 @@ static const MenuSpec font_specs[] = {
     ACTIVE("render-font", XTP_MENU_ITEM_RENDER_FONT),
     INERT("utf8-mode"),
     INERT("utf8-fonts"),
-    INERT("utf8-title"),
+    ACTIVE("utf8-title", XTP_MENU_ITEM_UTF8_TITLE),
     LINE("line3"),
     ACTIVE("allow-color-ops", XTP_MENU_ITEM_ALLOW_COLOR_OPS),
     ITEM("allow-font-ops", XTP_MENU_ITEM_ALLOW_FONT_OPS, False),

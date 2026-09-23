@@ -164,6 +164,7 @@ widget_sources = files(
     'src/search_match.c',
     'src/sme_slider.c',
     'src/terminal.c',
+    'src/title_encoding.c',
     'src/title_stack.c',
     'src/unicode_script.c',
     'src/url_match.c',

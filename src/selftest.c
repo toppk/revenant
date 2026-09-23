@@ -16,6 +16,7 @@
 #include "pty_process.h"
 #include "terminal.h"
 #include "unicode_script.h"
+#include "title_encoding.h"
 #include "title_stack.h"
 #include "working_directory.h"
 #include "url_match.h"
@@ -2436,6 +2437,58 @@ done:
         XtpTitleEntryFree(&entry);
         XtpTitleStackClear(&stack);
         return result;
+}
+
+/* Labels xterm's ChangeGroup hands to Xt; the Latin-1 and C1 rows match XTerm(411) properties. */
+static int
+SelfTestTitleEncoding(void)
+{
+        static const struct
+        {
+                const char *value;
+                bool utf8_title;
+                bool utf8_locale;
+                const char *expected;
+        } cases[] = {
+            {"plain", true, true, "plain"},
+            {"h\xc3\xa9llo", true, true, "h\xc3\xa9llo"},
+            {"h\xc3\xa9llo", true, false, "h\xe9llo"},
+            {"snow \xe2\x98\x83", true, true, "snow \xe2\x98\x83"},
+            {"a\xc2\x85"
+             "b",
+             true, true, "a?b"},
+            {"a\xc2\x85"
+             "b",
+             false, true, "a\xc2?b"},
+            {"", true, true, ""},
+            {"T\xc3\xa9st \xe2\x98\x83 \xc6\x80", false, true, "T\xc3\xa9st \xe2?? \xc6?"},
+            {"x\xe9y", true, true, "x\xc3\xa9y"},
+            {"a\tb\x7f", true, true, "a\tb?"},
+        };
+        XtpUtf8Title value = XTP_UTF8_TITLE_FALSE;
+
+        for (size_t index = 0; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+                char *label = XtpTitleEncode(cases[index].value, cases[index].utf8_title,
+                                             cases[index].utf8_locale);
+                bool match = label != NULL && strcmp(label, cases[index].expected) == 0;
+
+                free(label);
+                if (!match) {
+                        XtpLog(XTP_LOG_ERROR, "self-test", "title encoding mismatch case=%zu",
+                               index);
+                        return -1;
+                }
+        }
+        if (!XtpUtf8TitleParse("Always", &value) || value != XTP_UTF8_TITLE_ALWAYS ||
+            !XtpUtf8TitleParse("DEFAULT", &value) || value != XTP_UTF8_TITLE_DEFAULT ||
+            !XtpUtf8TitleParse("yes", &value) || value != XTP_UTF8_TITLE_TRUE ||
+            XtpUtf8TitleParse("bogus", &value) ||
+            XtpUtf8TitleResolve(XTP_UTF8_TITLE_DEFAULT, false) != XTP_UTF8_TITLE_FALSE ||
+            XtpUtf8TitleResolve(XTP_UTF8_TITLE_DEFAULT, true) != XTP_UTF8_TITLE_DEFAULT) {
+                XtpLog(XTP_LOG_ERROR, "self-test", "utf8Title resource values mismatch");
+                return -1;
+        }
+        return 0;
 }
 
 typedef struct
@@ -6574,6 +6627,7 @@ XtpSelfTest(void)
             {"URL matching", SelfTestUrlMatch},
             {"window-ops policy", SelfTestWindowOps},
             {"title stack", SelfTestTitleStack},
+            {"title encoding", SelfTestTitleEncoding},
             {"emoji-presentation", SelfTestEmojiPresentation},
             {"box-glyphs", SelfTestBoxGlyphs},
             {"braille and Powerline glyphs", SelfTestProceduralGlyphs},

@@ -450,6 +450,54 @@ func titlePolicy(s *Session) {
 	s.say("Property changes are measured externally by tests/xvfb-title-ops.sh.")
 	s.pause()
 }
+
+// Property inspection is external: OSC title reports cannot expose X property types.
+func titleUTF8(s *Session) {
+	s.say("Use a disposable X11 terminal. Record its version, locale, utf8Title,")
+	s.say("allowC1Printable, sameName and Title/Window Ops settings with the observation.")
+	s.say("The menu can be insensitive in a UTF-8 locale. Launch with action bindings:")
+	s.say("  -xrm 'XTerm*VT100.translations: #override <Key>F10: set-utf8-title(on)\\n<Key>F11: set-utf8-title(off)'")
+	s.say("F10 requests ON; F11 requests OFF. Record utf8Title at launch too: xterm's menu")
+	s.say("check follows UTF-8 mode and need not show the action's current setting.")
+	s.say("Note the UTF-8 Titles menu state now; manual changes persist. Restore it before")
+	s.say("finishing, or after q/Esc. If the menu/action is missing, record unavailable;")
+	s.say("do not pretend the requested setting took effect. --no-pause is a corpus dump only.")
+	s.cleanup(func() { s.say("Restore the UTF-8 Titles setting you noted; this case cannot restore it.") })
+	titlePolicySave(s)
+	s.say("In ANOTHER terminal, set id to THIS terminal's top-level X window ID.")
+	s.say("Obtain it with xwininfo by clicking this window. Do not use the observer's WINDOWID.")
+	s.say("Run this command at every pause (8x prints raw bytes, including NUL bytes):")
+	s.say("xprop -id \"$id\" -f WM_NAME 8x -f WM_ICON_NAME 8x -f _NET_WM_NAME 8x -f _NET_WM_ICON_NAME 8x WM_NAME WM_ICON_NAME _NET_WM_NAME _NET_WM_ICON_NAME")
+	s.say("Keep each snapshot with its stage/sample label. Record property type, bytes and")
+	s.say("absent versus present-empty separately. Inspect the initial properties now.")
+	s.pause()
+	for _, stage := range []string{"as found", "UTF-8 Titles ON", "UTF-8 Titles OFF", "UTF-8 Titles ON again"} {
+		s.say("Stage: %s. Set it through the menu or set-utf8-title action if available, then continue.", stage)
+		s.say("Take a snapshot BEFORE the next label: toggling alone may update or delete properties.")
+		s.pause()
+		for _, sample := range []struct{ name, label string }{
+			{"ASCII", "probe ASCII"}, {"UTF-8", "café — 日本語 🛠"}, {"empty", ""},
+		} {
+			for _, selector := range []int{2, 1, 0} {
+				label := sample.label
+				if label != "" {
+					label = fmt.Sprintf("%s OSC%d %s", stage, selector, label)
+				}
+				s.osc(selector, label)
+				s.say("Stage %s; sample %s; OSC %d; payload UTF-8 hex: %x", stage, sample.name, selector, []byte(label))
+				s.say("Snapshot all four properties now. OSC 2 requests the title, OSC 1 the icon,")
+				s.say("OSC 0 both. Unsupported selectors or denied changes are separate observations.")
+				s.pause()
+			}
+		}
+	}
+	s.say("Compare ON/OFF/ON snapshots for encoding, stale properties and recreation.")
+	s.say("Do not infer support, deletion or legibility from a title report or a clean exit.")
+	s.say("Repeat in separately launched C and UTF-8 locales, with utf8Title false/true.")
+	s.say("Restore your original UTF-8 Titles setting before continuing to the requested pop.")
+	s.pause()
+}
+
 func titleSameName(s *Session) {
 	titlePolicySave(s)
 	s.say("Count WM_NAME changes from another terminal while this runs:")

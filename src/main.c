@@ -7,6 +7,7 @@
 #include "pty_process.h"
 #include "selftest.h"
 #include "terminal.h"
+#include "title_encoding.h"
 #include "title_stack.h"
 #include "urgency.h"
 #include "version.h"
@@ -199,6 +200,7 @@ static const char *const fallback_resources[] = {
 };
 
 static void UpdateGeometry(App *app);
+static void ApplyShellLabel(App *app, const char *resource, const char *value);
 
 static char *
 BackgroundOpacityResource(Display *display)
@@ -593,6 +595,32 @@ ShellLabelUnchanged(App *app, const char *resource, const char *value)
         return True;
 }
 
+/* xterm's sameName also skips an EWMH label whose UTF8_STRING already matches. */
+static Boolean
+EwmhLabelUnchanged(App *app, Window window, Atom property, const char *value)
+{
+        Atom utf8 = XInternAtom(app->display, "UTF8_STRING", False);
+        Atom type = None;
+        int format = 0;
+        unsigned long count = 0;
+        unsigned long after = 0;
+        unsigned char *current = NULL;
+        Boolean unchanged = False;
+
+        if (!app->same_name)
+                return False;
+        if (XGetWindowProperty(app->display, window, property, 0, 1024, False, utf8, &type, &format,
+                               &count, &after, &current) == Success) {
+                unchanged = type == utf8 && format == 8 && current != NULL &&
+                            count == strlen(value) && memcmp(value, current, count) == 0;
+                if (current != NULL)
+                        XFree(current);
+        }
+        if (unchanged)
+                XtpLog(XTP_LOG_INFO, "shell", "EWMH label unchanged; sameName skipped the update");
+        return unchanged;
+}
+
 static void
 TerminalTitle(const char *title, size_t length, void *closure)
 {
@@ -611,10 +639,7 @@ TerminalTitle(const char *title, size_t length, void *closure)
                 return;
         memcpy(value, title, length);
         value[length] = '\0';
-        if (!ShellLabelUnchanged(app, XtNtitle, value)) {
-                XtVaSetValues(app->shell, XtNtitle, value, NULL);
-                XtpLogBytePreview(XTP_LOG_INFO, "shell", "title changed", title, length);
-        }
+        ApplyShellLabel(app, XtNtitle, value);
         free(value);
 }
 
@@ -842,29 +867,9 @@ TerminalCursorBlinkReset(void *closure)
         XtpVtResetCursorBlinkPolicy(app->vt);
 }
 
-static char *
-Latin1ToUtf8Label(const unsigned char *bytes, size_t length)
-{
-        char *result = malloc(length * 2U + 1U);
-        size_t input;
-        size_t output = 0;
-
-        if (result == NULL)
-                return NULL;
-        for (input = 0; input < length; ++input) {
-                if (bytes[input] < 0x80U) {
-                        result[output++] = (char)bytes[input];
-                } else {
-                        result[output++] = (char)(0xc0U | (bytes[input] >> 6));
-                        result[output++] = (char)(0x80U | (bytes[input] & 0x3fU));
-                }
-        }
-        result[output] = '\0';
-        return result;
-}
-
 /* xterm reports and saves the live WM_NAME / WM_ICON_NAME properties, not
- * its own last request, so external changes are honored. */
+ * its own last request, so external changes are honored. As in its
+ * property_to_string, the text is decoded for the current locale. */
 static char *
 ShellLabel(App *app, const char *resource)
 {
@@ -873,33 +878,67 @@ ShellLabel(App *app, const char *resource)
         XTextProperty property = {0};
         char **list = NULL;
         int count = 0;
-        char *result = NULL;
+        size_t need = 0;
+        char *result;
 
-        if (window == None ||
-            !(icon ? XGetWMIconName(app->display, window, &property)
-                   : XGetWMName(app->display, window, &property)) ||
-            property.value == NULL) {
+        if (window == None || !(icon ? XGetWMIconName(app->display, window, &property)
+                                     : XGetWMName(app->display, window, &property))) {
                 String value = NULL;
 
                 XtVaGetValues(app->shell, resource, &value, NULL);
                 return strdup(value != NULL ? value : "");
         }
-        if (property.format == 8 &&
-            Xutf8TextPropertyToTextList(app->display, &property, &list, &count) >= Success &&
-            count > 0 && list != NULL && list[0] != NULL) {
-                result = strdup(list[0]);
-        } else if (property.format == 8 && property.encoding == XA_STRING) {
-                result = Latin1ToUtf8Label(property.value, property.nitems);
-        } else if (property.format == 8 &&
-                   property.encoding == XInternAtom(app->display, "UTF8_STRING", False)) {
-                result = strndup((const char *)property.value, property.nitems);
-        } else {
-                result = strdup("");
+        if (XmbTextPropertyToTextList(app->display, &property, &list, &count) < 0 &&
+            XTextPropertyToStringList(&property, &list, &count) == 0) {
+                list = NULL;
+                count = 0;
+        }
+        for (int index = 0; index < count; ++index)
+                need += strlen(list[index]);
+        result = malloc(need + 1U);
+        if (result != NULL) {
+                result[0] = '\0';
+                for (int index = 0; index < count; ++index)
+                        strcat(result, list[index]);
         }
         if (list != NULL)
                 XFreeStringList(list);
-        XFree(property.value);
+        if (property.value != NULL)
+                XFree(property.value);
         return result;
+}
+
+/* xterm's ChangeGroup after its limits: WM_NAME or WM_ICON_NAME through Xt, then
+ * in a UTF-8 locale the matching EWMH label is written as UTF8_STRING or deleted. */
+static void
+ApplyShellLabel(App *app, const char *resource, const char *value)
+{
+        Boolean icon = strcmp(resource, XtNiconName) == 0;
+        char *label = XtpTitleEncode(value, XtpVtUtf8Title(app->vt), XtpVtUtf8Locale(app->vt));
+        Window window = XtWindow(app->shell);
+        Atom property;
+
+        if (label == NULL)
+                return;
+        if (!ShellLabelUnchanged(app, resource, label)) {
+                XtVaSetValues(app->shell, resource, label, NULL);
+                XtpLogBytePreview(XTP_LOG_INFO, "shell",
+                                  icon ? "icon name changed" : "title changed",
+                                  (const uint8_t *)label, strlen(label));
+        }
+        if (XtpVtUtf8Locale(app->vt) && window != None) {
+                property =
+                    XInternAtom(app->display, icon ? "_NET_WM_ICON_NAME" : "_NET_WM_NAME", False);
+                if (!XtpVtUtf8Title(app->vt)) {
+                        XDeleteProperty(app->display, window, property);
+                } else if (!EwmhLabelUnchanged(app, window, property, label)) {
+                        XChangeProperty(app->display, window, property,
+                                        XInternAtom(app->display, "UTF8_STRING", False), 8,
+                                        PropModeReplace, (const unsigned char *)label,
+                                        (int)strlen(label));
+                }
+        }
+        free(label);
 }
 
 static void
@@ -912,8 +951,7 @@ SetShellLabel(App *app, const char *resource, const char *value)
                        XtpVtAllowSendEvents(app->vt) ? "true" : "false");
                 return;
         }
-        if (!ShellLabelUnchanged(app, resource, value))
-                XtVaSetValues(app->shell, resource, value, NULL);
+        ApplyShellLabel(app, resource, value);
         if (strcmp(resource, XtNtitle) == 0 &&
             XtpTerminalSetTitle(app->terminal, value, strlen(value)) != 0)
                 XtpLog(XTP_LOG_ERROR, "shell", "cannot restore backend title");
@@ -1122,6 +1160,15 @@ SyncTerminalModeChecks(App *app)
         }
 }
 
+/* xterm's update_font_utf8_title: the entry follows UTF-8 mode, not the utf8Title flag,
+ * so it is checked and insensitive in a UTF-8 locale and unchecked elsewhere. */
+static void
+SyncUtf8TitleEntry(App *app)
+{
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_UTF8_TITLE, XtpVtUtf8Locale(app->vt));
+        XtpMenusSetSensitive(&app->menus, XTP_MENU_ITEM_UTF8_TITLE, !XtpVtUtf8Locale(app->vt));
+}
+
 static void
 PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
 {
@@ -1139,6 +1186,7 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
         /* As in xterm, the entry is insensitive while allowSendEvents blocks Title Ops. */
         XtpMenusSetSensitive(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS,
                              !XtpVtAllowSendEvents(app->vt));
+        SyncUtf8TitleEntry(app);
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_COLOR_OPS, XtpVtAllowColorOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_FONT_OPS, XtpVtAllowFontOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TCAP_OPS, XtpVtAllowTcapOps(app->vt));
@@ -1269,6 +1317,10 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
         case XTP_MENU_ITEM_ALLOW_TITLE_OPS:
                 XtpVtSetAllowTitleOps(app->vt, !XtpVtAllowTitleOps(app->vt));
                 XtpMenusSetChecked(&app->menus, menu_item, XtpVtAllowTitleOps(app->vt));
+                return;
+        case XTP_MENU_ITEM_UTF8_TITLE:
+                XtpVtSetUtf8Title(app->vt, !XtpVtUtf8Title(app->vt));
+                SyncUtf8TitleEntry(app);
                 return;
         case XTP_MENU_ITEM_ALLOW_MOUSE_OPS:
                 XtpVtSetAllowMouseOps(app->vt, !XtpVtAllowMouseOps(app->vt));
@@ -1741,6 +1793,7 @@ WireApplication(App *app, const AppResources *resources)
         /* As in xterm, the entry is insensitive while allowSendEvents blocks Title Ops. */
         XtpMenusSetSensitive(&app->menus, XTP_MENU_ITEM_ALLOW_TITLE_OPS,
                              !XtpVtAllowSendEvents(app->vt));
+        SyncUtf8TitleEntry(app);
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_COLOR_OPS, XtpVtAllowColorOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_FONT_OPS, XtpVtAllowFontOps(app->vt));
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_TCAP_OPS, XtpVtAllowTcapOps(app->vt));
