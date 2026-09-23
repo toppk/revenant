@@ -16,6 +16,10 @@ env_program=$(command -v env)
 xtp_xvfb_test_init
 xtp_start_xvfb "$xvfb"
 mkdir "$test_dir/empty-home"
+# libXt leaks its display-name copy when XtOpenDisplay fails, even after
+# XtDestroyApplicationContext (reproduced without any terminal code). Suppress
+# only that library stack and only for the deliberately invalid-display launch.
+printf 'leak:XtOpenDisplay\n' >"$test_dir/no-display-lsan"
 
 fail()
 {
@@ -60,7 +64,8 @@ run()
         set -- "$terminal" "$@"
     fi
     status=0
-    DISPLAY=${run_display:-$DISPLAY} HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null \
+    LSAN_OPTIONS=${run_lsan_options-${LSAN_OPTIONS:-}} \
+        DISPLAY=${run_display:-$DISPLAY} HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null \
         XFILESEARCHPATH=/dev/null XTP_STDIO_RUN="$work" "$timeout_program" 30 \
         "$python" "$helper" launch "$mask" "$work" "$@" \
         <"$work/in" >"$work/out" 2>"$work/log" || status=$?
@@ -122,7 +127,9 @@ do
     expect_no_survivors "exec failure"
 
     run_display=127.0.0.1:65000
+    run_lsan_options="${LSAN_OPTIONS:+$LSAN_OPTIONS:}suppressions=$test_dir/no-display-lsan"
     run -e /bin/true
+    unset run_lsan_options
     run_display=
     test "$status" -eq 1 || fail "no display: terminal exited with status $status, not 1"
     expect_no_survivors "display failure"
