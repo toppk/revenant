@@ -84,6 +84,10 @@ Boolean XtpVtBackgroundOpacityAvailable(Widget widget);
 unsigned int XtpVtBackgroundOpacityPercent(Widget widget);
 Boolean XtpVtSetBackgroundOpacityPercent(Widget widget, unsigned int percent);
 Dimension XtpVtNaturalWidth(Widget widget);
+/* The vt100 geometry resource: size in characters, position in pixels. */
+const char *XtpVtGeometry(Widget widget);
+/* Replaces the columns and rows before the widget is realized. */
+void XtpVtSetInitialGrid(Widget widget, unsigned int columns, unsigned int rows);
 Dimension XtpVtNaturalHeight(Widget widget);
 Boolean XtpVtSelectFont(Widget widget, int slot);
 Boolean XtpVtScrollbarVisible(Widget widget);

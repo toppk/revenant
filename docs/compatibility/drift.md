@@ -821,6 +821,25 @@ preserve xterm and wcwidth application arithmetic. `graphemeWidth: unicode`
 changes the initial and reset default; applications may still select or reset
 the mode explicitly.
 
+### Startup geometry
+
+`-geometry` sets `vt100.geometry`, as in xterm patch 411. The size is in
+characters and replaces `columns` and `rows`; a zero size becomes 1x1. The
+position is in pixels, and negative offsets place the window from the right and
+bottom edges of the screen. A lone x offset (`+100`, `40x5-10`) keeps its
+horizontal placement and, as in xterm, leaves y at 1. Measured with isolated resources, Revenant matches
+xterm-411 for the default and for size-only, size-and-position, position-only,
+single-offset and negative-offset forms. The grid, the PTY size, the window size and position, the
+CSI 18 t and 14 t replies, and the `WM_NORMAL_HINTS` user size, user location
+and gravity all match.
+
+Two differences remain. When only the application's own `geometry` resource is
+set (`XTerm.geometry`, not `XTerm*geometry`), Revenant reads it like
+`vt100.geometry`; xterm-411 ignores its size and started an 80x24 window at 1,1.
+The PTY size's pixel fields cover the text area in Revenant (480x312 for 80x24
+cells of 6x13), while xterm reports the whole window (484x316); the character
+fields and the CSI 14 t reply agree.
+
 ### Hold after the child exits
 
 `-hold`, `+hold` and the `hold` resource follow xterm patch 411, measured with

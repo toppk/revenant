@@ -177,6 +177,7 @@ typedef struct
         Dimension internal_border;
         int columns;
         int rows;
+        String geometry;
         int save_lines;
         int multi_click_time;
         String cursor_blink_name;

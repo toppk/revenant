@@ -81,7 +81,7 @@ The two original structural gaps are complete:
 
 | Option | What xterm does | Mechanism | Approachability | Status |
 | --- | --- | --- | --- | --- |
-| `-geometry geom` | Size in characters | — | — | DONE |
+| `-geometry geom` | Size in characters | `vt100.geometry` | Grid from the size; the shell gets the pixel form for position and gravity | DONE |
 | `#geom` | `iconGeometry` | Xt shell resource | Sticky-arg entry in option table; resource already supported | DONE |
 | `%geom` | Tek window geometry | None | Tek not planned | SKIP |
 | `-title string` / `-T string` | Window title | Xt shell | Both forms resolve through `.title` | DONE |

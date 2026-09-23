@@ -24,6 +24,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <locale.h>
 #include <signal.h>
 #include <stdint.h>
@@ -59,6 +60,11 @@ typedef struct
         /* The child's side of the PTY is gone and the window is held (hold). */
         Boolean child_finished;
         XtIntervalId reap_timer;
+        /* Startup geometry as XParseGeometry reported it, and its pixel form for the shell. */
+        int geometry_flags;
+        int geometry_x;
+        int geometry_y;
+        char shell_geometry[64];
         /* Last validated OSC 7 directory for future consumers; NULL when unknown. */
         char *working_directory;
         char hostname[256];
@@ -1478,6 +1484,21 @@ UpdateNormalHints(App *app, Dimension total_width, Dimension total_height, Dimen
         hints.min_height = base_height + (int)XtpVtCellHeight(app->vt);
         hints.width_inc = (int)XtpVtCellWidth(app->vt);
         hints.height_inc = (int)XtpVtCellHeight(app->vt);
+        if (app->geometry_flags != NoValue) {
+                Position x = 0;
+                Position y = 0;
+                int gravity = NorthWestGravity;
+
+                /* Keep what Xt derived from the geometry at realization, as xterm publishes it. */
+                XtVaGetValues(app->shell, XtNx, &x, XtNy, &y, XtNwinGravity, &gravity, NULL);
+                hints.flags |= USSize | PWinGravity;
+                hints.win_gravity = gravity;
+                if ((app->geometry_flags & (XValue | YValue)) != 0) {
+                        hints.flags |= USPosition;
+                        hints.x = x;
+                        hints.y = y;
+                }
+        }
 
         /*
          * Keep the Shell widget's private size hints synchronized with the
@@ -1500,6 +1521,81 @@ UpdateNormalHints(App *app, Dimension total_width, Dimension total_height, Dimen
         XtpLog(XTP_LOG_DEBUG, "shell", "WM_NORMAL_HINTS size=%ux%u base=%ux%u increment=%ux%u",
                total_width, total_height, base_width, base_height, XtpVtCellWidth(app->vt),
                XtpVtCellHeight(app->vt));
+}
+
+/* -geometry sizes the grid in characters; the position stays in pixels, as in xterm. */
+static void
+ApplyStartupGeometry(App *app)
+{
+        const char *spec = XtpVtGeometry(app->vt);
+        const char *source = "vt100.geometry";
+        unsigned int columns = XtpVtColumns(app->vt);
+        unsigned int rows = XtpVtRows(app->vt);
+        unsigned int width = columns;
+        unsigned int height = rows;
+        unsigned int cell_width = XtpVtCellWidth(app->vt);
+        unsigned int cell_height = XtpVtCellHeight(app->vt);
+        unsigned int base_width = XtpVtNaturalWidth(app->vt) - columns * cell_width;
+        unsigned int base_height = XtpVtNaturalHeight(app->vt) - rows * cell_height;
+        unsigned int max_columns = cell_width != 0 ? (USHRT_MAX - base_width) / cell_width : 1U;
+        unsigned int max_rows = cell_height != 0 ? (USHRT_MAX - base_height) / cell_height : 1U;
+
+        if (spec == NULL) {
+                String shell_spec = NULL;
+
+                XtVaGetValues(app->shell, XtNgeometry, &shell_spec, NULL);
+                spec = shell_spec;
+                source = "geometry";
+        }
+        if (spec == NULL)
+                return;
+        app->geometry_flags =
+            XParseGeometry(spec, &app->geometry_x, &app->geometry_y, &width, &height);
+        if (app->geometry_flags == NoValue) {
+                XtpLog(XTP_LOG_WARNING, "shell", "%s=%s ignored: expected WIDTHxHEIGHT+X+Y", source,
+                       spec);
+                return;
+        }
+        if ((app->geometry_flags & WidthValue) != 0)
+                columns = width < 1U ? 1U : width > max_columns ? max_columns : width;
+        if ((app->geometry_flags & HeightValue) != 0)
+                rows = height < 1U ? 1U : height > max_rows ? max_rows : height;
+        XtpVtSetInitialGrid(app->vt, columns, rows);
+        XtpLog(XTP_LOG_INFO, "shell", "startup geometry %s=%s grid=%ux%u", source, spec, columns,
+               rows);
+}
+
+/* Hands the shell the pixel form of the startup geometry so Xt places the real window size. */
+static void
+SetShellGeometry(App *app)
+{
+        size_t used = 0;
+        int written;
+
+        app->shell_geometry[0] = '\0';
+        if ((app->geometry_flags & (WidthValue | HeightValue)) != 0) {
+                written = snprintf(app->shell_geometry, sizeof(app->shell_geometry), "%ux%u",
+                                   XtpVtNaturalWidth(app->vt), XtpVtNaturalHeight(app->vt));
+                used = written > 0 ? (size_t)written : 0U;
+        }
+        /* XParseGeometry accepts an x offset alone; xterm then keeps its initial y of 1. */
+        if ((app->geometry_flags & XValue) != 0) {
+                written = snprintf(app->shell_geometry + used, sizeof(app->shell_geometry) - used,
+                                   "%c%d", (app->geometry_flags & XNegative) != 0 ? '-' : '+',
+                                   abs(app->geometry_x));
+                used += written > 0 ? (size_t)written : 0U;
+        }
+        if ((app->geometry_flags & YValue) != 0)
+                (void)snprintf(app->shell_geometry + used, sizeof(app->shell_geometry) - used,
+                               "%c%d", (app->geometry_flags & YNegative) != 0 ? '-' : '+',
+                               abs(app->geometry_y));
+        else if ((app->geometry_flags & XValue) != 0)
+                (void)snprintf(app->shell_geometry + used, sizeof(app->shell_geometry) - used,
+                               "+1");
+        XtVaSetValues(app->shell, XtNgeometry,
+                      app->shell_geometry[0] != '\0' ? app->shell_geometry : NULL, NULL);
+        XtpLog(XTP_LOG_DEBUG, "shell", "shell geometry=%s",
+               app->shell_geometry[0] != '\0' ? app->shell_geometry : "(unset)");
 }
 
 static void
@@ -1605,6 +1701,7 @@ OpenApplication(App *app, XtpCommandLine *command_line, AppResources *resources)
                 return -1;
         }
         XtpLog(XTP_LOG_INFO, "shell", "created child instance=vt100 class=VT100");
+        ApplyStartupGeometry(app);
         XtpLog(XTP_LOG_INFO, "config", "active renderer=%s", XtpVtRendererName(app->vt));
         return 0;
 }
@@ -1684,6 +1781,7 @@ static void
 RealizeApplication(App *app)
 {
         UpdateGeometry(app);
+        SetShellGeometry(app);
         XtRealizeWidget(app->shell);
         XtpLog(XTP_LOG_INFO, "shell",
                "realized window=0x%lx pixels=%ux%u depth=%d argb=%s background-alpha=%u",

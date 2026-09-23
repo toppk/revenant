@@ -252,6 +252,7 @@ static XtResource resources[] = {
      XtRImmediate, (XtPointer)2},
     {"columns", "Columns", XtRInt, sizeof(int), OFFSET(columns), XtRImmediate, (XtPointer)80},
     {"rows", "Rows", XtRInt, sizeof(int), OFFSET(rows), XtRImmediate, (XtPointer)24},
+    {"geometry", "Geometry", XtRString, sizeof(String), OFFSET(geometry), XtRString, NULL},
     {"saveLines", "SaveLines", XtRInt, sizeof(int), OFFSET(save_lines), XtRImmediate,
      (XtPointer)1024},
     {"charClass", "CharClass", XtRString, sizeof(String), OFFSET(char_class), XtRImmediate, NULL},
@@ -1740,6 +1741,23 @@ XtpVtRows(Widget widget)
         Vt100Rec *vt = VtAsRecord(widget);
 
         return (unsigned int)vt->vt.rows;
+}
+
+const char *
+XtpVtGeometry(Widget widget)
+{
+        return VtAsRecord(widget)->vt.geometry;
+}
+
+void
+XtpVtSetInitialGrid(Widget widget, unsigned int columns, unsigned int rows)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+
+        if (XtIsRealized(widget))
+                return;
+        vt->vt.columns = (int)columns;
+        vt->vt.rows = (int)rows;
 }
 
 Boolean

@@ -16,7 +16,7 @@ XrmOptionDescRec XtpCommandOptions[] = {
     {"-bw", ".borderWidth", XrmoptionSepArg, NULL},
     {"-foreground", "*foreground", XrmoptionSepArg, NULL},
     {"-fg", "*foreground", XrmoptionSepArg, NULL},
-    {"-geometry", ".geometry", XrmoptionSepArg, NULL},
+    {"-geometry", "*vt100.geometry", XrmoptionSepArg, NULL},
     {"-font", "*vt100.font", XrmoptionSepArg, NULL},
     {"-fn", "*vt100.font", XrmoptionSepArg, NULL},
     {"-fb", "*vt100.boldFont", XrmoptionSepArg, NULL},

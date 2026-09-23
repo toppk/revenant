@@ -83,6 +83,7 @@ typedef struct
 
 static const ResourceProbe resource_probes[] = {
     {"xterm.geometry", "XTerm.Geometry"},
+    {"xterm.vt100.geometry", "XTerm.VT100.Geometry"},
     {"xterm.termName", "XTerm.TermName"},
     {"xterm.menuLocale", "XTerm.MenuLocale"},
     {"xterm.logLevel", "XTerm.LogLevel"},
@@ -1414,7 +1415,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
                 const char *application_name, const char *application_class)
 {
         static const ResourceSpec appearance[] = {
-            {"xterm.geometry", "XTerm.Geometry", NULL},
+            {"xterm.vt100.geometry", "XTerm.VT100.Geometry", NULL},
             {"xterm.vt100.columns", "XTerm.VT100.Columns", "80"},
             {"xterm.vt100.rows", "XTerm.VT100.Rows", "24"},
             {"xterm.vt100.foreground", "XTerm.VT100.Foreground", "black"},
@@ -1440,7 +1441,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "XTerm*internalBorder",
         };
         static const char *const appearance_help[] = {
-            "Initial columns/rows and optional window position.",
+            "Initial columns x rows and optional window position in pixels.",
             "Default terminal columns when geometry does not override it.",
             "Default terminal rows when geometry does not override it.",
             "Default text color.",

@@ -730,6 +730,20 @@ if build_with_ghostty and xvfb.found()
     )
     if xwininfo.found() and xprop.found()
         test(
+            'xvfb-geometry',
+            find_program('sh'),
+            args: [
+                files('tests/xvfb-geometry.sh'),
+                xvfb.full_path(),
+                xterm_plus.full_path(),
+                xwininfo.full_path(),
+                xprop.full_path(),
+                python3.full_path(),
+            ],
+            timeout: 60,
+            is_parallel: false,
+        )
+        test(
             'xvfb-command-line',
             find_program('sh'),
             args: [

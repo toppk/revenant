@@ -51,7 +51,7 @@ inventory; an option not shown there is not silently accepted.
 | `-bd color` | `.borderColor` | Shell border color |
 | `-bw pixels` / `-w pixels` | `.borderWidth` | Shell border width |
 | `-rv` / `+rv`, `-r` / `+r` | `vt100.reverseVideo` true / false | Swap the configured default foreground and background |
-| `-geometry WxH+X+Y` | `.geometry` | Size in characters, position in pixels |
+| `-geometry WxH+X+Y` | `vt100.geometry` | Size in characters, position in pixels; negative offsets count from the right and bottom |
 | `-b pixels` | `vt100.internalBorder` | Padding inside the window |
 | `-cr color` | `vt100.cursorColor` | Text cursor color |
 | `-title string` / `-T string` | `.title` | Window title |
