@@ -515,7 +515,7 @@ int XtpTerminalCommandOutput(XtpTerminal *terminal, uint64_t prompt_start, XtpSe
  * the caller frees *text. */
 int XtpTerminalSpanText(XtpTerminal *terminal, const XtpSemanticSpan *span, char **text,
                         size_t *length);
-/* Literal primary-screen search; HANDOFF.md describes the matching and invalidation rules. */
+/* Literal primary-screen search; see docs/maintainers/search.md for its contract. */
 typedef struct XtpTerminalSearch XtpTerminalSearch;
 
 typedef enum

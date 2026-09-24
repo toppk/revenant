@@ -48,6 +48,7 @@ Unknown options are rejected before a display is opened.
 **-self-test** runs the installed-package diagnostic without opening a display.
 The historical **--self-test** spelling remains an alias. This diagnostic
 accepts no other options.
+The separately reported URL-matching cases run through the build's Meson tests.
 
 # OPTIONS
 

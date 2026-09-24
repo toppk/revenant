@@ -267,18 +267,19 @@ normal CI. It depends on the installed xterm, the live X server and window
 manager, `wmctrl`, and DejaVu Sans Mono. Missing dependencies produce a focused
 error; a mismatch leaves both program logs in a named temporary directory.
 
-Five small X11 utilities are built alongside Revenant but not installed. Give
-them the top-level window ID reported by the `shell: realized` log line:
+Five small X11 utilities are built in the build directory's `tests/`
+subdirectory but are not installed. Give them the top-level window ID reported
+by the `shell: realized` log line:
 
 ```sh
-./build-ghostty/xtp-send-font-keys 0x4e00027        # two Shift+KP_Add presses
-./build-ghostty/xtp-send-font-keys 0x4e00027 - 4    # four Shift+KP_Subtract
-./build-ghostty/xtp-send-font-keys 0x4e00027 insert 1
-./build-ghostty/xtp-send-font-keys 0x4e00027 page-up 1
-./build-ghostty/xtp-send-wheel 0x4e00027 up 4       # four wheel ticks
-./build-ghostty/xtp-send-selection 0x4e00027 10 10 200 60
-./build-ghostty/xtp-send-shift-click 0x4e00027 15 15
-./build-ghostty/xtp-resize-loop 0x4e00027            # four narrow/wide cycles
+./build-ghostty/tests/xtp-send-font-keys 0x4e00027        # two Shift+KP_Add presses
+./build-ghostty/tests/xtp-send-font-keys 0x4e00027 - 4    # four Shift+KP_Subtract
+./build-ghostty/tests/xtp-send-font-keys 0x4e00027 insert 1
+./build-ghostty/tests/xtp-send-font-keys 0x4e00027 page-up 1
+./build-ghostty/tests/xtp-send-wheel 0x4e00027 up 4       # four wheel ticks
+./build-ghostty/tests/xtp-send-selection 0x4e00027 10 10 200 60
+./build-ghostty/tests/xtp-send-shift-click 0x4e00027 15 15
+./build-ghostty/tests/xtp-resize-loop 0x4e00027            # four narrow/wide cycles
 ```
 
 Each press should produce one `action larger-vt-font` and one `font: select`
@@ -293,8 +294,8 @@ The resize helper defaults to four `400x300` to `1000x700` cycles separated by
 100 ms. Override the cycle count and delay, or provide all four dimensions:
 
 ```sh
-./build-ghostty/xtp-resize-loop WINDOW-ID CYCLES DELAY-MS
-./build-ghostty/xtp-resize-loop WINDOW-ID 10 20 320 240 1200 800
+./build-ghostty/tests/xtp-resize-loop WINDOW-ID CYCLES DELAY-MS
+./build-ghostty/tests/xtp-resize-loop WINDOW-ID 10 20 320 240 1200 800
 ```
 
 It can also resize in terminal cells. It reads the window's base size and cell
@@ -302,7 +303,7 @@ increments from `WM_NORMAL_HINTS`, so this form is independent of the selected
 font and scrollbar width:
 
 ```sh
-./build-ghostty/xtp-resize-loop WINDOW-ID --grid 38 80 24 250
+./build-ghostty/tests/xtp-resize-loop WINDOW-ID --grid 38 80 24 250
 ```
 
 ### Readline 8.3 wrapped-prompt reproducer

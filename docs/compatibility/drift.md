@@ -736,6 +736,8 @@ xterm has no search. Revenant adds `start-search()`, bound by default to
 Ctrl+Shift+F like Ghostty and Kitty, with a literal incremental search bar;
 while it is open it owns every key, and Enter copies the active match to
 PRIMARY. There is no regular-expression search.
+The [scrollback search contract](../maintainers/search.md) records matching,
+invalidation, ownership and the known limits.
 
 ### Copy feedback
 

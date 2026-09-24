@@ -51,6 +51,10 @@ The boundaries are deliberate:
   only by the widget implementation.
 - `src/vt_input.c` owns XIM, keyboard mapping and repeat tracking, and focus
   input.
+- `src/vt_search.c` owns the widget's `VtSearchRuntime` lifecycle, overlay,
+  scan scheduling and paint snapshot. The backend search model remains behind
+  `terminal.h`; its behavior and ownership rules are in the
+  [scrollback search contract](search.md).
 - `src/vt_interaction.c` owns selection and paste, hyperlinks, mouse encoding,
   and local pointer and scroll actions. Encoded terminal input leaves the
   widget through `XtNinputCallback`.

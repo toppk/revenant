@@ -2,7 +2,7 @@
 #define XTERM_PLUS_TERMINAL_GHOSTTYP_H
 
 #include "char_class.h"
-#include "cursor_blink.h"
+#include "terminal_control_observer.h"
 #include "terminal.h"
 
 /* osc.zig Parser.MAX_BUF: the fixed capture used for OSC 7 and most other OSCs. */
@@ -122,7 +122,7 @@ struct XtpTerminal
         GhosttyColorRgb last_cursor;
         bool scheme_initialized;
         bool scheme_light;
-        XtpCursorBlinkObserver cursor_blink;
+        XtpTerminalControlObserver control_observer;
         XtpCharClassTable *char_classes;
         XtpTerminalEffects effects;
         char *answerback;

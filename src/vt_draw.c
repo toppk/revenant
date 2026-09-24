@@ -290,7 +290,7 @@ MakeVisualCell(Vt100Rec *vt, const XtpRenderCell *cell)
                                      vt->vt.copy_flash_rgb[2]);
         }
         /* Search matches look selected; the active match takes the cursor colors. */
-        if (vt->vt.search_active) {
+        if (XtpVtSearchActive((Widget)vt)) {
                 unsigned int highlight = VtSearchCellHighlight(vt, cell->row, cell->column);
 
                 if (highlight == 2U) {

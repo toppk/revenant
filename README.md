@@ -139,8 +139,33 @@ The normal maintainer loop is:
 ```sh
 tools/fetch-libghostty     # first checkout, or deliberate upstream refresh
 tools/stage-font-fixtures  # once, or whenever the pinned fixture inputs change
-just check-all             # formatting, GCC, Clang, ASan, stub, Xvfb, and docs
+just check-all             # complete local verification; see the coverage map below
 ```
+
+`just check-all` is the single complete local verification command. Its CI
+coverage maps to local recipes as follows:
+
+<!-- markdownlint-disable MD013 -->
+| CI obligation | Local command used by `check-all` |
+| --- | --- |
+| C formatting | `just format-check` |
+| GCC and Clang libghostty/Xvfb suites, Clang ASan suite, and stub suite | `just test` (release no-skip gate on the three libghostty builds; stub is exempt) |
+| Go formatting, probe build/tests, and Python probe integration | `just test-probe` |
+| Release packaging assertions | `just test-release-packaging` |
+| TDN registry and schema tests | TDN data stage shared with `just check-tdn` |
+| Strict Revenant and TDN documentation builds | `just check` |
+<!-- markdownlint-enable MD013 -->
+
+The three libghostty test runs intentionally cover different compilers and
+sanitizer behavior. `check-all` runs each other obligation once; the focused
+`check-tdn` command also builds TDN, but `check-all` uses its data stage and
+lets `check` perform that strict build. The real-backend builds require Xvfb
+and libnotify, matching CI; the stub requires neither. CI separately assembles
+and deploys the Pages artifact, validates release packages on separate
+distribution and architecture runners, and installs or restores pinned tools
+and font fixtures. Those environment and publishing steps are outside this
+local command. Stage font fixtures and provide its build and documentation
+dependencies before running it.
 
 Focused commands are available when iterating:
 
@@ -150,6 +175,9 @@ just format               # rewrite C sources and test helpers
 just format-check         # verify formatting only
 just test                 # GCC + Clang + ASan libghostty builds and the stub build
 just test-asan            # complete Clang AddressSanitizer suite
+just test-probe           # Go formatting/tests and Python probe integration
+just test-release-packaging # package metadata assertions
+just check-tdn            # TDN registry, schema tests, and strict build
 just check                # strict-build both documentation sites
 just serve                # preview landing page, manual, and TDN together
 ```
@@ -171,7 +199,7 @@ The repository's main areas are intentionally unsurprising:
 | Path | Purpose |
 | --- | --- |
 | `src/` | Xt/X11 application, VT widget, PTY layer, and terminal backends |
-| `tests/` | Backend self-tests and Xvfb integration coverage |
+| `tests/` | Noninstalled unit tests, backend self-tests, and Xvfb integration coverage |
 | `tools/` | Fetch, profiling, maintenance, and interactive probe utilities |
 | `docs/` | Revenant user and maintainer manual |
 | `compat/` | Machine-readable xterm patch-411 compatibility catalogs |

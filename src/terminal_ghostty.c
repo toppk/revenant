@@ -13,7 +13,7 @@ typedef struct
         XtpTerminal *terminal;
         const uint8_t *bytes;
         size_t written;
-} CursorBlinkFeed;
+} ObservedInputFeed;
 
 static void RecordPromptMark(XtpTerminal *terminal);
 static void FreePromptMarks(XtpTerminal *terminal);
@@ -213,9 +213,9 @@ ConvertMode(XtpTerminalMode mode)
 }
 
 /*
- * TODO(libghostty): remove this rewrite with cursor_blink.c once libghostty
- * exposes the raw mode-12 operand and uses it in DECRQM/DECRQSS replies.  See
- * the XtpCursorBlinkObserver rationale in cursor_blink.h.
+ * TODO(libghostty): remove this reply rewrite when the core reports the
+ * original mode-12/style request. The observer has other consumers and cannot
+ * be removed solely for that change. See terminal_control_observer.h.
  */
 static const uint8_t *
 RewriteCursorBlinkReport(const XtpTerminal *terminal, const uint8_t *bytes, size_t length,
@@ -224,14 +224,14 @@ RewriteCursorBlinkReport(const XtpTerminal *terminal, const uint8_t *bytes, size
         if (length == 9U && memcmp(bytes, "\033[?12;", 6) == 0 && bytes[7] == '$' &&
             bytes[8] == 'y') {
                 memcpy(rewritten, bytes, length);
-                rewritten[6] = terminal->cursor_blink.blink_requested ? '1' : '2';
+                rewritten[6] = terminal->control_observer.blink_requested ? '1' : '2';
                 return rewritten;
         }
         if (length == 10U && memcmp(bytes, "\033P1$r", 5) == 0 && bytes[6] == ' ' &&
             bytes[7] == 'q' && bytes[8] == 0x1bU && bytes[9] == '\\' && bytes[5] >= '1' &&
             bytes[5] <= '6') {
                 memcpy(rewritten, bytes, length);
-                if (terminal->cursor_blink.blink_requested) {
+                if (terminal->control_observer.blink_requested) {
                         if ((rewritten[5] & 1U) == 0U)
                                 --rewritten[5];
                 } else if ((rewritten[5] & 1U) != 0U) {
@@ -519,7 +519,7 @@ ProgressReportEffectPointer(void)
 }
 
 /* Presentation state the live terminal would paint with now. Reading terminal data
- * is permitted inside libghostty's effect callbacks, and the cursor-blink observer
+ * is permitted inside libghostty's effect callbacks, and the stream observer
  * flushes bytes to libghostty before each change it tracks, so both are in step with
  * the parser at a hold boundary. */
 static int
@@ -541,7 +541,7 @@ ReadLivePresentation(XtpTerminal *terminal, XtpGhosttyPresentation *presentation
             ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_COLOR_CURSOR,
                                  &presentation->cursor) != GHOSTTY_SUCCESS)
                 presentation->cursor = presentation->foreground;
-        presentation->blink_requested = terminal->cursor_blink.blink_requested;
+        presentation->blink_requested = terminal->control_observer.blink_requested;
         return 0;
 }
 
@@ -959,7 +959,7 @@ SyncCursorBlinkMode(XtpTerminal *terminal)
 {
         GhosttyTerminalModeConfig mode = {
             GHOSTTY_MODE_CURSOR_BLINKING,
-            terminal->cursor_blink.blink_requested,
+            terminal->control_observer.blink_requested,
         };
 
         return ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_MODE, &mode) ==
@@ -969,9 +969,9 @@ SyncCursorBlinkMode(XtpTerminal *terminal)
 }
 
 static void
-CursorBlinkBeforeChange(size_t offset, void *closure)
+FlushObservedInputPrefix(size_t offset, void *closure)
 {
-        CursorBlinkFeed *feed = closure;
+        ObservedInputFeed *feed = closure;
 
         if (offset > feed->written) {
                 ghostty_terminal_vt_write(feed->terminal->handle, feed->bytes + feed->written,
@@ -981,13 +981,13 @@ CursorBlinkBeforeChange(size_t offset, void *closure)
 }
 
 static void
-CursorBlinkWindowOp(unsigned int op, unsigned int parameter_count, const unsigned int *parameters,
-                    size_t offset, void *closure)
+ObservedWindowOp(unsigned int op, unsigned int parameter_count, const unsigned int *parameters,
+                 size_t offset, void *closure)
 {
-        CursorBlinkFeed *feed = closure;
+        ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
 
-        CursorBlinkBeforeChange(offset, closure);
+        FlushObservedInputPrefix(offset, closure);
         if (op == 14U || op == 16U || op == 18U) {
                 terminal->pending_size_report = op;
                 return;
@@ -1017,11 +1017,11 @@ SameRgb(GhosttyColorRgb left, GhosttyColorRgb right)
  * the reply it provokes, and replies to denied queries, are dropped in the
  * PTY write effect. Decisions are made as each item begins. */
 static void
-SpoilOsc(CursorBlinkFeed *feed, size_t offset, unsigned int selector, XtpColorOp op)
+SpoilOsc(ObservedInputFeed *feed, size_t offset, unsigned int selector, XtpColorOp op)
 {
         static const uint8_t spoiler[] = "x";
 
-        CursorBlinkBeforeChange(offset, feed);
+        FlushObservedInputPrefix(offset, feed);
         ghostty_terminal_vt_write(feed->terminal->handle, spoiler, sizeof(spoiler) - 1U);
         XtpLog(XTP_LOG_INFO, "terminal", "OSC %u denied by Color Ops policy (%s)", selector,
                XtpColorOpName(op));
@@ -1030,7 +1030,7 @@ SpoilOsc(CursorBlinkFeed *feed, size_t offset, unsigned int selector, XtpColorOp
 static void
 ColorOscHeader(unsigned int selector, size_t offset, void *closure)
 {
-        CursorBlinkFeed *feed = closure;
+        ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
 
         terminal->color_list_active = false;
@@ -1044,7 +1044,7 @@ ColorOscHeader(unsigned int selector, size_t offset, void *closure)
         if (!((selector >= 10U && selector <= 19U) || selector == 4U || selector == 5U))
                 return;
         /* Earlier controls in this feed must answer before the filter is armed. */
-        CursorBlinkBeforeChange(offset, feed);
+        FlushObservedInputPrefix(offset, feed);
         terminal->color_list_active = true;
         terminal->color_list_any_denied = false;
         terminal->color_list_deny_unknown_index = false;
@@ -1108,7 +1108,7 @@ static void
 ColorOscPayload(unsigned int selector, bool query, size_t offset, void *closure)
 {
         static const uint8_t as_query[] = "?";
-        CursorBlinkFeed *feed = closure;
+        ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
         unsigned int item = terminal->color_list_items++;
         XtpColorOp op;
@@ -1128,7 +1128,7 @@ ColorOscPayload(unsigned int selector, bool query, size_t offset, void *closure)
                 terminal->color_list_any_denied = true;
                 terminal->color_list_drop_selectors |= 1U << (target - 10U);
                 if (!query) {
-                        CursorBlinkBeforeChange(offset, feed);
+                        FlushObservedInputPrefix(offset, feed);
                         ghostty_terminal_vt_write(terminal->handle, as_query,
                                                   sizeof(as_query) - 1U);
                         terminal->color_list_skipping = true;
@@ -1159,7 +1159,7 @@ ColorOscPayload(unsigned int selector, bool query, size_t offset, void *closure)
 static void
 ColorOscItemEnd(size_t offset, void *closure)
 {
-        CursorBlinkFeed *feed = closure;
+        ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
 
         if (terminal->color_list_skipping) {
@@ -1175,7 +1175,7 @@ ColorOscItemEnd(size_t offset, void *closure)
 static void
 ColorOscEnd(size_t offset, void *closure)
 {
-        CursorBlinkFeed *feed = closure;
+        ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
 
         if (!terminal->color_list_active)
@@ -1187,14 +1187,14 @@ ColorOscEnd(size_t offset, void *closure)
         terminal->color_list_capturing = false;
         /* libghostty dispatches the list at this byte, so its replies arrive
          * while the per-item decisions are still known. */
-        CursorBlinkBeforeChange(offset + 1U, feed);
+        FlushObservedInputPrefix(offset + 1U, feed);
         terminal->color_list_active = false;
 }
 
 static void
 FeedOscHeader(unsigned int selector, size_t offset, void *closure)
 {
-        CursorBlinkFeed *feed = closure;
+        ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
 
         ColorOscHeader(selector, offset, closure);
@@ -1211,7 +1211,7 @@ FeedOscHeader(unsigned int selector, size_t offset, void *closure)
         if (selector == 7U) {
                 /* Earlier controls in this feed must deliver their own pwd
                  * callbacks before this report's delivery is judged. */
-                CursorBlinkBeforeChange(offset, feed);
+                FlushObservedInputPrefix(offset, feed);
                 terminal->pwd_report_active = true;
                 terminal->pwd_report_start = offset + 1U;
                 terminal->pwd_report_bytes = 0;
@@ -1224,7 +1224,7 @@ FeedOscHeader(unsigned int selector, size_t offset, void *closure)
 static void
 FeedOscPayload(unsigned int selector, bool query, size_t offset, void *closure)
 {
-        CursorBlinkFeed *feed = closure;
+        ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
 
         ColorOscPayload(selector, query, offset, closure);
@@ -1254,7 +1254,7 @@ OscPayloadBytes(const uint8_t *bytes, size_t start, size_t end)
 static void
 FeedOscItemEnd(size_t offset, void *closure)
 {
-        CursorBlinkFeed *feed = closure;
+        ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
 
         ColorOscItemEnd(offset, closure);
@@ -1270,7 +1270,7 @@ FeedOscItemEnd(size_t offset, void *closure)
  * than an abort, and whose payload (everything after "133;") fit the core's capture so
  * libghostty acted on it. */
 static bool
-CommandEndAccepted(XtpTerminal *terminal, const CursorBlinkFeed *feed, size_t offset)
+CommandEndAccepted(XtpTerminal *terminal, const ObservedInputFeed *feed, size_t offset)
 {
         uint8_t terminator = feed->bytes[offset];
         size_t total = terminal->command_end_bytes;
@@ -1295,14 +1295,14 @@ CommandEndAccepted(XtpTerminal *terminal, const CursorBlinkFeed *feed, size_t of
 static void
 FeedOscEnd(size_t offset, void *closure)
 {
-        CursorBlinkFeed *feed = closure;
+        ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
 
         ColorOscEnd(offset, closure);
         terminal->prompt_mark_first_item = false;
         if (terminal->prompt_mark_pending) {
                 terminal->prompt_mark_pending = false;
-                CursorBlinkBeforeChange(offset + 1U, feed);
+                FlushObservedInputPrefix(offset + 1U, feed);
                 RecordPromptMark(terminal);
         }
         if (terminal->command_end_active) {
@@ -1312,7 +1312,7 @@ FeedOscEnd(size_t offset, void *closure)
                 if (accepted) {
                         /* Protocol seen is a property of the shell, not of the row's survival. */
                         terminal->command_end_seen = true;
-                        CursorBlinkBeforeChange(offset + 1U, feed);
+                        FlushObservedInputPrefix(offset + 1U, feed);
                         RecordCommandEnd(terminal);
                 }
         }
@@ -1321,7 +1321,7 @@ FeedOscEnd(size_t offset, void *closure)
         terminal->pwd_report_active = false;
         if (offset > terminal->pwd_report_start)
                 terminal->pwd_report_bytes += offset - terminal->pwd_report_start;
-        CursorBlinkBeforeChange(offset + 1U, feed);
+        FlushObservedInputPrefix(offset + 1U, feed);
         if (terminal->pwd_reports_delivered != terminal->pwd_reports_before_report)
                 return;
         XtpLog(XTP_LOG_WARNING, "terminal",
@@ -1536,7 +1536,7 @@ ReportColorSchemeChange(XtpTerminal *terminal)
 static void
 CursorBlinkResetEffect(void *closure)
 {
-        CursorBlinkFeed *feed = closure;
+        ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
 
         if (terminal->effects.cursor_blink_reset != NULL)
@@ -1647,14 +1647,14 @@ void
 XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
 {
         if (terminal != NULL) {
-                CursorBlinkFeed feed = {
+                ObservedInputFeed feed = {
                     .terminal = terminal,
                     .bytes = bytes,
                 };
-                XtpCursorBlinkObserverEffects effects = {
-                    .before_change = CursorBlinkBeforeChange,
+                XtpTerminalControlObserverEffects effects = {
+                    .flush_prefix = FlushObservedInputPrefix,
                     .reset = CursorBlinkResetEffect,
-                    .window_op = CursorBlinkWindowOp,
+                    .window_op = ObservedWindowOp,
                     .osc_header = FeedOscHeader,
                     .osc_payload = FeedOscPayload,
                     .osc_item_end = FeedOscItemEnd,
@@ -1663,7 +1663,8 @@ XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
                 };
 
                 XtpLog(XTP_LOG_DEBUG, "terminal", "feed bytes=%zu", length);
-                XtpCursorBlinkObserverFeed(&terminal->cursor_blink, bytes, length, &effects);
+                XtpTerminalControlObserverFeed(&terminal->control_observer, bytes, length,
+                                               &effects);
                 if (terminal->command_end_active) {
                         terminal->command_end_bytes +=
                             OscPayloadBytes(bytes, terminal->command_end_start, length);
@@ -1821,7 +1822,7 @@ XtpTerminalSetCursorBlinkRequestsEnabled(XtpTerminal *terminal, bool enabled)
 {
         if (terminal == NULL)
                 return -1;
-        XtpCursorBlinkObserverSetRequestsEnabled(&terminal->cursor_blink, enabled);
+        XtpTerminalControlObserverSetRequestsEnabled(&terminal->control_observer, enabled);
         XtpLog(XTP_LOG_INFO, "terminal", "cursor blink application requests=%s",
                enabled ? "enabled" : "ignored");
         return 0;

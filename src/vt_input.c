@@ -652,7 +652,7 @@ InputEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_di
                         action = XTP_KEY_ACTION_PRESS;
                         SetKeycode(vt->vt.pressed_keycodes, event->xkey.keycode, true);
                 }
-                if (vt->vt.search_active) {
+                if (XtpVtSearchActive((Widget)vt)) {
                         /* A key pressed while searching keeps its release after Escape or Enter. */
                         SetKeycode(vt->vt.owned_keycodes, event->xkey.keycode,
                                    event->type == KeyPress);

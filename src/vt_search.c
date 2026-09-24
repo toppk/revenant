@@ -40,18 +40,18 @@ SearchRepaint(Vt100Rec *vt)
 static void
 CancelSearchTimer(Vt100Rec *vt)
 {
-        if (vt->vt.search_timer != (XtIntervalId)0) {
-                XtRemoveTimeOut(vt->vt.search_timer);
-                vt->vt.search_timer = (XtIntervalId)0;
+        if (vt->vt.search_runtime.timer != (XtIntervalId)0) {
+                XtRemoveTimeOut(vt->vt.search_runtime.timer);
+                vt->vt.search_runtime.timer = (XtIntervalId)0;
         }
 }
 
 static void
 ScheduleSearchStep(Vt100Rec *vt, unsigned long delay)
 {
-        if (vt->vt.search_timer == (XtIntervalId)0)
-                vt->vt.search_timer = XtAppAddTimeOut(XtWidgetToApplicationContext((Widget)vt),
-                                                      delay, SearchStep, vt);
+        if (vt->vt.search_runtime.timer == (XtIntervalId)0)
+                vt->vt.search_runtime.timer = XtAppAddTimeOut(
+                    XtWidgetToApplicationContext((Widget)vt), delay, SearchStep, vt);
 }
 
 static const char *
@@ -85,17 +85,18 @@ PlaceOverlay(Vt100Rec *vt)
         int root_y = 0;
         int y;
 
-        if (vt->vt.search_overlay == NULL || !XtIsRealized(widget))
+        if (vt->vt.search_runtime.overlay == NULL || !XtIsRealized(widget))
                 return;
-        XtVaGetValues(vt->vt.search_overlay, XtNwidth, &width, XtNheight, &height, XtNborderWidth,
-                      &border, NULL);
+        XtVaGetValues(vt->vt.search_runtime.overlay, XtNwidth, &width, XtNheight, &height,
+                      XtNborderWidth, &border, NULL);
         y = (int)vt->core.height - (int)height - 2 * (int)border - (int)vt->vt.internal_border;
         if (y < 0)
                 y = 0;
         (void)XTranslateCoordinates(XtDisplay(widget), XtWindow(widget),
                                     RootWindowOfScreen(XtScreen(widget)),
                                     (int)vt->vt.internal_border, y, &root_x, &root_y, &child);
-        XtVaSetValues(vt->vt.search_overlay, XtNx, (Position)root_x, XtNy, (Position)root_y, NULL);
+        XtVaSetValues(vt->vt.search_runtime.overlay, XtNx, (Position)root_x, XtNy, (Position)root_y,
+                      NULL);
         XtpLog(XTP_LOG_DEBUG, "search", "overlay placed x=%d y=%d width=%u height=%u", root_x,
                root_y, (unsigned int)width, (unsigned int)height);
 }
@@ -105,30 +106,31 @@ UpdateOverlay(Vt100Rec *vt)
 {
         char text[XTP_SEARCH_QUERY_CAPACITY + 96U];
         char count[64];
-        XtpSearchState state = XtpTerminalSearchState(vt->vt.search);
+        XtpSearchState state = XtpTerminalSearchState(vt->vt.search_runtime.model);
         bool truncated = false;
-        size_t matches = XtpTerminalSearchMatches(vt->vt.search, &truncated);
+        size_t matches = XtpTerminalSearchMatches(vt->vt.search_runtime.model, &truncated);
         const char *status = count;
 
-        if (vt->vt.search_unavailable || state == XTP_SEARCH_UNAVAILABLE)
+        if (vt->vt.search_runtime.unavailable || state == XTP_SEARCH_UNAVAILABLE)
                 status = "not available on this screen";
         else if (state == XTP_SEARCH_ERROR)
                 status = "search failed";
-        else if (vt->vt.search_query_length == 0)
+        else if (vt->vt.search_runtime.query_length == 0)
                 status = "type to search";
         else
                 (void)snprintf(count, sizeof(count), "%zu%s match%s%s", matches,
                                truncated ? "+" : "", matches == 1U ? "" : "es",
                                state == XTP_SEARCH_RUNNING ? ", searching" : "");
-        (void)snprintf(text, sizeof(text), "Search: %.*s  [%s]", (int)vt->vt.search_query_length,
-                       vt->vt.search_query, status);
-        if (vt->vt.search_label != NULL)
-                XtVaSetValues(vt->vt.search_label, XtNlabel, text, NULL);
+        (void)snprintf(text, sizeof(text), "Search: %.*s  [%s]",
+                       (int)vt->vt.search_runtime.query_length, vt->vt.search_runtime.query,
+                       status);
+        if (vt->vt.search_runtime.label != NULL)
+                XtVaSetValues(vt->vt.search_runtime.label, XtNlabel, text, NULL);
         PlaceOverlay(vt);
         XtpLog(XTP_LOG_INFO, "search",
                "status query-bytes=%zu matches=%zu truncated=%s state=%s unavailable=%s",
-               vt->vt.search_query_length, matches, truncated ? "true" : "false",
-               SearchStateName(state), vt->vt.search_unavailable ? "true" : "false");
+               vt->vt.search_runtime.query_length, matches, truncated ? "true" : "false",
+               SearchStateName(state), vt->vt.search_runtime.unavailable ? "true" : "false");
 }
 
 static Boolean
@@ -149,12 +151,12 @@ ActiveMatchSpan(Vt100Rec *vt, XtpSemanticSpan *span)
         uint16_t column;
         bool wrapped = false;
 
-        if (vt->vt.search_active_mark == NULL ||
-            XtpTerminalMarkPosition(vt->vt.search_active_mark, &row, &column) != 0)
+        if (vt->vt.search_runtime.active_mark == NULL ||
+            XtpTerminalMarkPosition(vt->vt.search_runtime.active_mark, &row, &column) != 0)
                 return False;
-        if (XtpTerminalSearchNavigate(vt->vt.search, column == UINT16_MAX ? row + 1U : row,
-                                      column == UINT16_MAX ? 0 : (uint16_t)(column + 1U), false,
-                                      span, &wrapped) != 0)
+        if (XtpTerminalSearchNavigate(
+                vt->vt.search_runtime.model, column == UINT16_MAX ? row + 1U : row,
+                column == UINT16_MAX ? 0 : (uint16_t)(column + 1U), false, span, &wrapped) != 0)
                 return False;
         return span->start_row == row && span->start_column == column;
 }
@@ -162,8 +164,8 @@ ActiveMatchSpan(Vt100Rec *vt, XtpSemanticSpan *span)
 static void
 ClearActive(Vt100Rec *vt)
 {
-        XtpTerminalMarkFree(vt->vt.search_active_mark);
-        vt->vt.search_active_mark = NULL;
+        XtpTerminalMarkFree(vt->vt.search_runtime.active_mark);
+        vt->vt.search_runtime.active_mark = NULL;
 }
 
 static void
@@ -183,7 +185,7 @@ static void
 SetActive(Vt100Rec *vt, const XtpSemanticSpan *span, const char *reason, bool wrapped)
 {
         ClearActive(vt);
-        vt->vt.search_active_mark =
+        vt->vt.search_runtime.active_mark =
             XtpTerminalMarkCell(vt->vt.terminal, span->start_row, span->start_column);
         XtpLog(XTP_LOG_INFO, "search", "active start=%llu,%u end=%llu,%u reason=%s wrapped=%s",
                (unsigned long long)span->start_row, (unsigned int)span->start_column,
@@ -203,17 +205,19 @@ PickActive(Vt100Rec *vt)
         uint16_t column;
         bool wrapped = false;
 
-        if (vt->vt.search_active_mark != NULL || vt->vt.terminal == NULL ||
+        if (vt->vt.search_runtime.active_mark != NULL || vt->vt.terminal == NULL ||
             XtpTerminalGetScrollbar(vt->vt.terminal, &bar) != 0)
                 return;
         from_row = bar.total;
-        if (!vt->vt.search_viewport_at_bottom && vt->vt.search_viewport_mark != NULL &&
-            XtpTerminalMarkPosition(vt->vt.search_viewport_mark, &row, &column) == 0)
+        if (!vt->vt.search_runtime.viewport_at_bottom &&
+            vt->vt.search_runtime.viewport_mark != NULL &&
+            XtpTerminalMarkPosition(vt->vt.search_runtime.viewport_mark, &row, &column) == 0)
                 from_row = row + bar.length;
-        if (XtpTerminalSearchNavigate(vt->vt.search, from_row, 0, false, &span, &wrapped) != 0)
+        if (XtpTerminalSearchNavigate(vt->vt.search_runtime.model, from_row, 0, false, &span,
+                                      &wrapped) != 0)
                 return;
         /* Scanning runs newest first, so only a finished scan may wrap past the start. */
-        if (wrapped && XtpTerminalSearchState(vt->vt.search) == XTP_SEARCH_RUNNING)
+        if (wrapped && XtpTerminalSearchState(vt->vt.search_runtime.model) == XTP_SEARCH_RUNNING)
                 return;
         SetActive(vt, &span, "nearest", wrapped);
 }
@@ -223,16 +227,16 @@ ApplyQuery(Vt100Rec *vt)
 {
         ClearActive(vt);
         CancelSearchTimer(vt);
-        vt->vt.search_unavailable = False;
-        if (XtpTerminalSearchSetQuery(vt->vt.search, vt->vt.search_query,
-                                      vt->vt.search_query_length) != 0) {
-                vt->vt.search_unavailable =
-                    XtpTerminalSearchState(vt->vt.search) != XTP_SEARCH_ERROR;
-                if (vt->vt.search_unavailable)
+        vt->vt.search_runtime.unavailable = False;
+        if (XtpTerminalSearchSetQuery(vt->vt.search_runtime.model, vt->vt.search_runtime.query,
+                                      vt->vt.search_runtime.query_length) != 0) {
+                vt->vt.search_runtime.unavailable =
+                    XtpTerminalSearchState(vt->vt.search_runtime.model) != XTP_SEARCH_ERROR;
+                if (vt->vt.search_runtime.unavailable)
                         ScheduleSearchStep(vt, XTP_SEARCH_RETRY_MS);
         } else {
                 PickActive(vt);
-                if (XtpTerminalSearchState(vt->vt.search) == XTP_SEARCH_RUNNING)
+                if (XtpTerminalSearchState(vt->vt.search_runtime.model) == XTP_SEARCH_RUNNING)
                         ScheduleSearchStep(vt, 0);
         }
         UpdateOverlay(vt);
@@ -247,38 +251,41 @@ SearchStep(XtPointer closure, XtIntervalId *timer)
         Boolean had_active;
 
         (void)timer;
-        vt->vt.search_timer = (XtIntervalId)0;
-        if (!vt->vt.search_active || vt->vt.search == NULL)
+        vt->vt.search_runtime.timer = (XtIntervalId)0;
+        if (!vt->vt.search_runtime.active || vt->vt.search_runtime.model == NULL)
                 return;
         /* A query the alternate screen refused is retried quietly until it is accepted. */
-        if (vt->vt.search_unavailable) {
-                if (XtpTerminalSearchSetQuery(vt->vt.search, vt->vt.search_query,
-                                              vt->vt.search_query_length) != 0) {
-                        if (XtpTerminalSearchState(vt->vt.search) != XTP_SEARCH_ERROR) {
+        if (vt->vt.search_runtime.unavailable) {
+                if (XtpTerminalSearchSetQuery(vt->vt.search_runtime.model,
+                                              vt->vt.search_runtime.query,
+                                              vt->vt.search_runtime.query_length) != 0) {
+                        if (XtpTerminalSearchState(vt->vt.search_runtime.model) !=
+                            XTP_SEARCH_ERROR) {
                                 ScheduleSearchStep(vt, XTP_SEARCH_RETRY_MS);
                                 return;
                         }
-                        vt->vt.search_unavailable = False;
+                        vt->vt.search_runtime.unavailable = False;
                         UpdateOverlay(vt);
                         return;
                 }
-                vt->vt.search_unavailable = False;
+                vt->vt.search_runtime.unavailable = False;
                 PickActive(vt);
-                if (XtpTerminalSearchState(vt->vt.search) == XTP_SEARCH_RUNNING)
+                if (XtpTerminalSearchState(vt->vt.search_runtime.model) == XTP_SEARCH_RUNNING)
                         ScheduleSearchStep(vt, 0);
                 UpdateOverlay(vt);
                 SearchRepaint(vt);
                 return;
         }
-        state = XtpTerminalSearchStep(vt->vt.search, XTP_SEARCH_STEP_ROWS);
-        had_active = vt->vt.search_active_mark != NULL;
+        state = XtpTerminalSearchStep(vt->vt.search_runtime.model, XTP_SEARCH_STEP_ROWS);
+        had_active = vt->vt.search_runtime.active_mark != NULL;
         PickActive(vt);
         UpdateOverlay(vt);
         if (state == XTP_SEARCH_RUNNING)
                 ScheduleSearchStep(vt, 0);
         else if (state == XTP_SEARCH_UNAVAILABLE)
                 ScheduleSearchStep(vt, XTP_SEARCH_RETRY_MS);
-        if (state != XTP_SEARCH_RUNNING || had_active != (vt->vt.search_active_mark != NULL))
+        if (state != XTP_SEARCH_RUNNING ||
+            had_active != (vt->vt.search_runtime.active_mark != NULL))
                 SearchRepaint(vt);
 }
 
@@ -297,18 +304,18 @@ CreateOverlay(Vt100Rec *vt)
         Widget widget = (Widget)vt;
         Screen *screen = XtScreen(widget);
 
-        if (vt->vt.search_overlay != NULL)
+        if (vt->vt.search_runtime.overlay != NULL)
                 return True;
         /* Override-redirect keeps focus on the terminal, which owns every key while searching. */
-        vt->vt.search_overlay = XtVaCreatePopupShell(
+        vt->vt.search_runtime.overlay = XtVaCreatePopupShell(
             "searchOverlay", overrideShellWidgetClass, widget, XtNvisual,
             DefaultVisualOfScreen(screen), XtNdepth, DefaultDepthOfScreen(screen), XtNcolormap,
             DefaultColormapOfScreen(screen), XtNallowShellResize, True, XtNgeometry, NULL, NULL);
-        if (vt->vt.search_overlay == NULL)
+        if (vt->vt.search_runtime.overlay == NULL)
                 return False;
-        vt->vt.search_label =
-            XtVaCreateManagedWidget("label", labelWidgetClass, vt->vt.search_overlay, NULL);
-        return vt->vt.search_label != NULL;
+        vt->vt.search_runtime.label =
+            XtVaCreateManagedWidget("label", labelWidgetClass, vt->vt.search_runtime.overlay, NULL);
+        return vt->vt.search_runtime.label != NULL;
 }
 
 static void
@@ -316,34 +323,35 @@ OpenSearch(Vt100Rec *vt)
 {
         XtpTerminalScrollbar bar;
 
-        if (vt->vt.search_active) {
+        if (vt->vt.search_runtime.active) {
                 XtpLog(XTP_LOG_DEBUG, "search", "already open");
                 return;
         }
         if (vt->vt.terminal == NULL || !XtIsRealized((Widget)vt))
                 return;
-        if (vt->vt.search == NULL)
-                vt->vt.search = XtpTerminalSearchNew(vt->vt.terminal);
-        if (vt->vt.search == NULL || !CreateOverlay(vt)) {
+        if (vt->vt.search_runtime.model == NULL)
+                vt->vt.search_runtime.model = XtpTerminalSearchNew(vt->vt.terminal);
+        if (vt->vt.search_runtime.model == NULL || !CreateOverlay(vt)) {
                 XtpLog(XTP_LOG_WARNING, "search", "search is not available with backend=%s",
                        XtpTerminalBackend());
                 XBell(XtDisplay((Widget)vt), 0);
                 return;
         }
-        vt->vt.search_viewport_at_bottom = True;
+        vt->vt.search_runtime.viewport_at_bottom = True;
         if (XtpTerminalGetScrollbar(vt->vt.terminal, &bar) == 0 &&
             bar.offset + bar.length < bar.total) {
-                vt->vt.search_viewport_at_bottom = False;
-                vt->vt.search_viewport_mark = XtpTerminalMarkCell(vt->vt.terminal, bar.offset, 0);
+                vt->vt.search_runtime.viewport_at_bottom = False;
+                vt->vt.search_runtime.viewport_mark =
+                    XtpTerminalMarkCell(vt->vt.terminal, bar.offset, 0);
         }
-        vt->vt.search_active = True;
-        vt->vt.search_query_length = 0;
+        vt->vt.search_runtime.active = True;
+        vt->vt.search_runtime.query_length = 0;
         XtAddEventHandler(TopLevel(vt), StructureNotifyMask, False, ShellMoved, vt);
-        XtPopup(vt->vt.search_overlay, XtGrabNone);
+        XtPopup(vt->vt.search_runtime.overlay, XtGrabNone);
         ApplyQuery(vt);
         XtpLog(XTP_LOG_INFO, "search", "opened overlay=0x%lx viewport-at-bottom=%s",
-               XtWindow(vt->vt.search_overlay),
-               vt->vt.search_viewport_at_bottom ? "true" : "false");
+               XtWindow(vt->vt.search_runtime.overlay),
+               vt->vt.search_runtime.viewport_at_bottom ? "true" : "false");
 }
 
 static void
@@ -352,25 +360,26 @@ CloseSearch(Vt100Rec *vt, Boolean restore_viewport, const char *reason)
         uint64_t row = 0;
         uint16_t column = 0;
 
-        if (!vt->vt.search_active)
+        if (!vt->vt.search_runtime.active)
                 return;
         CancelSearchTimer(vt);
-        vt->vt.search_active = False;
+        vt->vt.search_runtime.active = False;
         ClearActive(vt);
-        XtpTerminalSearchCancel(vt->vt.search);
-        if (vt->vt.search_overlay != NULL)
-                XtPopdown(vt->vt.search_overlay);
+        XtpTerminalSearchCancel(vt->vt.search_runtime.model);
+        if (vt->vt.search_runtime.overlay != NULL)
+                XtPopdown(vt->vt.search_runtime.overlay);
         XtRemoveEventHandler(TopLevel(vt), StructureNotifyMask, False, ShellMoved, vt);
         if (restore_viewport && vt->vt.terminal != NULL) {
-                if (vt->vt.search_viewport_at_bottom)
+                if (vt->vt.search_runtime.viewport_at_bottom)
                         (void)VtScrollViewportToEnd(vt);
-                else if (XtpTerminalMarkPosition(vt->vt.search_viewport_mark, &row, &column) == 0)
+                else if (XtpTerminalMarkPosition(vt->vt.search_runtime.viewport_mark, &row,
+                                                 &column) == 0)
                         (void)VtScrollViewportToRow(vt, row);
                 else
                         (void)VtScrollViewportToRow(vt, 0);
         }
-        XtpTerminalMarkFree(vt->vt.search_viewport_mark);
-        vt->vt.search_viewport_mark = NULL;
+        XtpTerminalMarkFree(vt->vt.search_runtime.viewport_mark);
+        vt->vt.search_runtime.viewport_mark = NULL;
         XtpLog(XTP_LOG_INFO, "search", "closed reason=%s restore-viewport=%s", reason,
                restore_viewport ? "true" : "false");
         SearchRepaint(vt);
@@ -410,10 +419,11 @@ MoveActive(Vt100Rec *vt, bool forward)
         if (!ActiveMatchSpan(vt, &span)) {
                 ClearActive(vt);
                 PickActive(vt);
-        } else if (XtpTerminalSearchNavigate(vt->vt.search, span.start_row, span.start_column,
-                                             forward, &span, &wrapped) == 0) {
+        } else if (XtpTerminalSearchNavigate(vt->vt.search_runtime.model, span.start_row,
+                                             span.start_column, forward, &span, &wrapped) == 0) {
                 /* Wrapping waits for the scan, which may still find matches in between. */
-                if (wrapped && XtpTerminalSearchState(vt->vt.search) == XTP_SEARCH_RUNNING) {
+                if (wrapped &&
+                    XtpTerminalSearchState(vt->vt.search_runtime.model) == XTP_SEARCH_RUNNING) {
                         XtpLog(XTP_LOG_INFO, "search", "navigation waits for the scan");
                         XBell(XtDisplay((Widget)vt), 0);
                 } else {
@@ -429,7 +439,7 @@ MoveActive(Vt100Rec *vt, bool forward)
 static void
 RemoveLastCodepoint(Vt100Rec *vt)
 {
-        size_t length = vt->vt.search_query_length;
+        size_t length = vt->vt.search_runtime.query_length;
 
         if (length == 0) {
                 XBell(XtDisplay((Widget)vt), 0);
@@ -437,8 +447,8 @@ RemoveLastCodepoint(Vt100Rec *vt)
         }
         do
                 --length;
-        while (length > 0 && ((unsigned char)vt->vt.search_query[length] & 0xC0U) == 0x80U);
-        vt->vt.search_query_length = length;
+        while (length > 0 && ((unsigned char)vt->vt.search_runtime.query[length] & 0xC0U) == 0x80U);
+        vt->vt.search_runtime.query_length = length;
         ApplyQuery(vt);
 }
 
@@ -459,7 +469,7 @@ void
 VtSearchKey(Vt100Rec *vt, KeySym keysym, unsigned int state, const char *text, size_t length,
             Time time)
 {
-        if (!vt->vt.search_active)
+        if (!vt->vt.search_runtime.active)
                 return;
         switch (keysym) {
         case XK_Escape:
@@ -492,13 +502,13 @@ VtSearchKey(Vt100Rec *vt, KeySym keysym, unsigned int state, const char *text, s
                        state);
                 return;
         }
-        if (vt->vt.search_query_length + length > sizeof(vt->vt.search_query)) {
+        if (vt->vt.search_runtime.query_length + length > sizeof(vt->vt.search_runtime.query)) {
                 XtpLog(XTP_LOG_INFO, "search", "query full; refused bytes=%zu", length);
                 XBell(XtDisplay((Widget)vt), 0);
                 return;
         }
-        memcpy(vt->vt.search_query + vt->vt.search_query_length, text, length);
-        vt->vt.search_query_length += length;
+        memcpy(vt->vt.search_runtime.query + vt->vt.search_runtime.query_length, text, length);
+        vt->vt.search_runtime.query_length += length;
         ApplyQuery(vt);
 }
 
@@ -507,35 +517,38 @@ VtSearchPrepareFrame(Vt100Rec *vt)
 {
         XtpTerminalScrollbar bar;
 
-        vt->vt.search_visible_count = 0;
-        vt->vt.search_have_span = False;
-        if (!vt->vt.search_active || vt->vt.search == NULL || vt->vt.terminal == NULL ||
-            vt->vt.rows < 1 || XtpTerminalGetScrollbar(vt->vt.terminal, &bar) != 0)
+        vt->vt.search_runtime.visible_count = 0;
+        vt->vt.search_runtime.have_span = False;
+        if (!vt->vt.search_runtime.active || vt->vt.search_runtime.model == NULL ||
+            vt->vt.terminal == NULL || vt->vt.rows < 1 ||
+            XtpTerminalGetScrollbar(vt->vt.terminal, &bar) != 0)
                 return;
-        if (vt->vt.search_visible == NULL)
-                vt->vt.search_visible = malloc(XTP_SEARCH_MATCH_LIMIT * sizeof(XtpSemanticSpan));
-        if (vt->vt.search_visible == NULL)
+        if (vt->vt.search_runtime.visible == NULL)
+                vt->vt.search_runtime.visible =
+                    malloc(XTP_SEARCH_MATCH_LIMIT * sizeof(XtpSemanticSpan));
+        if (vt->vt.search_runtime.visible == NULL)
                 return;
-        vt->vt.search_frame_top = bar.offset;
-        vt->vt.search_visible_count = XtpTerminalSearchVisible(
-            vt->vt.search, bar.offset, bar.offset + (uint64_t)vt->vt.rows - 1U,
-            vt->vt.search_visible, XTP_SEARCH_MATCH_LIMIT);
-        vt->vt.search_have_span = ActiveMatchSpan(vt, &vt->vt.search_span);
+        vt->vt.search_runtime.frame_top = bar.offset;
+        vt->vt.search_runtime.visible_count = XtpTerminalSearchVisible(
+            vt->vt.search_runtime.model, bar.offset, bar.offset + (uint64_t)vt->vt.rows - 1U,
+            vt->vt.search_runtime.visible, XTP_SEARCH_MATCH_LIMIT);
+        vt->vt.search_runtime.have_span = ActiveMatchSpan(vt, &vt->vt.search_runtime.span);
 }
 
 unsigned int
 VtSearchCellHighlight(const Vt100Rec *vt, uint16_t row, uint16_t column)
 {
-        uint64_t screen_row = vt->vt.search_frame_top + row;
+        uint64_t screen_row = vt->vt.search_runtime.frame_top + row;
         size_t low = 0;
-        size_t high = vt->vt.search_visible_count;
+        size_t high = vt->vt.search_runtime.visible_count;
 
-        if (vt->vt.search_have_span && SpanContains(&vt->vt.search_span, screen_row, column))
+        if (vt->vt.search_runtime.have_span &&
+            SpanContains(&vt->vt.search_runtime.span, screen_row, column))
                 return 2U;
         /* Starts and ends both ascend, so the first span ending at or after the cell decides. */
         while (low < high) {
                 size_t middle = low + (high - low) / 2U;
-                const XtpSemanticSpan *span = &vt->vt.search_visible[middle];
+                const XtpSemanticSpan *span = &vt->vt.search_runtime.visible[middle];
 
                 if (span->end_row < screen_row ||
                     (span->end_row == screen_row && span->end_column < column))
@@ -543,8 +556,8 @@ VtSearchCellHighlight(const Vt100Rec *vt, uint16_t row, uint16_t column)
                 else
                         high = middle;
         }
-        return low < vt->vt.search_visible_count &&
-                       SpanContains(&vt->vt.search_visible[low], screen_row, column)
+        return low < vt->vt.search_runtime.visible_count &&
+                       SpanContains(&vt->vt.search_runtime.visible[low], screen_row, column)
                    ? 1U
                    : 0U;
 }
@@ -552,7 +565,7 @@ VtSearchCellHighlight(const Vt100Rec *vt, uint16_t row, uint16_t column)
 void
 VtSearchResized(Vt100Rec *vt)
 {
-        if (vt->vt.search_active)
+        if (vt->vt.search_runtime.active)
                 PlaceOverlay(vt);
 }
 
@@ -560,31 +573,31 @@ void
 VtSearchTerminalChanged(Vt100Rec *vt)
 {
         CloseSearch(vt, False, "terminal-changed");
-        XtpTerminalSearchFree(vt->vt.search);
-        vt->vt.search = NULL;
+        XtpTerminalSearchFree(vt->vt.search_runtime.model);
+        vt->vt.search_runtime.model = NULL;
 }
 
 void
 VtSearchDestroy(Vt100Rec *vt)
 {
         CancelSearchTimer(vt);
-        if (vt->vt.search_active) {
+        if (vt->vt.search_runtime.active) {
                 XtRemoveEventHandler(TopLevel(vt), StructureNotifyMask, False, ShellMoved, vt);
                 XtpLog(XTP_LOG_INFO, "search", "closed reason=destroy restore-viewport=false");
         }
-        vt->vt.search_active = False;
+        vt->vt.search_runtime.active = False;
         ClearActive(vt);
-        XtpTerminalMarkFree(vt->vt.search_viewport_mark);
-        vt->vt.search_viewport_mark = NULL;
-        XtpTerminalSearchFree(vt->vt.search);
-        vt->vt.search = NULL;
-        free(vt->vt.search_visible);
-        vt->vt.search_visible = NULL;
-        vt->vt.search_visible_count = 0;
+        XtpTerminalMarkFree(vt->vt.search_runtime.viewport_mark);
+        vt->vt.search_runtime.viewport_mark = NULL;
+        XtpTerminalSearchFree(vt->vt.search_runtime.model);
+        vt->vt.search_runtime.model = NULL;
+        free(vt->vt.search_runtime.visible);
+        vt->vt.search_runtime.visible = NULL;
+        vt->vt.search_runtime.visible_count = 0;
 }
 
 Boolean
 XtpVtSearchActive(Widget widget)
 {
-        return VtAsRecord(widget)->vt.search_active;
+        return VtAsRecord(widget)->vt.search_runtime.active;
 }

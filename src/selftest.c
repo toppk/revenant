@@ -4,7 +4,7 @@
 #include "notification_policy.h"
 #include "search_match.h"
 #include "char_class.h"
-#include "cursor_blink.h"
+#include "terminal_control_observer.h"
 #include "device_attributes.h"
 #include "diagnostics.h"
 #include "emoji_presentation.h"
@@ -19,7 +19,6 @@
 #include "title_encoding.h"
 #include "title_stack.h"
 #include "working_directory.h"
-#include "url_match.h"
 #include "window_ops.h"
 #include "version.h"
 #include "welcome.h"
@@ -123,36 +122,6 @@ SelfTestWelcomeReadability(void)
                        XtpWelcomeNeedsReadableFont(0, 0, 18U, 96.0)
                    ? -1
                    : 0;
-}
-
-static int
-SelfTestUrlMatch(void)
-{
-        static const uint8_t sentence[] = "See https://example.com/path.";
-        static const uint8_t balanced[] = "(https://example.com/a_(b)).";
-        static const uint8_t unmatched[] = "https://example.com/a).";
-        static const uint8_t multiple[] = "http://one.invalid and HTTPS://two.invalid/x";
-        static const uint8_t missing_host[] = "http:///path";
-        uint8_t excessive[XTP_URL_MAX_LENGTH + 2U];
-        XtpUrlMatch match;
-
-        memset(excessive, 'a', sizeof(excessive));
-        memcpy(excessive, "https://", 8U);
-        if (!XtpUrlMatchAt(sentence, sizeof(sentence) - 1U, 12U, 13U, &match) ||
-            match.start != 4U || match.end != sizeof(sentence) - 2U ||
-            XtpUrlMatchAt(sentence, sizeof(sentence) - 1U, sizeof(sentence) - 2U,
-                          sizeof(sentence) - 1U, &match) ||
-            !XtpUrlMatchAt(balanced, sizeof(balanced) - 1U, 10U, 11U, &match) ||
-            match.start != 1U || match.end != sizeof(balanced) - 3U ||
-            !XtpUrlMatchAt(unmatched, sizeof(unmatched) - 1U, 10U, 11U, &match) ||
-            match.start != 0 || match.end != sizeof(unmatched) - 3U ||
-            !XtpUrlMatchAt(multiple, sizeof(multiple) - 1U, 30U, 31U, &match) ||
-            match.start != 23U || match.end != sizeof(multiple) - 1U ||
-            XtpUrlMatchAt(missing_host, sizeof(missing_host) - 1U, 2U, 3U, &match) ||
-            XtpUrlMatchAt(excessive, sizeof(excessive), 10U, 11U, &match) ||
-            XtpUrlMatchAt(NULL, 0, 0, 0, &match))
-                return -1;
-        return 0;
 }
 
 static int
@@ -6653,7 +6622,6 @@ XtpSelfTest(void)
             {"log-level", SelfTestLogLevels},
             {"os-release", SelfTestOsRelease},
             {"welcome readability", SelfTestWelcomeReadability},
-            {"URL matching", SelfTestUrlMatch},
             {"window-ops policy", SelfTestWindowOps},
             {"title stack", SelfTestTitleStack},
             {"title encoding", SelfTestTitleEncoding},

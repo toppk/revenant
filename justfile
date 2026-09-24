@@ -9,29 +9,33 @@ stub_build := "build-agent-stub"
 default:
     @just --list
 
-# Configure an isolated build directory, creating or reconfiguring as needed
-_configure build_dir compiler ghostty:
-    @if test -f "{{build_dir}}/meson-private/coredata.dat"; then CC="{{compiler}}" meson setup --reconfigure "{{build_dir}}" -Dlibghostty="{{ghostty}}"; else CC="{{compiler}}" meson setup "{{build_dir}}" -Dlibghostty="{{ghostty}}"; fi
+# Configure an isolated build directory, creating or reconfiguring as needed.
+# Real backends require Xvfb and libnotify; the UI-only stub requires neither.
+# Reconfiguration restores these settings in reused directories.
+_configure build_dir compiler ghostty xvfb_tests notify:
+    @if test -f "{{build_dir}}/meson-private/coredata.dat"; then CC="{{compiler}}" meson setup --reconfigure "{{build_dir}}" -Dlibghostty="{{ghostty}}" -Dxvfb-tests="{{xvfb_tests}}" -Dlibnotify="{{notify}}"; else CC="{{compiler}}" meson setup "{{build_dir}}" -Dlibghostty="{{ghostty}}" -Dxvfb-tests="{{xvfb_tests}}" -Dlibnotify="{{notify}}"; fi
 
 # Build the libghostty backend with GCC
 build-gcc:
-    @just _configure {{gcc_build}} gcc enabled
+    @just _configure {{gcc_build}} gcc enabled enabled enabled
     meson compile -C {{gcc_build}}
 
 test-gcc: build-gcc
     meson test -C {{gcc_build}} --print-errorlogs
+    tools/check-release-tests {{gcc_build}}
 
 # Build the libghostty backend with Clang
 build-clang:
-    @just _configure {{clang_build}} clang enabled
+    @just _configure {{clang_build}} clang enabled enabled enabled
     meson compile -C {{clang_build}}
 
 test-clang: build-clang
     meson test -C {{clang_build}} --print-errorlogs
+    tools/check-release-tests {{clang_build}}
 
 # Build the libghostty backend with Clang AddressSanitizer instrumentation
 build-asan:
-    @if test -f "{{asan_build}}/meson-private/coredata.dat"; then CC=clang meson setup --reconfigure "{{asan_build}}" -Dlibghostty=enabled -Dxvfb-tests=enabled -Db_sanitize=address -Db_lundef=false; else CC=clang meson setup "{{asan_build}}" -Dlibghostty=enabled -Dxvfb-tests=enabled -Db_sanitize=address -Db_lundef=false; fi
+    @if test -f "{{asan_build}}/meson-private/coredata.dat"; then CC=clang meson setup --reconfigure "{{asan_build}}" -Dlibghostty=enabled -Dxvfb-tests=enabled -Dlibnotify=enabled -Db_sanitize=address -Db_lundef=false; else CC=clang meson setup "{{asan_build}}" -Dlibghostty=enabled -Dxvfb-tests=enabled -Dlibnotify=enabled -Db_sanitize=address -Db_lundef=false; fi
     meson compile -C {{asan_build}}
 
 test-asan: build-asan
@@ -40,7 +44,7 @@ test-asan: build-asan
 
 # Build the UI-only stub backend
 build-stub:
-    @just _configure {{stub_build}} gcc disabled
+    @just _configure {{stub_build}} gcc disabled auto disabled
     meson compile -C {{stub_build}}
 
 test-stub: build-stub
@@ -48,7 +52,7 @@ test-stub: build-stub
 
 # Repeatedly resize an xterm+ window to exercise reflow and expose handling
 resize-loop window cycles="4" delay_ms="100": build-gcc
-    ./{{gcc_build}}/xtp-resize-loop "{{window}}" "{{cycles}}" "{{delay_ms}}"
+    ./{{gcc_build}}/tests/xtp-resize-loop "{{window}}" "{{cycles}}" "{{delay_ms}}"
 
 # Open the fixed 45-column Bash prompt used by the wrapped-prompt reproducer
 reflow-prompt: build-gcc
@@ -56,7 +60,7 @@ reflow-prompt: build-gcc
 
 # Cross the fixture prompt's wrap boundary once, using terminal grid sizes
 reflow-resize window: build-gcc
-    ./{{gcc_build}}/xtp-resize-loop "{{window}}" --grid 38 80 24 250
+    ./{{gcc_build}}/tests/xtp-resize-loop "{{window}}" --grid 38 80 24 250
 
 # Build the standalone Go probe; Go's build cache reuses unchanged packages
 build-probe:
@@ -76,8 +80,13 @@ update-probe-registry:
 
 # Check the Go runner, PTY cleanup/replies, and migration sample parity
 test-probe: build-probe
+    cd tools/probe && test -z "$(gofmt -l .)"
     cd tools/probe && GOCACHE="${GOCACHE:-{{justfile_directory()}}/.cache/go-build}" go test ./...
     python3 tests/probe-go.py build-probe/probe
+
+# Check release package metadata and version mappings
+test-release-packaging:
+    python3 tests/release-packaging.py
 
 # Interactively inspect legacy, raw, and Kitty keyboard encoding
 probe-keymodes *args:
@@ -167,9 +176,11 @@ serve-tdn:
     {{mkdocs}} serve -f tdn/mkdocs.yml
 
 # Validate TDN's per-terminal data and its schema regressions
-check-tdn:
+_check-tdn-data:
     python3 tdn/hooks/registry.py
     python3 -m unittest discover -s tdn/tests
+
+check-tdn: _check-tdn-data
     {{mkdocs}} build --strict -f tdn/mkdocs.yml -d /tmp/revenant-tdn-check
 
 # Strict-build both mkdocs sites without writing site/
@@ -178,8 +189,8 @@ check:
     {{mkdocs}} build --strict -f tdn/mkdocs.yml -d /tmp/revenant-docs-check/tdn
     rm -rf /tmp/revenant-docs-check
 
-# Run formatting, compiler/backend, and documentation checks
-check-all: format-check test check
+# Run complete local verification; cheap checks fail before the compiler matrix
+check-all: format-check test-probe test-release-packaging _check-tdn-data check test
 
 # Remove built site output
 clean-site:

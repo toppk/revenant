@@ -18,7 +18,7 @@ case $terminal in
 *) terminal=$repo_root/$terminal ;;
 esac
 
-sender=$build_dir/xtp-send-font-keys
+sender=$build_dir/tests/xtp-send-font-keys
 resources=$script_dir/xterm-font-compat.Xresources
 run_dir=$(mktemp -d "${TMPDIR:-/tmp}/xtp-xterm-font-compat.XXXXXX")
 xterm_pid=

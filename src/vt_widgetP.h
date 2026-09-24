@@ -3,7 +3,7 @@
 
 #include "vt_widget.h"
 
-#include "cursor_blink.h"
+#include "terminal_control_observer.h"
 #include "window_ops.h"
 #include "color_ops.h"
 #include "terminal.h"
@@ -145,6 +145,28 @@ typedef struct
         size_t last_cell;
 } VtHyperlinkTarget;
 
+/* Widget-owned search UI, scan scheduling and per-frame paint snapshot. */
+typedef struct
+{
+        XtpTerminalSearch *model;
+        Boolean active;
+        Boolean unavailable;
+        char query[XTP_SEARCH_QUERY_CAPACITY];
+        size_t query_length;
+        XtpTerminalCellMark *active_mark;
+        XtpTerminalCellMark *viewport_mark;
+        Boolean viewport_at_bottom;
+        XtIntervalId timer;
+        Widget overlay;
+        Widget label;
+        uint64_t frame_top;
+        Boolean have_span;
+        XtpSemanticSpan span;
+        /* Room for every retained match, so no visible one goes unhighlighted. */
+        XtpSemanticSpan *visible;
+        size_t visible_count;
+} VtSearchRuntime;
+
 typedef struct
 {
         Pixel foreground;
@@ -197,23 +219,7 @@ typedef struct
         uint8_t copy_flash_rgb[3];
         XtIntervalId copy_flash_timer;
         Boolean copy_flash_active;
-        XtpTerminalSearch *search;
-        Boolean search_active;
-        Boolean search_unavailable;
-        char search_query[XTP_SEARCH_QUERY_CAPACITY];
-        size_t search_query_length;
-        XtpTerminalCellMark *search_active_mark;
-        XtpTerminalCellMark *search_viewport_mark;
-        Boolean search_viewport_at_bottom;
-        XtIntervalId search_timer;
-        Widget search_overlay;
-        Widget search_label;
-        uint64_t search_frame_top;
-        Boolean search_have_span;
-        XtpSemanticSpan search_span;
-        /* Room for every retained match, so no visible one goes unhighlighted. */
-        XtpSemanticSpan *search_visible;
-        size_t search_visible_count;
+        VtSearchRuntime search_runtime;
         Widget progress_widget;
         GC progress_gc;
         XtpProgressState progress_state;
