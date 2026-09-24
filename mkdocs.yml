@@ -17,8 +17,9 @@ theme:
 hooks:
   - tools/mkdocs-hooks.py
 
-# Hand-written shared fragments live in docs/fragments; generated ones are
-# written to .cache/fragments by the hook before every build.
+# The hook generates shared manual fragments in .cache/fragments before each
+# documentation build. docs/fragments remains an optional snippet search path;
+# no hand-written fragments currently live there.
 exclude_docs: |
   fragments/**
 

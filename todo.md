@@ -3,8 +3,8 @@
 Monstar (`upstream/monstar`) is a reference implementation, not a promise
 that the pinned libghostty C API exposes every hook. Read `HANDOFF.md` and
 `docs/maintainers/dispatch.md` before starting a chunk. This tracked checklist
-contains only open work; durable implementation contracts belong in the handoff
-and supporting docs.
+contains only open work; durable implementation contracts belong in maintained
+docs, with handoff links where needed.
 
 The September 2026 Ghostty/Monstar review is complete. Remaining release and
 feature decisions live in the [roadmap](docs/maintainers/roadmap.md#upstream-integration-follow-ups);
@@ -42,7 +42,7 @@ only after every slice lands.
 
 | Batch | Chunks | Dependency / decision before dispatch |
 | --- | --- | --- |
-| Frontend work | T1b, P1, remaining P2 | Separate assignments; the selected five-slice release batch is complete. |
+| Frontend work | P1, remaining P2 | Separate assignments; the selected five-slice release batch is complete. |
 | Decision needed | S4 | Choose viewport movement or history deletion before implementation. |
 | API-dependent | V3, F1, M1, T2, W2 | Obtain the named libghostty effects/state; do not add another parser. |
 | Parked | K1 → K2a → K2b → K2c; K3/K4 after K1 | Kitty graphics is explicitly bunted during this drain. |
@@ -53,20 +53,6 @@ concurrently. Independent feature boundaries do not make concurrent edits safe; 
 conflicting ownership even within the same batch.
 
 ## T: Title and window compatibility
-
-- [ ] **T1b — UTF-8 title surface.** Implement `utf8Title`, the `utf8-title`
-      menu entry and `set-utf8-title` action, synchronized ICCCM `WM_NAME` / `WM_ICON_NAME` and EWMH
-      `_NET_WM_NAME` / `_NET_WM_ICON_NAME`, including stale-property deletion.
-      Preserve the completed Title Ops action, effective permission and
-      `sameName` behavior. Accept actual properties, locale coverage and
-      xterm-411 comparisons under isolated resources.
-      TDN: `resource-utf8-title`, `x11-utf8-title-properties`.
-      Supporting fixture: `just probe csi-21-t-title-report titles-query --target both`.
-      Probe: `just probe resource-utf8-title titles-utf8` (also mapped to
-      `x11-utf8-title-properties`), with the external `xprop` observer printed
-      by the case. Capture types, bytes and absent versus empty properties;
-      title reports alone do not establish encoding or stale-property deletion.
-      Establish the xterm-411 baseline before implementing the terminal change.
 
 - [ ] **T2 — Parser-dependent Title Ops completion.** Obtain selector/raw-input
       effects for independent OSC 0/1/2 labels, title encoding modes, and the
@@ -113,17 +99,16 @@ conflicting ownership even within the same batch.
       Probe gap: add a native session-log case and verify the file externally.
 
 - [ ] **P2 — Remaining option-driven process behavior.** Implement and review
-      login-shell invocation, wait-for-map startup, terminal
+      wait-for-map startup, terminal
       mode resources, and PTY message permission as independent slices. Do not
       disturb the completed `termName`/TERM contract or pre-X option scanner.
-      TDN: `startup-login-shell`,
-           `startup-wait-for-map`, `resource-terminal-modes`,
+      TDN: `startup-wait-for-map`, `resource-terminal-modes`,
            `pty-message-permission`.
       Probe gap: add one native case per slice that has observable child state.
 
 ## V: Text and cursor presentation
 
-- [ ] **V3 — OSC 22 pointer shape.** First obtain a public backend effect:
+- [ ] **V3 — OSC 22 pointer shape.** First obtain public backend state or an effect:
       pinned C API does not surface this OSC, and unknown APC does not help.
       Then resolve names through Xcursor, manage cursor lifetime, and compose
       application shape with hyperlink hover.
@@ -132,8 +117,9 @@ conflicting ownership even within the same batch.
       invalid names, default restore, hover precedence, resize and cleanup.
       Stop: no catch-all unknown-OSC observer or new permission family.
       TDN: `osc-22-pointer-shape`.
-      Probe gap: the current case cycles known names only; add an invalid-name
-      scenario and verify hyperlink-hover precedence externally.
+      The case includes invalid-name and hyperlink-hover scenarios; record
+      human observations rather than treating their presence as acceptance.
+      The proposed getter on the fork is not yet in the pinned backend.
 
 ## S: Shell integration
 
@@ -230,3 +216,19 @@ of K2–K4.
       names; query bytes; font reload/geometry lifetime. Stop: no new escape
       parser or implementation via the APC-only unknown callback.
       TDN: `osc-50-font-set`, `osc-50-font-query`, `policy-font-ops`.
+
+## R: Remaining repository maintenance
+
+The scoped September review is complete; its accepted outcomes and design
+rationale are in [the review record](docs/maintainers/repository-review.md).
+Internal maintenance needs no invented terminal capability or probe.
+
+- [ ] **R7 — Continue extracting internal unit tests in reviewed groups.**
+      Kind: maintenance
+      The first extraction is complete: eight URL-matching cases run as
+      noninstalled Meson tests using production code. Choose one further pure
+      group per assignment, preserving the installed `-self-test`/`--self-test`
+      diagnostic, real/stub coverage, sanitizer instrumentation and release
+      no-skip checks. Review its dependency and coverage boundary before moving
+      code; the approved contract is in the review record. No bulk extraction
+      or unmeasured binary-size claim.

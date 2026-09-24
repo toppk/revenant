@@ -31,7 +31,7 @@ item must keep an honest Present, Partial, or Missing status at the user-visible
 boundary. Kitty graphics remains Missing and is explicitly parked in the
 current TODO drain; this exception must not be reported as parity.
 
-## Next-release frontend compatibility batch
+## Completed 0.8.0 frontend compatibility batch
 
 The selected batch **T1a, C1, T1c, W1 and P2a** is implemented and reviewed.
 The [compatibility ledger](../compatibility/drift.md) records title actions and
@@ -42,11 +42,10 @@ self-test and `xvfb-hold`. Native probes and their limitations are documented in
 [the probe reference](../reference/probes.md).
 
 The UTF-8 title surface (T1b), startup geometry correction, and login-shell
-invocation (P2b) are also implemented and reviewed. Feature scope is frozen for
-0.8. Follow the [release-candidate plan](releasing.md#current-release-plan):
-validate exact commits on `release/0.8`, publish immutable RCs, and fix forward.
-The release uses the tested Ghostty development pin; adopting Ghostty 1.4.0 is a
-subsequent checkpoint, not a prerequisite for 0.8.
+invocation (P2b) shipped in 0.8.0. The [release retrospective](releasing.md#080-retrospective-and-next-release-changes)
+records the validation and publication process. The temporary release branch
+has been removed. The release uses the tested Ghostty development pin;
+adopting Ghostty 1.4.0 remains a separate checkpoint.
 
 ## Upstream integration follow-ups
 
@@ -243,8 +242,8 @@ semantics and describes the implemented named-selection path.
 - Continue converting insensitive menu entries and unsupported actions into
   tested implementations.
 - Finish Title Ops compatibility beyond the working live toggle: independent
-  OSC 1/OSC 0 icon updates, title encoding modes, UTF-8 title resources and
-  ICCCM/EWMH properties and title normalization/length rules. The translation
+  OSC 1/OSC 0 icon updates, title encoding modes and title normalization/length rules. UTF-8 title
+  resources and ICCCM/EWMH property handling shipped in 0.8.0. The translation
   action, `allowSendEvents` interaction and `sameName` are complete. Keep title-setting authorization
   separate from Window Ops report and stack permissions. The maintainer
   handoff contains the source audit and acceptance scope.

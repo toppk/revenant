@@ -1,7 +1,11 @@
 # Terminal probe
 
-This probe is part of TDN. The [one-time migration checklist](../../tdn/docs/probe-migration.md)
-maps old scripts to feature commands for manual comparison before legacy removal.
+The host repository owns this probe's Go code and embeds metadata generated from TDN's
+feature registry and curated navigation. The
+[catalog boundary](../../tdn/README.md#probe-catalog-boundary)
+describes the shared-checkout assumption. The
+[one-time migration checklist](../../tdn/docs/probe-migration.md) maps old
+scripts to feature commands for manual comparison before legacy removal.
 
 A standalone Go terminal exerciser with commands and a keyboard/mouse TUI. Linux,
 Go 1.23 or newer, standard library only; no Python runtime or external Go

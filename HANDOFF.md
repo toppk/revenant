@@ -86,6 +86,12 @@ XTGETTCAP replies. Unrelated replies must survive mixed feeds. Configured TN and
 child TERM integration are implemented separately by A2; XTSETTCAP remains open.
 TDN: `policy-mouse-ops-exceptions`, `dcs-xtsettcap`.
 
+The [libghostty C API review](docs/maintainers/libghostty-c-api-review.md)
+records the 2026-09-23 source audit and proposed upstream scopes. Start with
+effective mouse-state and pointer-shape accessors; agree scope before coding.
+Size-policy and semantic-prompt effects could remove existing observers. Full
+Window Ops, OSC 50 and title modes are not merely missing C wrappers.
+
 Font Ops has Xt resources (`allowFontOps`, `disallowedFontOps`), SetFont/GetFont
 policy helpers and checked menu identity, but its menu remains insensitive and
 resources have no operational effect until OSC 50 is implemented. The pinned
@@ -132,13 +138,16 @@ This remains optional roadmap work, not a prerequisite for emoji correctness.
 
 ## Unified Go manual probe
 
-The probe is part of TDN; use `just probe` for new feature work. It builds the
-standalone Linux Go runner independently of the C terminal build. Add native
-cases with stable TDN IDs, expected behavior, policy and cleanup; register their
-navigation in `tdn/data/probe-navigation.json` and refresh metadata with
-`just update-probe-registry`. Keep measurements quiet, reads bounded, and cleanup
-active on exits, signals and panics. `just test-probe` covers Go/PTY behavior;
-`just check-tdn` also checks the embedded snapshot against the registry.
+The Revenant-owned probe uses TDN's feature catalog; use `just probe` for new
+feature work. It builds the standalone Linux Go runner independently of the C
+terminal build. Add native cases with stable TDN IDs, expected behavior, policy
+and cleanup; register their navigation in `tdn/data/probe-navigation.json` and
+refresh metadata with `just update-probe-registry`. Keep measurements quiet,
+reads bounded, and cleanup active on exits, signals and panics. `just test-probe`
+covers Go/PTY behavior; `just check-tdn` also checks the embedded snapshot
+against the registry.
+The [TDN README](tdn/README.md#revenant-probe-catalog-boundary) records the
+cross-repository generation boundary; moving `tdn/` alone would not preserve it.
 
 The [probe guide](tools/probe/README.md) is the source for controls, commands,
 80×24 behavior, evidence and maintenance instructions. Retain legacy scripts
@@ -187,20 +196,13 @@ records into independently tested behavior. Preserve published IDs when
 moving or rewriting pages. Do not turn unknown into unsupported merely
 because a query is denied or a probe has not been run.
 
-## Current release state — 2026-09-14
+## Current release state — 2026-09-24
 
-Revenant 0.7.0 is published from `v0.7.0`. The release workflow built and
-tested five packages, signed their provenance, and published matching Arch,
-Fedora, Debian/Ubuntu, x86_64 tar, and aarch64 tar artifacts. At that release, the
-libghostty matrix contained 55 tests and the stub matrix contained 8; the local
-release gate and every package build completed without skips.
-
-The release includes the Go/TDN probe, interactive scrollback search, OSC 133
-prompt navigation and output piping, desktop notifications and progress,
-dynamic colors and title stacks/reports, terminal-owned device identity,
-procedural terminal glyphs, and the current permission menus. The exact
-feature inventory and evidence live in TDN and the 0.7.0 changelog rather than
-in a second checklist here.
+Revenant 0.8.0 is published from `v0.8.0` (`fb1745c`). Feature scope and
+release evidence are recorded in `CHANGELOG.md` and the
+[release retrospective](docs/maintainers/releasing.md#080-retrospective-and-next-release-changes).
+The temporary release branch has been removed. The release retains the tested
+Ghostty development pin; the 1.4.0 adoption checkpoint is separate.
 
 The active implementation queue is `todo.md`. Kitty graphics remains honestly
 Missing and is parked during the current drain. The immediately useful work is
@@ -403,10 +405,12 @@ diagnosis, upstream links, version boundary, and fixed-build checks are in
 `docs/reference/bash-readline-resize.md`.
 
 libghostty exposes a resolved cursor-blink value, but xterm compatibility needs
-the raw application request as a separate operand. `cursor_blink.c` therefore
-observes the same PTY stream solely for DECSCUSR, DEC mode 12, their save/restore
-forms, RIS, and DECSTR; libghostty remains authoritative for shape and all other
-terminal state. This is deliberately a small second parser. Keep its streaming
+the raw application request as a separate operand. The blink consumer of
+`terminal_control_observer.c` observes DECSCUSR, DEC mode 12, their save/restore
+forms, RIS and DECSTR. The observer also serves Window Ops and OSC policy and
+tracking; its per-consumer replacement requirements are documented in the
+[C API review](docs/maintainers/libghostty-c-api-review.md). Libghostty remains
+authoritative for parsed terminal state. Keep its streaming
 state aligned with the pinned parser's anywhere transitions, cancellation,
 empty-parameter, C1, OSC, and DCS-ignore behavior. Query replies must use state
 at the query's byte position, not the final state of a coalesced PTY read. The
@@ -494,7 +498,7 @@ function-pointer helper would lose the useful type check.
 - Progressive output rendering, a last-painted cell cache, and cursor-only
   repaint support when libghostty reports no cell damage.
 - XTWINOPS title stack and reports: libghostty parses `CSI 20-23 t` but
-  exposes no hook, so the cursor-blink control observer also reports those
+  exposes no hook, so the terminal control observer also reports those
   four operations (flushing preceding output first so titles are current);
   `main.c` applies the Window Ops policy per operation, answers 20/21 with
   xterm's 7-bit `OSC L`/`OSC l` replies read from the shell's WM properties,
@@ -856,102 +860,9 @@ function-pointer helper would lose the useful type check.
   last inner pixels. `xvfb-opacity` adds a progress case under the fake
   compositor: the track is the translucent background before and after a
   live slider change while the fill and border stay opaque.
-- Search overlay: `vt_search.c` drives the model from the widget.
-  `start-search()` (Ctrl+Shift+F, with its own `LocalKeyAction` identity)
-  creates an override-redirect `searchOverlay` popup holding an Athena
-  Label, placed over the bottom-left of the terminal and moved on shell
-  ConfigureNotify and widget resize; keyboard focus never leaves the
-  terminal. While `search_active` is set, `InputEvent` hands every key press
-  to `VtSearchKey`, clears Xt's continue-dispatch flag so no translation
-  action also runs, and records the keycode as owned, so neither the press
-  nor its later release reaches the child even when Escape or Enter closes
-  the search first. Typing appends UTF-8, Backspace removes one codepoint,
-  and each change calls `XtpTerminalSearchSetQuery`, then scans in
-  2,048-row steps from a zero-delay timer (every 250 ms while the alternate
-  screen suspends it). The active match is a `XtpTerminalCellMark` on its
-  start cell, resolved by navigating backward from the next cell, so it
-  survives reflow and eviction and disappears if its text changes; the
-  first one is the nearest match above the bottom of the viewport where the
-  search began; a candidate that only wrapped to a newer match is ignored
-  until the scan completes, because the newest-first scan may still find an
-  older one. A query the alternate screen refuses is retried every 250 ms and
-  applied once the primary screen returns. Previous or next navigation that
-  would wrap while the scan runs rings the bell and waits, like the first
-  pick. Moving to a match outside the view centres it. If publishing PRIMARY
-  fails, Enter rings the bell and the search stays open. An input method
-  commit longer than the 128-byte buffer is looked up again at its full size;
-  one that does not fit the query is refused with a bell.
-  `VtRenderTerminal` calls `VtSearchPrepareFrame` before each render to
-  collect the visible spans (`XtpTerminalSearchVisible` into a buffer sized
-  for `XTP_SEARCH_MATCH_LIMIT`, so every retained match can be drawn; a cell
-  bisects them, since their starts and ends both ascend) and the active span; `MakeVisualCell` draws
-  other matches in selection colors and the active one on the cursor color.
-  Every search change invalidates the frame and redraws, deferring under
-  mode 2026 like the copy flash. Enter copies `XtpTerminalSpanText` of the
-  active match through `VtPublishSearchMatch`, which owns PRIMARY without a
-  highlight (logged as source SEARCH), then closes without moving the view.
-  Escape closes and returns to the bottom, or to a cell mark on the starting
-  viewport's top row (the oldest row if that was evicted). While a search is
-  open the PTY loop uses `XtpTerminalFeedOutputPinned`, which marks the
-  viewport's top cell before feeding and scrolls back to it, instead of the
-  xterm policy that keeps the distance from the bottom. Visible-match
-  highlights are not re-verified per frame, so an overwritten match stays
-  highlighted until navigation or a query change drops it. `xvfb-search`
-  uses a 40x10 grid set through `columns`/`rows` (`-geometry` did not set
-  the grid in this harness) and samples cell backgrounds for a wrapped
-  highlight, other matches, navigation with wrapping and scrolling, an
-  empty and a missing query, output that must not move the view, a resize,
-  Escape restoring the bottom, Enter copying the wrapped match to PRIMARY,
-  a screen of 360 single-character matches highlighted to the last row,
-  a raw Kitty-release child that receives nothing during the search, and a
-  key that reaches it afterwards. `xtp-send-key` gained `keysym NAME
-  [ctrl-shift]` and `text STRING` modes.
-- Scrollback search model: `XtpTerminalSearch` in
-  `terminal.h` searches the primary screen for a literal UTF-8 query.
-  `search_match.c` is backend-neutral: the query becomes codepoints with a
-  Knuth-Morris-Pratt failure table, `XtpSearchFindAll` reports every
-  occurrence, overlaps included, only when both ends fall on grapheme-cluster
-  boundaries, and `XtpSearchPick` chooses the nearest start strictly after or
-  before a cell in a descending array, wrapping to the first or last match.
-  There is no case folding or Unicode normalization, so precomposed é and
-  e+U+0301 are different queries. `terminal_ghostty_search.c` scans newest
-  first. A tracked reference marks the bottom row of the next logical line;
-  the line extends upward through rows whose WRAP flag is set, up to
-  `XTP_SEARCH_LINE_ROW_LIMIT` rows (a longer line is split, and a match
-  across the split is missed). Cells become units: empty cells read as
-  spaces, spacer cells are skipped, and trailing spaces of the last row are
-  trimmed. Each match is stored as tracked start and end cells.
-  `XtpTerminalSearchSetQuery` reads the active screen at once, at most its
-  height plus the rest of one wrapped line, because only those rows can
-  still be written; history rows cannot, so the results describe the text
-  present when the query was set. Later output stays out: new rows arrive
-  below the fixed boundary, and an overwrite of a row already read is caught
-  by navigation's re-check. The one gap is a resize that pulls unread history
-  back into the active screen before a step reaches it.
-  If that immediate scan fails, the setter returns -1 and the search stays
-  in `XTP_SEARCH_ERROR`; `XtpSearchSetAllocator` lets the self-test fail
-  the scan's first allocation.
-  `XtpTerminalSearchStep` then examines at most its row budget plus the rest
-  of one wrapped line, and a zero budget does nothing, so a caller can
-  interleave PTY reads.
-  Tracked references follow scrolling, eviction and reflow: a dead cursor
-  completes the scan, `XtpTerminalSearchMatches` drops dead matches, and
-  `XtpTerminalSearchNavigate` re-reads the chosen match and drops it when its
-  text no longer spells the query, as after an overwrite. Matches are capped
-  at `XTP_SEARCH_MATCH_LIMIT`, keeping the newest and setting the truncated
-  flag. The alternate screen has no history: setting a query there fails,
-  and a running search reports `XTP_SEARCH_UNAVAILABLE`, keeping its state,
-  until the primary screen returns. The stub backend returns no search
-  object. A reflow in the middle of a scan can make a split long line report
-  a match twice; only lines longer than the row limit are affected. The
-  `search matching` self-test covers the matcher and navigation order;
-  `scrollback search` covers text written after the query is set, an
-  overwrite after it, an allocation failure in the immediate scan, a zero budget, empty and invalid queries, wide characters,
-  combining clusters, overlaps, matches across a soft wrap including a wide
-  character pushed to the next row, reflow narrower and wider, an
-  overwritten match, the alternate screen mid-scan, eviction of finished
-  matches, a 20,000-row history scanned in 256-row steps with output fed
-  between steps, cancellation, the match limit, and eviction during a scan.
+- Search: the widget UI, `VtSearchRuntime` ownership, backend matching and
+  invalidation rules, known limits, and focused coverage are maintained in the
+  [scrollback search contract](docs/maintainers/search.md).
 - Prompt navigation: the adapter keeps an index of OSC 133 prompt starts as
   libghostty tracked grid references. The feed observer already delimits
   OSC selectors and payload items for OSC 7 and the color queries; for
@@ -1488,13 +1399,6 @@ The patch-411 source audit leaves these gaps:
   Window Ops report permission, not another Title Ops authorization check.
   TDN: `resource-title-modes`, `csi-xtsmtitle`, `csi-xtrmtitle`, `title-modes-hex-input`,
        `title-modes-hex-reports`, `title-modes-utf8-input`, `title-modes-utf8-reports`.
-- **UTF-8 title resources and properties.** Implement `utf8Title` and the
-  `utf8-title` menu/action, with the patch-411 locale and `allowC1Printable`
-  interactions. Synchronize ICCCM `WM_NAME`/`WM_ICON_NAME` and EWMH
-  `_NET_WM_NAME`/`_NET_WM_ICON_NAME`, including deleting stale EWMH labels
-  when the encoding policy requires it. The current setter only calls Xt's
-  title/icon resources; reading UTF-8 WM properties does not complete this.
-  TDN: `resource-utf8-title`, `x11-utf8-title-properties`.
 - **Title normalization and limits.** Match `ChangeGroup`'s title-path
   control-character normalization, hex validation, and 1000-byte rejection
   before decoding. The pop path has the 1000-byte check, but ordinary OSC
@@ -1583,8 +1487,8 @@ Useful runtime checks:
 ```sh
 ./build-agent-gcc/revenant -log debug 2>revenant.log
 ./build-agent-gcc/revenant -report-config
-./build-agent-gcc/xtp-send-font-keys WINDOW_ID + 4
-./build-agent-gcc/xtp-send-font-keys WINDOW_ID - 4
+./build-agent-gcc/tests/xtp-send-font-keys WINDOW_ID + 4
+./build-agent-gcc/tests/xtp-send-font-keys WINDOW_ID - 4
 just probe-reverse-video
 just probe-emoji --no-pause
 just probe-fonts --no-pause
@@ -1600,8 +1504,9 @@ just reflow-resize WINDOW_ID
 The current self-test has focused backend checks for rendering, cursor state,
 modes, selection and deep scrollback, tty-output viewport anchoring, mouse and
 focus encoding, resize, PTY setup, log-level parsing, and write backpressure
-without byte loss, but it remains one in-process harness. When Xvfb is
-available, Meson also runs integration suites for the reproducible font
+without byte loss. URL matching now runs as eight independent noninstalled
+Meson cases; the remaining diagnostic groups still share one in-process harness.
+When Xvfb is available, Meson also runs integration suites for the reproducible font
 baseline; emoji routing, shaping, width regimes, and color-font formats;
 opacity/reverse-video pixel policy and logging thresholds; named selections,
 cut buffers, and OSC 8 launch policy; legacy/fixterms keyboard delivery;
@@ -1615,8 +1520,8 @@ The live xterm font/geometry oracle remains an explicit side test. Split the
 remaining harness into focused tests and grow Xvfb coverage; do not treat any
 one suite alone as evidence of full UI compatibility.
 
-The normal full matrix currently contains 55 tests for each libghostty build
-and 8 for the stub build. One of those is `internal-branding`, which scans
+Use `meson test -C BUILD --list` for the current per-configuration inventory.
+The `internal-branding` test scans
 `src/`, `tools/`, and `tests/`; a count drop or a newly skipped check is a
 failure to investigate rather than an expected consequence of changing build
 options. The generated font fixture staging tree now contains

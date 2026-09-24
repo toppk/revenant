@@ -126,6 +126,9 @@ for maintenance; the probe build/runtime needs Go only. TDN tests check snapshot
 freshness; probe tests check case IDs and feature mappings. A case can exercise
 several features, and a feature can have several scenarios. Probe availability
 and successful execution do not automatically establish terminal support.
+The current generator and tests assume TDN and Revenant share one checkout;
+the probe-catalog boundary documented in the TDN README must be reworked
+before TDN can move to its own repository.
 
 Existing feature IDs currently remain unchanged. Any future rename needs an
 explicit migration of terminal records, references, probe mappings and published
