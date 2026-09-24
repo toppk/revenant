@@ -13,6 +13,7 @@
 #include <fontconfig/fontconfig.h>
 
 #include <X11/StringDefs.h>
+#include <X11/IntrinsicP.h>
 #include <X11/Xft/Xft.h>
 #include <X11/Shell.h>
 #include <X11/Xaw/Box.h>
@@ -852,21 +853,34 @@ ReportPaletteAndPointer(const ReportContext *context)
 }
 
 static bool
-KnownTranslationAction(const char *action)
+RegisteredTranslationAction(Widget vt, const char *action)
 {
-        return strcmp(action, "larger-vt-font") == 0 || strcmp(action, "smaller-vt-font") == 0 ||
-               strcmp(action, "set-render-font") == 0 || strcmp(action, "set-select") == 0 ||
-               strcmp(action, "set-font-linedrawing") == 0 ||
-               strcmp(action, "report-font-routing") == 0 || strcmp(action, "popup-menu") == 0 ||
-               strcmp(action, "scroll-back") == 0 || strcmp(action, "scroll-forw") == 0 ||
-               strcmp(action, "previous-prompt") == 0 || strcmp(action, "next-prompt") == 0 ||
-               strcmp(action, "insert-seven-bit") == 0 || strcmp(action, "insert-eight-bit") == 0 ||
-               strcmp(action, "pipe-command-output") == 0 || strcmp(action, "start-search") == 0 ||
-               strcmp(action, "select-start") == 0 || strcmp(action, "select-extend") == 0 ||
-               strcmp(action, "select-end") == 0 || strcmp(action, "start-extend") == 0 ||
-               strcmp(action, "insert-selection") == 0 || strcmp(action, "mouse-press") == 0 ||
-               strcmp(action, "mouse-motion") == 0 || strcmp(action, "allow-title-ops") == 0 ||
-               strcmp(action, "allow-color-ops") == 0 || strcmp(action, "set-utf8-title") == 0;
+        WidgetClass class;
+
+        /* Xt registers these two application actions when the context is created.
+         * This application does not add any application actions with XtAppAddActions. */
+        if (strcmp(action, "XtMenuPopup") == 0 || strcmp(action, "XtMenuPopdown") == 0)
+                return true;
+        for (class = XtClass(vt); class != NULL; class = class->core_class.superclass) {
+                XtActionList registered = NULL;
+                Cardinal count = 0;
+                Cardinal index;
+                bool found = false;
+
+                /* XtGetActionList returns this class's table, without inherited actions. */
+                XtGetActionList(class, &registered, &count);
+                for (index = 0; index < count; ++index) {
+                        if (strcmp(registered[index].string, action) == 0) {
+                                found = true;
+                                break;
+                        }
+                }
+                if (registered != NULL)
+                        XtFree((char *)registered);
+                if (found)
+                        return true;
+        }
+        return false;
 }
 
 static bool
@@ -936,7 +950,7 @@ PrintTranslationResource(const Resolved *resolved, const char *support)
 }
 
 static void
-ReportTranslations(const ReportContext *context)
+ReportTranslations(const ReportContext *context, Widget vt)
 {
         ResourceSpec spec = {
             "xterm.vt100.translations",
@@ -944,29 +958,17 @@ ReportTranslations(const ReportContext *context)
             "<class defaults>",
         };
         Resolved resolved = ResolveResource(context, &spec);
+        const char *translation_source = resolved.origin == ORIGIN_COMPILED_DEFAULT
+                                             ? XtpVtDefaultTranslations()
+                                             : resolved.value;
         char actions[64][64] = {{0}};
-        size_t action_count = 0;
+        size_t action_count = TranslationActions(translation_source, actions, XtNumber(actions));
         size_t unsupported = 0;
         size_t action;
         const char *support;
 
-        if (resolved.origin == ORIGIN_COMPILED_DEFAULT) {
-                static const char *const defaults[] = {
-                    "larger-vt-font",  "smaller-vt-font", "insert-selection", "scroll-back",
-                    "scroll-forw",     "popup-menu",      "select-start",     "mouse-press",
-                    "start-extend",    "select-end",      "mouse-motion",     "select-extend",
-                    "previous-prompt", "next-prompt",
-                };
-
-                for (action = 0; action < XtNumber(defaults); ++action)
-                        (void)snprintf(actions[action], sizeof(actions[action]), "%s",
-                                       defaults[action]);
-                action_count = XtNumber(defaults);
-        } else {
-                action_count = TranslationActions(resolved.value, actions, XtNumber(actions));
-        }
         for (action = 0; action < action_count; ++action) {
-                if (!KnownTranslationAction(actions[action]))
+                if (!RegisteredTranslationAction(vt, actions[action]))
                         ++unsupported;
         }
         if (unsupported == 0)
@@ -979,10 +981,10 @@ ReportTranslations(const ReportContext *context)
         puts("\n! ----------------------------------------------------------------------");
         puts("! VT100 translations and action audit");
         puts("! The translation-table syntax is handled by Xt. Each invoked action must");
-        puts("! also be registered by xterm+; upstream xterm has many more actions.");
+        puts("! be registered by the VT widget or Xt; upstream xterm has many more actions.");
         PrintTranslationResource(&resolved, support);
         for (action = 0; action < action_count; ++action) {
-                bool known = KnownTranslationAction(actions[action]);
+                bool known = RegisteredTranslationAction(vt, actions[action]);
 
                 printf("! action %s(): %s", actions[action], known ? "supported" : "unsupported");
                 fputc('\n', stdout);
@@ -995,7 +997,7 @@ ReportTranslations(const ReportContext *context)
                 const char *name = xtp_xterm_411_actions[action];
 
                 printf("! [%s] action %s()\n",
-                       KnownTranslationAction(name) ? "supported" : "unsupported", name);
+                       RegisteredTranslationAction(vt, name) ? "supported" : "unsupported", name);
         }
         free(resolved.value);
 }
@@ -1597,7 +1599,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
         puts("! Active renderer: Xlib bitmap (transitional xterm+ implementation)");
         ReportResourceSources(display, manager, application_class);
         ReportFonts(&context, vt);
-        ReportTranslations(&context);
+        ReportTranslations(&context, vt);
         ReportPaletteAndPointer(&context);
         ReportResourceGroup(&context, "Window and appearance", appearance, appearance_names,
                             appearance_support, appearance_help, XtNumber(appearance));

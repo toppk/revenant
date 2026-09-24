@@ -20,6 +20,11 @@ HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
     "$fixture_root/run" base "$terminal" -report-config >"$report" 2>"$log"
 
 grep -E -q '^! backend revision: [0-9a-f]{40}(-dirty)?$' "$report"
+grep -F -q '[compiled default] [supported] VT widget event bindings' "$report"
+for action in hyperlink-start pipe-command-output start-search popup-menu select-start
+do
+    grep -F -q "! action $action(): supported" "$report"
+done
 
 for resource in limitFontsets limitFontHeight limitFontWidth cursorBlink cursorBlinkXOR color0 color15
 do
@@ -70,6 +75,28 @@ HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
 grep -E -B 1 '^XTerm\*sameName:[[:space:]]+off$' "$same_name_report" | \
     grep -q '\[command line\] \[supported\]'
 grep -F -q '! [supported] action allow-title-ops()' "$same_name_report"
+
+action_report=$test_dir/action-report
+registered_actions='larger-vt-font smaller-vt-font set-render-font allow-title-ops set-utf8-title allow-color-ops set-font-linedrawing set-select report-font-routing popup-menu scroll-back scroll-forw previous-prompt next-prompt insert-seven-bit insert-eight-bit pipe-command-output start-search select-start select-extend select-end start-extend insert-selection mouse-press mouse-motion hyperlink-start'
+action_calls=
+for action in $registered_actions
+do
+    action_calls="$action_calls $action()"
+done
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
+    "$fixture_root/run" base "$terminal" \
+    -xrm "XTerm*VT100.translations: #override <Key>F2:$action_calls XtMenuPopup() XtMenuPopdown() unknown-report-action()" \
+    -report-config >"$action_report" 2>>"$log"
+grep -F -q '! action hyperlink-start(): supported' "$action_report"
+grep -F -q '! action XtMenuPopup(): supported' "$action_report"
+grep -F -q '! action XtMenuPopdown(): supported' "$action_report"
+grep -F -q '! action unknown-report-action(): unsupported' "$action_report"
+grep -F -q '[partially supported] VT widget event bindings' "$action_report"
+for action in $registered_actions
+do
+    grep -F -q "! action $action(): supported" "$action_report"
+done
+
 grep -E -B 1 '^XTerm\*allowSendEvents:[[:space:]]+false$' "$report" | \
     grep -q '\[compiled default\] \[partially supported\]'
 send_events_report=$test_dir/send-events-report
@@ -133,4 +160,4 @@ do
     grep -E -q "^$expected$" "$alias_report"
 done
 
-echo "report-config resource classifications, termName, overrides, and aliases passed"
+echo "report-config resources, action registrations, termName, overrides, and aliases passed"

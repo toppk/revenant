@@ -203,16 +203,34 @@ static void UpdateGeometry(App *app);
 static void ApplyShellLabel(App *app, const char *resource, const char *value);
 
 static char *
-BackgroundOpacityResource(Display *display)
+BackgroundOpacityResource(Display *display, const char *application_name,
+                          const char *application_class)
 {
+        static const char resource[] = ".vt100.backgroundOpacity";
+        static const char resource_class[] = ".VT100.BackgroundOpacity";
         XrmValue value = {0};
         char *type = NULL;
+        size_t name_length = strlen(application_name) + sizeof(resource);
+        size_t class_length = strlen(application_class) + sizeof(resource_class);
+        char *name = malloc(name_length);
+        char *class_name = malloc(class_length);
         char *result;
 
-        if (!XrmGetResource(XtDatabase(display), "xterm.vt100.backgroundOpacity",
-                            "XTerm.VT100.BackgroundOpacity", &type, &value) ||
-            value.addr == NULL)
+        if (name == NULL || class_name == NULL) {
+                free(name);
+                free(class_name);
+                return NULL;
+        }
+        (void)snprintf(name, name_length, "%s%s", application_name, resource);
+        (void)snprintf(class_name, class_length, "%s%s", application_class, resource_class);
+        if (!XrmGetResource(XtDatabase(display), name, class_name, &type, &value) ||
+            value.addr == NULL) {
+                free(name);
+                free(class_name);
                 return XtNewString("1.0");
+        }
+        free(name);
+        free(class_name);
         result = XtMalloc(value.size + 1U);
         if (result == NULL)
                 return NULL;
@@ -222,11 +240,12 @@ BackgroundOpacityResource(Display *display)
 }
 
 static void
-ConfigureApplicationVisual(App *app)
+ConfigureApplicationVisual(App *app, const XtpCommandLine *command_line)
 {
         XVisualInfo visual_info = {0};
         XtpX11AlphaFormat alpha_format = {0};
-        char *opacity = BackgroundOpacityResource(app->display);
+        char *opacity = BackgroundOpacityResource(app->display, command_line->application_name,
+                                                  command_line->application_class);
         int screen = DefaultScreen(app->display);
 
         app->visual = DefaultVisual(app->display, screen);
@@ -1713,7 +1732,7 @@ OpenApplication(App *app, XtpCommandLine *command_line, AppResources *resources)
         PutCommandFontOverride(app->display, command_line, "vt100.faceNameEmoji",
                                command_line->emoji_face_name);
 
-        ConfigureApplicationVisual(app);
+        ConfigureApplicationVisual(app, command_line);
 
         XtSetArg(args[num_args], XtNallowShellResize, True);
         ++num_args;

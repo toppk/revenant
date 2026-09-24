@@ -392,6 +392,12 @@ Vt100ClassRec vt100ClassRec = {
 
 WidgetClass vt100WidgetClass = (WidgetClass)&vt100ClassRec;
 
+const char *
+XtpVtDefaultTranslations(void)
+{
+        return translations;
+}
+
 static void
 ClassInitialize(void)
 {

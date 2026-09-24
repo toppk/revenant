@@ -67,6 +67,9 @@ typedef struct
 
 extern WidgetClass vt100WidgetClass;
 
+/* Source of the VT100 class bindings, before Xt compiles them. */
+const char *XtpVtDefaultTranslations(void);
+
 unsigned int XtpVtCellWidth(Widget widget);
 unsigned int XtpVtCellHeight(Widget widget);
 unsigned int XtpVtColumns(Widget widget);

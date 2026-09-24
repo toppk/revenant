@@ -13,50 +13,18 @@ terminal=$2
 compositor_owner=$3
 window_alpha=$4
 drag_slider=$5
-test_dir=$(mktemp -d)
-xvfb_pid=
-compositor_pid=
-terminal_pid=
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$script_dir/xvfb-test-lib.sh"
+xtp_xvfb_test_init
 
-cleanup()
-{
-    if test -n "$terminal_pid"
-    then
-        kill "$terminal_pid" 2>/dev/null || true
-        wait "$terminal_pid" 2>/dev/null || true
-    fi
-    if test -n "$compositor_pid"
-    then
-        kill "$compositor_pid" 2>/dev/null || true
-        wait "$compositor_pid" 2>/dev/null || true
-    fi
-    if test -n "$xvfb_pid"
-    then
-        kill "$xvfb_pid" 2>/dev/null || true
-        wait "$xvfb_pid" 2>/dev/null || true
-    fi
-    rm -rf "$test_dir"
-}
-trap cleanup EXIT HUP INT TERM
+mkdir "$test_dir/empty-home"
+HOME=$test_dir/empty-home
+XENVIRONMENT=/dev/null
+XFILESEARCHPATH=/dev/null
+XUSERFILESEARCHPATH=/dev/null
+export HOME XENVIRONMENT XFILESEARCHPATH XUSERFILESEARCHPATH
 
-"$xvfb" -displayfd 3 -screen 0 1024x768x24 -nolisten unix -listen tcp -ac \
-    3>"$test_dir/display" >"$test_dir/xvfb.log" 2>&1 &
-xvfb_pid=$!
-
-attempt=0
-while ! test -s "$test_dir/display"
-do
-    attempt=$((attempt + 1))
-    if test "$attempt" -ge 100 || ! kill -0 "$xvfb_pid" 2>/dev/null
-    then
-        echo "Xvfb did not become ready" >&2
-        sed -n '1,80p' "$test_dir/xvfb.log" >&2
-        exit 1
-    fi
-    sleep 0.05
-done
-DISPLAY=127.0.0.1:$(sed -n '1p' "$test_dir/display")
-export DISPLAY
+xtp_start_xvfb "$xvfb"
 
 wait_for_terminal()
 {
@@ -93,6 +61,42 @@ wait_for_log()
         fi
         sleep 0.05
     done
+}
+
+check_identity_opacity()
+{
+    case_name=$1
+    expected_value=$2
+    expected_depth=$3
+    expected_argb=$4
+    expected_alpha=$5
+    expected_pixel=$6
+    shift 6
+    case_log=$test_dir/$case_name.log
+    "$terminal" -debug \
+        -xrm 'xterm.vt100.background: #FFFFFF' \
+        -xrm 'foo.vt100.background: #FFFFFF' "$@" \
+        -e sh -c 'sleep 20' >"$test_dir/$case_name.out" 2>"$case_log" &
+    terminal_pid=$!
+    wait_for_terminal "$case_log" "$case_name opacity identity"
+    if ! grep -F -q "depth=$expected_depth argb=$expected_argb background-alpha=$expected_alpha" "$case_log" || \
+       ! grep -F -q "VT100 resolved backgroundOpacity=$expected_value effective-alpha=$expected_alpha visual-alpha=$expected_argb depth=$expected_depth" "$case_log"
+    then
+        echo "$case_name selected a visual inconsistent with its widget opacity" >&2
+        sed -n '1,260p' "$case_log" >&2
+        exit 1
+    fi
+    case_window=$(sed -n 's/.*shell: realized window=\(0x[0-9a-fA-F]*\).*/\1/p' "$case_log" | tail -1)
+    case_pixel=$("$window_alpha" "$case_window" --expose --argb)
+    if test "$case_pixel" != "$expected_pixel"
+    then
+        echo "$case_name drew $case_pixel instead of $expected_pixel" >&2
+        sed -n '1,260p' "$case_log" >&2
+        exit 1
+    fi
+    kill "$terminal_pid"
+    wait "$terminal_pid" 2>/dev/null || true
+    terminal_pid=
 }
 
 quiet_log=$test_dir/quiet-default.log
@@ -225,13 +229,18 @@ kill "$terminal_pid"
 wait "$terminal_pid" 2>/dev/null || true
 terminal_pid=
 
+check_identity_opacity absent-custom-name 0.64 24 false 65535 0xffffffff \
+    -name foo \
+    -xrm 'xterm.vt100.backgroundOpacity: disabled' \
+    -xrm 'foo.vt100.backgroundOpacity: 0.64'
+
 "$compositor_owner" >"$test_dir/compositor.out" 2>"$test_dir/compositor.log" &
-compositor_pid=$!
+aux_pid=$!
 attempt=0
 while ! grep -q '^ready$' "$test_dir/compositor.out" 2>/dev/null
 do
     attempt=$((attempt + 1))
-    if test "$attempt" -ge 100 || ! kill -0 "$compositor_pid" 2>/dev/null
+    if test "$attempt" -ge 100 || ! kill -0 "$aux_pid" 2>/dev/null
     then
         echo "compositor selection owner did not become ready" >&2
         sed -n '1,80p' "$test_dir/compositor.log" >&2
@@ -239,6 +248,33 @@ do
     fi
     sleep 0.05
 done
+
+check_identity_opacity present-custom-name 0.64 32 true 41942 0xa3a3a3a3 \
+    -name foo \
+    -xrm 'xterm.vt100.backgroundOpacity: disabled' \
+    -xrm 'foo.vt100.backgroundOpacity: 0.64'
+check_identity_opacity present-default-name disabled 24 false 65535 0xffffffff \
+    -xrm 'xterm.vt100.backgroundOpacity: disabled' \
+    -xrm 'foo.vt100.backgroundOpacity: 0.64'
+check_identity_opacity present-class-wildcard 0.64 32 true 41942 0xa3a3a3a3 \
+    -name foo -class Other \
+    -xrm 'XTerm*backgroundOpacity: disabled' \
+    -xrm 'Other*backgroundOpacity: 0.64'
+check_identity_opacity present-instance-over-class 0.35 32 true 22937 0x59595959 \
+    -name foo -class Other \
+    -xrm 'XTerm*backgroundOpacity: disabled' \
+    -xrm 'Other*backgroundOpacity: 0.64' \
+    -xrm 'foo*backgroundOpacity: 0.35'
+check_identity_opacity present-invalid-custom-name invalid 32 true 65535 0xffffffff \
+    -name foo \
+    -xrm 'xterm.vt100.backgroundOpacity: 0.64' \
+    -xrm 'foo.vt100.backgroundOpacity: invalid'
+if ! grep -F -q 'invalid backgroundOpacity=invalid; using opaque background' "$case_log"
+then
+    echo 'custom-name invalid opacity was not rejected' >&2
+    sed -n '1,260p' "$case_log" >&2
+    exit 1
+fi
 
 disabled_log=$test_dir/disabled.log
 "$terminal" -debug -opacity disabled -e sh -c 'printf "disabled opacity\r\n"; sleep 20' \
