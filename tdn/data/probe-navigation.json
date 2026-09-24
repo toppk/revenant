@@ -175,6 +175,8 @@
       ],
       "features": [
         "dec-mode-1000-mouse",
+        "dec-mode-1002-button-motion",
+        "dec-mode-1003-all-motion",
         "dec-mode-1006-sgr-mouse",
         "dec-mode-1007-alternate-scroll",
         "dec-mode-1004-focus",

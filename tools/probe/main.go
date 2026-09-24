@@ -71,17 +71,51 @@ type Result struct {
 func defaults() Options {
 	return Options{Timeout: .5, Seconds: 20, Target: "clipboard", Mode: "compare", Regime: "both", Frames: 8, FrameMS: 400, PauseMS: 150, Index: 1, Palette: "verify", Program: "xterm", Geometry: "100x40", Scenario: "capture"}
 }
+
+type optionFamily uint8
+
+const (
+	standardOptions optionFamily = iota
+	titleOptions
+	dynamicColorOptions
+	clipboardOptions
+	mouseOptions
+	syncOptions
+)
+
+// Option policy belongs to stable case identity; Path is only a display label.
+func familyForCase(c *Case) optionFamily {
+	if c == nil {
+		return standardOptions
+	}
+	switch c.ID {
+	case "titles-query", "titles-policy", "titles-utf8", "titles-same-name", "titles-stack":
+		return titleOptions
+	case "colors-dynamic-demo", "colors-dynamic-query", "colors-dynamic-set", "colors-dynamic-reset":
+		return dynamicColorOptions
+	case "clipboard-query", "clipboard-set", "clipboard-clear", "clipboard-invalid":
+		return clipboardOptions
+	case "input-mouse":
+		return mouseOptions
+	case "rendering-sync":
+		return syncOptions
+	default:
+		return standardOptions
+	}
+}
+
 func parseOptions(c *Case, args []string) (Options, error) { return parseOptionsTo(c, args, os.Stdout) }
 func caseFlags(c *Case, output io.Writer) (*flag.FlagSet, *Options) {
 	o := defaults()
+	family := familyForCase(c)
 	if c != nil {
-		if strings.HasPrefix(c.Path, "titles ") {
+		if family == titleOptions {
 			o.Target = "both"
 		}
-		if strings.HasPrefix(c.Path, "colors dynamic ") {
+		if family == dynamicColorOptions {
 			o.Target = "background"
 		}
-		if c.Path == "input mouse" {
+		if family == mouseOptions {
 			o.Mode = "1000"
 		}
 	}
@@ -101,10 +135,10 @@ func caseFlags(c *Case, output io.Writer) (*flag.FlagSet, *Options) {
 			switch name {
 			case "target":
 				usage := "selection: clipboard/primary/select (aliases c/p/s)"
-				if strings.HasPrefix(c.Path, "titles ") {
+				if family == titleOptions {
 					usage = "label: both/title/icon"
 				}
-				if strings.HasPrefix(c.Path, "colors dynamic ") {
+				if family == dynamicColorOptions {
 					usage = "color to change: foreground/background/cursor/all"
 				}
 				fs.StringVar(&o.Target, name, o.Target, usage)
@@ -122,13 +156,13 @@ func caseFlags(c *Case, output io.Writer) (*flag.FlagSet, *Options) {
 				fs.StringVar(&o.Palette, name, o.Palette, "named palette: xterm/tango/solarized/gruvbox/nord/verify")
 			case "seconds":
 				usage := "input capture duration"
-				if c.Path == "startup login-shell" {
+				if c.ID == "login-shell" {
 					usage = "seconds to wait for each launched child's report"
 				}
 				fs.Float64Var(&o.Seconds, name, o.Seconds, usage)
 			case "mode":
 				usage := "synchronized output: compare/off/on"
-				if c.Path == "input mouse" {
+				if family == mouseOptions {
 					usage = "mouse tracking: 9 (press), 1000 (press/release), 1002 (drag), 1003 (all motion)"
 				}
 				fs.StringVar(&o.Mode, name, o.Mode, usage)
@@ -203,10 +237,11 @@ func parseOptionsTo(c *Case, args []string, output io.Writer) (Options, error) {
 		}
 	}
 	if c != nil {
-		if strings.HasPrefix(c.Path, "colors dynamic ") && o.Target == "clipboard" {
+		family := familyForCase(c)
+		if family == dynamicColorOptions && o.Target == "clipboard" {
 			o.Target = "background"
 		}
-		if strings.HasPrefix(c.Path, "titles ") {
+		if family == titleOptions {
 			if o.Target == "clipboard" {
 				o.Target = "both"
 			}
@@ -214,15 +249,15 @@ func parseOptionsTo(c *Case, args []string, output io.Writer) (Options, error) {
 				return o, fmt.Errorf("target must be both, title, or icon")
 			}
 		}
-		if strings.HasPrefix(c.Path, "clipboard ") {
+		if family == clipboardOptions {
 			if _, ok := selectionTarget(o.Target); !ok {
 				return o, fmt.Errorf("unknown selection target %q", o.Target)
 			}
 		}
-		if c.Path == "rendering sync" && !slices.Contains([]string{"compare", "on", "off", "boundaries"}, o.Mode) {
+		if family == syncOptions && !slices.Contains([]string{"compare", "on", "off", "boundaries"}, o.Mode) {
 			return o, fmt.Errorf("mode must be compare, on, off, or boundaries")
 		}
-		if c.Path == "input mouse" {
+		if family == mouseOptions {
 			if o.Mode == "compare" {
 				o.Mode = "1000"
 			}
@@ -233,7 +268,7 @@ func parseOptionsTo(c *Case, args []string, output io.Writer) (Options, error) {
 				return o, fmt.Errorf("mouse scenario must be capture, counts, handoff, or all")
 			}
 		}
-		if strings.HasPrefix(c.Path, "colors dynamic ") && slices.Contains([]string{"colors dynamic set", "colors dynamic reset"}, c.Path) && !slices.Contains([]string{"foreground", "background", "cursor", "all"}, o.Target) {
+		if (c.ID == "colors-dynamic-set" || c.ID == "colors-dynamic-reset") && !slices.Contains([]string{"foreground", "background", "cursor", "all"}, o.Target) {
 			return o, fmt.Errorf("target must be foreground, background, cursor, or all")
 		}
 	}
@@ -596,15 +631,15 @@ func run(args []string) (code int) {
 		return 2
 	}
 	// Explicit spawning has no need to acquire the caller's terminal.
-	if selected != nil && selected.Path == "colors palette spawn" {
+	if selected != nil && selected.ID == "colors-palette-spawn" {
 		return spawnPalette(opts)
 	}
 	// The login-shell case launches the terminal; it needs no terminal of its own.
-	if selected != nil && selected.Path == "startup login-shell" {
+	if selected != nil && selected.ID == "login-shell" {
 		return loginShellLaunch(opts)
 	}
 	// The hold fixture is the terminal's child and ends with the requested status.
-	if selected != nil && selected.Path == "startup hold" {
+	if selected != nil && selected.ID == "session-hold" {
 		return sessionHold(opts)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)

@@ -148,6 +148,96 @@ class DecrqmEmulator:
 
 class ProbeAcceptance(unittest.TestCase):
 
+    def test_api_review_pointer_and_cleanup(self):
+        code, output, restored = run_probe(
+            ["osc-22-pointer-shape", "input-pointer", "--no-pause"]
+        )
+        self.assertEqual(code, 0, output[-2000:])
+        self.assertTrue(restored)
+        shapes = [b"text", b"pointer", b"crosshair", b"probe-invalid-shape", b"wait", b"default"]
+        requests = re.findall(rb"\x1b\]22;([^\x1b]+)\x1b\\", output)
+        self.assertEqual(requests, shapes + [b"default"])
+        self.assertIn(b"original shape cannot be queried", output)
+        self.assertIn(b"Hover this link (do not click)", output)
+        for key in (b"q", b"\x1b"):
+            sent = False
+            advanced = 0
+            def stop(data):
+                nonlocal sent, advanced
+                if not sent and b"Requested pointer shape crosshair" in data:
+                    sent = True
+                    return key
+                prompts = data.count(b"Space/Enter:")
+                if not sent and prompts > advanced:
+                    advanced = prompts
+                    return b" "
+                return b""
+            code, output, restored = run_probe(
+                ["osc-22-pointer-shape", "input-pointer"], interaction=stop,
+            )
+            self.assertEqual(code, 0, output[-2000:])
+            self.assertTrue(restored)
+            self.assertTrue(sent)
+            self.assertIn(b"\x1b]22;default\x1b\\", output)
+            self.assertNotIn(b"\x1b]22;probe-invalid-shape", output)
+
+    def test_api_review_mouse_order_and_restoration(self):
+        emulator = Emulator()
+        emulator.modes[1003] = True
+        with tempfile.TemporaryDirectory() as directory:
+            result = Path(directory) / "mouse.json"
+            code, output, restored = run_probe(
+                ["dec-mode-1000-mouse", "mouse-mode-order", "--seconds", "0.03",
+                 "--no-pause", "--output", str(result)], respond=emulator,
+            )
+            self.assertEqual(code, 0, output[-2000:])
+            self.assertTrue(restored)
+            self.assertEqual(json.loads(result.read_text())[0]["outcome"], "unassessed")
+        self.assertTrue(emulator.modes[1003])
+        self.assertFalse(emulator.modes[1000])
+        self.assertFalse(emulator.modes[1006])
+        self.assertIn(b"original effective precedence cannot be queried", output)
+        self.assertIn(b"\x1b[?1000h\x1b[?1003h", output)
+        self.assertIn(b"\x1b[?1003h\x1b[?1000h\x1b[?1000l", output)
+        self.assertEqual(output.count(b"Stage:"), 6)
+        self.assertEqual(output.count(b"Received:"), 12)
+
+    def test_api_review_shell_completion_inputs(self):
+        code, output, restored = run_probe(
+            ["osc-133-prompt-marks", "shell-events", "--no-pause"]
+        )
+        self.assertEqual(code, 0, output[-2000:])
+        self.assertTrue(restored)
+        endings = re.findall(rb"\x1b\]133;(D[^\x1b]*)\x1b\\", output)
+        self.assertEqual(endings, [b"D;0", b"D;7", b"D", b"D"])
+        self.assertEqual(output.count(b"\x1b]133;A\x1b\\"), 4)
+        self.assertIn(b"jump_to_prompt:-1", output)
+        self.assertIn(b"not evidence of a C callback", output)
+
+    def test_api_review_window_observe_without_menus(self):
+        pending = bytearray()
+        replies = {b"14": b"\x1b[4;312;480t", b"16": b"\x1b[6;13;6t", b"18": b"\x1b[8;24;80t"}
+        def respond(data):
+            pending.extend(data)
+            result = b""
+            end = 0
+            for match in re.finditer(rb"\x1b\[(14|16|18)t|\x1b\[5n", pending):
+                end = match.end()
+                result += replies[match[1]] if match[1] else b"\x1b[0n"
+            del pending[:end]
+            return result
+        code, output, restored = run_probe(
+            ["csi-14-t-pixel-size-report", "window-observe", "--no-pause"],
+            respond=respond,
+        )
+        self.assertEqual(code, 0, output[-2000:])
+        self.assertTrue(restored)
+        self.assertIn(b"Before resize CSI 14 t", output)
+        self.assertIn(b"After resize CSI 18 t", output)
+        self.assertIn(b"against the kernel's 24x80 rows x columns: same", output)
+        self.assertNotIn(b"Toggle Allow Window Ops", output)
+        self.assertIn(b"manual", output)
+
     def test_prompt_fixture_explains_manual_pass_and_direct_exit(self):
         sent = False
 
@@ -481,7 +571,7 @@ class ProbeAcceptance(unittest.TestCase):
                 continue  # Explicit external process, tested through argv tests.
             with self.subTest(case=name):
                 args = case["command"].split() + ["--timeout", ".005", "--no-pause"]
-                if name.startswith("input keyboard") or name in ("input mouse", "selection scroll"):
+                if name.startswith("input keyboard") or name in ("input mouse", "input mouse-order", "selection scroll"):
                     args += ["--seconds", ".06"]
                 if name == "rendering sync":
                     args += ["--frames", "1", "--frame-ms", "0", "--pause-ms", "0"]

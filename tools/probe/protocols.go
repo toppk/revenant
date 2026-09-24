@@ -263,15 +263,20 @@ func selectionTarget(target string) (string, bool) {
 }
 func clipboard(s *Session) {
 	target, _ := selectionTarget(s.opts.Target)
-	action := strings.TrimPrefix(s.result.Case, "clipboard ")
+	action := s.result.CaseID
+	switch action {
+	case "clipboard-query", "clipboard-set", "clipboard-clear", "clipboard-invalid":
+	default:
+		panic(probeFailure{fmt.Errorf("unknown clipboard action %q", action)})
+	}
 	// Every action but query replaces the selection, and nothing here saves it first.
-	if action != "query" {
+	if action != "clipboard-query" {
 		s.say("This replaces the %q selection for every application; its current", target)
 		s.say("contents are not saved. Press q or Esc now to leave it untouched.")
 		s.pause()
 	}
 	switch action {
-	case "set":
+	case "clipboard-set":
 		sent := []byte(s.opts.Text)
 		s.osc(52, target+";"+base64.StdEncoding.EncodeToString(sent))
 		s.say("Requested selection %s = %q (%x).", target, s.opts.Text, sent)
@@ -291,17 +296,17 @@ func clipboard(s *Session) {
 				s.say("Round trip: exact (%d bytes). Conversion for other clients is not shown.", len(value))
 			}
 		}
-	case "clear":
+	case "clipboard-clear":
 		s.osc(52, target+";")
 		s.say("Requested selection clear.")
-	case "invalid":
+	case "clipboard-invalid":
 		s.osc(52, target+";!!!!")
 		s.say("Sent invalid base64. xterm clears, libghostty ignores; inspect ownership/content.")
 		s.say("A query below shows the result where reads are permitted.")
 		if value, _, ok := clipboardRead(s, target); ok {
 			s.say("After invalid base64: %d bytes (%x).", len(value), value)
 		}
-	case "query":
+	case "clipboard-query":
 		clipboardRead(s, target)
 	}
 }

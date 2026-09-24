@@ -20,13 +20,23 @@ func underline(s *Session) {
 	s.pause()
 }
 func pointer(s *Session) {
-	s.cleanup(func() { s.osc(22, "default") })
-	for _, shape := range []string{"text", "pointer", "crosshair", "wait", "default"} {
+	s.say("Use a disposable terminal: the original shape cannot be queried; cleanup requests default.")
+	s.say("Observe the pointer over ordinary text, then a hyperlink using your terminal's")
+	s.say("hover modifier. Record shape and hover precedence separately; no automatic verdict.")
+	s.cleanup(func() { s.send(esc + "]8;;" + st); s.osc(22, "default") })
+	for _, shape := range []string{"text", "pointer", "crosshair", "probe-invalid-shape", "wait", "default"} {
 		s.osc(22, shape)
 		s.say("Requested pointer shape %s; move over the grid.", shape)
+		if shape == "probe-invalid-shape" {
+			s.say("Invalid name: observe whether the previous crosshair is retained.")
+		}
+		s.say("Ordinary text   %s]8;;https://example.com%sHover this link (do not click)%s]8;;%s", esc, st, esc, st)
+		s.say("Move back to ordinary text to see whether the requested shape returns.")
 		s.pause()
 	}
+	s.say("Why the API matters: Zig already stores this shape; a C host needs it to update its native pointer.")
 }
+
 func glyphs(s *Session) {
 	s.page("Glyph samples")
 	for _, line := range []string{"┌────────┬────────┐  ╔════════╦════════╗", "│ normal │ boxes  │  ║ double ║ boxes  ║", "├────────┼────────┤  ╠════════╬════════╣", "└────────┴────────┘  ╚════════╩════════╝", "▁▂▃▄▅▆▇█ ▉▊▋▌▍▎▏ ▀▄▌▐░▒▓█"} {

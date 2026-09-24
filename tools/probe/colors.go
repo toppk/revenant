@@ -65,25 +65,32 @@ func colorQuery(s *Session, code int) string {
 func dynamicColors(s *Session) {
 	codes := []int{10, 11, 12}
 	names := []string{"foreground", "background", "cursor"}
-	action := strings.TrimPrefix(s.result.Case, "colors dynamic ")
-	if action == "set" || action == "reset" {
+	action := s.result.CaseID
+	if action == "colors-dynamic-set" || action == "colors-dynamic-reset" {
 		for i, code := range codes {
 			if s.opts.Target == names[i] || s.opts.Target == "all" {
-				if action == "set" {
+				if action == "colors-dynamic-set" {
 					s.osc(code, s.opts.Color)
 				} else {
 					s.resetColor(code)
 				}
 			}
 		}
-		s.say("Requested persistent %s of %s; query or inspect to verify.", action, s.opts.Target)
+		name := "set"
+		if action == "colors-dynamic-reset" {
+			name = "reset"
+		}
+		s.say("Requested persistent %s of %s; query or inspect to verify.", name, s.opts.Target)
 		return
 	}
-	if action == "query" {
+	if action == "colors-dynamic-query" {
 		for _, code := range codes {
 			colorQuery(s, code)
 		}
 		return
+	}
+	if action != "colors-dynamic-demo" {
+		panic(probeFailure{fmt.Errorf("unknown dynamic color action %q", action)})
 	}
 	originals := make(map[int]string)
 	changed := false
@@ -246,25 +253,25 @@ func paletteQuery(s *Session, index int) string {
 func paletteSet(s *Session, index int, color string) { s.osc(4, fmt.Sprintf("%d;%s", index, color)) }
 func paletteReset(s *Session, index int)             { s.osc(104, strconv.Itoa(index)) }
 func palette(s *Session) {
-	action := strings.TrimPrefix(s.result.Case, "colors palette ")
+	action := s.result.CaseID
 	switch action {
-	case "query":
+	case "colors-palette-query":
 		paletteQuery(s, s.opts.Index)
 		return
-	case "set":
+	case "colors-palette-set":
 		paletteSet(s, s.opts.Index, s.opts.Color)
 		s.say("Requested persistent palette index %d = %q", s.opts.Index, s.opts.Color)
 		return
-	case "reset":
+	case "colors-palette-reset":
 		s.send(esc + "]104" + s.terminator())
 		s.say("Requested reset of all palette indices to configured defaults.")
 		return
-	case "spawn":
+	case "colors-palette-spawn":
 		if code := spawnPalette(s.opts); code != 0 {
 			panic(probeFailure{fmt.Errorf("terminal spawn failed")})
 		}
 		return
-	case "list":
+	case "colors-palette-list":
 		p := palettes()
 		names := []string{}
 		for name := range p {
@@ -275,6 +282,9 @@ func palette(s *Session) {
 			s.say("%s: %v", name, p[name].Colors)
 		}
 		return
+	case "colors-palette-demo":
+	default:
+		panic(probeFailure{fmt.Errorf("unknown palette action %q", action)})
 	}
 	p, ok := palettes()[s.opts.Palette]
 	if !ok {

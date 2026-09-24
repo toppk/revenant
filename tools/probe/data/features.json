@@ -771,6 +771,30 @@
     "sequence": "CSI ?1000 h / l"
   },
   {
+    "id": "dec-mode-1002-button-motion",
+    "title": "1002 button motion",
+    "breadcrumb": [
+      "Input",
+      "Mouse and pointer"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI ?1002 h / l"
+  },
+  {
+    "id": "dec-mode-1003-all-motion",
+    "title": "1003 all motion",
+    "breadcrumb": [
+      "Input",
+      "Mouse and pointer"
+    ],
+    "specifications": [
+      "xterm-control-sequences"
+    ],
+    "sequence": "CSI ?1003 h / l"
+  },
+  {
     "id": "dec-mode-1006-sgr-mouse",
     "title": "1006 sgr mouse",
     "breadcrumb": [

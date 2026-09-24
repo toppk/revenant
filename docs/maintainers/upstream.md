@@ -26,6 +26,12 @@ migration unless the release introduces a relevant data delta. The other checkou
 record compatibility decisions in the
 [xterm differences ledger](../compatibility/drift.md) or [roadmap](roadmap.md).
 
+## C API contribution review
+
+The [libghostty C API review](libghostty-c-api-review.md) separates missing
+accessors and effects from protocol work, with proposed PR scopes and concrete
+Revenant consumers. It is a decision record, not an implementation assignment.
+
 ## Checkouts
 
 | Directory | Repository | Role in Revenant |

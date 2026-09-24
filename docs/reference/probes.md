@@ -484,3 +484,13 @@ pristine state.
 
 See the [dispatch guide](../maintainers/dispatch.md) for the existing policy
 APIs, feature boundaries and test expectations.
+
+## Inspecting behavior behind proposed libghostty APIs
+
+The [C API review](../maintainers/libghostty-c-api-review.md#try-the-behavior-in-ghostty)
+lists five commands to run directly inside Ghostty or Revenant, with observations,
+cleanup limitations and a reason for each proposed binding. The menu-independent
+`mouse-mode-order`, `window-observe` and `shell-events` cases complement the
+existing pointer and dynamic-color cases. They demonstrate protocol behavior;
+they do not test a C accessor or callback and do not imply that Ghostty has
+Revenant's permission menus.
