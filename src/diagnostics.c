@@ -1,14 +1,15 @@
 #include "diagnostics.h"
 
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <time.h>
 #include <unistd.h>
 
-static XtpLogLevel minimum_level = XTP_LOG_WARNING;
-static int quiet_enabled;
+static _Atomic XtpLogLevel minimum_level = XTP_LOG_WARNING;
+static _Atomic int quiet_enabled;
 
 enum
 {
@@ -52,25 +53,27 @@ XtpLogLevelName(XtpLogLevel level)
 void
 XtpLogSetLevel(XtpLogLevel level)
 {
-        minimum_level = level;
+        atomic_store_explicit(&minimum_level, level, memory_order_relaxed);
 }
 
 XtpLogLevel
 XtpLogLevelCurrent(void)
 {
-        return minimum_level;
+        return atomic_load_explicit(&minimum_level, memory_order_relaxed);
 }
 
 void
 XtpLogSetQuiet(int enabled)
 {
-        quiet_enabled = enabled != 0;
+        atomic_store_explicit(&quiet_enabled, enabled != 0, memory_order_relaxed);
 }
 
 int
 XtpLogEnabled(XtpLogLevel level)
 {
-        return level >= minimum_level && (!quiet_enabled || level == XTP_LOG_ERROR);
+        return level >= atomic_load_explicit(&minimum_level, memory_order_relaxed) &&
+               (!atomic_load_explicit(&quiet_enabled, memory_order_relaxed) ||
+                level == XTP_LOG_ERROR);
 }
 
 static const char *

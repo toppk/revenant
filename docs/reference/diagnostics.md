@@ -102,6 +102,12 @@ input bytes. Control and non-ASCII bytes use backslash escapes (`\\e` for
 Escape and `\\xNN` otherwise), and a truncated preview reports the number of
 omitted bytes explicitly.
 
+With the libghostty backend, its internal messages use the `libghostty-vt`
+subsystem and retain the upstream scope, for example
+`libghostty-vt: (terminal) ...`. They follow the same log-level threshold.
+The library determines which levels are compiled in; release builds omit its
+debug messages. These logs are diagnostics, not callbacks for terminal actions.
+
 `FR-STYLEFAMILY` means an explicit Xft `boldFont` or `wideBoldFont` entry
 resolved outside the already-selected role family. Revenant keeps the family
 decision stable and renders that atom with the role's normal instance; the

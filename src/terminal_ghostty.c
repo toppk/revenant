@@ -4,6 +4,7 @@
 #include "diagnostics.h"
 #include "version.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +15,61 @@ typedef struct
         const uint8_t *bytes;
         size_t written;
 } ObservedInputFeed;
+
+/* libghostty's sys callback is process-wide and may run on any thread. */
+static void
+GhosttyLog(void *userdata, GhosttySysLogLevel level, const uint8_t *scope, size_t scope_length,
+           const uint8_t *message, size_t message_length)
+{
+        XtpLogLevel mapped;
+        int scope_size = scope_length > INT_MAX ? INT_MAX : (int)scope_length;
+        int message_size = message_length > INT_MAX ? INT_MAX : (int)message_length;
+
+        (void)userdata;
+        switch (level) {
+        case GHOSTTY_SYS_LOG_LEVEL_ERROR:
+                mapped = XTP_LOG_ERROR;
+                break;
+        case GHOSTTY_SYS_LOG_LEVEL_WARNING:
+                mapped = XTP_LOG_WARNING;
+                break;
+        case GHOSTTY_SYS_LOG_LEVEL_INFO:
+                mapped = XTP_LOG_INFO;
+                break;
+        case GHOSTTY_SYS_LOG_LEVEL_DEBUG:
+                mapped = XTP_LOG_DEBUG;
+                break;
+        case GHOSTTY_SYS_LOG_LEVEL_MAX_VALUE:
+        default:
+                mapped = XTP_LOG_WARNING;
+                break;
+        }
+        if (!XtpLogEnabled(mapped))
+                return;
+        if (scope_size != 0)
+                XtpLog(mapped, "libghostty-vt", "(%.*s) %.*s", scope_size, (const char *)scope,
+                       message_size, (const char *)message);
+        else
+                XtpLog(mapped, "libghostty-vt", "%.*s", message_size, (const char *)message);
+}
+
+static int
+InstallGhosttyLog(void)
+{
+        static bool installed;
+        GhosttySysLogFn callback = GhosttyLog;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(callback) == sizeof(pointer),
+                       "Ghostty log callback pointer ABI is unsupported");
+        if (installed)
+                return 0;
+        memcpy(&pointer, &callback, sizeof(pointer));
+        if (ghostty_sys_set(GHOSTTY_SYS_OPT_LOG, pointer) != GHOSTTY_SUCCESS)
+                return -1;
+        installed = true;
+        return 0;
+}
 
 static void RecordPromptMark(XtpTerminal *terminal);
 static void FreePromptMarks(XtpTerminal *terminal);
@@ -1553,6 +1609,10 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
 
         if (terminal == NULL)
                 return NULL;
+        if (InstallGhosttyLog() != 0) {
+                free(terminal);
+                return NULL;
+        }
         terminal->bold_colors = true;
         terminal->allow_color_ops = true;
         terminal->allow_mouse_ops = true;
