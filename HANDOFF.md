@@ -533,6 +533,22 @@ function-pointer helper would lose the useful type check.
   libghostty clears on resize. Hover repaints during a hold are deferred to a
   full repaint at release. `xvfb-sync-output` covers release, timeout, resize
   with DECRQM confirmation, and hover.
+- Track Codex TUI resize flashing against
+  [openai/codex#25622](https://github.com/openai/codex/issues/25622) (also
+  [#38839](https://github.com/openai/codex/issues/38839)). In `/tmp/biglog.2`,
+  repeated height changes are followed by Codex's `CSI 2 J` visible-screen
+  clear and `CSI 3 J` scrollback purge, then a blank full frame; the
+  synchronized replay starts afterward. The separate purge makes the scrollbar
+  thumb fill before history is rebuilt. This also reproduces in Ghostty and
+  xterm. In the 2026-09-24 local Codex checkout (`upstream/codex` at
+  `12fd929f72`),
+  `clear_terminal_for_resize_replay` still calls and flushes
+  `clear_scrollback_and_visible_screen_ansi` before `draw_with_resize_reflow`
+  enters synchronized output. Preserve this byte-level finding even if the
+  upstream issue closes; verify a future fix by checking that clear and replay
+  share one synchronized update. Revenant's offscreen full-frame painting
+  reduces its own intermediate paints but cannot hide a clear sent before the
+  application's synchronized transaction.
 - Primary-screen resize reflow, synchronized terminal/kernel PTY geometry,
   and pre-Expose invalidation of frames captured at the previous grid size.
 - `saveLines` controls libghostty's line limit and clears its independent

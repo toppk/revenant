@@ -537,6 +537,12 @@ VtUpdateScrollbar(Vt100Rec *vt)
                 if (shown > 1.0F)
                         shown = 1.0F;
         }
+        /* Codex resize replay currently flushes CSI 2 J / CSI 3 J before starting
+         * its synchronized repaint. The transient full thumb after CSI 3 J
+         * reflects purged scrollback, just as the blank frame reflects CSI 2 J;
+         * offscreen widget painting cannot conceal that separate transaction.
+         * Track the upstream ordering bug at openai/codex#25622.
+         */
         XawScrollbarSetThumb(vt->vt.scrollbar, top, shown);
 }
 
@@ -1112,6 +1118,7 @@ Initialize(Widget request, Widget new_widget, ArgList args, Cardinal *num_args)
         vt->vt.cursor_text_color = vt->core.background_pixel;
         vt->vt.last_cursor_shape = XTP_CURSOR_SHAPE_BLOCK;
         vt->vt.cursor_blink_on = True;
+        vt->vt.paint_drawable = None;
         {
                 int slot;
 

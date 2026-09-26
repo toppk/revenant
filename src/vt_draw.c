@@ -17,6 +17,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+static Drawable
+PaintDrawable(Vt100Rec *vt)
+{
+        return vt->vt.paint_drawable != None ? vt->vt.paint_drawable : XtWindow((Widget)vt);
+}
+
 static Pixel
 RgbPixel(Vt100Rec *vt, uint8_t red, uint8_t green, uint8_t blue)
 {
@@ -547,11 +553,11 @@ DrawTextClipped(Vt100Rec *vt, Pixel pixel, int x, int baseline, const char *text
                                 baseline, area, effective_clip);
         } else {
                 XSetForeground(XtDisplay(widget), vt->vt.gc, pixel);
-                XDrawString(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x, baseline, text,
+                XDrawString(XtDisplay(widget), PaintDrawable(vt), vt->vt.gc, x, baseline, text,
                             (int)length);
                 if (bold)
-                        XDrawString(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x + 1, baseline,
-                                    text, (int)length);
+                        XDrawString(XtDisplay(widget), PaintDrawable(vt), vt->vt.gc, x + 1,
+                                    baseline, text, (int)length);
         }
         if (clip_set)
                 ClearTextClip(vt);
@@ -625,7 +631,7 @@ PaintBoxGlyphInk(Vt100Rec *vt, Pixel foreground, const XRectangle *area, XtpBoxG
 {
         Widget widget = (Widget)vt;
         Display *display = XtDisplay(widget);
-        Drawable drawable = XtWindow(widget);
+        Drawable drawable = PaintDrawable(vt);
         size_t index;
 
         XSetForeground(display, vt->vt.gc, foreground);
@@ -675,7 +681,7 @@ PaintBoxGlyph(Vt100Rec *vt, const VisualCell *style, const XRectangle *area, Xtp
                                      area->height);
         } else {
                 XSetForeground(display, vt->vt.gc, style->background);
-                XFillRectangle(display, XtWindow(widget), vt->vt.gc, area->x, area->y, area->width,
+                XFillRectangle(display, PaintDrawable(vt), vt->vt.gc, area->x, area->y, area->width,
                                area->height);
         }
         PaintBoxGlyphInk(vt, style->foreground, area, glyph);
@@ -700,7 +706,8 @@ DrawDeterministicTofu(Vt100Rec *vt, Pixel foreground, const XRectangle *area)
                 unsigned int width = cell_width > 3U ? cell_width - 3U : 1U;
                 unsigned int height = area->height > 3U ? area->height - 3U : 1U;
 
-                XDrawRectangle(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x, y, width, height);
+                XDrawRectangle(XtDisplay(widget), PaintDrawable(vt), vt->vt.gc, x, y, width,
+                               height);
         }
 }
 
@@ -735,11 +742,11 @@ PaintVisualRun(Vt100Rec *vt, const VisualCell *style, const XRectangle *area, in
         } else {
                 XSetForeground(XtDisplay(widget), vt->vt.gc, style->foreground);
                 XSetBackground(XtDisplay(widget), vt->vt.gc, style->background);
-                XDrawImageString(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x, baseline,
+                XDrawImageString(XtDisplay(widget), PaintDrawable(vt), vt->vt.gc, x, baseline,
                                  bitmap_text, (int)bitmap_length);
                 if (style->bold)
-                        XDrawString(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x + 1, baseline,
-                                    bitmap_text, (int)bitmap_length);
+                        XDrawString(XtDisplay(widget), PaintDrawable(vt), vt->vt.gc, x + 1,
+                                    baseline, bitmap_text, (int)bitmap_length);
         }
         ClearTextClip(vt);
 }
@@ -750,7 +757,7 @@ DrawDecorations(Vt100Rec *vt, const VisualCell *cell, const XRectangle *area)
         Widget widget = (Widget)vt;
         int right = area->x + (int)area->width - 1;
         Display *display = XtDisplay(widget);
-        Drawable drawable = XtWindow(widget);
+        Drawable drawable = PaintDrawable(vt);
         int x1;
         int x2;
         int y;
@@ -869,10 +876,10 @@ DrawDecorations(Vt100Rec *vt, const VisualCell *cell, const XRectangle *area)
         }
         XSetForeground(XtDisplay(widget), vt->vt.gc, cell->foreground);
         if (cell->strikethrough)
-                XDrawLine(XtDisplay(widget), XtWindow(widget), vt->vt.gc, area->x,
+                XDrawLine(XtDisplay(widget), PaintDrawable(vt), vt->vt.gc, area->x,
                           area->y + (int)area->height / 2, right, area->y + (int)area->height / 2);
         if (cell->overline)
-                XDrawLine(XtDisplay(widget), XtWindow(widget), vt->vt.gc, area->x, area->y, right,
+                XDrawLine(XtDisplay(widget), PaintDrawable(vt), vt->vt.gc, area->x, area->y, right,
                           area->y);
         ClearTextClip(vt);
 }
@@ -1237,7 +1244,7 @@ VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int ro
                 if (shape == XTP_CURSOR_SHAPE_BLOCK &&
                     (vt->vt.focused || vt->vt.always_highlight) && vt->vt.cursor_cell_seen) {
                         XSetForeground(XtDisplay(widget), vt->vt.gc, vt->vt.cursor_fill);
-                        XFillRectangle(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x, y, width,
+                        XFillRectangle(XtDisplay(widget), PaintDrawable(vt), vt->vt.gc, x, y, width,
                                        height);
                         glyph_area.width = (unsigned short)(vt->vt.cursor_width * width);
                         if (vt->vt.cursor_text_length != 0 &&
@@ -1280,17 +1287,17 @@ VtDrawCursor(Vt100Rec *vt, Boolean visible, unsigned int column, unsigned int ro
                                 thickness = dimension;
                         XSetForeground(XtDisplay(widget), vt->vt.gc, cursor);
                         if (shape == XTP_CURSOR_SHAPE_UNDERLINE)
-                                XFillRectangle(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x,
+                                XFillRectangle(XtDisplay(widget), PaintDrawable(vt), vt->vt.gc, x,
                                                y + (int)height - (int)thickness, width, thickness);
                         else
-                                XFillRectangle(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x, y,
-                                               thickness, height);
+                                XFillRectangle(XtDisplay(widget), PaintDrawable(vt), vt->vt.gc, x,
+                                               y, thickness, height);
                 } else {
                         Pixel outline = vt->vt.cursor_cell_seen ? vt->vt.cursor_fill
                                                                 : vt->vt.effective_cursor_color;
 
                         XSetForeground(XtDisplay(widget), vt->vt.gc, outline);
-                        XDrawRectangle(XtDisplay(widget), XtWindow(widget), vt->vt.gc, x, y,
+                        XDrawRectangle(XtDisplay(widget), PaintDrawable(vt), vt->vt.gc, x, y,
                                        width > 0 ? width - 1 : 0, height > 0 ? height - 1 : 0);
                 }
                 ClearTextClip(vt);
@@ -1468,6 +1475,53 @@ RenderCell(const XtpRenderCell *cell, void *closure)
         }
 }
 
+/* A full redraw paints many Xft, Cairo and Xlib runs. Keep those intermediate
+ * backgrounds off the window, then publish the completed frame in one copy. */
+static void
+BeginFullFramePaint(Vt100Rec *vt)
+{
+        Widget widget = (Widget)vt;
+        Pixmap pixmap;
+
+        if (!vt->vt.capture_full_frame || vt->core.width == 0 || vt->core.height == 0)
+                return;
+        if (vt->vt.use_xft && (!VtFontEnsureXftDraw(vt) || !VtFontEnsureCairoDraw(vt)))
+                return;
+        pixmap = XCreatePixmap(XtDisplay(widget), XtWindow(widget), vt->core.width, vt->core.height,
+                               vt->core.depth);
+        if (pixmap == None)
+                return;
+        vt->vt.paint_drawable = pixmap;
+        if (vt->vt.use_xft) {
+                XftDrawChange(vt->vt.font_universe->draw, pixmap);
+                XtpCairoSetDrawable(vt->vt.font_universe->cairo, pixmap, vt->core.width,
+                                    vt->core.height);
+        }
+        XSetClipMask(XtDisplay(widget), vt->vt.gc, None);
+        XSetForeground(XtDisplay(widget), vt->vt.gc, vt->vt.effective_background_pixel);
+        XFillRectangle(XtDisplay(widget), pixmap, vt->vt.gc, 0, 0, vt->core.width, vt->core.height);
+}
+
+static void
+EndFullFramePaint(Vt100Rec *vt)
+{
+        Widget widget = (Widget)vt;
+        Pixmap pixmap = vt->vt.paint_drawable;
+
+        if (pixmap == None)
+                return;
+        if (vt->vt.use_xft) {
+                XtpCairoSetDrawable(vt->vt.font_universe->cairo, XtWindow(widget), vt->core.width,
+                                    vt->core.height);
+                XftDrawChange(vt->vt.font_universe->draw, XtWindow(widget));
+        }
+        XSetClipMask(XtDisplay(widget), vt->vt.gc, None);
+        XCopyArea(XtDisplay(widget), pixmap, XtWindow(widget), vt->vt.gc, 0, 0, vt->core.width,
+                  vt->core.height, 0, 0);
+        XFreePixmap(XtDisplay(widget), pixmap);
+        vt->vt.paint_drawable = None;
+}
+
 static void
 RenderEnd(const XtpRenderFrame *frame, void *closure)
 {
@@ -1502,6 +1556,7 @@ RenderEnd(const XtpRenderFrame *frame, void *closure)
                 vt->vt.cursor_blink_on = True;
         }
 
+        BeginFullFramePaint(vt);
         if (vt->vt.capture_full_frame) {
                 unsigned int row;
                 {
@@ -1548,6 +1603,7 @@ RenderEnd(const XtpRenderFrame *frame, void *closure)
                         XtpLog(XTP_LOG_DEBUG, "render", "cursor-only repaint column=%u row=%u",
                                frame->cursor_column, frame->cursor_row);
         }
+        EndFullFramePaint(vt);
         if (frame->cursor_visible && effective_blinking)
                 VtScheduleCursorBlink(vt);
         else

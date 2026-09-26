@@ -347,6 +347,15 @@ XtpCairoResize(XtpCairo *renderer, int width, int height)
 }
 
 void
+XtpCairoSetDrawable(XtpCairo *renderer, Drawable drawable, int width, int height)
+{
+        if (renderer != NULL && drawable != None && width > 0 && height > 0) {
+                cairo_surface_flush(renderer->surface);
+                cairo_xlib_surface_set_drawable(renderer->surface, drawable, width, height);
+        }
+}
+
+void
 XtpCairoDestroy(XtpCairo *renderer)
 {
         size_t index;

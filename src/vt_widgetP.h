@@ -331,6 +331,7 @@ typedef struct
         unsigned int frame_rows;
         Boolean frame_valid;
         Boolean capture_full_frame;
+        Pixmap paint_drawable;
         Boolean damage_clip_active;
         XRectangle damage_clip;
         Boolean last_cursor_visible;

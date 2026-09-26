@@ -14,6 +14,7 @@ Boolean XtpCairoFontIsColor(const XftFont *font);
 XtpCairo *XtpCairoCreate(Display *display, Drawable drawable, Visual *visual, int width,
                          int height);
 void XtpCairoResize(XtpCairo *renderer, int width, int height);
+void XtpCairoSetDrawable(XtpCairo *renderer, Drawable drawable, int width, int height);
 void XtpCairoDestroy(XtpCairo *renderer);
 Boolean XtpCairoGlyphRunHasInk(XtpCairo *renderer, XftFont *font, const XtpGlyphRun *run,
                                Boolean color_glyphs, unsigned int available_width,
