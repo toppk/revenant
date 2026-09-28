@@ -18,6 +18,7 @@ Build-Depends: debhelper-compat (= 13),
                libfontconfig-dev,
                libxft-dev,
                libxrender-dev,
+               libxcursor-dev,
                libcairo2-dev,
                libharfbuzz-dev,
                libnotify-dev

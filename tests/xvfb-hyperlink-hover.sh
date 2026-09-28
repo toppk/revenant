@@ -59,17 +59,17 @@ inferred_x=$((2 + 8 * cell_width + cell_width / 2))
 
 "$hover" "$window" "$same_first_x" "$row0_y" shift
 wait_for_count "$log" 'hyperlink: hover bytes=20 preview="https://same.example"' 1 'first repeated OSC 8 URI hover'
-wait_for_count "$log" 'hyperlink: cursor hand' 1 'hand cursor for OSC 8 URI'
+wait_for_count "$log" 'pointer: shape=pointer source=hover' 1 'hand cursor for OSC 8 URI'
 "$hover" "$window" "$same_first_x" "$row0_y" plain
 wait_for_count "$log" 'hyperlink: hover cleared' 1 'OSC 8 hover clear'
-wait_for_count "$log" 'hyperlink: cursor default' 1 'default cursor after OSC 8 hover'
+wait_for_count "$log" 'pointer: shape=text source=application' 2 'default cursor after OSC 8 hover'
 
 "$hover" "$window" "$same_second_x" "$row0_y" shift
 wait_for_count "$log" 'hyperlink: hover bytes=20 preview="https://same.example"' 2 'second repeated OSC 8 URI hover'
-wait_for_count "$log" 'hyperlink: cursor hand' 2 'hand cursor for second OSC 8 URI'
+wait_for_count "$log" 'pointer: shape=pointer source=hover' 2 'hand cursor for second OSC 8 URI'
 "$hover" "$window" "$same_second_x" "$row0_y" plain
 wait_for_count "$log" 'hyperlink: hover cleared' 2 'second OSC 8 hover clear'
-wait_for_count "$log" 'hyperlink: cursor default' 2 'default cursor after second OSC 8 hover'
+wait_for_count "$log" 'pointer: shape=text source=application' 3 'default cursor after second OSC 8 hover'
 
 "$hover" "$window" "$single_x" "$row1_y" shift
 wait_for_count "$log" 'hyperlink: hover bytes=22 preview="https://single.example"' 1 'single-underlined OSC 8 URI hover'
@@ -78,7 +78,7 @@ wait_for_count "$log" 'hyperlink: hover cleared' 3 'single-underlined OSC 8 hove
 
 "$hover" "$window" "$inferred_x" "$row2_y" shift
 wait_for_count "$log" 'hyperlink: hover inferred bytes=26 preview="https://inferred.example/a"' 1 'inferred URI hover'
-wait_for_count "$log" 'hyperlink: cursor hand' 4 'hand cursor for inferred URI'
+wait_for_count "$log" 'pointer: shape=pointer source=hover' 4 'hand cursor for inferred URI'
 "$hover" "$window" "$inferred_x" "$row2_y" plain
 wait_for_count "$log" 'hyperlink: hover cleared' 4 'inferred URI hover clear'
-wait_for_count "$log" 'hyperlink: cursor default' 4 'default cursor after inferred URI hover'
+wait_for_count "$log" 'pointer: shape=text source=application' 5 'default cursor after inferred URI hover'

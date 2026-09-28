@@ -4,6 +4,51 @@
 
 #include <stdint.h>
 
+const char *
+XtpPointerShapeName(XtpPointerShape shape)
+{
+        static const char *const names[XTP_POINTER_SHAPE_COUNT] = {
+            [XTP_POINTER_SHAPE_DEFAULT] = "default",
+            [XTP_POINTER_SHAPE_CONTEXT_MENU] = "context-menu",
+            [XTP_POINTER_SHAPE_HELP] = "help",
+            [XTP_POINTER_SHAPE_POINTER] = "pointer",
+            [XTP_POINTER_SHAPE_PROGRESS] = "progress",
+            [XTP_POINTER_SHAPE_WAIT] = "wait",
+            [XTP_POINTER_SHAPE_CELL] = "cell",
+            [XTP_POINTER_SHAPE_CROSSHAIR] = "crosshair",
+            [XTP_POINTER_SHAPE_TEXT] = "text",
+            [XTP_POINTER_SHAPE_VERTICAL_TEXT] = "vertical-text",
+            [XTP_POINTER_SHAPE_ALIAS] = "alias",
+            [XTP_POINTER_SHAPE_COPY] = "copy",
+            [XTP_POINTER_SHAPE_MOVE] = "move",
+            [XTP_POINTER_SHAPE_NO_DROP] = "no-drop",
+            [XTP_POINTER_SHAPE_NOT_ALLOWED] = "not-allowed",
+            [XTP_POINTER_SHAPE_GRAB] = "grab",
+            [XTP_POINTER_SHAPE_GRABBING] = "grabbing",
+            [XTP_POINTER_SHAPE_ALL_SCROLL] = "all-scroll",
+            [XTP_POINTER_SHAPE_COL_RESIZE] = "col-resize",
+            [XTP_POINTER_SHAPE_ROW_RESIZE] = "row-resize",
+            [XTP_POINTER_SHAPE_N_RESIZE] = "n-resize",
+            [XTP_POINTER_SHAPE_E_RESIZE] = "e-resize",
+            [XTP_POINTER_SHAPE_S_RESIZE] = "s-resize",
+            [XTP_POINTER_SHAPE_W_RESIZE] = "w-resize",
+            [XTP_POINTER_SHAPE_NE_RESIZE] = "ne-resize",
+            [XTP_POINTER_SHAPE_NW_RESIZE] = "nw-resize",
+            [XTP_POINTER_SHAPE_SE_RESIZE] = "se-resize",
+            [XTP_POINTER_SHAPE_SW_RESIZE] = "sw-resize",
+            [XTP_POINTER_SHAPE_EW_RESIZE] = "ew-resize",
+            [XTP_POINTER_SHAPE_NS_RESIZE] = "ns-resize",
+            [XTP_POINTER_SHAPE_NESW_RESIZE] = "nesw-resize",
+            [XTP_POINTER_SHAPE_NWSE_RESIZE] = "nwse-resize",
+            [XTP_POINTER_SHAPE_ZOOM_IN] = "zoom-in",
+            [XTP_POINTER_SHAPE_ZOOM_OUT] = "zoom-out",
+        };
+
+        if ((unsigned int)shape >= XTP_POINTER_SHAPE_COUNT)
+                return names[XTP_POINTER_SHAPE_TEXT];
+        return names[shape];
+}
+
 static uint64_t
 ViewportEnd(const XtpTerminalScrollbar *state)
 {

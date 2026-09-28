@@ -108,18 +108,23 @@ conflicting ownership even within the same batch.
 
 ## V: Text and cursor presentation
 
-- [ ] **V3 — OSC 22 pointer shape.** First obtain public backend state or an effect:
-      pinned C API does not surface this OSC, and unknown APC does not help.
-      Then resolve names through Xcursor, manage cursor lifetime, and compose
-      application shape with hyperlink hover.
-      Probe: `just probe osc-22-pointer-shape input-pointer`. This modern
-      extension is not xterm's Mouse Ops reporting policy. Accept: valid and
-      invalid names, default restore, hover precedence, resize and cleanup.
-      Stop: no catch-all unknown-OSC observer or new permission family.
+- [x] **V3 — OSC 22 pointer shape.** Ghostty PR #14371 is merged and the
+      development pin includes its public getter. Map accepted state to Xcursor
+      names with core-font fallbacks; Shift-hover links temporarily override it.
+      All 34 names, split/invalid input, native hover restoration, holds, resize,
+      reset and cleanup have automated coverage. Theme appearance can be reviewed
+      with `just probe osc-22-pointer-shape input-pointer`.
       TDN: `osc-22-pointer-shape`.
-      The case includes invalid-name and hyperlink-hover scenarios; record
-      human observations rather than treating their presence as acceptance.
-      The proposed getter on the fork is not yet in the pinned backend.
+
+- [ ] **Pointer resources and visibility.** `pointerShape`, `pointerColor`,
+      `pointerColorBackground` and `pointerMode` remain unapplied. Define how the
+      startup resource composes with accepted OSC 22 state. Decide whether custom
+      pointer colors force core-font cursors or are explicitly ignored for themed
+      ARGB cursors; include OSC 13/14 if routed later. For hide-while-typing, track
+      visibility separately from the cached shape so output updates cannot reveal
+      a hidden pointer. Refresh paths that feed the core must call `XtpVtUpdate`.
+      Consider an upstream alias-map contribution for common cursor-font names
+      (`hand2`, `sb_h_double_arrow`, `plus`, `top_left_arrow`, `X_cursor`).
 
 ## S: Shell integration
 

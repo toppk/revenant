@@ -10,9 +10,12 @@ commit. Published tags and assets are never replaced.
 
 ## 0.9.0 — Unreleased
 
-### Other
+### Features
 
-- Development changes will be recorded here.
+- Honor application OSC 22 pointer-shape requests with themed Xcursor shapes and
+  core-font fallbacks. Shift-hover hyperlinks temporarily select a hand; leaving
+  restores the latest application shape. Update the libghostty development pin to
+  `b1d2b7ef1f1cf5cc0118298bad849870bc678298`, which includes the public mouse-shape getter.
 
 ## 0.8.0 — 2026-09-23
 

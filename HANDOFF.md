@@ -87,16 +87,18 @@ child TERM integration are implemented separately by A2; XTSETTCAP remains open.
 TDN: `policy-mouse-ops-exceptions`, `dcs-xtsettcap`.
 
 The [libghostty C API review](docs/maintainers/libghostty-c-api-review.md)
-records the 2026-09-23 source audit and proposed upstream scopes. Start with
-effective mouse-state and pointer-shape accessors; agree scope before coding.
+records the 2026-09-23 source audit and proposed upstream scopes. The pointer-shape getter merged as Ghostty PR #14371 and is included in the
+current development pin; Revenant applies accepted shapes through Xcursor with
+core-font fallbacks and temporary Shift-hover overrides. Agree the scope of other accessors
+before coding.
 Size-policy and semantic-prompt effects could remove existing observers. Full
 Window Ops, OSC 50 and title modes are not merely missing C wrappers.
 
 Font Ops has Xt resources (`allowFontOps`, `disallowedFontOps`), SetFont/GetFont
 policy helpers and checked menu identity, but its menu remains insensitive and
 resources have no operational effect until OSC 50 is implemented. The pinned
-unknown-sequence callback is APC-only; it cannot supply OSC 50, OSC 22 or
-arbitrary CSI passthrough. Obtain a public hook rather than another escape
+unknown-sequence callback is APC-only; it cannot supply OSC 50 or
+arbitrary CSI passthrough. OSC 22 uses its public terminal-state getter. Obtain a public hook rather than another escape
 parser. ENQ, underline attributes, startup cursor style, shell integration,
 notification urgency and the output pipe have no new xterm Ops family. Full Window Ops and Title Ops completion
 checklists below still apply independently.

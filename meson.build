@@ -117,6 +117,7 @@ xmu_dep = dependency('xmu')
 fontconfig_dep = dependency('fontconfig')
 xft_dep = dependency('xft')
 xrender_dep = dependency('xrender')
+xcursor_dep = dependency('xcursor')
 cairo_dep = dependency('cairo', version: '>= 1.18')
 cairo_ft_dep = dependency('cairo-ft', version: '>= 1.18')
 cairo_xlib_dep = dependency('cairo-xlib', version: '>= 1.18')
@@ -132,6 +133,7 @@ widget_dependencies = [
     fontconfig_dep,
     xft_dep,
     xrender_dep,
+    xcursor_dep,
     cairo_dep,
     cairo_ft_dep,
     cairo_xlib_dep,

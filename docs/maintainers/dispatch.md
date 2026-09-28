@@ -159,5 +159,6 @@ restoration after toggling. Extend these tests when extending their policy.
 Keep resource support reports, menu feasibility, the drift ledger and the
 handoff aligned with implemented behavior. A parser accepting a future
 operation name does not make that operation supported. Missing hooks become
-explicit upstream asks; the APC-only unknown callback cannot carry OSC 22,
-OSC 50 or arbitrary CSI controls.
+explicit upstream asks; the APC-only unknown callback cannot carry OSC 50
+or arbitrary CSI controls. OSC 22 is implemented through the public mouse-shape
+getter in the current libghostty pin.

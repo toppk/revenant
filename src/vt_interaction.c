@@ -6,6 +6,7 @@
 
 #include <X11/Xatom.h>
 #include <X11/cursorfont.h>
+#include <X11/Xcursor/Xcursor.h>
 
 #include <errno.h>
 #include <limits.h>
@@ -591,25 +592,76 @@ VtHyperlinkTargetMatchesCell(Vt100Rec *vt, const XtpRenderCell *cell)
         }
 }
 
+/* Themes may omit W3C names; retain a usable core-font cursor in that case. */
+static Cursor
+LoadPointerCursor(Display *display, XtpPointerShape shape)
+{
+        static const unsigned int fallbacks[XTP_POINTER_SHAPE_COUNT] = {
+            [XTP_POINTER_SHAPE_DEFAULT] = XC_left_ptr,
+            [XTP_POINTER_SHAPE_CONTEXT_MENU] = XC_left_ptr,
+            [XTP_POINTER_SHAPE_HELP] = XC_question_arrow,
+            [XTP_POINTER_SHAPE_POINTER] = XC_hand2,
+            [XTP_POINTER_SHAPE_PROGRESS] = XC_watch,
+            [XTP_POINTER_SHAPE_WAIT] = XC_watch,
+            [XTP_POINTER_SHAPE_CELL] = XC_plus,
+            [XTP_POINTER_SHAPE_CROSSHAIR] = XC_crosshair,
+            [XTP_POINTER_SHAPE_TEXT] = XC_xterm,
+            [XTP_POINTER_SHAPE_VERTICAL_TEXT] = XC_xterm,
+            [XTP_POINTER_SHAPE_ALIAS] = XC_hand2,
+            [XTP_POINTER_SHAPE_COPY] = XC_hand2,
+            [XTP_POINTER_SHAPE_MOVE] = XC_fleur,
+            [XTP_POINTER_SHAPE_NO_DROP] = XC_X_cursor,
+            [XTP_POINTER_SHAPE_NOT_ALLOWED] = XC_X_cursor,
+            [XTP_POINTER_SHAPE_GRAB] = XC_hand2,
+            [XTP_POINTER_SHAPE_GRABBING] = XC_hand2,
+            [XTP_POINTER_SHAPE_ALL_SCROLL] = XC_fleur,
+            [XTP_POINTER_SHAPE_COL_RESIZE] = XC_sb_h_double_arrow,
+            [XTP_POINTER_SHAPE_ROW_RESIZE] = XC_sb_v_double_arrow,
+            [XTP_POINTER_SHAPE_N_RESIZE] = XC_top_side,
+            [XTP_POINTER_SHAPE_E_RESIZE] = XC_right_side,
+            [XTP_POINTER_SHAPE_S_RESIZE] = XC_bottom_side,
+            [XTP_POINTER_SHAPE_W_RESIZE] = XC_left_side,
+            [XTP_POINTER_SHAPE_NE_RESIZE] = XC_top_right_corner,
+            [XTP_POINTER_SHAPE_NW_RESIZE] = XC_top_left_corner,
+            [XTP_POINTER_SHAPE_SE_RESIZE] = XC_bottom_right_corner,
+            [XTP_POINTER_SHAPE_SW_RESIZE] = XC_bottom_left_corner,
+            [XTP_POINTER_SHAPE_EW_RESIZE] = XC_sb_h_double_arrow,
+            [XTP_POINTER_SHAPE_NS_RESIZE] = XC_sb_v_double_arrow,
+            [XTP_POINTER_SHAPE_NESW_RESIZE] = XC_sizing,
+            [XTP_POINTER_SHAPE_NWSE_RESIZE] = XC_sizing,
+            [XTP_POINTER_SHAPE_ZOOM_IN] = XC_plus,
+            [XTP_POINTER_SHAPE_ZOOM_OUT] = XC_plus,
+        };
+        Cursor cursor = XcursorLibraryLoadCursor(display, XtpPointerShapeName(shape));
+
+        return cursor != None ? cursor : XCreateFontCursor(display, fallbacks[shape]);
+}
+
+void
+VtUpdatePointerCursor(Vt100Rec *vt)
+{
+        Widget widget = (Widget)vt;
+        XtpPointerShape shape = vt->vt.hyperlink_cursor_active
+                                    ? XTP_POINTER_SHAPE_POINTER
+                                    : XtpTerminalPointerShape(vt->vt.terminal);
+
+        if (!XtIsRealized(widget) || vt->vt.pointer_shape == shape)
+                return;
+        if (vt->vt.pointer_cursors[shape] == None)
+                vt->vt.pointer_cursors[shape] = LoadPointerCursor(XtDisplay(widget), shape);
+        XDefineCursor(XtDisplay(widget), XtWindow(widget), vt->vt.pointer_cursors[shape]);
+        vt->vt.pointer_shape = shape;
+        XtpLog(XTP_LOG_DEBUG, "pointer", "shape=%s source=%s", XtpPointerShapeName(shape),
+               vt->vt.hyperlink_cursor_active ? "hover" : "application");
+}
+
 static void
 SetHyperlinkCursor(Vt100Rec *vt, Boolean active)
 {
-        Widget widget = (Widget)vt;
-
-        if (active == vt->vt.hyperlink_cursor_active || !XtIsRealized(widget))
+        if (active == vt->vt.hyperlink_cursor_active)
                 return;
-        if (active) {
-                if (vt->vt.hyperlink_cursor == None)
-                        vt->vt.hyperlink_cursor = XCreateFontCursor(XtDisplay(widget), XC_hand2);
-                if (vt->vt.hyperlink_cursor == None)
-                        return;
-                XDefineCursor(XtDisplay(widget), XtWindow(widget), vt->vt.hyperlink_cursor);
-                XtpLog(XTP_LOG_DEBUG, "hyperlink", "cursor hand");
-        } else {
-                XUndefineCursor(XtDisplay(widget), XtWindow(widget));
-                XtpLog(XTP_LOG_DEBUG, "hyperlink", "cursor default");
-        }
         vt->vt.hyperlink_cursor_active = active;
+        VtUpdatePointerCursor(vt);
 }
 
 static void

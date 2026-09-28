@@ -302,7 +302,8 @@ typedef struct
         Boolean selection_rectangle;
         VtHyperlinkTarget hovered_hyperlink;
         VtHyperlinkTarget pressed_hyperlink;
-        Cursor hyperlink_cursor;
+        Cursor pointer_cursors[XTP_POINTER_SHAPE_COUNT];
+        XtpPointerShape pointer_shape;
         Boolean hyperlink_cursor_active;
         unsigned int reported_mouse_buttons;
         Time last_button_up_time;
@@ -446,6 +447,7 @@ Boolean VtHyperlinkTargetContainsCell(const VtHyperlinkTarget *target, size_t in
                                       size_t cell_length);
 XtpUnderline VtHyperlinkHoverUnderline(XtpUnderline underline);
 void VtDoubleUnderlineRows(int center, int area_top, int area_bottom, int *top, int *bottom);
+void VtUpdatePointerCursor(Vt100Rec *vt);
 void VtHyperlinkEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch);
 void VtScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 void VtScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);

@@ -11,11 +11,13 @@ Source review, 2026-09-23. These are proposed contribution scopes, not approved
 implementation assignments or promises of upstream acceptance.
 
 Revenant 0.8.0 pins `27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c`.
-Fetched upstream main is `7fb75b3c508ce8dfccfe796d9bec3cba75843d84`.
-There is no diff between those revisions in `src/terminal/` or
-`include/ghostty/vt/`, so the findings apply to both. The build checkout remains
-at the pin; fetching did not change it. No runtime behavior was newly measured
-for this review: findings below come from source, existing tests and Revenant's
+The development pin advanced to `b1d2b7ef1f1cf5cc0118298bad849870bc678298` on 2026-09-28.
+Ghostty PR #14371 is merged: its public mouse-shape getter now drives
+Revenant's Xcursor pointer handling. Other API gaps in this review remain
+independent of that getter; source links below retain the reviewed 0.8.0 baseline.
+At the original review, fetched upstream main was
+`7fb75b3c508ce8dfccfe796d9bec3cba75843d84`, with no terminal API diff from
+the 0.8.0 pin. No runtime behavior was newly measured for that source review: findings below come from source, existing tests and Revenant's
 recorded compatibility work.
 
 The relevant distinction is between a **missing C accessor**, a **missing effect
@@ -73,7 +75,7 @@ Ghostty.
 | Candidate | What already exists | Missing boundary | Revenant benefit | Recommendation |
 | --- | --- | --- | --- | --- |
 | Effective mouse tracking and encoding | `Terminal.flags.mouse_event` / `mouse_format`; C encoder copies both | Read access to the actual effective enums | Correct named Mouse Ops exceptions without reconstructing mode precedence | First small PR |
-| OSC 22 pointer shape | OSC parser, typed stream action, `Terminal.mouse_shape`; native app applies it | C terminal getter for shape, optionally change notification | Application-selected Xcursor shape, composed with hover policy | Second small PR |
+| OSC 22 pointer shape | OSC parser, typed stream action, `Terminal.mouse_shape`; native app applies it | C terminal getter for shape, optionally change notification | Application-selected Xcursor shape, composed with hover policy | Merged as PR #14371; implemented downstream |
 | Size-report request identity/policy | Typed `.size_report` action and reply encoder | Request-aware policy effect; existing size provider has no request identity | Remove the 14/16/18 observer and keep mode 2048 independent | Next focused effect PR |
 | Accepted semantic-prompt events | OSC 133 parser/options and terminal state updates | Post-acceptance event in Zig handler and C wrapper | Remove A/D observation and expose command completion/exit status | High-value follow-up |
 | Parsed color-operation policy | Parsed per-item set/query/reset operations | Before-operation allow/deny effect in handler and C wrapper | Remove dynamic-color permission observation | Material, but design first |
@@ -108,9 +110,9 @@ replacing each consumer's information *and* its before/after ordering.
 `vt_widget.c` for resource/live policy and `vt_draw.c` for the painted cursor;
 `selftest.c` covers its truth table. It also serves the stub build and does not
 need a stream hook. The pinned C API's
-render-hold callback and accepted PWD callback remain useful. The proposed
-mouse-shape getter on `toppk/ghostty:vt-mouse-shape` is **not in the pinned
-backend** and would expose accepted pointer state only; it replaces none of
+render-hold callback and accepted PWD callback remain useful. The
+mouse-shape getter from Ghostty PR #14371 is **in the development pin**
+and exposes accepted pointer state only; it replaces none of
 the six consumers above. The review's candidate entries are independent API
 asks, not one proposed generic escape callback.
 
@@ -152,21 +154,30 @@ Evidence: [C encoder][mouse-c], [C terminal getter][terminal-c],
 
 OSC 22 already becomes a validated `mouse.Shape` through `Stream` and is stored
 in `Terminal.mouse_shape`. The native application's handler updates that state
-and sends a UI message. The C terminal exposes neither shape state nor that UI
-effect. The standalone OSC parser's command type does not substitute for a
-terminal-state getter.
+and sends a UI message. The C terminal now exposes accepted shape state through
+`GHOSTTY_TERMINAL_DATA_MOUSE_SHAPE`; there is no change callback.
 
-Start with a C shape enum and terminal getter. Revenant can compare the value
-after a feed and update Xcursor when it changes. A callback is optional if
-upstream wants event-driven hosts; a getter is sufficient for Revenant's
-batched event loop. Preserve current invalid-name and reset behavior rather than
-quietly changing protocol semantics. Test every exported enum mapping, a split
-OSC, invalid input retaining state, successive changes, and existing reset
-behavior. Define initial `text` versus an explicit `default` carefully.
+Revenant reads the getter after output, maps all 34 enum values to W3C cursor
+names, and loads the effective shape through Xcursor. Missing theme shapes fall
+back to core-font cursors. Shift-hover links override the application shape;
+leaving restores the latest accepted shape. Updates also apply during synchronized
+output holds. Initial `text` uses an I-beam; explicit `default` uses an arrow.
+Invalid names and split OSC handling follow the backend. Backend resets preserve
+the accepted shape at this pin, matching xterm 411. Invalid-name behavior differs:
+xterm falls back to an I-beam. Selected xterm aliases such as `xterm` and `left_ptr`
+are accepted; the full cursor-font vocabulary is not supported. See the
+[pointer drift record](../compatibility/drift.md#pointer-shape-osc-22).
 
-Revenant consumer: V3, `osc-22-pointer-shape`,
-`just probe osc-22-pointer-shape input-pointer`. Xcursor allocation, hover
-precedence, disposal and native GUI observations remain downstream work.
+`XtpPointerShape` keeps backend types out of the widget; `XtpPointerShapeName`
+provides the canonical name table. The widget caches cursors lazily by enum value
+and frees every cached cursor at destruction. Refreshing is tied to
+`XtpVtUpdate`; paths feeding the core must also update the widget.
+
+The `pointer shape` self-test covers all enum mappings, selected aliases and split/invalid input.
+`xvfb-pointer-shape` reads native cursor images to check hover restoration,
+changes during hover, explicit default, holds, resize, reset, and detachment.
+The existing `xvfb-hyperlink-hover` test remains a separate regression check.
+Manual probe: `just probe osc-22-pointer-shape input-pointer`.
 
 Evidence: [stream dispatch][stream], [terminal state][terminal],
 [native application handler][native], [shape enum][mouse].
@@ -179,7 +190,8 @@ The signed commit [78494bad8][pointer-patch] is pushed to
 `GhosttyMouseShape` enum, ABI metadata and tests. It exposes accepted state;
 it does not add a callback or change OSC parsing. Validation passed: 78 focused
 tests, the library build, ABI schema validation and a C consumer smoke test.
-Revenant's dependency pin and pointer handling are unchanged.
+The patch merged on 2026-09-28; Revenant's development pin and pointer handling
+now include it.
 
 The upstream search on 2026-09-23 found two relevant precedents:
 

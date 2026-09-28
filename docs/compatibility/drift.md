@@ -656,7 +656,42 @@ the payload, NUL included, are data.
 
 This callback is APC-only. Unsupported OSC and CSI controls remain invisible
 to Revenant, which is an upstream API limitation rather than a place for a
-second escape parser; OSC 22 and OSC 50 stay on that upstream ask.
+second escape parser; OSC 50 stays on that upstream ask. OSC 22 now has a
+public terminal-state getter and is supported as described below.
+
+### Pointer shape (OSC 22)
+
+Revenant reads libghostty's accepted OSC 22 shape when `XtpVtUpdate` runs after
+terminal output and loads the corresponding W3C name through Xcursor. A caller
+that feeds the core without updating the widget delays pointer changes. Shapes
+are cached lazily and freed at widget destruction; missing theme entries use
+core-font approximations. Initial `text` selects an I-beam; explicit `default`
+selects an arrow. Shift-hover hyperlinks temporarily select a hand and leaving
+restores the latest application shape, including requests received during hover.
+Pointer updates apply during synchronized output holds, independently of painted
+terminal text. Incomplete OSC input waits for its terminator.
+
+xterm 411 accepts X cursor-font names through `misc.c:LookupCursorShape` and
+`xtermSetupPointer` (line 991). Revenant accepts W3C names and the subset of
+xterm/foot aliases recognized by libghostty's `src/terminal/mouse.zig:string_map`,
+including `xterm` → `text` and `left_ptr` → `default`. Common xterm names absent
+from this map include `hand2`, `sb_h_double_arrow`, `plus`, `top_left_arrow` and
+`X_cursor`; these requests leave the previous shape unchanged. Invalid names also
+leave Revenant's previous accepted shape unchanged, whereas xterm's
+`xtermSetupPointer` falls back to `XC_xterm` (I-beam).
+
+RIS and DECSTR preserve the requested shape in both terminals. In xterm 411,
+`xtermSetupPointer` is called only from `charproc.c:VTRealize` (line 12768) and
+`misc.c:do_osc` (line 4296), not from either reset path. Resize also preserves
+Revenant's requested shape. The `pointerShape`, `pointerColor`,
+`pointerColorBackground` and `pointerMode` resources remain unapplied; OSC 22
+support does not enable these resources or OSC 13/14 pointer colors.
+
+Evidence: `pointer shape` self-test (canonical shapes, aliases, invalid input and
+resets), `xvfb-pointer-shape` native cursor-image and serial checks, and
+`xvfb-hyperlink-hover` for existing hover behavior. The no-theme run exercises
+our fallback for W3C names such as `text` and `default`; Xcursor can resolve core
+names such as `crosshair` through the cursor font itself.
 
 ### Prompt navigation (OSC 133)
 

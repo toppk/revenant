@@ -40,6 +40,48 @@ typedef struct
 
 typedef enum
 {
+        XTP_POINTER_SHAPE_DEFAULT,
+        XTP_POINTER_SHAPE_CONTEXT_MENU,
+        XTP_POINTER_SHAPE_HELP,
+        XTP_POINTER_SHAPE_POINTER,
+        XTP_POINTER_SHAPE_PROGRESS,
+        XTP_POINTER_SHAPE_WAIT,
+        XTP_POINTER_SHAPE_CELL,
+        XTP_POINTER_SHAPE_CROSSHAIR,
+        XTP_POINTER_SHAPE_TEXT,
+        XTP_POINTER_SHAPE_VERTICAL_TEXT,
+        XTP_POINTER_SHAPE_ALIAS,
+        XTP_POINTER_SHAPE_COPY,
+        XTP_POINTER_SHAPE_MOVE,
+        XTP_POINTER_SHAPE_NO_DROP,
+        XTP_POINTER_SHAPE_NOT_ALLOWED,
+        XTP_POINTER_SHAPE_GRAB,
+        XTP_POINTER_SHAPE_GRABBING,
+        XTP_POINTER_SHAPE_ALL_SCROLL,
+        XTP_POINTER_SHAPE_COL_RESIZE,
+        XTP_POINTER_SHAPE_ROW_RESIZE,
+        XTP_POINTER_SHAPE_N_RESIZE,
+        XTP_POINTER_SHAPE_E_RESIZE,
+        XTP_POINTER_SHAPE_S_RESIZE,
+        XTP_POINTER_SHAPE_W_RESIZE,
+        XTP_POINTER_SHAPE_NE_RESIZE,
+        XTP_POINTER_SHAPE_NW_RESIZE,
+        XTP_POINTER_SHAPE_SE_RESIZE,
+        XTP_POINTER_SHAPE_SW_RESIZE,
+        XTP_POINTER_SHAPE_EW_RESIZE,
+        XTP_POINTER_SHAPE_NS_RESIZE,
+        XTP_POINTER_SHAPE_NESW_RESIZE,
+        XTP_POINTER_SHAPE_NWSE_RESIZE,
+        XTP_POINTER_SHAPE_ZOOM_IN,
+        XTP_POINTER_SHAPE_ZOOM_OUT,
+        XTP_POINTER_SHAPE_COUNT,
+} XtpPointerShape;
+
+/* Canonical W3C name for a public pointer shape. */
+const char *XtpPointerShapeName(XtpPointerShape shape);
+
+typedef enum
+{
         XTP_CURSOR_SHAPE_BLOCK,
         XTP_CURSOR_SHAPE_UNDERLINE,
         XTP_CURSOR_SHAPE_BAR,
@@ -438,6 +480,8 @@ XtpTerminal *XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, ui
                                              uint32_t cell_height, bool unicode_width);
 void XtpTerminalFree(XtpTerminal *terminal);
 void XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length);
+/* Accepted OSC 22 shape; callers refresh the widget after feeding output. */
+XtpPointerShape XtpTerminalPointerShape(const XtpTerminal *terminal);
 int XtpTerminalFeedOutput(XtpTerminal *terminal, const uint8_t *bytes, size_t length,
                           bool scroll_tty_output);
 /* Keeps the viewport on the same text while output arrives, as a search needs. */

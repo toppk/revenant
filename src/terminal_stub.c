@@ -45,6 +45,13 @@ XtpTerminalFree(XtpTerminal *terminal)
         free(terminal);
 }
 
+XtpPointerShape
+XtpTerminalPointerShape(const XtpTerminal *terminal)
+{
+        (void)terminal;
+        return XTP_POINTER_SHAPE_TEXT;
+}
+
 void
 XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
 {

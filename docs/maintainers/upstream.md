@@ -17,6 +17,9 @@ to read the configured pin. A local checkout may have been advanced independentl
 inspect the actual build inputs and binary provenance rather than assuming the
 checkout and configured pin agree.
 
+The current development pin is `b1d2b7ef1f1cf5cc0118298bad849870bc678298`, adopted on
+2026-09-28 for the merged OSC 22 mouse-shape getter (Ghostty PR #14371).
+
 The maintainer selects dependency revisions. The coordinated Unicode 18 migration adopted
 `27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c`; see the
 [provenance and behavior record](unicode-18-migration.md). When Ghostty 1.4.0 is released,

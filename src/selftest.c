@@ -6602,6 +6602,65 @@ typedef struct
 } SelfTestCase;
 
 static int
+SelfTestPointerShape(void)
+{
+        static const struct
+        {
+                const char *bytes;
+                XtpPointerShape shape;
+        } cases[] = {
+            {"\033]22;crosshair\007", XTP_POINTER_SHAPE_CROSSHAIR},
+            {"\033]22;not-a-shape\007", XTP_POINTER_SHAPE_CROSSHAIR},
+            {"\033]22;wait", XTP_POINTER_SHAPE_CROSSHAIR},
+            {"\007", XTP_POINTER_SHAPE_WAIT},
+            {"\033]22;text\033\\", XTP_POINTER_SHAPE_TEXT},
+            // The backend dispatches the accepted name when CAN ends this OSC.
+            {"\033]22;pointer\030", XTP_POINTER_SHAPE_POINTER},
+            {"\033]8;;https://example.com\033\\link\033]8;;\033\\", XTP_POINTER_SHAPE_POINTER},
+            {"\033[!p\033c", XTP_POINTER_SHAPE_POINTER},
+            {"\033]22;xterm\007", XTP_POINTER_SHAPE_TEXT},
+            {"\033]22;left_ptr\007", XTP_POINTER_SHAPE_DEFAULT},
+            {"\033]22;crosshair\007\033]22;hand2\007", XTP_POINTER_SHAPE_CROSSHAIR},
+        };
+        XtpTerminal *terminal = XtpTerminalNewWithGraphemeWidth(80, 24, 8, 16, false);
+        size_t index;
+        XtpPointerShape shape;
+        int result = -1;
+
+        if (terminal == NULL)
+                return -1;
+        if (XtpTerminalPointerShape(terminal) != XTP_POINTER_SHAPE_TEXT)
+                goto done;
+        if (XtpTerminalBackendIsStub()) {
+                result = 0;
+                goto done;
+        }
+        for (shape = 0; shape < XTP_POINTER_SHAPE_COUNT; ++shape) {
+                char bytes[64];
+                int length =
+                    snprintf(bytes, sizeof(bytes), "\033]22;%s\007", XtpPointerShapeName(shape));
+
+                XtpTerminalFeed(terminal, (const uint8_t *)bytes, (size_t)length);
+                if (XtpTerminalPointerShape(terminal) != shape)
+                        goto done;
+        }
+        for (index = 0; index < sizeof(cases) / sizeof(cases[0]); ++index) {
+                XtpTerminalFeed(terminal, (const uint8_t *)cases[index].bytes,
+                                strlen(cases[index].bytes));
+                if (XtpTerminalPointerShape(terminal) != cases[index].shape) {
+                        XtpLog(XTP_LOG_ERROR, "self-test", "pointer case %zu expected=%s actual=%s",
+                               index, XtpPointerShapeName(cases[index].shape),
+                               XtpPointerShapeName(XtpTerminalPointerShape(terminal)));
+                        goto done;
+                }
+        }
+        result = 0;
+done:
+        XtpTerminalFree(terminal);
+        return result;
+}
+
+static int
 RunSelfTestCases(const SelfTestCase *cases, size_t count)
 {
         size_t index;
@@ -6641,6 +6700,7 @@ XtpSelfTest(void)
             {"background-opacity", SelfTestBackgroundOpacity},
         };
         static const SelfTestCase backend_cases[] = {
+            {"pointer shape", SelfTestPointerShape},
             {"terminal reports", SelfTestTerminalReports},
             {"size-report policy", SelfTestSizeReportPolicy},
             {"cursor-blink policy", SelfTestCursorBlinkPolicy},

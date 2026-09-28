@@ -128,6 +128,16 @@ terminal text, is underlined while Shift is held and the pointer is over it.
 Shift+Button 1 on such text opens the link with **xdg-open**(1); only **http**
 and **https** links are opened.
 
+Applications can select the pointer shape with OSC 22 and a W3C cursor name,
+for example `ESC ] 22 ; crosshair ST`. Revenant loads the theme's Xcursor shape,
+with a core-font approximation when it is unavailable. The initial shape is
+`text` (I-beam); `default` selects an arrow. Shift-hover links temporarily select
+a hand; leaving restores the latest application shape. Invalid names retain the
+previous shape, unlike xterm's I-beam fallback. Selected xterm aliases such as
+`xterm` and `left_ptr` are accepted; xterm's full cursor-font name set is not.
+RIS and DECSTR retain the shape as in xterm. Pointer shape, color, and hiding
+resources remain unapplied.
+
 # MENUS
 
 The three popup menus keep xterm's names and entries. An entry that

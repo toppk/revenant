@@ -56,7 +56,7 @@ The temporary implementation queue has been retired. Remaining decisions are:
 
 - **Ghostty 1.4.0 release checkpoint (maintainer-owned):** when the release is
   available, compare its exact commit against the adopted development pin
-  `27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c`. Review intervening API and data changes,
+  `b1d2b7ef1f1cf5cc0118298bad849870bc678298`. Review intervening API and data changes,
   adopt an exact release commit, and repeat Unicode work only for an actual delta.
   Run the required supported-build/package matrix once at the final dependency
   checkpoint, including the no-skips release gate. Verify backend/data provenance,

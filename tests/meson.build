@@ -54,6 +54,19 @@ sync_output_paint_test_tool = executable(
     install: false,
 )
 
+xfixes_dep = dependency('xfixes', required: false)
+if build_with_ghostty and xfixes_dep.found()
+    pointer_shape_test_tool = executable(
+        'xtp-pointer-shape',
+        'xtp-pointer-shape.c',
+        paint_test_sources,
+        include_directories: test_include_directories,
+        c_args: terminal_compile_args,
+        dependencies: widget_test_dependencies + [xfixes_dep],
+        install: false,
+    )
+endif
+
 search_lifecycle_test_tool = executable(
     'xtp-search-lifecycle',
     'xtp-search-lifecycle.c',
@@ -1212,6 +1225,16 @@ if build_with_ghostty and xvfb.found()
             selection_test_tool,
         ],
     )
+    if xfixes_dep.found()
+        test(
+            'xvfb-pointer-shape',
+            find_program('sh'),
+            args: [files('xvfb-pointer-shape.sh'), xvfb.full_path(),
+                   pointer_shape_test_tool, files('xvfb-test-lib.sh')],
+            timeout: 30,
+            is_parallel: false,
+        )
+    endif
     test(
         'xvfb-hyperlink-hover',
         find_program('sh'),

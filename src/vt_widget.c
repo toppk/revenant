@@ -412,6 +412,8 @@ Realize(Widget widget, XtValueMask *value_mask, XSetWindowAttributes *attributes
 
         (*superclass->core_class.realize)(widget, value_mask, attributes);
         VtInitializeInput(VtAsRecord(widget));
+        VtAsRecord(widget)->vt.pointer_shape = XTP_POINTER_SHAPE_COUNT;
+        VtUpdatePointerCursor(VtAsRecord(widget));
 }
 
 Vt100Rec *
@@ -1178,8 +1180,10 @@ Destroy(Widget widget)
                 XDestroyWindow(XtDisplay(widget), vt->vt.clipboard_window);
         free(vt->vt.hovered_hyperlink.uri);
         free(vt->vt.pressed_hyperlink.uri);
-        if (vt->vt.hyperlink_cursor != None)
-                XFreeCursor(XtDisplay(widget), vt->vt.hyperlink_cursor);
+        for (slot = 0; slot < XTP_POINTER_SHAPE_COUNT; ++slot) {
+                if (vt->vt.pointer_cursors[slot] != None)
+                        XFreeCursor(XtDisplay(widget), vt->vt.pointer_cursors[slot]);
+        }
         for (color = 0; color < vt->vt.color_count; ++color) {
                 if (vt->vt.colors[color].used && vt->vt.colors[color].owned) {
                         Pixel pixel = vt->vt.colors[color].allocation_pixel;
@@ -2387,6 +2391,7 @@ XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
         if (vt->vt.terminal != NULL && vt->vt.terminal != terminal)
                 XtpTerminalSetRenderHold(vt->vt.terminal, NULL, NULL);
         vt->vt.terminal = terminal;
+        VtUpdatePointerCursor(vt);
         CancelSynchronizedOutputTimer(vt);
         vt->vt.sync_output_held = 0;
         vt->vt.sync_output_full_redraw = False;
@@ -2460,6 +2465,7 @@ XtpVtUpdate(Widget widget)
         }
         if (!XtIsRealized(widget) || vt->vt.terminal == NULL)
                 return;
+        VtUpdatePointerCursor(vt);
         if (HoldSynchronizedOutput(vt, &force_full))
                 return;
         XtpLog(XTP_LOG_DEBUG, "render", "dirty update requested");

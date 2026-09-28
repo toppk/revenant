@@ -446,3 +446,18 @@ features:
     evidence:
     - kind: test
       url: https://github.com/toppk/revenant/blob/3c1d6645fca28238ecd7529b33ae7e71955a04d9/tests/xvfb-search.sh
+  osc-22-pointer-shape:
+    status: supported
+    as-of: 0.9.0-dev
+    notes: Accepted W3C names select themed Xcursor shapes with core-font fallbacks. Initial text selects an I-beam;
+      default selects an arrow. Shift-hover links override the application shape and leaving restores the latest
+      request. Accepts W3C names and selected xterm/foot aliases (xterm, left_ptr); missing xterm names include hand2,
+      sb_h_double_arrow, plus, top_left_arrow and X_cursor. Invalid names retain state, unlike xterm's I-beam fallback.
+      Split OSC waits for completion. RIS/DECSTR retain the shape as in xterm; resize also retains it.
+    review: reviewed
+    checked: '2026-09-28'
+    evidence:
+    - kind: test
+      url: https://github.com/toppk/revenant/blob/master/tests/xtp-pointer-shape.c
+    - kind: source
+      url: https://github.com/toppk/revenant/blob/master/src/vt_interaction.c

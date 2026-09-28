@@ -87,7 +87,7 @@ additionally needs Zig, because `libghostty-vt` is built from Ghostty's source.
 
     ```sh
     sudo dnf install gcc meson ninja-build zig \
-      libX11-devel libXt-devel libXaw-devel libXft-devel libXrender-devel \
+      libX11-devel libXt-devel libXaw-devel libXft-devel libXrender-devel libXcursor-devel \
       fontconfig-devel cairo-devel harfbuzz-devel libxcb-devel libnotify-devel
     ```
 
@@ -95,7 +95,7 @@ additionally needs Zig, because `libghostty-vt` is built from Ghostty's source.
 
     ```sh
     sudo apt install build-essential meson ninja-build zig \
-      libx11-dev libxt-dev libxaw7-dev libxft-dev libxrender-dev \
+      libx11-dev libxt-dev libxaw7-dev libxft-dev libxrender-dev libxcursor-dev \
       libfontconfig1-dev libcairo2-dev libharfbuzz-dev libxcb1-dev libnotify-dev
     ```
 
