@@ -42,10 +42,11 @@ self-test and `xvfb-hold`. Native probes and their limitations are documented in
 [the probe reference](../reference/probes.md).
 
 The UTF-8 title surface (T1b), startup geometry correction, and login-shell
-invocation (P2b) shipped in 0.8.0. The [release retrospective](releasing.md#080-retrospective-and-next-release-changes)
-records the validation and publication process. The temporary release branch
-has been removed. The release uses the tested Ghostty development pin;
-adopting Ghostty 1.4.0 remains a separate checkpoint.
+invocation (P2b) shipped in 0.8.0. Version 0.8.1 adds the window PID and child
+`WINDOWID` link for session tools, retaining 0.8.0's backend pin. Use the
+[release guide](releasing.md) and `packaging/release` for future releases;
+build-once artifact promotion remains a separate workflow improvement.
+Adopting Ghostty 1.4.0 remains an independent checkpoint.
 
 ## Upstream integration follow-ups
 

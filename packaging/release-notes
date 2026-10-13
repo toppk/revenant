@@ -30,8 +30,10 @@ TRAILING_COMMIT_LINKS = re.compile(
 )
 
 
-def entry(version):
-    lines = (Path(ROOT) / "CHANGELOG.md").read_text(encoding="utf-8").splitlines()
+def entry(version, text=None):
+    if text is None:
+        text = (Path(ROOT) / "CHANGELOG.md").read_text(encoding="utf-8")
+    lines = text.splitlines()
     body, inside, date = [], False, None
     for line in lines:
         match = HEADING.match(line)
@@ -110,22 +112,20 @@ def artifacts(dist):
     return rows
 
 
-def main(argv):
-    if len(argv) not in (2, 3):
-        sys.exit(__doc__.strip())
-    version = argv[1].removeprefix("v")
+def render(version, dist, *, source=None, changelog=None, repo=REPO):
+    """Render notes using the selected source's changelog and exact artifact set."""
     try:
         parsed = versions(version)
     except ValueError as error:
         sys.exit(str(error))
-    dist = argv[2] if len(argv) == 3 else os.path.join(ROOT, "dist")
-    date, summary, bullets = entry(parsed["base"])
+    date, summary, bullets = entry(parsed["base"], changelog)
     candidate = parsed["prerelease"] == "true"
     if not candidate and not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", date):
         sys.exit("final release requires a dated changelog entry")
-    source = os.environ.get("RELEASE_SOURCE_SHA", "v" + version)
-    if "RELEASE_SOURCE_SHA" in os.environ and not re.fullmatch(r"[0-9a-f]{40}", source):
+    source = source or os.environ.get("RELEASE_SOURCE_SHA")
+    if source is not None and not re.fullmatch(r"[0-9a-f]{40}", source):
         sys.exit("RELEASE_SOURCE_SHA must be a full commit SHA")
+    source = source or "v" + version
     label = (
         f"Release candidate {version}; changes planned for {parsed['base']}"
         if candidate
@@ -138,7 +138,7 @@ def main(argv):
         "",
         "## Changes",
         "",
-        f"{label}. Full history in [CHANGELOG.md](https://github.com/{REPO}/blob/{source}/CHANGELOG.md).",
+        f"{label}. Full history in [CHANGELOG.md](https://github.com/{repo}/blob/{source}/CHANGELOG.md).",
         "",
         bullets,
         "",
@@ -161,15 +161,23 @@ def main(argv):
         "open an issue if that affects you.",
         "",
         "Each file carries a signed [build provenance attestation]"
-        f"(https://github.com/{REPO}/attestations) from the workflow run; verify a download with "
-        f"`gh attestation verify FILE --repo {REPO}`.",
+        f"(https://github.com/{repo}/attestations) from the workflow run; verify a download with "
+        f"`gh attestation verify FILE --repo {repo}`.",
         "",
         "All builds link the pinned libghostty-vt from `tools/fetch-libghostty` and were built by the "
         "[Release workflow](https://github.com/"
-        + REPO
+        + repo
         + "/actions/workflows/release.yml).",
     ]
-    print("\n".join(out))
+    return "\n".join(out)
+
+
+def main(argv):
+    if len(argv) not in (2, 3):
+        sys.exit(__doc__.strip())
+    version = argv[1].removeprefix("v")
+    dist = argv[2] if len(argv) == 3 else os.path.join(ROOT, "dist")
+    print(render(version, dist))
 
 
 if __name__ == "__main__":

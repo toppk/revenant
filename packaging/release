@@ -1,0 +1,497 @@
+#!/usr/bin/env python3
+"""Validate, draft, verify and publish releases through the existing workflow.
+
+No pull requests, implicit publication, tag replacement, or shell interpolation.
+Each stage selects an explicit source or workflow run; downloads and proofs are
+retained under .cache/releases/ (override with --state-dir).
+"""
+
+import argparse
+import base64
+import hashlib
+import importlib.machinery
+import importlib.util
+import json
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+import time
+
+from release_version import versions
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def helper(name):
+    loader = importlib.machinery.SourceFileLoader(
+        name.replace("-", "_"), str(ROOT / "packaging" / name)
+    )
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+manifest_tool = helper("release-manifest")
+notes_tool = helper("release-notes")
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def release_identity(release):
+    """Ignore download counters while comparing approval-relevant metadata."""
+    return {
+        key: (
+            sorted(
+                [
+                    {
+                        name: value
+                        for name, value in asset.items()
+                        if name != "downloadCount"
+                    }
+                    for asset in release["assets"]
+                ],
+                key=lambda asset: asset["name"],
+            )
+            if key == "assets"
+            else release[key]
+        )
+        for key in ("id", "tagName", "isDraft", "isPrerelease", "body", "assets")
+    }
+
+
+class Release:
+    def __init__(self, repo, state_dir):
+        require(
+            re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo), "Invalid repository"
+        )
+        self.repo = repo
+        self.state_dir = Path(state_dir)
+
+    def command(self, *args, data=None):
+        result = subprocess.run(
+            args,
+            input=data,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=120,
+        )
+        if result.returncode:
+            raise ValueError(
+                f"{' '.join(args)}: "
+                + (result.stderr.strip() or result.stdout.strip() or "command failed")
+            )
+        return result.stdout
+
+    def gh(self, *args):
+        return self.command("gh", *args, "--repo", self.repo)
+
+    def api(self, path, data=None):
+        args = ["gh", "api", f"repos/{self.repo}/{path}"]
+        if data is not None:
+            args += ["--method", "POST", "--input", "-"]
+        return json.loads(
+            self.command(*args, data=json.dumps(data) if data is not None else None)
+        )
+
+    def existing_release(self, tag):
+        # gh finds authenticated drafts as well as published releases.
+        try:
+            return json.loads(
+                self.gh("release", "view", tag, "--json", "tagName,isDraft")
+            )
+        except ValueError as error:
+            if str(error).endswith("release not found"):
+                return None
+            raise
+
+    def content(self, path, source):
+        value = self.api(f"contents/{path}?ref={source}")
+        require(value.get("encoding") == "base64", f"Cannot read {path} at {source}")
+        return base64.b64decode(value["content"]).decode("utf-8")
+
+    def run(self, run_id, complete=True):
+        require(
+            re.fullmatch(r"[1-9][0-9]*", str(run_id)),
+            "Select an explicit numeric run ID",
+        )
+        run = self.api(f"actions/runs/{run_id}")
+        require(
+            (run.get("repository") or {}).get("full_name") == self.repo
+            and (run.get("head_repository") or {}).get("full_name") == self.repo
+            and run["path"] == ".github/workflows/release.yml"
+            and run["event"] == "workflow_dispatch",
+            "Run is not from the trusted release workflow",
+        )
+        require(
+            re.fullmatch(r"[0-9a-f]{40}", run["head_sha"]), "Invalid run source SHA"
+        )
+        if complete:
+            require(
+                run["status"] == "completed" and run["conclusion"] == "success",
+                f"Release run {run_id} has not succeeded",
+            )
+        return run
+
+    def wait(self, run_id):
+        deadline = time.monotonic() + 90 * 60
+        previous = None
+        while True:
+            run = self.run(run_id, complete=False)
+            jobs = self.api(f"actions/runs/{run_id}/jobs?per_page=100")["jobs"]
+            status = ", ".join(
+                f"{job['name']}: {job['conclusion'] or job['status']}" for job in jobs
+            )
+            if status != previous:
+                print(status or f"Run {run_id}: {run['status']}", flush=True)
+                previous = status
+            if run["status"] == "completed":
+                return self.run(run_id)
+            require(
+                time.monotonic() < deadline, f"Timed out; resume with run ID {run_id}"
+            )
+            time.sleep(15)
+
+    def dispatch(self, ref, **inputs):
+        args = ["workflow", "run", "release.yml", "--ref", ref]
+        for key, value in inputs.items():
+            args += ["-f", f"{key}={value}"]
+        output = self.gh(*args)
+        match = re.search(
+            rf"https://github\.com/{re.escape(self.repo)}/actions/runs/([0-9]+)", output
+        )
+        require(
+            match,
+            "Dispatch returned no run URL; inspect Actions before retrying (gh 2.97+ required)",
+        )
+        print(match.group(0), flush=True)
+        return match.group(1)
+
+    def ordinary_ci(self, source):
+        for workflow in ("test.yml", "docs.yml"):
+            runs = json.loads(
+                self.gh(
+                    "run",
+                    "list",
+                    "--workflow",
+                    workflow,
+                    "--commit",
+                    source,
+                    "--event",
+                    "push",
+                    "--limit",
+                    "100",
+                    "--json",
+                    "headSha,status,conclusion",
+                )
+            )
+            require(
+                any(
+                    run["headSha"] == source
+                    and run["status"] == "completed"
+                    and run["conclusion"] == "success"
+                    for run in runs
+                ),
+                f"{workflow} must pass for {source} before package validation",
+            )
+
+    def workspace(self, version, run_id):
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        root = Path(tempfile.mkdtemp(prefix=f"{version}-{run_id}-", dir=self.state_dir))
+        (root / "assets").mkdir()
+        (root / "provenance").mkdir()
+        return root
+
+    def check_assets(self, root, version, run):
+        assets = root / "assets"
+        require(
+            all(path.is_file() and not path.is_symlink() for path in assets.iterdir()),
+            "Assets must be regular files",
+        )
+        manifest_tool.main(["--check", str(assets), version, run["head_sha"]])
+        manifest = json.loads((assets / "release-manifest.json").read_text())
+        require(
+            str(manifest["run_id"]) == str(run["id"])
+            and str(manifest["run_attempt"]) == str(run["run_attempt"]),
+            "Manifest run or attempt differs",
+        )
+        pin = re.search(
+            r"^readonly reference=([0-9a-f]{40})$",
+            self.content("tools/fetch-libghostty", run["head_sha"]),
+            re.M,
+        )
+        require(
+            pin and pin.group(1) == manifest["libghostty_sha"],
+            "Backend pin differs from source",
+        )
+        require(len(list(assets.iterdir())) == 6, "Expected exactly six assets")
+        return manifest
+
+    def validation(self, version, run_id):
+        versions(version)
+        run = self.run(run_id)
+        root = self.workspace(version, run_id)
+        incoming = root / "incoming"
+        self.gh(
+            "run",
+            "download",
+            str(run_id),
+            "--pattern",
+            "package-*",
+            "--pattern",
+            "candidate-manifest",
+            "--dir",
+            str(incoming),
+        )
+        for path in incoming.rglob("*"):
+            require(not path.is_symlink(), "Artifact contains a symlink")
+            if path.is_file():
+                target = root / "assets" / path.name
+                require(not target.exists(), "Duplicate artifact filename")
+                shutil.copy2(path, target)
+        manifest = self.check_assets(root, version, run)
+        print(f"Validation verified: {root}", flush=True)
+        return run, manifest
+
+    def tag_source(self, tag):
+        ref = self.api(f"git/ref/tags/{tag}")["object"]
+        for _ in range(8):
+            if ref["type"] != "tag":
+                require(ref["type"] == "commit", "Tag does not identify a commit")
+                return ref["sha"]
+            ref = self.api(f"git/tags/{ref['sha']}")["object"]
+        raise ValueError("Excessive nested tags")
+
+    def release_info(self, version, state):
+        release = json.loads(
+            self.gh(
+                "release",
+                "view",
+                "v" + version,
+                "--json",
+                "tagName,isDraft,isPrerelease,assets,body,url,id",
+            )
+        )
+        require(release["tagName"] == "v" + version, "Wrong release tag")
+        require(release["isDraft"] == (state == "draft"), f"Release is not {state}")
+        require(
+            release["isPrerelease"] == (versions(version)["prerelease"] == "true"),
+            "Wrong prerelease policy",
+        )
+        require(len(release["assets"]) == 6, "Release must have exactly six assets")
+        if state == "published":
+            require(
+                self.api("releases/tags/v" + version).get("immutable") is True,
+                "Published release is not immutable",
+            )
+        return release
+
+    def verify(self, version, run_id, state):
+        versions(version)
+        run = self.run(run_id)
+        release = self.release_info(version, state)
+        source = run["head_sha"]
+        require(
+            self.tag_source("v" + version) == source,
+            "Remote tag differs from the selected run",
+        )
+        root = self.workspace(version, run_id)
+        self.gh("release", "download", "v" + version, "--dir", str(root / "assets"))
+        manifest = self.check_assets(root, version, run)
+        expected = notes_tool.render(
+            version,
+            str(root / "assets"),
+            source=source,
+            changelog=self.content("CHANGELOG.md", source),
+            repo=self.repo,
+        )
+        require(
+            release["body"].strip() == expected.strip(),
+            "Release notes differ from source or assets",
+        )
+        for asset in sorted((root / "assets").iterdir()):
+            proof = self.gh(
+                "attestation",
+                "verify",
+                str(asset),
+                "--signer-workflow",
+                f"{self.repo}/.github/workflows/release.yml",
+                "--source-digest",
+                source,
+                "--signer-digest",
+                source,
+                "--format",
+                "json",
+            )
+            require(json.loads(proof), f"No verified provenance for {asset.name}")
+            (root / "provenance" / (asset.name + ".json")).write_text(proof)
+        digests = {}
+        for asset in sorted((root / "assets").iterdir()):
+            with asset.open("rb") as stream:
+                digests[asset.name] = hashlib.file_digest(stream, "sha256").hexdigest()
+        record = dict(
+            version=version,
+            source=source,
+            run_id=str(run_id),
+            state=state,
+            release=release,
+            manifest=manifest,
+            digests=digests,
+        )
+        (root / "report.json").write_text(json.dumps(record, indent=2) + "\n")
+        print(f"Verified {state}: {release['url']}\nEvidence: {root}", flush=True)
+        return record
+
+    def validate(self, version, ref, no_wait):
+        versions(version)
+        source = self.api(f"commits/{ref}")["sha"]
+        require(re.fullmatch(r"[0-9a-f]{40}", source), "Invalid source SHA")
+        self.ordinary_ci(source)
+        notes_tool.render(
+            version,
+            "/nonexistent",
+            source=source,
+            changelog=self.content("CHANGELOG.md", source),
+            repo=self.repo,
+        )
+        # The workflow rejects branch movement through its exact source/workflow check.
+        run_id = self.dispatch(ref, mode="validate", source=source, version=version)
+        require(
+            self.run(run_id, complete=False)["head_sha"] == source,
+            "Dispatched the wrong source",
+        )
+        if not no_wait:
+            self.wait(run_id)
+            self.validation(version, run_id)
+        print(f"Next: packaging/release draft {version} --run {run_id}", flush=True)
+
+    def draft(self, version, run_id, no_wait):
+        run, _ = self.validation(version, run_id)
+        source = run["head_sha"]
+        self.ordinary_ci(source)
+        # Require publishable notes before creating any remote tag.
+        notes_tool.render(
+            version,
+            "/nonexistent",
+            source=source,
+            changelog=self.content("CHANGELOG.md", source),
+            repo=self.repo,
+        )
+        tag = "v" + version
+        require(
+            self.existing_release(tag) is None,
+            "Release already exists; verify it or inspect a failed draft before retrying",
+        )
+        # An existing tag is reusable only at this exact commit; never replace it.
+        tags = self.api(f"git/matching-refs/tags/{tag}")
+        exact = [value for value in tags if value["ref"] == f"refs/tags/{tag}"]
+        if exact:
+            require(self.tag_source(tag) == source, "Existing tag points elsewhere")
+        else:
+            annotation = self.api(
+                "git/tags",
+                dict(
+                    tag=tag, message="Revenant " + version, object=source, type="commit"
+                ),
+            )
+            self.api("git/refs", dict(ref="refs/tags/" + tag, sha=annotation["sha"]))
+        draft_run = self.dispatch(tag, mode="draft", tag=tag)
+        require(
+            self.run(draft_run, complete=False)["head_sha"] == source,
+            "Draft source changed",
+        )
+        if not no_wait:
+            self.wait(draft_run)
+            self.verify(version, draft_run, "draft")
+        print(
+            f"After approval: packaging/release publish {version} --run {draft_run}",
+            flush=True,
+        )
+
+    def publish(self, version, run_id):
+        require(
+            self.api("immutable-releases").get("enabled") is True,
+            "Enable release immutability first",
+        )
+        before = self.verify(version, run_id, "draft")
+        # Refuse metadata or asset replacement between verification and publication.
+        require(
+            release_identity(self.release_info(version, "draft"))
+            == release_identity(before["release"]),
+            "Draft changed after verification",
+        )
+        require(
+            self.tag_source("v" + version) == before["source"],
+            "Tag changed after verification",
+        )
+        prerelease = versions(version)["prerelease"] == "true"
+        self.gh(
+            "release",
+            "edit",
+            "v" + version,
+            "--verify-tag",
+            "--draft=false",
+            f"--prerelease={str(prerelease).lower()}",
+            f"--latest={str(not prerelease).lower()}",
+        )
+        after = self.verify(version, run_id, "published")
+        require(
+            after["digests"] == before["digests"],
+            "Published bytes differ from the verified draft",
+        )
+        print(
+            "Published assets match the approved draft; no package rebuild.", flush=True
+        )
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", default="toppk/revenant")
+    parser.add_argument("--state-dir", type=Path, default=ROOT / ".cache" / "releases")
+    commands = parser.add_subparsers(dest="command", required=True)
+    for name in ("validate", "draft", "verify", "publish"):
+        command = commands.add_parser(name)
+        command.add_argument("version")
+        if name == "validate":
+            command.add_argument(
+                "--ref", required=True, help="Pushed release branch or tag"
+            )
+        else:
+            command.add_argument(
+                "--run",
+                required=True,
+                help="Explicit successful release workflow run ID",
+            )
+        if name in ("validate", "draft"):
+            command.add_argument(
+                "--no-wait",
+                action="store_true",
+                help="Dispatch and return without waiting or verifying",
+            )
+        if name == "verify":
+            command.add_argument(
+                "--state", choices=("draft", "published"), default="published"
+            )
+    args = parser.parse_args(argv)
+    release = Release(args.repo, args.state_dir)
+    try:
+        if args.command == "validate":
+            release.validate(args.version, args.ref, args.no_wait)
+        elif args.command == "draft":
+            release.draft(args.version, args.run, args.no_wait)
+        elif args.command == "verify":
+            release.verify(args.version, args.run, args.state)
+        else:
+            release.publish(args.version, args.run)
+    except (ValueError, KeyError, OSError, subprocess.SubprocessError) as error:
+        parser.exit(1, f"Release stopped: {error}\n")
+
+
+if __name__ == "__main__":
+    main()

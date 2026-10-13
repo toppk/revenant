@@ -198,13 +198,20 @@ records into independently tested behavior. Preserve published IDs when
 moving or rewriting pages. Do not turn unknown into unsupported merely
 because a query is denied or a probe has not been run.
 
-## Current release state — 2026-09-24
+## Current release state — 2026-10-13
 
-Revenant 0.8.0 is published from `v0.8.0` (`fb1745c`). Feature scope and
-release evidence are recorded in `CHANGELOG.md` and the
-[release retrospective](docs/maintainers/releasing.md#080-retrospective-and-next-release-changes).
-The temporary release branch has been removed. The release retains the tested
-Ghostty development pin; the 1.4.0 adoption checkpoint is separate.
+Revenant 0.8.1 is published from `v0.8.1` (`8d20e89`), fixing X11/Xwayland
+window identity for PTY session association while retaining 0.8.0's backend pin.
+The fix, notes and release ancestry are reconciled on master. The published
+assets and attestations were verified before and after publication.
+
+Use `packaging/release` and the [release guide](docs/maintainers/releasing.md)
+for validation, draft verification and explicit publication. Owner-maintained
+releases do not require PRs. Preserve pending development work during release
+isolation and reconciliation. The current workflow still builds packages during
+both validation and draft preparation; publication rebuilds nothing. Build-once
+promotion remains separate future work. The Ghostty 1.4.0 adoption checkpoint
+is independent of this patch release.
 
 The active implementation queue is `todo.md`. Kitty graphics remains honestly
 Missing and is parked during the current drain. The immediately useful work is
