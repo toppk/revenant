@@ -670,6 +670,12 @@ selects an arrow. Shift-hover hyperlinks temporarily select a hand and leaving
 restores the latest application shape, including requests received during hover.
 Pointer updates apply during synchronized output holds, independently of painted
 terminal text. Incomplete OSC input waits for its terminator.
+At the October 9 dependency pin, CAN and SUB discard an in-progress OSC 22
+without applying its shape (`src/terminal/osc.zig:Parser.end`). This replaces the
+previous pin's dispatch-on-cancel behavior and agrees with xterm 411's
+`charproc.c:CASE_CAN`/`CASE_SUB` cancellation paths. An empty OSC 22 now restores
+libghostty-vt's initial `text` shape (`stream.zig:mouse_shape` dispatch and
+`stream_terminal.zig:mouse_shape_reset`); unknown nonempty names remain ignored.
 
 xterm 411 accepts X cursor-font names through `misc.c:LookupCursorShape` and
 `xtermSetupPointer` (line 991). Revenant accepts W3C names and the subset of

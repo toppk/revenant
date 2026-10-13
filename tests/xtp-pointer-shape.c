@@ -156,6 +156,9 @@ main(int argc, char **argv)
         Feed(&h, "\033[!p\033c");
         Expect(&h, XtpTerminalPointerShape(h.terminal) == XTP_POINTER_SHAPE_CROSSHAIR,
                "backend reset semantics changed");
+        Feed(&h, "\033]22;\033\\");
+        Expect(&h, CursorImage(&h, &serial) == text_image,
+               "empty OSC 22 did not restore the initial text pointer");
         XtpVtSetTerminal(h.widget, NULL);
         Expect(&h, CursorImage(&h, &serial) == text_image,
                "detaching the terminal did not restore text");

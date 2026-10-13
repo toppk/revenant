@@ -14,8 +14,11 @@ commit. Published tags and assets are never replaced.
 
 - Honor application OSC 22 pointer-shape requests with themed Xcursor shapes and
   core-font fallbacks. Shift-hover hyperlinks temporarily select a hand; leaving
-  restores the latest application shape. Update the libghostty development pin to
-  `b1d2b7ef1f1cf5cc0118298bad849870bc678298`, which includes the public mouse-shape getter.
+  restores the latest application shape.
+- Update the libghostty development pin to
+  `b115e456749e2820a14d3942a63159ff8d46d925`, which includes the public mouse-shape
+  getter, OSC 7501 program-status C callback, and subsequent terminal fixes through
+  DECSTR support.
 
 ## 0.8.1 — 2026-10-13
 

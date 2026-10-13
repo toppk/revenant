@@ -17,8 +17,19 @@ to read the configured pin. A local checkout may have been advanced independentl
 inspect the actual build inputs and binary provenance rather than assuming the
 checkout and configured pin agree.
 
-The current development pin is `b1d2b7ef1f1cf5cc0118298bad849870bc678298`, adopted on
-2026-09-28 for the merged OSC 22 mouse-shape getter (Ghostty PR #14371).
+The current development pin is `b115e456749e2820a14d3942a63159ff8d46d925`, adopted on
+2026-10-09. It includes the OSC 22 mouse-shape getter (Ghostty PR #14371), the
+OSC 7501 program-status C callback (PR #14560), and subsequent terminal fixes
+through DECSTR support (PR #14538).
+
+The October 9 checkpoint rebuilt the normal binary and passed the full GCC,
+Clang and AddressSanitizer suites (76 tests per build, all passing, no skips),
+plus the stub suite (19 passing). A standalone C probe verified the OSC 7501
+report fields, decoded text, support-query gating, and RIS/DECSTR behavior.
+The Unicode data dependency is unchanged from the previous pin. Pointer tests
+now cover CAN/SUB cancellation and empty OSC 22 restoring the text shape;
+the old dispatch-on-cancel expectation was replaced after checking upstream
+and the xterm-411 oracle.
 
 The maintainer selects dependency revisions. The coordinated Unicode 18 migration adopted
 `27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c`; see the
@@ -34,6 +45,11 @@ record compatibility decisions in the
 The [libghostty C API review](libghostty-c-api-review.md) separates missing
 accessors and effects from protocol work, with proposed PR scopes and concrete
 Revenant consumers. It is a decision record, not an implementation assignment.
+
+The review also tracks [OSC 7501 program status](libghostty-c-api-review.md#program-status-osc-7501-ghostty-pr-14560)
+from Ghostty PR #14560. Its C callback is sufficient; native Ghostty ignores the
+reports. The dependency pin includes the public C effect. Downstream status
+storage and presentation are tracked separately.
 
 ## Checkouts
 

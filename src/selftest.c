@@ -6614,10 +6614,13 @@ SelfTestPointerShape(void)
             {"\033]22;wait", XTP_POINTER_SHAPE_CROSSHAIR},
             {"\007", XTP_POINTER_SHAPE_WAIT},
             {"\033]22;text\033\\", XTP_POINTER_SHAPE_TEXT},
-            // The backend dispatches the accepted name when CAN ends this OSC.
-            {"\033]22;pointer\030", XTP_POINTER_SHAPE_POINTER},
+            /* CAN and SUB discard the OSC rather than applying its name. */
+            {"\033]22;pointer\030", XTP_POINTER_SHAPE_TEXT},
+            {"\033]22;wait\032", XTP_POINTER_SHAPE_TEXT},
+            {"\033]22;pointer\007", XTP_POINTER_SHAPE_POINTER},
             {"\033]8;;https://example.com\033\\link\033]8;;\033\\", XTP_POINTER_SHAPE_POINTER},
             {"\033[!p\033c", XTP_POINTER_SHAPE_POINTER},
+            {"\033]22;\033\\", XTP_POINTER_SHAPE_TEXT},
             {"\033]22;xterm\007", XTP_POINTER_SHAPE_TEXT},
             {"\033]22;left_ptr\007", XTP_POINTER_SHAPE_DEFAULT},
             {"\033]22;crosshair\007\033]22;hand2\007", XTP_POINTER_SHAPE_CROSSHAIR},

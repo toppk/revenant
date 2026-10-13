@@ -12,6 +12,8 @@ implementation assignments or promises of upstream acceptance.
 
 Revenant 0.8.0 pins `27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c`.
 The development pin advanced to `b1d2b7ef1f1cf5cc0118298bad849870bc678298` on 2026-09-28.
+It advanced again to `b115e456749e2820a14d3942a63159ff8d46d925` on 2026-10-09,
+including the OSC 7501 C effect reviewed below.
 Ghostty PR #14371 is merged: its public mouse-shape getter now drives
 Revenant's Xcursor pointer handling. Other API gaps in this review remain
 independent of that getter; source links below retain the reviewed 0.8.0 baseline.
@@ -27,6 +29,41 @@ necessarily exist in `stream_terminal.Handler`, which backs the C terminal.
 The standalone C OSC parser also recognizes some commands that the integrated
 terminal cannot expose. Feeding it a second copy of PTY output is not the
 proposed integration strategy.
+
+## Program status: OSC 7501, Ghostty PR #14560
+
+Tracked on 2026-10-09: [PR #14560](https://github.com/ghostty-org/ghostty/pull/14560)
+merged on October 6 as `a4aacd918`. The local research checkout
+`b115e456749e2820a14d3942a63159ff8d46d925` contains it and is now Revenant's
+configured dependency pin. The September 28 pin predated it. Downstream status
+storage and presentation are tracked separately.
+
+The C bindings already cover the protocol. In
+`upstream/ghostty/include/ghostty/vt/terminal.h`,
+`GHOSTTY_TERMINAL_OPT_PROGRAM_STATUS` installs a
+`GhosttyTerminalProgramStatusFn`. Its sized report contains state
+(`idle`, `working`, `done`, `blocked`, `error`, `clear`), blocking kind
+(`permission`, `question`, `auth`), optional percentage, hierarchical record ID,
+application name, decoded title and decoded message. The strings live only
+during the callback. Registering the callback enables the support-query reply
+through `WRITE_PTY`; leaving it unset does not advertise support. The C wrapper
+in `src/terminal/c/terminal.zig` supplies this effect, with callback/query/reset
+tests. No additional C binding is presently needed for consuming these reports.
+
+A standalone C probe linked against the rebuilt pinned archive on 2026-10-09
+verified the sized report's state, kind, percentage, ID, application, decoded
+title and message. It also verified support-query replies with the callback
+installed, no replies before installation or after removal, and clear-on-RIS
+without a clear-on-DECSTR. This proves the public C path works; it does not
+implement or test Revenant's proposed record storage or presentation.
+
+Ghostty's native application explicitly ignores `.program_status` in
+`src/termio/stream_handler.zig`. The PR also leaves it out of Ghostty's terminfo.
+Its author says Superlogical motivated the work. The
+[protocol documentation](https://www.superlogical.com/rex/docs/build/program-status)
+describes Rex's session-picker indicators, unfocused-tab activity/blocked icons,
+and Lua status-change events. Those are Rex consumers, not implemented Ghostty
+app behavior.
 
 ## Try the behavior in Ghostty
 
