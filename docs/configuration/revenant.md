@@ -37,9 +37,20 @@ XTerm*scrollTtyOutput: false
 XTerm*scrollKey:       true
 XTerm*internalBorder:  4
 XTerm*title:           Revenant
+XTerm*selectToClipboard: false
+XTerm*vt100.translations: #override \n\
+    Ctrl Shift <Key>v: insert-selection(CLIPBOARD) \n\
+    Ctrl Shift ~Meta <Btn2Up>: insert-selection(CLIPBOARD)
 ```
 
 Load it with `xrdb -merge ~/.Xresources` and start a new Revenant.
+
+The recommended paste bindings give both X11 channels a gesture:
+Ctrl+Shift+V and Ctrl+Shift+Button 2 paste `CLIPBOARD`; ordinary selection,
+Button 2, and Shift+Insert use `PRIMARY`. When an application captures the
+mouse, Shift+Button 2 still pastes `PRIMARY` through Revenant, and
+Ctrl+Shift+Button 2 pastes `CLIPBOARD` through Revenant. See the
+[copy and paste guide](../usage/copy-paste.md#recommended-clipboard-paste-bindings).
 
 ## Fonts
 
@@ -506,6 +517,8 @@ it back in reusable syntax, and checks every action it invokes against the
 
 ```xrdb
 XTerm*vt100.translations: #override \n\
+    Ctrl Shift <Key>v: insert-selection(CLIPBOARD) \n\
+    Ctrl Shift ~Meta <Btn2Up>: insert-selection(CLIPBOARD) \n\
     Shift <KeyPress> Insert: insert-selection(SELECT, CUT_BUFFER0) \n\
     Shift <KeyPress> Prior:  scroll-back(1,halfpage) \n\
     Shift <KeyPress> Next:   scroll-forw(1,halfpage) \n\

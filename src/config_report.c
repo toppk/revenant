@@ -999,6 +999,17 @@ ReportTranslations(const ReportContext *context, Widget vt)
                 printf("! [%s] action %s()\n",
                        RegisteredTranslationAction(vt, name) ? "supported" : "unsupported", name);
         }
+        puts("\n! Recommended CLIPBOARD paste bindings (optional, not effective configuration)");
+        puts("! Ctrl+Shift+V and Ctrl+Shift+Button 2 paste CLIPBOARD through the terminal.");
+        puts("! Shift bypasses application mouse reporting for the mouse paste.");
+        puts("! With selectToClipboard false, ordinary selection and Shift+Button 2 use PRIMARY.");
+        puts("! Add the bindings to your existing #override block; a second translations");
+        puts("! resource replaces the whole value. Uncomment this example when adding it");
+        puts("! to ~/.Xresources or ~/.Xdefaults, then xrdb -merge that file and restart.");
+        puts("! XTerm*selectToClipboard: false");
+        puts("! XTerm*VT100.translations: #override \\n\\");
+        puts("!     Ctrl Shift <Key>v: insert-selection(CLIPBOARD) \\n\\");
+        puts("!     Ctrl Shift ~Meta <Btn2Up>: insert-selection(CLIPBOARD)");
         free(resolved.value);
 }
 

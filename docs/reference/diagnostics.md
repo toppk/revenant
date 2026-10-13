@@ -82,6 +82,12 @@ Xt does not retain which *file* a merged value came from, so values from
 app-defaults and `xrdb` are labelled `X resources` together; command-line
 values are identified separately.
 
+The translation audit also prints a commented recommendation for
+Ctrl+Shift+V and Ctrl+Shift+Button 2 to paste `CLIPBOARD`, with instructions
+for adding them to your existing override block. These suggestions are
+separate from the effective configuration; see
+[recommended clipboard paste bindings](../usage/copy-paste.md#recommended-clipboard-paste-bindings).
+
 ## The log
 
 Diagnostics go to standard error as

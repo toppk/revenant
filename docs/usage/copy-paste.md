@@ -43,6 +43,40 @@ Shift+Insert is paste, not copy, in the default bindings.
 This page describes upstream xterm patch 411, which is Revenant's compatibility
 baseline, and then identifies the parts Revenant implements today.
 
+## Recommended clipboard paste bindings
+
+For applications that explicitly copy to `CLIPBOARD`, such as Codex's
+fullscreen TUI, add a keyboard and mouse paste gesture while keeping the
+traditional `PRIMARY` workflow:
+
+```xrdb
+XTerm*selectToClipboard: false
+XTerm*vt100.translations: #override \n\
+    Ctrl Shift <Key>v: insert-selection(CLIPBOARD) \n\
+    Ctrl Shift ~Meta <Btn2Up>: insert-selection(CLIPBOARD)
+```
+
+Put these lines in `~/.Xresources`, load them with
+`xrdb -merge ~/.Xresources`, and open a new terminal. If you use
+`~/.Xdefaults`, load that file with `xrdb -merge ~/.Xdefaults` instead.
+If you already have a `vt100.translations` resource, append the two bindings
+to its existing `#override` block; repeated resource definitions replace
+the entire value.
+
+| Gesture | Paste source with this configuration |
+| --- | --- |
+| Button 2 or Shift+Insert | `PRIMARY`, then `CUT_BUFFER0` |
+| Shift+Button 2 | `PRIMARY`, then `CUT_BUFFER0` |
+| Ctrl+Shift+V | `CLIPBOARD` |
+| Ctrl+Shift+Button 2 | `CLIPBOARD` |
+
+Unmodified Button 2 is forwarded to an application when it enables mouse
+reporting. Shift makes Revenant handle the mouse paste itself. These
+explicit `CLIPBOARD` bindings also work if the **Select to Clipboard** menu
+item is toggled later; the ordinary `SELECT` bindings follow that toggle.
+Ctrl+Button 2 retains its VT popup-menu binding. These are recommended
+customizations, not compiled defaults.
+
 ## The X11 mental model
 
 An X selection is usually not a bucket of bytes stored by the X server. It is
