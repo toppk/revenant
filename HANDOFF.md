@@ -52,15 +52,12 @@ Use this instruction in each handoff, adapted to the concrete task:
 
 ## Probe usability follow-up
 
-The user finds the probe navigation and overlapping width/artwork cases confusing.
-Treat their cleanup as a separate task, not more emoji-renderer work. In particular,
-`just probe text-emoji-sequences emoji-sequences` leaves mode 2027 unchanged while
-asking the assessor to expect joined artwork. The width probe's `--regime cluster`
-path already requests, queries and restores that mode. Reuse that behavior for
-sequence artwork assessment, clearly display the active regime, and distinguish
-cursor-width results from visual judgments. Review navigation and naming together
-so users can find the appropriate case without knowing the internal split.
-Do not start this follow-up as part of closing the text-emoji repair.
+The remaining probe task is navigation and naming: reduce overlap so users
+can find the appropriate width or artwork case without knowing the internal
+split. Keep this separate from renderer work. Sequence artwork already
+requests, queries and restores mode 2027, with separate legacy and cluster
+passes for `--regime both`. Preserve that behavior and the separation between
+cursor-width measurements and visual judgments; do not reimplement it.
 
 The user has visually confirmed that the original bare hammer-and-wrench now
 renders. This confirms the reported symptom is fixed in their environment; it is
@@ -69,8 +66,9 @@ not a completed multi-size assessment of every artwork capability.
 ## Dispatch plumbing and remaining features
 
 Use the [dispatch guide](docs/maintainers/dispatch.md) and the tracked
-`todo.md` IDs for bounded assignments. The guide maps every pending
-chunk to its stable TDN feature IDs; chunk IDs are work units, not feature IDs.
+`todo.md` IDs for bounded assignments. The guide maps pending feature
+chunks to stable TDN IDs; maintenance tasks use automated acceptance instead.
+Chunk IDs are work units, not feature IDs.
 `just probe` builds and opens the Go probe browser. Its fixtures do not imply
 that the corresponding features are implemented. Kitty graphics is parked for
 the current drain; its existing fixture covers only static inline RGBA input.
@@ -83,7 +81,7 @@ adding those exceptions: simultaneous requested mode bits are not a reliable
 substitute. Tcap Ops honors `disallowedTcapOps` (`SetTcap,GetTcap`) through the
 shared wildcard/negation parser and gates complete backend-generated
 XTGETTCAP replies. Unrelated replies must survive mixed feeds. Configured TN and
-child TERM integration are implemented separately by A2; XTSETTCAP remains open.
+child TERM integration are implemented; XTSETTCAP remains open.
 TDN: `policy-mouse-ops-exceptions`, `dcs-xtsettcap`.
 
 The [libghostty C API review](docs/maintainers/libghostty-c-api-review.md)
@@ -108,6 +106,50 @@ TDN: `osc-50-font-set`, `osc-50-font-query`, `policy-font-ops`, `osc-22-pointer-
 `probe-features` checks the runner through a fake PTY, including interruption
 cleanup; `xvfb-request-ops` checks startup/live mouse and capability policy,
 GetTcap exceptions, and preservation of unrelated replies.
+
+## Bundled fonts and Nerd Font symbols follow-up
+
+Revenant does not currently bundle fonts. The user favors beginning to bundle
+fonts, with a symbols-only Nerd Font fallback as the first concrete candidate,
+so prompt and editor icons work without a separately installed patched text
+font. The user's distribution concern is that Nerd Font symbols often arrive
+patched into other fonts rather than as a standalone OS-distributed symbols
+font; do not assume that a system symbols-only family is available.
+
+Bundling must retain an X resource for selecting system-installed fonts where
+appropriate. Define and document the resource name, default, preference order,
+and behavior when the requested system font is unavailable. Account for both
+standalone symbols fonts and symbols supplied by patched text fonts. Preserve
+explicit primary and numbered fallback choices; the bundled face supplies
+missing icons without changing the primary font or cell geometry. Existing
+`fallbackFaceN` resources can select installed fonts today, but the policy for
+choosing system versus bundled supply remains to be implemented. Keep font
+registration scoped to Revenant and record font versions, licenses and packaging.
+
+The local Ghostty reference separates supply from fitting:
+`upstream/ghostty/src/build/SharedDeps.zig` includes
+`SymbolsNerdFont-Regular.ttf`, `src/font/embedded.zig` embeds it, and
+`src/font/SharedGridSet.zig` adds it as a fallback after configured fonts and
+built-in JetBrains Mono. Its renderer's `src/renderer/generic.zig` applies
+codepoint-specific scaling and alignment from `src/font/nerd_font_attributes.zig`.
+Revenant's libghostty VT integration does not inherit that renderer or font
+supply. Adding a font alone does not reproduce Ghostty's icon fitting.
+
+Revenant already draws common Powerline separators procedurally; other Nerd
+Font icons use ordinary font routing. Evaluate fitting against Revenant's
+fallback advance limits and clipping, preserving strict cell containment.
+Whitespace borrowing remains the separate opt-in feature below.
+
+Implementation testing scope: iterate on focused font-resolution,
+named/system-fallback and resource-report checks with isolated fontconfig
+fixtures. Cover bundled-only supply, standalone and patched system fonts,
+explicit overrides, missing system fonts, and bold/italic icons. Visually
+assess representative icons and Powerline separators across primary fonts,
+sizes and DPI; assert unchanged cursor advance and cell geometry. Expand to
+related font/emoji regressions when shared routing changes, verify installed
+package font discovery, and run documentation checks. Run the required final
+suite once after the final substantive change; repeat only for a new failure
+or change that justifies it.
 
 ## Optional symbol enlargement into adjacent whitespace
 
@@ -148,7 +190,7 @@ refresh metadata with `just update-probe-registry`. Keep measurements quiet,
 reads bounded, and cleanup active on exits, signals and panics. `just test-probe`
 covers Go/PTY behavior; `just check-tdn` also checks the embedded snapshot
 against the registry.
-The [TDN README](tdn/README.md#revenant-probe-catalog-boundary) records the
+The [TDN README](tdn/README.md#probe-catalog-boundary) records the
 cross-repository generation boundary; moving `tdn/` alone would not preserve it.
 
 The [probe guide](tools/probe/README.md) is the source for controls, commands,
@@ -456,19 +498,14 @@ an unbounded cleanup pass.
   Xt resource table instead of repeating string literals. Do not derive
   behavioral support merely from `XtGetResourceList`: a parsed resource is not
   necessarily implemented, so the support catalog remains an explicit claim.
-- During the next option-driven process slice, add the accepted login-shell,
-  terminal-mode, map timing, message-permission, and session-logging
-  behaviors from the command-line feasibility study. Review the runtime
-  stub/backend PTY branch and the placement of `TERM` policy in that startup
-  ownership pass. Hard-coded startup prose that duplicates defaults also
-  remains cleanup debt. The pre-X scanner and font resource aliases are already
-  centralized; do not reintroduce independent argv scans. Terminal-name
-  integration (A2) and hold-after-exit (P2a) are complete; the other process slices
-  remain deferred. Hold drains child output, discards queued terminal-to-child
-  input after PTY closure, and reaps asynchronously; `xvfb-hold` covers pending
-  reaping, teardown and retained pixels. Failed exec still holds an empty screen.
-  TDN: `startup-login-shell`, `resource-terminal-modes`,
-       `startup-wait-for-map`, `pty-message-permission`, `logging-session-transcript`.
+- Remaining process features are terminal-mode resources, wait-for-map,
+  PTY message permission and session logging; dispatch them through P1/P2 in
+  `todo.md`. Preserve the completed TERM, login-shell and hold behavior in the
+  [compatibility ledger](docs/compatibility/drift.md). Shell-start failure
+  diagnostics are implemented; the separate `-e` failure behavior remains a
+  documented difference. Do not reintroduce independent argv scans.
+  TDN: `resource-terminal-modes`, `startup-wait-for-map`,
+       `pty-message-permission`, `logging-session-transcript`.
 - When `vt_interaction.c` next receives material work, split X selection/paste,
   hyperlink launching, and mouse reporting into focused owners. Other local
   cleanup should follow its owning feature: table-drive the order-dependent
@@ -486,10 +523,10 @@ an unbounded cleanup pass.
   removing INFO narration and generated summaries over changing diagnostic
   coverage during feature work.
 
-Two reviewed choices are deliberate. Keep the self test in the installed binary
-as a package smoke diagnostic; the table-driven runner addresses its structural
-cost. Its canonical spelling is `-self-test`, matching every other option, with
-`--self-test` retained as an alias for existing scripts. Keep the three Ghostty callback-pointer shims typed: assignment to each
+Keep the installed `-self-test` package smoke diagnostic and its `--self-test`
+alias. URL matching has moved to independent noninstalled tests; further
+extractions follow the [reviewed boundary](docs/maintainers/repository-review.md)
+and R7 in `todo.md`. Keep the Ghostty callback-pointer shims typed: assignment to each
 Ghostty callback typedef provides compile-time signature checking, while their
 documented copy handles the option API's representation boundary. A generic
 function-pointer helper would lose the useful type check.
@@ -529,9 +566,9 @@ function-pointer helper would lose the useful type check.
   **Allow Window Ops** menu toggle updates that effect and the write policy
   at runtime; `xvfb-window-ops` covers enable/disable and restoration of a
   configured set-only policy.
-  This is partial Window Ops support: `GetSelection`, `SetSelection`, and the
-  four title operations consult the policy. Existing XTWINOPS size reports
-  are not yet gated by it. See the completion plan below before claiming full support.
+  Window Ops also gates title reports/stack operations and CSI 14/16/18 size
+  reports. Unsolicited mode 2048 reports remain independent. Full Window Ops
+  support still depends on the W2 hooks listed below.
   libghostty's parser accepts one selection letter; `q`, cut-buffer digits,
   lists, and the `s0` default are recorded in the drift ledger.
 - Synchronized output (DEC private mode 2026): the widget holds dirty updates
@@ -1063,7 +1100,7 @@ function-pointer helper would lose the useful type check.
   and fallback faces, including compatible adjacent non-emoji cells whose
   context spans a backend grapheme boundary. Fontconfig supplies a bounded
   fallback set for each normal, bold, italic, and bold-italic slot.
-- Unicode 17 emoji presentation and role routing through `faceNameEmoji` and
+- Unicode 18 emoji presentation and role routing through `faceNameEmoji` and
   `faceNameDoublesize`, including VS15/VS16, keycaps, modifiers, flags, tags,
   and ZWJ sequences. HarfBuzz shapes complete backend graphemes and rejects
   incomplete sequence composition atomically. The persistent Cairo delegate
@@ -1094,10 +1131,11 @@ function-pointer helper would lose the useful type check.
   symbol renders, but no artwork capability carries
   a Revenant support record — follow
   [visual acceptance](docs/maintainers/emoji-artwork-gate.md#visual-acceptance-procedure)
-  at several sizes before promoting anything. Two limits are deliberate: the pinned
-  monochrome fixture predates E17.0, so seven newer bases have no monochrome supply
-  (a font gap the gate records, with the advance still asserted), and behavior outside
-  the audit's inventoried scope carries no coverage claim either way. The separate
+  at several sizes before promoting anything. Font supply remains limited:
+  the monochrome fixture lacks seven E15–E17 bases, and no staged face covers
+  the nine E18 additions. See the [migration record](docs/maintainers/unicode-18-migration.md)
+  for the scoped census and width-only evidence. Behavior outside the audit's
+  inventoried scope carries no coverage claim either way. The separate
   one-cell emoji-presentation limitation with only oversized monochrome supply, and
   the optional vendored-font and whitespace-expansion decisions, remain tracked in
   the [roadmap](docs/maintainers/roadmap.md).
@@ -1360,17 +1398,14 @@ Deliver the remaining work in reviewable slices:
    TDN: `policy-window-ops`.
 2. Complete XTWINOPS window manipulation and reports: restore/minimize,
    move/resize in pixels or cells, raise/lower/refresh, maximize/fullscreen,
-   window state and position, window/screen/cell geometry, title/icon reports,
-   and title push/pop. Preserve the completed policy for `CSI 14 t`, `CSI 16 t`,
-   and `CSI 18 t` replies while adding newly exposed operations.
+   window state and position, and screen-size reports. Preserve the completed
+   title/icon reports, title push/pop and CSI 14/16/18 policy while adding
+   newly exposed operations.
    TDN: `csi-1-t-de-iconify`, `csi-2-t-iconify`, `csi-3-t-move-window`,
         `csi-4-t-resize-window-in-pixels`, `csi-5-t-raise`, `csi-6-t-lower`,
         `csi-7-t-refresh`, `csi-8-t-resize-text-area-in-cells`, `csi-9-t-maximize`,
         `csi-10-t-fullscreen`, `csi-11-t-report-window-state`, `csi-13-t-position-report`,
-        `csi-14-t-pixel-size-report`, `csi-15-t-report-screen-size-in-pixels`,
-        `csi-16-t-report-cell-size-in-pixels`, `csi-18-t-text-size`,
-        `csi-19-t-report-screen-size-in-cells`, `csi-20-t-report-icon-label`,
-        `csi-21-t-title-report`, `csi-22-t-push-title`, `csi-23-t-pop`.
+        `csi-15-t-report-screen-size-in-pixels`, `csi-19-t-report-screen-size-in-cells`.
 3. Complete the cross-family controls: `ColumnMode`, `SetWinLines`,
    `GetChecksum`/`SetChecksum`, `SetXprop`, and `StatusLine`. Retain OSC 52
    regression coverage and resolve or explicitly track its upstream parser
@@ -1409,7 +1444,9 @@ consumes its entry even when Title Ops blocks applying the labels. Preserve
 that tested separation. TDN's [Title Ops inventory](tdn/docs/policies/title-ops.md)
 records the policy scope and its overlap with Window Ops.
 
-The patch-411 source audit leaves these gaps:
+The action, `sameName`, effective Title Ops permission and UTF-8 property
+surface are complete; their evidence is in the
+[compatibility ledger](docs/compatibility/drift.md). Remaining gaps are:
 
 - **Independent icon-name changes.** Surface OSC 1 and the icon half of OSC 0
   through a backend effect, so OSC 0 updates both labels and OSC 1 changes
@@ -1431,12 +1468,6 @@ The patch-411 source audit leaves these gaps:
   frontend rejection. Cover non-ASCII labels, invalid input, and boundary
   lengths rather than claiming parity from ASCII examples.
   TDN: `title-input-normalization`, `title-input-byte-limit`.
-- **Completed resource/action parity.** `allow-title-ops(on/off/toggle)` and
-  `sameName` are implemented. Effective Title Ops requires `allowTitleOps` and
-  not `allowSendEvents`. The latter makes the menu insensitive; the action still
-  changes the configured flag. Suppressed writes do not prevent stack consumption.
-  `xvfb-title-ops` verifies actual properties and redundant-update counts.
-  TDN: `action-allow-title-ops`, `policy-title-ops-send-events`, `resource-same-name`.
 
 Use `misc.c` (`ChangeGroup` and label setters), `charproc.c` (OSC dispatch,
 title modes, and reports), `ptyx.h` (`AllowTitleOps`/`AllowXtermOps`), and

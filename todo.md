@@ -99,9 +99,9 @@ conflicting ownership even within the same batch.
       Probe gap: add a native session-log case and verify the file externally.
 
 - [ ] **P2 — Remaining option-driven process behavior.** Implement and review
-      wait-for-map startup, terminal
-      mode resources, and PTY message permission as independent slices. Do not
-      disturb the completed `termName`/TERM contract or pre-X option scanner.
+      wait-for-map startup, terminal-mode resources, and PTY message permission
+      as independent slices. Do not disturb the completed `termName`/TERM
+      contract or pre-X option scanner.
       TDN: `startup-wait-for-map`, `resource-terminal-modes`,
            `pty-message-permission`.
       Probe gap: add one native case per slice that has observable child state.
@@ -128,7 +128,8 @@ conflicting ownership even within the same batch.
 
 ## S: Shell integration
 
-- [ ] **S4 — Optional clear-to-prompt.** Depends on S2. Define separately
+- [ ] **S4 — Optional clear-to-prompt.** Reuse the implemented prompt-mark and
+      navigation support. Define separately
       whether this means viewport movement or history deletion before coding.
       Supporting fixture: `just probe osc-133-prompt-marks shell-prompts` . Accept: explicit
       action, active-screen correctness,

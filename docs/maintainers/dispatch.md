@@ -25,7 +25,7 @@ invariants before editing those paths.
 
 ## Feature identifiers for pending chunks
 
-Work IDs such as S2 name dispatch units; TDN IDs name stable, independently
+Work IDs such as S4 name dispatch units; TDN IDs name stable, independently
 assessed behavior. Keep these associations when splitting or reordering the
 local checklist. Dependencies, acceptance criteria and optional/upstream-blocked
 status remain in that checklist; a registry entry does not schedule the feature
