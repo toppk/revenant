@@ -1855,6 +1855,26 @@ RealizeApplication(App *app)
         UpdateGeometry(app);
         SetShellGeometry(app);
         XtRealizeWidget(app->shell);
+        {
+                unsigned long pid = (unsigned long)getpid();
+                char hostname[256];
+
+                XChangeProperty(app->display, XtWindow(app->shell),
+                                XInternAtom(app->display, "_NET_WM_PID", False), XA_CARDINAL, 32,
+                                PropModeReplace, (const unsigned char *)&pid, 1);
+                if (gethostname(hostname, sizeof(hostname)) == 0) {
+                        XTextProperty machine;
+                        char *names[] = {hostname};
+
+                        hostname[sizeof(hostname) - 1] = '\0';
+                        if (XStringListToTextProperty(names, 1, &machine)) {
+                                XSetWMClientMachine(app->display, XtWindow(app->shell), &machine);
+                                XFree(machine.value);
+                        }
+                }
+                /* Publish identity before a child can query its WINDOWID. */
+                XSync(app->display, False);
+        }
         XtpLog(XTP_LOG_INFO, "shell",
                "realized window=0x%lx pixels=%ux%u depth=%d argb=%s background-alpha=%u",
                XtWindow(app->shell), XtpVtNaturalWidth(app->vt), XtpVtNaturalHeight(app->vt),
@@ -1892,7 +1912,7 @@ StartChild(App *app, char **command)
         }
         app->pty = XtpPtySpawn(shell_path, command, app->term_name, (uint16_t)XtpVtColumns(app->vt),
                                (uint16_t)XtpVtRows(app->vt), XtpVtCellWidth(app->vt),
-                               XtpVtCellHeight(app->vt));
+                               XtpVtCellHeight(app->vt), XtWindow(app->shell));
         if (app->pty == NULL)
                 XtpLog(XTP_LOG_ERROR, "pty", "cannot start command=%s", command[0]);
         free(shell_argv[0]);

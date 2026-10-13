@@ -39,6 +39,12 @@ support block includes only bounded system, backend, renderer, identity, and
 font details. Use `-report-config` when the full resource inventory and
 provenance are needed.
 
+The top-level X11 window publishes `_NET_WM_PID` with Revenant's process PID
+and `WM_CLIENT_MACHINE` with its hostname. Child commands receive `WINDOWID`
+as the decimal X11 window ID, replacing any inherited value. These links let
+session tools associate an X11 or Xwayland window with the process holding its
+PTY master; the PID identifies Revenant, rather than the child shell.
+
 ## `-report-config`
 
 ```sh

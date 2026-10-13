@@ -497,7 +497,7 @@ SelfTestPty(void)
                     "\"$TERM_PROGRAM_VERSION\"",
             NULL,
         };
-        XtpPty *pty = XtpPtySpawn(NULL, command, NULL, 80, 24, 8, 16);
+        XtpPty *pty = XtpPtySpawn(NULL, command, NULL, 80, 24, 8, 16, 0);
         char output[256];
         size_t used = 0;
         int attempts;
@@ -640,7 +640,7 @@ SelfTestPtyQueue(void)
             (char *)"stty raw -echo; printf R; sleep 0.2; exec cat",
             NULL,
         };
-        XtpPty *pty = XtpPtySpawn(NULL, command, NULL, 80, 24, 8, 16);
+        XtpPty *pty = XtpPtySpawn(NULL, command, NULL, 80, 24, 8, 16, 0);
         uint8_t *payload = NULL;
         uint8_t buffer[8192];
         size_t received = 0;

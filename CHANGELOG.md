@@ -17,6 +17,19 @@ commit. Published tags and assets are never replaced.
   restores the latest application shape. Update the libghostty development pin to
   `b1d2b7ef1f1cf5cc0118298bad849870bc678298`, which includes the public mouse-shape getter.
 
+## 0.8.1 — 2026-10-13
+
+Emergency fix for associating X11 and Xwayland terminal windows with their
+PTY sessions. This release retains 0.8.0's exact libghostty backend pin.
+
+### Bug fixes
+
+- Publish `_NET_WM_PID` and `WM_CLIENT_MACHINE` on the terminal window and
+  provide its ID to child commands through `WINDOWID`, replacing inherited
+  values. Session tools can identify the terminal process holding the PTY
+  master instead of encountering windows with an unknown PID.
+  ([9107abd](https://github.com/toppk/revenant/commit/9107abd30c80aa3df6362b962d032ae46d893509))
+
 ## 0.8.0 — 2026-09-23
 
 Text-emoji rendering repairs, synchronized-output and selection fixes, and a
