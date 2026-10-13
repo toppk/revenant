@@ -98,7 +98,7 @@ XtpPtyShellName(const char *shell_path, bool login)
 
 XtpPty *
 XtpPtySpawn(const char *shell_path, char *const argv[], const char *term_name, uint16_t columns,
-            uint16_t rows, uint32_t cell_width, uint32_t cell_height)
+            uint16_t rows, uint32_t cell_width, uint32_t cell_height, unsigned long window_id)
 {
         XtpPty *pty;
         struct winsize size = WindowSize(columns, rows, cell_width, cell_height);
@@ -125,6 +125,14 @@ XtpPtySpawn(const char *shell_path, char *const argv[], const char *term_name, u
                     term_name != NULL && *term_name != '\0' ? term_name : XTP_TERM_NAME_DEFAULT, 1);
                 (void)setenv("TERM_PROGRAM", XTP_PROGRAM_NAME, 1);
                 (void)setenv("TERM_PROGRAM_VERSION", XTP_VERSION, 1);
+                if (window_id != 0) {
+                        char window_text[32];
+
+                        (void)snprintf(window_text, sizeof(window_text), "%lu", window_id);
+                        (void)setenv("WINDOWID", window_text, 1);
+                } else {
+                        (void)unsetenv("WINDOWID");
+                }
                 if (shell_path == NULL) {
                         execvp(argv[0], argv);
                         _exit(127);

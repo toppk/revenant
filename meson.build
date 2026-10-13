@@ -744,6 +744,22 @@ if build_with_ghostty and xvfb.found()
         timeout: 30,
         is_parallel: false,
     )
+    if xprop.found()
+        test(
+            'xvfb-window-identity',
+            find_program('sh'),
+            args: [
+                files('tests/xvfb-window-identity.sh'),
+                xvfb.full_path(),
+                xterm_plus.full_path(),
+                xprop.full_path(),
+                python3.full_path(),
+            ],
+            timeout: 30,
+            is_parallel: false,
+            depends: [xterm_plus],
+        )
+    endif
     if xwininfo.found() and xprop.found()
         test(
             'xvfb-geometry',
