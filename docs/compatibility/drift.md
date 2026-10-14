@@ -1005,6 +1005,14 @@ Closing the window exits the terminal with status 0, as closing it while the
 child still runs does. Neither terminal passes the child's exit status on, so the
 terminal exits with status 0 in every case above.
 
+Shell exit is detected independently of PTY EOF, as in xterm: a background
+process retaining the slave PTY (including stdin after stdout/stderr redirection)
+does not keep the terminal open. SIGCHLD schedules a nonblocking reap of the
+specific PTY child through Xt; pipe-command helpers retain their own reaping.
+A final bounded read preserves available output before closing or holding.
+With `-hold`, input stops when the shell exits even if a descendant still owns
+the PTY. `xvfb-hold` covers both modes with a surviving background process.
+
 One difference remains when the command cannot be run. xterm-411 retries a failed
 `-e` command through `$SHELL -c`, so a held window shows the shell's
 "No such file or directory" message. Revenant's child exits with status 127

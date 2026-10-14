@@ -127,6 +127,64 @@ for status in 0 3; do
     echo "$label: terminal exited 0"
 done
 
+# stdout/stderr redirection leaves stdin on the slave PTY. The terminal must
+# follow its direct child's exit even while this HUP-ignoring descendant survives.
+XTP_HOLD_HELPER=$test_dir/background.py
+export XTP_HOLD_HELPER
+cat >"$XTP_HOLD_HELPER" <<'PYTHON'
+import os
+import signal
+import time
+
+signal.signal(signal.SIGHUP, signal.SIG_IGN)
+with open(os.environ["XTP_HOLD_RUN"] + "/background-pid", "w") as stream:
+    stream.write(str(os.getpid()))
+time.sleep(30)
+PYTHON
+background='exec 3<&0
+python3 "$XTP_HOLD_HELPER" <&3 3<&- >/dev/null 2>/dev/null &
+exec 3<&-
+while test ! -s "$XTP_HOLD_RUN/background-pid"; do sleep 0.01; done
+printf "first line\nMARK-BG"
+exit 7'
+for mode in normal hold; do
+    label="$mode, background process retains PTY stdin"
+    if test "$mode" = hold; then
+        start -hold -e sh -c "$background"
+    else
+        start -e sh -c "$background"
+    fi
+    attempt=0
+    while test ! -s "$work/background-pid"; do
+        attempt=$((attempt + 1))
+        test "$attempt" -lt 100 || fail 'background process did not start'
+        sleep 0.05
+    done
+    aux_pid=$(cat "$work/background-pid")
+    case $(readlink "/proc/$aux_pid/fd/0") in
+        /dev/pts/*) ;;
+        *) fail 'background stdin did not retain the PTY' ;;
+    esac
+    test "$(readlink "/proc/$aux_pid/fd/1")" = /dev/null || fail 'stdout was not redirected'
+    test "$(readlink "/proc/$aux_pid/fd/2")" = /dev/null || fail 'stderr was not redirected'
+    if test "$mode" = hold; then
+        xtp_wait_for_log "$work/log" 'pty: held child exited status=7' 'shell exit with background PTY owner'
+        kill -0 "$terminal_pid" || fail '-hold did not retain the window'
+        test "$(row 1)" = 'MARK-BG' || fail 'final shell output was lost'
+        test "$(ps -o stat= --ppid "$terminal_pid" | grep -c . || true)" = 0 || fail 'shell was not reaped'
+        "$keys" "$window" keysym a >/dev/null
+        xtp_wait_for_log "$work/log" 'write dropped bytes=1: child finished' 'held input disabled'
+        "$closer" "$window"
+    fi
+    finish
+    test "$exit_status" -eq 0 || fail "terminal exited with $exit_status"
+    kill -0 "$aux_pid" || fail 'background process did not survive independently'
+    kill "$aux_pid"
+    aux_pid=
+    no_survivors
+    echo "$label: shell reaped, final output kept, terminal lifetime independent of background process"
+done
+
 for status in 0 3; do
     label="hold, child exit $status"
     start -hold -e sh -c "$child" "$status"

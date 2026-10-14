@@ -58,9 +58,9 @@ typedef struct
         const char *term_name;
         Boolean same_name;
         Boolean hold;
-        /* The child's side of the PTY is gone and the window is held (hold). */
+        /* Input is disabled after shell exit or PTY EOF while the window is held. */
         Boolean child_finished;
-        XtIntervalId reap_timer;
+        Boolean child_reaped;
         /* Startup geometry as XParseGeometry reported it, and its pixel form for the shell. */
         int geometry_flags;
         int geometry_x;
@@ -82,6 +82,9 @@ typedef struct
         const char *pipe_command;
         XtpPipeCommand *pipe_jobs;
 } App;
+
+static XtSignalId child_exit_signal;
+static struct sigaction previous_child_action;
 
 typedef struct
 {
@@ -1407,33 +1410,6 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
         }
 }
 
-/* Polled, like pipe helpers, so the PTY child's SIGCHLD handling stays untouched. */
-static void
-ReapHeldChild(XtPointer closure, XtIntervalId *timer)
-{
-        App *app = closure;
-        int status = 0;
-
-        (void)timer;
-        app->reap_timer = (XtIntervalId)0;
-        switch (XtpPtyReap(app->pty, &status)) {
-        case 1:
-                if (WIFEXITED(status))
-                        XtpLog(XTP_LOG_INFO, "pty", "held child exited status=%d",
-                               WEXITSTATUS(status));
-                else if (WIFSIGNALED(status))
-                        XtpLog(XTP_LOG_INFO, "pty", "held child killed signal=%d",
-                               WTERMSIG(status));
-                return;
-        case 0:
-                app->reap_timer = XtAppAddTimeOut(app->context, 100, ReapHeldChild, app);
-                return;
-        default:
-                XtpLog(XTP_LOG_WARNING, "pty", "cannot reap held child errno=%d", errno);
-                return;
-        }
-}
-
 /* hold: keep the window and its last output; the user closes it. */
 static void
 HoldAfterChildExit(App *app)
@@ -1445,7 +1421,24 @@ HoldAfterChildExit(App *app)
         dropped = XtpPtyDiscard(app->pty);
         XtpLog(XTP_LOG_INFO, "pty", "child finished; holding the window dropped-queued-input=%zu",
                dropped);
-        ReapHeldChild(app, NULL);
+        if (!app->child_reaped)
+                XtNoticeSignal(child_exit_signal);
+}
+
+/* EOF and shell exit are independent: descendants can keep the slave PTY open. */
+static void
+FinishPty(App *app)
+{
+        if (app->pty_input != (XtInputId)0) {
+                XtRemoveInput(app->pty_input);
+                app->pty_input = (XtInputId)0;
+        }
+        XtpLog(XTP_LOG_INFO, "progress", "cleared reason=exit");
+        XtpVtSetProgress(app->vt, XTP_PROGRESS_REMOVE, -1);
+        if (app->hold)
+                HoldAfterChildExit(app);
+        else
+                app->running = False;
 }
 
 static void
@@ -1463,6 +1456,7 @@ PtyReady(XtPointer closure, int *source, XtInputId *input_id)
         Boolean closed = False;
 
         (void)source;
+        (void)input_id;
         /* One application refresh can cross a kernel read boundary. Preserve
          * byte-order effects while presenting one bounded available burst. */
         while (total < READ_BUDGET) {
@@ -1499,15 +1493,74 @@ PtyReady(XtPointer closure, int *source, XtInputId *input_id)
                         XtpLog(XTP_LOG_INFO, "pty", "EOF");
                 else
                         XtpLog(XTP_LOG_INFO, "pty", "read closed errno=%d", errno);
-                XtRemoveInput(*input_id);
-                app->pty_input = (XtInputId)0;
-                XtpLog(XTP_LOG_INFO, "progress", "cleared reason=exit");
-                XtpVtSetProgress(app->vt, XTP_PROGRESS_REMOVE, -1);
-                if (app->hold)
-                        HoldAfterChildExit(app);
-                else
-                        app->running = False;
+                FinishPty(app);
         }
+}
+
+static void
+NoticeChildExit(int signal_number)
+{
+        int saved_errno = errno;
+
+        (void)signal_number;
+        XtNoticeSignal(child_exit_signal);
+        errno = saved_errno;
+}
+
+/* Reap only our PTY child; pipe-command helpers have their own lifecycle. */
+static void
+ChildExited(XtPointer closure, XtSignalId *id)
+{
+        App *app = closure;
+        int status = 0;
+        int result;
+
+        (void)id;
+        if (app->child_reaped || app->pty == NULL)
+                return;
+        result = XtpPtyReap(app->pty, &status);
+        if (result == 0)
+                return;
+        if (result < 0) {
+                XtpLog(XTP_LOG_WARNING, "pty", "cannot reap child errno=%d", errno);
+                return;
+        }
+        app->child_reaped = True;
+        if (WIFEXITED(status))
+                XtpLog(XTP_LOG_INFO, "pty", "%schild exited status=%d", app->hold ? "held " : "",
+                       WEXITSTATUS(status));
+        else if (WIFSIGNALED(status))
+                XtpLog(XTP_LOG_INFO, "pty", "%schild killed signal=%d", app->hold ? "held " : "",
+                       WTERMSIG(status));
+        if (app->child_finished)
+                return;
+        /* Present the final available burst before closing or holding. This read is
+         * nonblocking and bounded even if a surviving descendant keeps writing. */
+        if (app->pty_input != (XtInputId)0)
+                PtyReady(app, NULL, NULL);
+        if (app->pty_input != (XtInputId)0)
+                FinishPty(app);
+}
+
+static int
+WatchChildExit(App *app)
+{
+        struct sigaction action = {0};
+
+        if (app->pty == NULL)
+                return 0;
+        child_exit_signal = XtAppAddSignal(app->context, ChildExited, app);
+        action.sa_handler = NoticeChildExit;
+        sigemptyset(&action.sa_mask);
+        action.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+        if (sigaction(SIGCHLD, &action, &previous_child_action) != 0) {
+                XtRemoveSignal(child_exit_signal);
+                child_exit_signal = (XtSignalId)0;
+                return -1;
+        }
+        /* The child may have exited between fork and installing the handler. */
+        XtNoticeSignal(child_exit_signal);
+        return 0;
 }
 
 static void
@@ -1927,9 +1980,10 @@ StartChild(App *app, char **command)
 static void
 DestroyApplication(App *app)
 {
-        if (app->reap_timer != (XtIntervalId)0) {
-                XtRemoveTimeOut(app->reap_timer);
-                app->reap_timer = (XtIntervalId)0;
+        if (child_exit_signal != (XtSignalId)0) {
+                (void)sigaction(SIGCHLD, &previous_child_action, NULL);
+                XtRemoveSignal(child_exit_signal);
+                child_exit_signal = (XtSignalId)0;
         }
         if (app->pty_input != (XtInputId)0) {
                 XtRemoveInput(app->pty_input);
@@ -2099,6 +2153,8 @@ main(int argc, char **argv)
                 goto done;
         RealizeApplication(&app);
         if (StartChild(&app, command) != 0)
+                goto done;
+        if (WatchChildExit(&app) != 0)
                 goto done;
 
         app.running = True;

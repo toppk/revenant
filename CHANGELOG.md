@@ -10,6 +10,12 @@ commit. Published tags and assets are never replaced.
 
 ## 0.9.0 — Unreleased
 
+### Fixes
+
+- Close the terminal when its shell exits even if a background process retains
+  a slave PTY descriptor. Drain pending output first; `-hold` retains the final
+  screen and disables further input without waiting for background processes.
+
 ### Features
 
 - Honor application OSC 22 pointer-shape requests with themed Xcursor shapes and
