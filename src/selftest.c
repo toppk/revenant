@@ -6657,6 +6657,37 @@ SelfTestPointerShape(void)
                         goto done;
                 }
         }
+        if (XtpTerminalSetDefaultPointerShape(terminal, XTP_POINTER_SHAPE_DEFAULT) != 0 ||
+            XtpTerminalPointerShape(terminal) != XTP_POINTER_SHAPE_DEFAULT)
+                goto done;
+        {
+                static const struct
+                {
+                        const char *bytes;
+                        XtpPointerShape expected;
+                } configured[] = {
+                    {"\033]22;text\007", XTP_POINTER_SHAPE_TEXT},
+                    {"\033]22;\030", XTP_POINTER_SHAPE_TEXT},
+                    {"\033]22;\032", XTP_POINTER_SHAPE_TEXT},
+                    {"\033]22;\007", XTP_POINTER_SHAPE_DEFAULT},
+                    {"\033]22;text\033\\", XTP_POINTER_SHAPE_TEXT},
+                    {"\033]22;\033\\", XTP_POINTER_SHAPE_DEFAULT},
+                    {"\033]22;not-a-shape\007", XTP_POINTER_SHAPE_DEFAULT},
+                    {"\033]22;crosshair\007\033[!p\033c", XTP_POINTER_SHAPE_CROSSHAIR},
+                    {"\033]22;\007", XTP_POINTER_SHAPE_DEFAULT},
+                };
+                for (index = 0; index < sizeof(configured) / sizeof(configured[0]); ++index) {
+                        size_t byte;
+                        for (byte = 0; byte < strlen(configured[index].bytes); ++byte)
+                                XtpTerminalFeed(terminal,
+                                                (const uint8_t *)configured[index].bytes + byte, 1);
+                        if (XtpTerminalPointerShape(terminal) != configured[index].expected) {
+                                XtpLog(XTP_LOG_ERROR, "self-test",
+                                       "configured pointer reset case %zu failed", index);
+                                goto done;
+                        }
+                }
+        }
         result = 0;
 done:
         XtpTerminalFree(terminal);

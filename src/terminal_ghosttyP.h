@@ -44,6 +44,9 @@ typedef struct
 struct XtpTerminal
 {
         GhosttyTerminal handle;
+        XtpPointerShape default_pointer_shape;
+        bool pointer_osc_active;
+        bool pointer_osc_nonempty;
         uint16_t geometry_columns;
         uint16_t geometry_rows;
         uint32_t geometry_cell_width;

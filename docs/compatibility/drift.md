@@ -689,9 +689,21 @@ leave Revenant's previous accepted shape unchanged, whereas xterm's
 RIS and DECSTR preserve the requested shape in both terminals. In xterm 411,
 `xtermSetupPointer` is called only from `charproc.c:VTRealize` (line 12768) and
 `misc.c:do_osc` (line 4296), not from either reset path. Resize also preserves
-Revenant's requested shape. The `pointerShape`, `pointerColor`,
-`pointerColorBackground` and `pointerMode` resources remain unapplied; OSC 22
-support does not enable these resources or OSC 13/14 pointer colors.
+Revenant's requested shape. The `pointerShape` resource now selects the startup
+and empty-OSC-22 reset shape (CSS names plus common aliases, including `arrow`).
+Nonempty OSC 22 requests still use libghostty's parsing and alias set; resource
+aliases such as `hand2` do not extend the protocol's accepted names. The
+**Intentional drift: pointer colors follow the desktop theme.** Revenant loads
+named cursor artwork through libXcursor and preserves its colors and size.
+`pointerColor`, `pointerColorBackground`, `-ms`, and OSC 13/14 pointer colors do
+not recolor these images. This is a design choice, not pending two-color cursor
+support. xterm can recolor its core cursor's foreground/background; Revenant
+keeps themed artwork instead of switching to core cursors for custom colors.
+Core X cursor fallback is used only when a requested themed shape is unavailable;
+the pointer-color resources remain ignored on that fallback path too.
+
+`pointerMode` visibility behavior remains unimplemented independently of the
+shape/color policy.
 
 Evidence: `pointer shape` self-test (canonical shapes, aliases, invalid input and
 resets), `xvfb-pointer-shape` native cursor-image and serial checks, and

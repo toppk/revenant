@@ -8,6 +8,7 @@
 
 struct XtpTerminal
 {
+        XtpPointerShape pointer_shape;
         uint16_t columns;
         uint16_t rows;
         uint32_t cell_width;
@@ -25,6 +26,7 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
         XtpTerminal *terminal = calloc(1, sizeof(*terminal));
 
         if (terminal != NULL) {
+                terminal->pointer_shape = XTP_POINTER_SHAPE_TEXT;
                 terminal->columns = columns;
                 terminal->rows = rows;
                 terminal->cell_width = cell_width;
@@ -48,8 +50,16 @@ XtpTerminalFree(XtpTerminal *terminal)
 XtpPointerShape
 XtpTerminalPointerShape(const XtpTerminal *terminal)
 {
-        (void)terminal;
-        return XTP_POINTER_SHAPE_TEXT;
+        return terminal != NULL ? terminal->pointer_shape : XTP_POINTER_SHAPE_TEXT;
+}
+
+int
+XtpTerminalSetDefaultPointerShape(XtpTerminal *terminal, XtpPointerShape shape)
+{
+        if (terminal == NULL || (unsigned int)shape >= XTP_POINTER_SHAPE_COUNT)
+                return -1;
+        terminal->pointer_shape = shape;
+        return 0;
 }
 
 void

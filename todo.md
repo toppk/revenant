@@ -116,11 +116,11 @@ conflicting ownership even within the same batch.
       with `just probe osc-22-pointer-shape input-pointer`.
       TDN: `osc-22-pointer-shape`.
 
-- [ ] **Pointer resources and visibility.** `pointerShape`, `pointerColor`,
-      `pointerColorBackground` and `pointerMode` remain unapplied. Define how the
-      startup resource composes with accepted OSC 22 state. Decide whether custom
-      pointer colors force core-font cursors or are explicitly ignored for themed
-      ARGB cursors; include OSC 13/14 if routed later. For hide-while-typing, track
+- [ ] **Pointer visibility.** `pointerMode` remains unapplied. `pointerShape`
+      now configures the startup and empty-OSC-22 reset shape; accepted application
+      requests override it. Pointer colors (`pointerColor`, `pointerColorBackground`,
+      `-ms`, OSC 13/14) intentionally follow the desktop theme and are recorded as
+      drift, including on the core fallback path. For hide-while-typing, track
       visibility separately from the cached shape so output updates cannot reveal
       a hidden pointer. Refresh paths that feed the core must call `XtpVtUpdate`.
       Consider an upstream alias-map contribution for common cursor-font names

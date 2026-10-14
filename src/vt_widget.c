@@ -118,6 +118,8 @@ static char translations[] = "Shift~Ctrl <KeyPress> KP_Add: larger-vt-font()\n"
 #define OFFSET(field) XtOffsetOf(Vt100Rec, vt.field)
 
 static XtResource resources[] = {
+    {"pointerShape", "Cursor", XtRString, sizeof(String), OFFSET(pointer_shape_name), XtRString,
+     "xterm"},
     {XtNforeground, XtCForeground, XtRPixel, sizeof(Pixel), OFFSET(foreground), XtRString,
      XtDefaultForeground},
     {"cursorColor", "CursorColor", XtRPixel, sizeof(Pixel), OFFSET(cursor_color), XtRString,
@@ -1332,6 +1334,12 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                 if (VtFontUniverseReload(new_vt))
                         changed = True;
         }
+        if (StringChanged(old_vt->vt.pointer_shape_name, new_vt->vt.pointer_shape_name)) {
+                if (new_vt->vt.terminal != NULL)
+                        (void)XtpTerminalSetDefaultPointerShape(new_vt->vt.terminal,
+                                                                VtConfiguredPointerShape(new_vt));
+                VtUpdatePointerCursor(new_vt);
+        }
         if (StringChanged(old_vt->vt.background_opacity_name, new_vt->vt.background_opacity_name))
                 ResolveBackgroundOpacity(new_vt);
         if (old_vt->core.background_pixel != new_vt->core.background_pixel)
@@ -2390,6 +2398,8 @@ XtpVtSetTerminal(Widget widget, XtpTerminal *terminal)
         /* The previous core must not call back into this widget after it lets go. */
         if (vt->vt.terminal != NULL && vt->vt.terminal != terminal)
                 XtpTerminalSetRenderHold(vt->vt.terminal, NULL, NULL);
+        if (terminal != NULL && vt->vt.terminal != terminal)
+                (void)XtpTerminalSetDefaultPointerShape(terminal, VtConfiguredPointerShape(vt));
         vt->vt.terminal = terminal;
         VtUpdatePointerCursor(vt);
         CancelSynchronizedOutputTimer(vt);

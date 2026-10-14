@@ -126,7 +126,7 @@ static const ResourceProbe resource_probes[] = {
     {"xterm.vt100.cursorOnTime", "XTerm.VT100.CursorOnTime"},
     {"xterm.vt100.cursorOffTime", "XTerm.VT100.CursorOffTime"},
     {"xterm.vt100.pointerColor", "XTerm.VT100.PointerColor"},
-    {"xterm.vt100.pointerShape", "XTerm.VT100.PointerShape"},
+    {"xterm.vt100.pointerShape", "XTerm.VT100.Cursor"},
     {"xterm.vt100.color0", "XTerm.VT100.Color0"},
     {"xterm.vt100.color1", "XTerm.VT100.Color1"},
     {"xterm.vt100.color2", "XTerm.VT100.Color2"},
@@ -203,7 +203,8 @@ XtpLogResourceDatabases(Display *display, const char *application_name,
                "app-defaults/fallbacks > compiled resource defaults");
         XtpLog(XTP_LOG_INFO, "compat",
                "renderer is resolved by the VT100 widget; cursorColor and color0..color15 are "
-               "applied; pointerColor and pointerShape are merged but not applied yet");
+               "applied; pointerShape selects themed cursors; pointer colors intentionally follow "
+               "the desktop theme");
         XtpLog(XTP_LOG_INFO, "scrollback",
                "saveLines, scrollbar visibility/side, wheel navigation, thumb dragging, and "
                "scroll-back/scroll-forw actions are active");
@@ -832,19 +833,27 @@ ReportPaletteAndPointer(const ReportContext *context)
         {
                 static const ResourceSpec pointer_specs[] = {
                     {"xterm.vt100.pointerColor", "XTerm.VT100.PointerColor", NULL},
-                    {"xterm.vt100.pointerShape", "XTerm.VT100.PointerShape", NULL},
+                    {"xterm.vt100.pointerColorBackground", "XTerm.VT100.Background", NULL},
+                    {"xterm.vt100.pointerShape", "XTerm.VT100.Cursor", "xterm"},
                 };
                 static const char *const pointer_names[] = {
                     "XTerm*pointerColor",
+                    "XTerm*pointerColorBackground",
                     "XTerm*pointerShape",
                 };
                 static const char *const pointer_support[] = {
                     "accepted but ignored",
                     "accepted but ignored",
+                    "partially supported",
                 };
                 static const char *const pointer_help[] = {
-                    "Pointer foreground color.",
-                    "Pointer cursor shape.",
+                    "Intentional drift: pointer foreground follows desktop cursor artwork; no "
+                    "recoloring, including on core fallback.",
+                    "Intentional drift: pointer background follows desktop cursor artwork; no "
+                    "recoloring, including on core fallback.",
+                    "Startup/empty-OSC-22 reset shape; CSS names and common xterm aliases (arrow, "
+                    "xterm, hand2, watch). Desktop theme colors/size; arbitrary cursor-font names "
+                    "are not supported.",
                 };
 
                 ReportResourceGroup(context, "Pointer details", pointer_specs, pointer_names,
@@ -1067,11 +1076,11 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "utf8Title") == 0 || strcmp(name, "allowMouseOps") == 0 ||
             strcmp(name, "allowTcapOps") == 0 || strcmp(name, "disallowedTcapOps") == 0 ||
             strcmp(name, "disallowedWindowOps") == 0 || strcmp(name, "maxStringParse") == 0 ||
-            strcmp(name, "allowSendEvents") == 0)
+            strcmp(name, "allowSendEvents") == 0 || strcmp(name, "pointerShape") == 0)
                 return "partially supported";
         if (strcmp(name, "allowFontOps") == 0 || strcmp(name, "disallowedFontOps") == 0 ||
             strncmp(name, "color", 5) == 0 || strcmp(name, "pointerColor") == 0 ||
-            strcmp(name, "pointerColorBackground") == 0 || strcmp(name, "pointerShape") == 0)
+            strcmp(name, "pointerColorBackground") == 0)
                 return "accepted but ignored";
         return "unsupported";
 }

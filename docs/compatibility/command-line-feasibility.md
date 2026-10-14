@@ -23,8 +23,8 @@ given); **BLOCKED** needs a libghostty change; **SKIP** recommend not
 implementing (record in the [xterm differences ledger](drift.md)).
 
 Totals over 96 rows (grouped where xterm's help lists one family several
-ways): 23 done, 5 Xt-handled, 1 accepted, 33 ready, 16 roadmap, 5 blocked,
-13 skip.
+ways): 23 done, 5 Xt-handled, 1 accepted, 32 ready, 16 roadmap, 5 blocked,
+14 skip.
 
 ## The big pattern
 
@@ -127,7 +127,7 @@ The two original structural gaps are complete:
 | --- | --- | --- | --- | --- |
 | `-bg color` / `-fg color` | Background / foreground | Xt → `vt100` core and `foreground` | — | XT |
 | `-cr color` | `cursorColor` | Resource supported | Table entry aliases `*cursorColor` | DONE |
-| `-ms color` | `pointerColor` | Resource merged, not applied | `XRecolorCursor`; pairs with `pointerShape` | READY |
+| `-ms color` | `pointerColor` | Resource accepted and intentionally ignored | Desktop-themed cursor colors; [intentional drift](drift.md) | SKIP |
 | `-pf fontname` | `pointerFont` | None | Cursor font glyphs; trivial with `XCreateGlyphCursor` | READY |
 | `-selbg` / `-selfg color`, `-/+hm` | Selection colours, `highlightColorMode` | Selection renderer | Roadmap #4 | ROADMAP #4 |
 

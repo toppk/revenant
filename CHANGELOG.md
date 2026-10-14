@@ -15,6 +15,9 @@ commit. Published tags and assets are never replaced.
 - Honor application OSC 22 pointer-shape requests with themed Xcursor shapes and
   core-font fallbacks. Shift-hover hyperlinks temporarily select a hand; leaving
   restores the latest application shape.
+- Honor `pointerShape` for startup and empty OSC 22 resets, including `arrow`
+  and `xterm`; explicit application shapes still override it. Pointer colors
+  intentionally follow the desktop cursor theme.
 - Update the libghostty development pin to
   `b115e456749e2820a14d3942a63159ff8d46d925`, which includes the public mouse-shape
   getter, OSC 7501 program-status C callback, and subsequent terminal fixes through

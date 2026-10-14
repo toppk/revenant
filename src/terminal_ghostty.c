@@ -1254,6 +1254,8 @@ FeedOscHeader(unsigned int selector, size_t offset, void *closure)
         XtpTerminal *terminal = feed->terminal;
 
         ColorOscHeader(selector, offset, closure);
+        terminal->pointer_osc_active = selector == 22U;
+        terminal->pointer_osc_nonempty = false;
         if (selector == 133U) {
                 terminal->prompt_mark_first_item = true;
                 terminal->prompt_mark_pending = false;
@@ -1282,6 +1284,9 @@ FeedOscPayload(unsigned int selector, bool query, size_t offset, void *closure)
 {
         ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
+
+        if (selector == 22U)
+                terminal->pointer_osc_nonempty = true;
 
         ColorOscPayload(selector, query, offset, closure);
         if (selector == 133U && terminal->prompt_mark_first_item) {
@@ -1354,6 +1359,21 @@ FeedOscEnd(size_t offset, void *closure)
         ObservedInputFeed *feed = closure;
         XtpTerminal *terminal = feed->terminal;
 
+        if (terminal->pointer_osc_active) {
+                uint8_t terminator = feed->bytes[offset];
+
+                terminal->pointer_osc_active = false;
+                if (!terminal->pointer_osc_nonempty &&
+                    (terminator == 0x07U || terminator == 0x1bU || terminator == 0x9cU)) {
+                        const char *name = XtpPointerShapeName(terminal->default_pointer_shape);
+
+                        /* Only adapt an empty reset to the configured default.
+                         * Nonempty requests remain entirely parsed by libghostty. */
+                        FlushObservedInputPrefix(offset, feed);
+                        ghostty_terminal_vt_write(terminal->handle, (const uint8_t *)name,
+                                                  strlen(name));
+                }
+        }
         ColorOscEnd(offset, closure);
         terminal->prompt_mark_first_item = false;
         if (terminal->prompt_mark_pending) {
@@ -1615,6 +1635,7 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
         }
         terminal->bold_colors = true;
         terminal->allow_color_ops = true;
+        terminal->default_pointer_shape = XTP_POINTER_SHAPE_TEXT;
         terminal->allow_mouse_ops = true;
         terminal->allow_tcap_ops = true;
         XtpTcapOpsParse(XTP_TCAP_OPS_DEFAULT_DISALLOWED, &terminal->tcap_ops);
@@ -1750,6 +1771,20 @@ XtpTerminalPointerShape(const XtpTerminal *terminal)
             (unsigned int)shape >= sizeof(shapes) / sizeof(shapes[0]))
                 return XTP_POINTER_SHAPE_TEXT;
         return shapes[shape];
+}
+
+int
+XtpTerminalSetDefaultPointerShape(XtpTerminal *terminal, XtpPointerShape shape)
+{
+        char command[64];
+        int length;
+
+        if (terminal == NULL || (unsigned int)shape >= XTP_POINTER_SHAPE_COUNT)
+                return -1;
+        terminal->default_pointer_shape = shape;
+        length = snprintf(command, sizeof(command), "\033]22;%s\007", XtpPointerShapeName(shape));
+        ghostty_terminal_vt_write(terminal->handle, (const uint8_t *)command, (size_t)length);
+        return 0;
 }
 
 void

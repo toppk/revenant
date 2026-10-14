@@ -38,6 +38,8 @@ wait_for_count()
 }
 
 log=$test_dir/xterm.log
+mkdir "$test_dir/empty-home"
+HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
 "$terminal" -debug +sb -xrm 'XTerm*columns: 48' -xrm 'XTerm*rows: 8' \
     -e sh -c 'printf "\033]8;;https://same.example\033\\ONE\033]8;;\033\\  \033]8;;https://same.example\033\\TWO\033]8;;\033\\\r\n\033[4:1m\033]8;;https://single.example\033\\SINGLE\033]8;;\033\\\033[24m\r\nplain https://inferred.example/a\r\n"; sleep 20' \
     >"$test_dir/xterm.out" 2>"$log" &

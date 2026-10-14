@@ -171,6 +171,7 @@ typedef struct
 {
         Pixel foreground;
         Pixel cursor_color;
+        String pointer_shape_name;
         String ansi_palette[XTP_ANSI_PALETTE_SIZE];
         Boolean bold_colors;
         XFontStruct *initial_font;
@@ -448,6 +449,7 @@ Boolean VtHyperlinkTargetContainsCell(const VtHyperlinkTarget *target, size_t in
 XtpUnderline VtHyperlinkHoverUnderline(XtpUnderline underline);
 void VtDoubleUnderlineRows(int center, int area_top, int area_bottom, int *top, int *bottom);
 void VtUpdatePointerCursor(Vt100Rec *vt);
+XtpPointerShape VtConfiguredPointerShape(Vt100Rec *vt);
 void VtHyperlinkEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch);
 void VtScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 void VtScrollForwardAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);

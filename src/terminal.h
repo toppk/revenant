@@ -482,6 +482,8 @@ void XtpTerminalFree(XtpTerminal *terminal);
 void XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length);
 /* Accepted OSC 22 shape; callers refresh the widget after feeding output. */
 XtpPointerShape XtpTerminalPointerShape(const XtpTerminal *terminal);
+/* Configure startup and empty-OSC-22 reset shape between input commands. */
+int XtpTerminalSetDefaultPointerShape(XtpTerminal *terminal, XtpPointerShape shape);
 int XtpTerminalFeedOutput(XtpTerminal *terminal, const uint8_t *bytes, size_t length,
                           bool scroll_tty_output);
 /* Keeps the viewport on the same text while output arrives, as a search needs. */

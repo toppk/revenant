@@ -159,9 +159,48 @@ main(int argc, char **argv)
         Feed(&h, "\033]22;\033\\");
         Expect(&h, CursorImage(&h, &serial) == text_image,
                "empty OSC 22 did not restore the initial text pointer");
+        {
+                unsigned long arrow_image;
+                String configured = NULL;
+
+                XtVaSetValues(h.widget, "pointerShape", "arrow", NULL);
+                XtVaGetValues(h.widget, "pointerShape", &configured, NULL);
+                Expect(&h, configured != NULL && strcmp(configured, "arrow") == 0,
+                       "pointerShape resource was not stored");
+                XSync(XtDisplay(shell), False);
+                arrow_image = CursorImage(&h, &serial);
+                Expect(&h, arrow_image != text_image, "configured arrow did not replace text");
+                Feed(&h, "\033]22;text\007");
+                Expect(&h, CursorImage(&h, &serial) == text_image,
+                       "explicit text did not override arrow");
+                Feed(&h, "\033]22;\030\033]22;\032");
+                Expect(&h, CursorImage(&h, &serial) == text_image,
+                       "aborted empty OSC reset the pointer");
+                Feed(&h, "\033]22;");
+                Expect(&h, CursorImage(&h, &serial) == text_image,
+                       "incomplete reset changed pointer");
+                Feed(&h, "\033");
+                Feed(&h, "\\");
+                Expect(&h, CursorImage(&h, &serial) == arrow_image,
+                       "split empty reset did not restore configured arrow");
+                Feed(&h, "\033]22;invalid-name\007");
+                Expect(&h, CursorImage(&h, &serial) == arrow_image,
+                       "invalid name changed configured arrow");
+                Feed(&h, "\033[H\033]8;;https://example.com\033\\LINK\033]8;;\033\\");
+                Hover(&h, ShiftMask);
+                Feed(&h, "\033]22;text\007\033]22;\007");
+                Expect(&h, CursorImage(&h, &serial) == hand_image,
+                       "configured reset replaced hover cursor");
+                Hover(&h, 0);
+                Expect(&h, CursorImage(&h, &serial) == arrow_image,
+                       "leaving hover did not restore configured arrow");
+                XtpVtSetTerminal(h.widget, NULL);
+                Expect(&h, CursorImage(&h, &serial) == arrow_image,
+                       "detaching did not restore configured arrow");
+        }
         XtpVtSetTerminal(h.widget, NULL);
-        Expect(&h, CursorImage(&h, &serial) == text_image,
-               "detaching the terminal did not restore text");
+        Expect(&h, XtpTerminalPointerShape(h.terminal) == XTP_POINTER_SHAPE_DEFAULT,
+               "configured reset was not reflected in core state");
         XtpTerminalFree(h.terminal);
         XtDestroyWidget(shell);
         XtDestroyApplicationContext(context);

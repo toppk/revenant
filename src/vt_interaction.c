@@ -637,13 +637,63 @@ LoadPointerCursor(Display *display, XtpPointerShape shape)
         return cursor != None ? cursor : XCreateFontCursor(display, fallbacks[shape]);
 }
 
+XtpPointerShape
+VtConfiguredPointerShape(Vt100Rec *vt)
+{
+        static const struct
+        {
+                const char *name;
+                XtpPointerShape shape;
+        } aliases[] = {
+            {"arrow", XTP_POINTER_SHAPE_DEFAULT},
+            {"left_ptr", XTP_POINTER_SHAPE_DEFAULT},
+            {"xterm", XTP_POINTER_SHAPE_TEXT},
+            {"hand", XTP_POINTER_SHAPE_POINTER},
+            {"hand2", XTP_POINTER_SHAPE_POINTER},
+            {"hand1", XTP_POINTER_SHAPE_GRAB},
+            {"watch", XTP_POINTER_SHAPE_WAIT},
+            {"left_ptr_watch", XTP_POINTER_SHAPE_PROGRESS},
+            {"cross", XTP_POINTER_SHAPE_CROSSHAIR},
+            {"question_arrow", XTP_POINTER_SHAPE_HELP},
+            {"fleur", XTP_POINTER_SHAPE_ALL_SCROLL},
+            {"crossed_circle", XTP_POINTER_SHAPE_NOT_ALLOWED},
+            {"sb_h_double_arrow", XTP_POINTER_SHAPE_EW_RESIZE},
+            {"sb_v_double_arrow", XTP_POINTER_SHAPE_NS_RESIZE},
+            {"top_side", XTP_POINTER_SHAPE_N_RESIZE},
+            {"bottom_side", XTP_POINTER_SHAPE_S_RESIZE},
+            {"left_side", XTP_POINTER_SHAPE_W_RESIZE},
+            {"right_side", XTP_POINTER_SHAPE_E_RESIZE},
+            {"top_left_corner", XTP_POINTER_SHAPE_NW_RESIZE},
+            {"top_right_corner", XTP_POINTER_SHAPE_NE_RESIZE},
+            {"bottom_left_corner", XTP_POINTER_SHAPE_SW_RESIZE},
+            {"bottom_right_corner", XTP_POINTER_SHAPE_SE_RESIZE},
+            {"dnd-link", XTP_POINTER_SHAPE_ALIAS},
+            {"dnd-copy", XTP_POINTER_SHAPE_COPY},
+            {"dnd-move", XTP_POINTER_SHAPE_MOVE},
+            {"dnd-no-drop", XTP_POINTER_SHAPE_NO_DROP},
+        };
+        const char *name = vt->vt.pointer_shape_name;
+        size_t index;
+
+        if (name == NULL)
+                return XTP_POINTER_SHAPE_TEXT;
+        for (index = 0; index < XtNumber(aliases); ++index)
+                if (strcasecmp(name, aliases[index].name) == 0)
+                        return aliases[index].shape;
+        for (index = 0; index < XTP_POINTER_SHAPE_COUNT; ++index)
+                if (strcasecmp(name, XtpPointerShapeName((XtpPointerShape)index)) == 0)
+                        return (XtpPointerShape)index;
+        XtpLog(XTP_LOG_WARNING, "pointer", "unsupported pointerShape=%s; using xterm/text", name);
+        return XTP_POINTER_SHAPE_TEXT;
+}
+
 void
 VtUpdatePointerCursor(Vt100Rec *vt)
 {
         Widget widget = (Widget)vt;
-        XtpPointerShape shape = vt->vt.hyperlink_cursor_active
-                                    ? XTP_POINTER_SHAPE_POINTER
-                                    : XtpTerminalPointerShape(vt->vt.terminal);
+        XtpPointerShape shape = vt->vt.hyperlink_cursor_active ? XTP_POINTER_SHAPE_POINTER
+                                : vt->vt.terminal != NULL ? XtpTerminalPointerShape(vt->vt.terminal)
+                                                          : VtConfiguredPointerShape(vt);
 
         if (!XtIsRealized(widget) || vt->vt.pointer_shape == shape)
                 return;

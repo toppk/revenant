@@ -218,8 +218,41 @@ configured resource value. Applications may also change the default
 foreground, background, and cursor colors with OSC 10, 11, and 12; the window
 repaints at once, OSC 110, 111, and 112 restore the resources above, and
 `allowColorOps` with `disallowedColorOps` decide what is permitted. `colorBD`,
-`colorUL`, `pointerColor`, and related resources remain accepted but not yet
-applied.
+`colorUL` and related text-color resources remain accepted but not yet applied.
+Mouse pointer colors intentionally follow the desktop cursor theme; see below.
+
+### Mouse pointer shape
+
+```xrdb
+XTerm*pointerShape: arrow
+```
+
+`pointerShape` (class `Cursor`, default `xterm`) selects the startup pointer and
+the shape restored by an empty OSC 22. `arrow`/`left_ptr` selects the desktop
+arrow; `xterm`/`text` selects the I-beam. All CSS shape names used by OSC 22 are
+accepted, along with common xterm aliases including `hand`, `hand2`, `hand1`,
+`watch`, `cross`, `question_arrow`, `left_ptr_watch`, `fleur`, `crossed_circle`,
+`sb_h_double_arrow`, `sb_v_double_arrow`, side/corner resize names and `dnd-*`
+aliases. Unsupported names log a warning and fall back to `xterm`/`text`.
+Arbitrary X cursor-font glyph names are not supported.
+
+Cursors use the desktop theme's artwork, colors and size through libXcursor,
+with a core X cursor fallback when that themed shape is absent. `pointerColor`
+and `pointerColorBackground` are intentionally ignored: mouse colors belong to
+the desktop cursor theme. This is documented [xterm drift](../compatibility/drift.md),
+not planned recoloring support. OSC 13/14 and `-ms` likewise do not override pointer
+colors, including on the core X fallback path. The global
+`Xcursor.size` and `Xcursor.theme` server resources affect newly loaded themed
+cursors; `cursorColor` colors the terminal's text cursor, not the mouse pointer.
+
+An application's explicit OSC 22 request overrides the configured shape,
+including an explicit `text` request when the resource is `arrow`. Empty OSC 22
+restores the configured shape. Invalid or cancelled requests leave the current
+shape unchanged. Hyperlink hover temporarily takes precedence, and leaving the
+link restores the latest application/configured shape. RIS and DECSTR preserve
+an active application shape at the pinned backend version.
+
+Restart the terminal after changing this resource.
 
 Reverse video is available through the `reverseVideo` resource, the `-rv` and
 `+rv` command-line forms, and the runtime toggle in the VT Options menu. It
