@@ -75,6 +75,11 @@ is classified in the
   buffers](usage/copy-paste.md), which one mouse selection uses, and what
   Shift+Insert actually pastes.
 
+- **Choosing colors**
+  Use the [theme setter](usage/theme-setter.md) to preview Ghostty palettes,
+  update Xresources, restore the original database, and optionally reload a
+  terminal that advertises support.
+
 - **Opening terminal hyperlinks**
   Learn how [explicit and detected links](usage/hyperlinks.md) use Shift-hover
   and Shift+Button 1, and why only HTTP and HTTPS targets launch.

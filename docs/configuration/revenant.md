@@ -334,7 +334,9 @@ kill -HUP REVENANT_PID
 Find a terminal's PID with `xprop _NET_WM_PID`, then click its window. Send the
 signal only to a process started with a build that supports reload. Older
 released binaries normally terminate on HUP, USR1 and USR2; a process-name broadcast cannot
-distinguish them from updated terminals.
+distinguish them from updated terminals. The
+[theme setter utility](../usage/theme-setter.md) can target one capability-checked
+local window from its GUI; its CLI sends no signals.
 
 New builds advertise their running version and reload capability on each window:
 
@@ -361,6 +363,33 @@ application escape sequences, once restoration semantics are established for
 each resource. This is the direction for future expansion, not a guarantee that
 the current color reload resets every runtime override. See the
 [configuration reload roadmap](../maintainers/roadmap.md#configuration-reload).
+
+### Use Ghostty's theme collection
+
+The converter needs Python 3 and curl for fetching. Ghostty installs its theme
+collection from the `iterm2_themes` dependency named
+in `upstream/ghostty/build.zig.zon`; it does not keep those theme files in the
+source checkout. Revenant's converter fetches that exact dependency into an
+ignored local cache and emits Xresources:
+
+```sh
+tools/ghostty-theme --fetch
+tools/ghostty-theme --list
+tools/ghostty-theme 'Catppuccin Mocha' > /tmp/revenant-theme.xrdb
+xrdb -merge /tmp/revenant-theme.xrdb
+kill -HUP REVENANT_PID
+```
+
+Copy the generated lines into `~/.Xdefaults` to make the choice persistent.
+You can also pass a Ghostty theme file directly, or use `--themes-dir DIRECTORY`
+for a collection already installed by Ghostty. `--class Revenant` generates
+resources for windows launched with `revenant -class Revenant`, keeping their
+themes separate from ordinary xterm windows.
+
+The converter maps the default foreground/background, cursor and sixteen ANSI
+colors. Missing cursor color defaults to the theme's foreground. It requires a
+complete palette and reports other Ghostty settings as an Xresources comment;
+selection colors and cursor-text color are not mapped.
 
 Reverse video is available through the `reverseVideo` resource, the `-rv` and
 `+rv` command-line forms, and the runtime toggle in the VT Options menu. It

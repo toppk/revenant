@@ -2,6 +2,7 @@
 """Exercise live resource reloads against the real PTY and OSC color replies."""
 
 import json
+import importlib.util
 import os
 from pathlib import Path
 import select
@@ -10,6 +11,15 @@ import subprocess
 import sys
 import time
 import tty
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+spec = importlib.util.spec_from_file_location(
+    "theme_setter", ROOT / "tools/theme-setter-utility.py"
+)
+tool = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(tool)
 
 
 def wait_for(predicate):
@@ -87,7 +97,7 @@ def run(terminal, xrdb, directory, reverse=False):
 
     def reload(message):
         before = log_path.read_text().count(message)
-        process.send_signal(signal.SIGHUP)
+        tool.ReloadTargets(os.environ["DISPLAY"]).hup(target)
         wait_for(lambda: log_path.read_text().count(message) > before)
 
     initial = [f"#{i + 16:02x}2030" for i in range(19)]
@@ -135,6 +145,10 @@ def run(terminal, xrdb, directory, reverse=False):
                 "_REVENANT_CAPABILITIES(ATOM) = _REVENANT_RELOAD_SIGHUP_V1" in props
             ), props
             assert str(process.pid) in props, props
+            target = tool.ReloadTargets(os.environ["DISPLAY"]).inspect(
+                int((directory / "ready").read_text())
+            )
+            assert target is not None and target["pid"] == process.pid
             initial[0], initial[6] = "#abcdef", "#112233"
             assert query(0) == expected(initial), "startup resource precedence"
             changed = [f"#4050{i + 32:02x}" for i in range(19)]

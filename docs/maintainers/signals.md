@@ -48,8 +48,9 @@ that already exited, and is removed before destroying application state.
 Do not treat termination, crash or job-control signals as spare no-op slots.
 Define their cleanup or scheduling behavior separately when implementing it.
 Reserving the user signals cannot protect an already-running older executable;
-reload callers must know the target supports the operation. Target a window
-advertising the capability and verify its local process identity before signaling.
+reload callers must know the target supports the operation. The theme setter
+therefore restricts GUI signaling to a selected window advertising the capability,
+using local identity checks and pidfd-based signal delivery.
 
 `xvfb-user-signals` checks parent survival and PTY replies across USR1/USR2,
 checks the executed child's default dispositions, and confirms that a direct
@@ -76,8 +77,10 @@ and associate each local window with its live process using `_NET_WM_PID` and
 `WM_CLIENT_MACHINE`, deduplicating windows for a shared PID. Do not infer support
 from WM_CLASS (Revenant intentionally uses xterm/XTerm by default), the currently
 installed executable's version, or a process name. Older running windows lack the
-capability even after upgrading the executable on disk. A Linux pidfd can pin
-the process before rechecking window identity/capability and delivering HUP.
+capability even after upgrading the executable on disk. The theme utility implements
+these checks for its selected GUI target and uses a Linux pidfd to pin the process
+before rechecking window identity/capability and delivering HUP. CLI commands
+remain resource-only.
 
 Unchanged HUP reloads compare resolved RGB values with the configured widget
 colors before applying an update. Equivalent color spellings are no-ops too.

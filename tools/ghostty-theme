@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""Convert Ghostty themes to supported terminal Xresources colors."""
+
+import argparse
+from pathlib import Path
+import re
+import subprocess
+import tarfile
+
+from theme_resources import DEFAULT_THEMES, convert, fetch
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "theme", nargs="?", help="theme name or path to a Ghostty theme file"
+    )
+    parser.add_argument("--themes-dir", type=Path, default=DEFAULT_THEMES)
+    parser.add_argument("--class", dest="application_class", default="XTerm")
+    parser.add_argument(
+        "--list", action="store_true", help="list locally available themes"
+    )
+    parser.add_argument(
+        "--fetch",
+        action="store_true",
+        help="fetch the collection pinned by the local Ghostty source",
+    )
+    args = parser.parse_args()
+    try:
+        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", args.application_class):
+            raise ValueError("invalid X resource application class")
+        if args.fetch:
+            fetch(args.themes_dir)
+        if args.list:
+            for path in sorted(args.themes_dir.iterdir()):
+                if path.is_file():
+                    print(path.name)
+        if args.theme:
+            path = Path(args.theme)
+            if not path.is_file():
+                path = args.themes_dir / args.theme
+            print(convert(path, args.application_class), end="")
+        elif not args.fetch and not args.list:
+            parser.error("give a theme name, --list, or --fetch")
+    except (
+        OSError,
+        ValueError,
+        tarfile.TarError,
+        subprocess.CalledProcessError,
+    ) as error:
+        parser.exit(1, f"ghostty-theme: {error}\n")
+
+
+if __name__ == "__main__":
+    main()

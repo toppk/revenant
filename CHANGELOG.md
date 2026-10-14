@@ -23,6 +23,10 @@ commit. Published tags and assets are never replaced.
   and repaint changed themes without clearing the visible frame first. Reserve
   `SIGUSR1` and `SIGUSR2` as no-ops and advertise running version/reload support
   through X11 window properties.
+- Add the optional theme setter CLI/PySide utility and Ghostty theme converter.
+  Preview and apply palettes, save personal themes and favorites, choose a
+  default, and restore the original XRDB database. GUI reload targets must
+  advertise support; CLI operations only update XRDB.
 
 - Honor application OSC 22 pointer-shape requests with themed Xcursor shapes and
   core-font fallbacks. Shift-hover hyperlinks temporarily select a hand; leaving

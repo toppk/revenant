@@ -1,3 +1,4 @@
+test('theme-setter', python3, args: files('theme-setter.py'))
 test('internal-branding-policy', python3, args: files('internal-branding.py'))
 uv = find_program('uv', required: false)
 widget_test_dependencies = widget_dependencies + [m_dep]
@@ -557,6 +558,11 @@ if build_with_ghostty and xvfb.found()
         'xvfb-user-signals', find_program('sh'),
         args: [files('xvfb-user-signals.sh'), xvfb.full_path(), xterm_plus.full_path(), python3.full_path()],
         depends: [xterm_plus], timeout: 30, is_parallel: false,
+    )
+    test(
+        'xvfb-theme-setter', find_program('sh'),
+        args: [files('xvfb-theme-setter.sh'), xvfb.full_path(), python3.full_path()],
+        timeout: 30, is_parallel: false,
     )
     if xprop.found()
         test(
