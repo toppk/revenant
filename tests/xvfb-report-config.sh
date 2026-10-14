@@ -26,7 +26,7 @@ do
     grep -F -q "! action $action(): supported" "$report"
 done
 
-for resource in limitFontsets limitFontHeight limitFontWidth cursorBlink cursorBlinkXOR color0 color15
+for resource in limitFontsets limitFontHeight limitFontWidth cursorBlink cursorBlinkXOR color0 color15 pointerColor pointerColorBackground pointerFont
 do
     if ! awk -v needle="XTerm*$resource:" '
         index($0, needle) {
@@ -141,7 +141,7 @@ alias_report=$test_dir/alias-report
 HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
     "$fixture_root/run" base "$terminal" \
     -fa monospace -fd serif -fe emoji -fb bold -fwb wide-bold \
-    -bg '#010203' -fg '#fefefe' -cr red -T cli-title -n cli-icon '#+10+20' \
+    -bg '#010203' -fg '#fefefe' -cr red -ms blue -pf cursor -T cli-title -n cli-icon '#+10+20' \
     -report-config >"$alias_report" 2>>"$log"
 
 for expected in \
@@ -153,6 +153,8 @@ for expected in \
     'XTerm\*background:[[:space:]]+#010203' \
     'XTerm\*foreground:[[:space:]]+#fefefe' \
     'XTerm\*cursorColor:[[:space:]]+red' \
+    'XTerm\*pointerColor:[[:space:]]+blue' \
+    'XTerm\*pointerFont:[[:space:]]+cursor' \
     'XTerm\*title:[[:space:]]+cli-title' \
     'XTerm\*iconName:[[:space:]]+cli-icon' \
     'XTerm\*iconGeometry:[[:space:]]+\+10\+20'

@@ -45,6 +45,10 @@ struct XtpTerminal
 {
         GhosttyTerminal handle;
         XtpPointerShape default_pointer_shape;
+        bool pointer_uses_default;
+        size_t pointer_osc_start;
+        size_t pointer_osc_length;
+        char pointer_osc_name[64];
         bool pointer_osc_active;
         bool pointer_osc_nonempty;
         uint16_t geometry_columns;

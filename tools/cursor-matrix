@@ -1,0 +1,269 @@
+#!/usr/bin/env bash
+# Visual cursor checks using the current desktop and XRDB, one window at a time.
+set -euo pipefail
+
+if [[ ${1:-} == --page ]]; then
+    page=$2
+    result=$3
+    clear
+    cat "$page"
+    printf '\nActual child environment: XCURSOR_THEME=%s  XCURSOR_SIZE=%s\n' \
+        "${XCURSOR_THEME-<unset>}" "${XCURSOR_SIZE-<unset>}"
+    printf 'XCURSOR_PATH=%s\n' "${XCURSOR_PATH-<library default>}"
+    printf '\nMove the mouse over the text area, away from borders and the scrollbar.\n'
+    printf 'Color samples: \033[43m YELLOW \033[0m \033[46m CYAN \033[0m \033[40;37m BLACK \033[0m\n'
+    printf '\nEnter: next   b: previous   q: quit\n'
+    printf 'c: OSC crosshair   i: OSC I-beam   w: OSC watch   r: empty OSC reset\n'
+    printf 'Empty reset: xterm 411 uses I-beam; this build restores pointerShape.\n'
+    while IFS= read -rsn1 key; do
+        case "$key" in
+            '') printf 'next\n' >"$result"; exit 0 ;;
+            b|B) printf 'back\n' >"$result"; exit 0 ;;
+            q|Q) printf 'quit\n' >"$result"; exit 0 ;;
+            c|C) printf '\033]22;crosshair\007' ;;
+            i|I) printf '\033]22;xterm\007' ;;
+            w|W) printf '\033]22;watch\007' ;;
+            r|R) printf '\033]22;\007' ;;
+        esac
+    done
+    exit 0
+fi
+
+usage() {
+    cat <<'HELP'
+Usage: tools/cursor-matrix TERMINAL [--theme NAME] [--case ID] [--list] [--dry-run]
+
+TERMINAL is the executable path or command name to test.
+One window opens at a time. Enter advances; b goes back; q quits.
+Closing a window also advances. --case runs only that case.
+--theme defaults to "default"; use an installed theme name to compare artwork.
+--list lists case IDs. --dry-run prints settings and expectations without launching.
+
+All terminal resources use the lowercase instance prefix xterm*; -name xterm
+ensures both executables use that instance. Your XRDB remains active and is
+never modified. More-specific XRDB entries can still override broad resources.
+Except for "inherited", cases clear inherited XCURSOR_THEME/XCURSOR_SIZE and
+explicitly set the displayed colors and shape. XCURSOR_PATH is preserved unless
+a case says otherwise. Themed sizes are requests; the nearest available artwork
+may be larger (for example, a 44-pixel request can select 48-pixel artwork).
+HELP
+}
+
+if [[ $# == 0 || ${1:-} == --help || ${1:-} == -h ]]; then
+    usage
+    exit 0
+fi
+terminal=$1
+shift
+theme=default
+selected=
+list=false
+dry_run=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --theme|--case)
+            [[ $# -ge 2 ]] || { printf 'Missing value for %s\n' "$1" >&2; exit 2; }
+            if [[ $1 == --theme ]]; then theme=$2; else selected=$2; fi
+            shift 2 ;;
+        --list) list=true; shift ;;
+        --dry-run) dry_run=true; shift ;;
+        --help|-h) usage; exit 0 ;;
+        *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
+    esac
+done
+
+cases=(
+    inherited core-arrow core-left-ptr core-text core-crosshair core-cross
+    core-hand1 core-hand2 core-watch core-fleur core-ew-resize core-ns-resize
+    core-boat core-plus default-fg default-bg explicit-colors size-alone
+    core-font missing-font alias-ms alias-pf theme-24 theme-44 theme-crosshair
+    theme-colors theme-font env-theme env-size env-size-core env-empty env-empty-core missing-theme
+    no-artwork core-opaque core-translucent
+)
+if $list; then
+    printf '%s\n' "${cases[@]}"
+    exit 0
+fi
+if [[ -n $selected ]]; then
+    found=false
+    for id in "${cases[@]}"; do [[ $id != "$selected" ]] || found=true; done
+    $found || { printf 'Unknown case: %s (use --list)\n' "$selected" >&2; exit 2; }
+    cases=("$selected")
+fi
+if ! $dry_run; then
+    command -v "$terminal" >/dev/null || { printf 'Executable not found: %s\n' "$terminal" >&2; exit 2; }
+    [[ -n ${DISPLAY:-} ]] || { printf 'DISPLAY is unset\n' >&2; exit 2; }
+fi
+self=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/$(basename -- "${BASH_SOURCE[0]}")
+
+configure_case() {
+    local id=$1 shape
+    env_args=(env -u XCURSOR_THEME -u XCURSOR_SIZE)
+    xrm_args=(
+        'xterm*foreground: #00ff00' 'xterm*background: #000000'
+        'xterm*reverseVideo: false' 'xterm*pointerShape: arrow'
+        'xterm*pointerColor: yellow' 'xterm*pointerColorBackground: XtDefaultBackground'
+        'xterm*pointerFont:' 'Xcursor.theme:'
+    )
+    extra_args=()
+    expected='Traditional yellow arrow against black, with no white outline. Core size stays fixed.'
+    case "$id" in
+        inherited)
+            env_args=(env)
+            xrm_args=()
+            expected='Your existing XRDB and environment choose shape, theme, size and colors. Compare with the controlled cases.' ;;
+        core-*)
+            shape=${id#core-}
+            case "$shape" in
+                left-ptr) shape=left_ptr ;;
+                text) shape=xterm ;;
+                ew-resize) shape=sb_h_double_arrow ;;
+                ns-resize) shape=sb_v_double_arrow ;;
+            esac
+            case "$id" in
+                core-font)
+                    xrm_args+=('xterm*pointerFont: cursor')
+                    expected='Same yellow core arrow, explicitly loaded from X11 cursor font.' ;;
+                core-opaque)
+                    xrm_args+=('xterm*backgroundOpacity: disabled')
+                    expected='Yellow core arrow on black. This build uses its opaque visual; xterm ignores backgroundOpacity.' ;;
+                core-translucent)
+                    xrm_args+=('xterm*backgroundOpacity: 0.85')
+                    expected='Yellow core arrow on black, even with this build using its compositor/ARGB path. xterm ignores backgroundOpacity.' ;;
+                *)
+                    xrm_args+=("xterm*pointerShape: $shape")
+                    expected="Yellow native X11 '$shape' glyph against black. arrow and left_ptr should be different shapes." ;;
+            esac ;;
+        default-fg)
+            xrm_args+=('xterm*pointerColor: XtDefaultForeground')
+            expected='Green core arrow: default pointer foreground inherits terminal foreground (#00ff00).' ;;
+        default-bg)
+            expected='Yellow core arrow against black: default pointer background inherits terminal background (#000000).' ;;
+        explicit-colors)
+            xrm_args+=('xterm*pointerShape: left_ptr' 'xterm*pointerColorBackground: cyan')
+            expected='Filled yellow core pointer with a cyan outline/mask. Compare the broad yellow body with the cyan edge.' ;;
+        size-alone)
+            xrm_args+=('Xcursor.size: 44')
+            expected='Yellow CORE arrow at the same size as core-arrow. Xcursor.size: 44 must not enlarge the core glyph or enable themed artwork.' ;;
+        missing-font)
+            xrm_args+=('xterm*pointerFont: no-such-cursor-font')
+            expected='Fallback to the same yellow core arrow; a missing-font warning is expected.' ;;
+        alias-ms)
+            extra_args=(-ms yellow)
+            expected='Yellow core arrow via -ms yellow. A more-specific color in XRDB can still win.' ;;
+        alias-pf)
+            extra_args=(-pf cursor)
+            expected='Same yellow core arrow; -pf selects the standard cursor font.' ;;
+        theme-24|theme-44|theme-crosshair|theme-colors|theme-font)
+            xrm_args+=("Xcursor.theme: $theme" 'Xcursor.size: 24')
+            expected="Artwork from '$theme', requested at 24 pixels. Multicolor artwork retains theme colors; monochrome artwork may recolor yellow."
+            case "$id" in
+                theme-44)
+                    xrm_args+=('Xcursor.size: 44')
+                    expected="Larger artwork from '$theme', requested at 44 pixels (possibly 48). Compare with theme-24." ;;
+                theme-crosshair)
+                    xrm_args+=('xterm*pointerShape: crosshair')
+                    expected="Themed crosshair from '$theme'; if absent, theme inheritance/default artwork or a yellow core fallback." ;;
+                theme-colors)
+                    xrm_args+=('xterm*pointerColorBackground: cyan')
+                    expected="Multicolor '$theme' artwork should keep its colors despite yellow/cyan resources. Monochrome artwork can recolor." ;;
+                theme-font)
+                    xrm_args+=('xterm*pointerFont: cursor')
+                    expected="Compare with theme-24: explicit standard cursor font should not defeat available themed artwork." ;;
+            esac ;;
+        env-theme)
+            env_args+=("XCURSOR_THEME=$theme")
+            xrm_args+=('Xcursor.size: 24')
+            expected="THEMED '$theme' cursor: nonempty XCURSOR_THEME beats the explicitly empty Xcursor.theme resource." ;;
+        env-size)
+            env_args+=('XCURSOR_SIZE=44')
+            xrm_args+=("Xcursor.theme: $theme" 'Xcursor.size: 24')
+            expected='Larger themed cursor: environment requests 44 pixels despite the 24-pixel resource.' ;;
+        env-size-core)
+            env_args+=('XCURSOR_SIZE=44')
+            expected='Yellow CORE arrow at the same size as core-arrow. XCURSOR_SIZE=44 must not enlarge the core glyph or enable themed artwork.' ;;
+        env-empty-core)
+            env_args+=('XCURSOR_THEME=')
+            expected='Yellow CORE arrow: both the environment theme and resource theme are empty.' ;;
+        env-empty)
+            env_args+=('XCURSOR_THEME=')
+            xrm_args+=("Xcursor.theme: $theme" 'Xcursor.size: 24')
+            expected='Empty environment is NOT a reliable disable switch: lookup can fall back to default theme artwork. Compare with core-arrow.' ;;
+        missing-theme)
+            xrm_args+=('Xcursor.theme: no-such-cursor-theme' 'Xcursor.size: 24')
+            expected='Missing theme may fall back to installed default artwork. Core fallback is expected only when no artwork resolves.' ;;
+        no-artwork)
+            env_args+=('XCURSOR_PATH=/dev/null' 'XCURSOR_THEME=no-such-cursor-theme')
+            xrm_args+=("Xcursor.theme: $theme" 'Xcursor.size: 44')
+            expected='Guaranteed yellow CORE arrow: no artwork can resolve through /dev/null. Requested 44 pixels must not enlarge it.' ;;
+        *) printf 'Unimplemented case: %s\n' "$id" >&2; exit 2 ;;
+    esac
+    # Show each final resource once, retaining the last value for repeated keys.
+    local resource key slot replaced
+    local -a effective=()
+    for resource in "${xrm_args[@]}"; do
+        key=${resource%%:*}
+        [[ $id != alias-ms || $key != 'xterm*pointerColor' ]] || continue
+        [[ $id != alias-pf || $key != 'xterm*pointerFont' ]] || continue
+        replaced=false
+        for slot in "${!effective[@]}"; do
+            if [[ ${effective[slot]%%:*} == "$key" ]]; then
+                effective[slot]=$resource
+                replaced=true
+                break
+            fi
+        done
+        $replaced || effective+=("$resource")
+    done
+    xrm_args=("${effective[@]}")
+    command=("${env_args[@]}" "$terminal" -name xterm -geometry 100x36)
+    for resource in "${xrm_args[@]}"; do command+=(-xrm "$resource"); done
+    command+=("${extra_args[@]}")
+}
+
+shell_quote() {
+    local quoted=${1//\'/\'\\\'\'}
+    printf "'%s'" "$quoted"
+}
+
+print_page() {
+    local resource
+    printf 'Cursor matrix %s/%s: %s\nTerminal: %s\n\n' "$((index + 1))" "${#cases[@]}" "${cases[index]}" "$terminal"
+    printf 'EXPECTED: %s\n\nEquivalent interactive-shell command:\n' "$expected"
+    printf '  '
+    printf '%q ' "${env_args[@]}" "$terminal" -name xterm -geometry 100x36
+    for resource in "${xrm_args[@]}"; do
+        printf ' \\\n    -xrm '
+        shell_quote "$resource"
+    done
+    if [[ ${#extra_args[@]} -gt 0 ]]; then printf ' \\\n    '; printf '%q ' "${extra_args[@]}"; fi
+    printf '\n\nXRDB is unchanged; its more-specific entries and your normal cursor search path remain active.\n'
+}
+
+if $dry_run; then
+    for ((index=0; index<${#cases[@]}; ++index)); do
+        configure_case "${cases[index]}"
+        print_page
+        printf '\n'
+    done
+    exit 0
+fi
+work=$(mktemp -d)
+trap 'rm -rf -- "$work"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+index=0
+while ((index < ${#cases[@]})); do
+    configure_case "${cases[index]}"
+    print_page | tee "$work/page"
+    rm -f -- "$work/result"
+    "${command[@]}" -T "Cursor matrix: ${cases[index]}" \
+        -e "$BASH" "$self" --page "$work/page" "$work/result"
+    action=next
+    [[ ! -f $work/result ]] || IFS= read -r action <"$work/result"
+    case "$action" in
+        quit) break ;;
+        back) if ((index > 0)); then index=$((index - 1)); fi ;;
+        *) index=$((index + 1)) ;;
+    esac
+done

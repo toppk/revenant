@@ -24,6 +24,8 @@ BuildRequires:  pkgconfig(fontconfig)
 BuildRequires:  pkgconfig(xft)
 BuildRequires:  pkgconfig(xrender)
 BuildRequires:  pkgconfig(xcursor)
+BuildRequires:  pkgconfig(x11-xcb)
+BuildRequires:  pkgconfig(xcb)
 BuildRequires:  pkgconfig(cairo) >= 1.18
 BuildRequires:  pkgconfig(cairo-ft) >= 1.18
 BuildRequires:  pkgconfig(cairo-xlib) >= 1.18

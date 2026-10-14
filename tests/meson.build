@@ -1243,6 +1243,15 @@ if build_with_ghostty and xvfb.found()
     )
     if xfixes_dep.found()
         test(
+            'xvfb-cursor-modes',
+            find_program('sh'),
+            args: [files('xvfb-cursor-modes.sh'), xvfb.full_path(),
+                   xterm_plus.full_path(), xrdb.full_path(), python3.full_path()],
+            timeout: 90,
+            is_parallel: false,
+            depends: [xterm_plus],
+        )
+        test(
             'xvfb-pointer-shape',
             find_program('sh'),
             args: [files('xvfb-pointer-shape.sh'), xvfb.full_path(),

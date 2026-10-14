@@ -4,7 +4,9 @@
 #include "url_match.h"
 #include "utf8.h"
 
+#include <X11/StringDefs.h>
 #include <X11/Xatom.h>
+#include <X11/Xlib-xcb.h>
 #include <X11/cursorfont.h>
 #include <X11/Xcursor/Xcursor.h>
 
@@ -592,9 +594,152 @@ VtHyperlinkTargetMatchesCell(Vt100Rec *vt, const XtpRenderCell *cell)
         }
 }
 
-/* Themes may omit W3C names; retain a usable core-font cursor in that case. */
-static Cursor
-LoadPointerCursor(Display *display, XtpPointerShape shape)
+/* Standard X11 cursor-font shape names, as accepted by xterm. */
+static int
+CorePointerGlyph(const char *name)
+{
+#define SHAPE(name)                                                                                \
+        {                                                                                          \
+                #name, XC_##name                                                                   \
+        }
+        static const struct
+        {
+                const char *name;
+                int glyph;
+        } shapes[] = {
+            SHAPE(X_cursor),
+            SHAPE(arrow),
+            SHAPE(based_arrow_down),
+            SHAPE(based_arrow_up),
+            SHAPE(boat),
+            SHAPE(bogosity),
+            SHAPE(bottom_left_corner),
+            SHAPE(bottom_right_corner),
+            SHAPE(bottom_side),
+            SHAPE(bottom_tee),
+            SHAPE(box_spiral),
+            SHAPE(center_ptr),
+            SHAPE(circle),
+            SHAPE(clock),
+            SHAPE(coffee_mug),
+            SHAPE(cross),
+            SHAPE(cross_reverse),
+            SHAPE(crosshair),
+            SHAPE(diamond_cross),
+            SHAPE(dot),
+            SHAPE(dotbox),
+            SHAPE(double_arrow),
+            SHAPE(draft_large),
+            SHAPE(draft_small),
+            SHAPE(draped_box),
+            SHAPE(exchange),
+            SHAPE(fleur),
+            SHAPE(gobbler),
+            SHAPE(gumby),
+            SHAPE(hand1),
+            SHAPE(hand2),
+            SHAPE(heart),
+            SHAPE(icon),
+            SHAPE(iron_cross),
+            SHAPE(left_ptr),
+            SHAPE(left_side),
+            SHAPE(left_tee),
+            SHAPE(leftbutton),
+            SHAPE(ll_angle),
+            SHAPE(lr_angle),
+            SHAPE(man),
+            SHAPE(middlebutton),
+            SHAPE(mouse),
+            SHAPE(pencil),
+            SHAPE(pirate),
+            SHAPE(plus),
+            SHAPE(question_arrow),
+            SHAPE(right_ptr),
+            SHAPE(right_side),
+            SHAPE(right_tee),
+            SHAPE(rightbutton),
+            SHAPE(rtl_logo),
+            SHAPE(sailboat),
+            SHAPE(sb_down_arrow),
+            SHAPE(sb_h_double_arrow),
+            SHAPE(sb_left_arrow),
+            SHAPE(sb_right_arrow),
+            SHAPE(sb_up_arrow),
+            SHAPE(sb_v_double_arrow),
+            SHAPE(shuttle),
+            SHAPE(sizing),
+            SHAPE(spider),
+            SHAPE(spraycan),
+            SHAPE(star),
+            SHAPE(target),
+            SHAPE(tcross),
+            SHAPE(top_left_arrow),
+            SHAPE(top_left_corner),
+            SHAPE(top_right_corner),
+            SHAPE(top_side),
+            SHAPE(top_tee),
+            SHAPE(trek),
+            SHAPE(ul_angle),
+            SHAPE(umbrella),
+            SHAPE(ur_angle),
+            SHAPE(watch),
+            SHAPE(xterm),
+        };
+#undef SHAPE
+        size_t index;
+
+        if (name != NULL)
+                for (index = 0; index < XtNumber(shapes); ++index)
+                        if (strcmp(name, shapes[index].name) == 0)
+                                return shapes[index].glyph;
+        return -1;
+}
+
+/* Use the Xt database so -xrm participates, unlike XGetDefault's cached database. */
+static char *
+PointerResource(Display *display, const char *name)
+{
+        XrmValue value = {0};
+        char *type = NULL;
+
+        if (!XrmGetResource(XtDatabase(display), name, name, &type, &value) || value.addr == NULL)
+                return NULL;
+        return strndup(value.addr, value.size);
+}
+
+static int
+PointerSize(Display *display)
+{
+        const char *environment = getenv("XCURSOR_SIZE");
+        char *resource = PointerResource(display, "Xcursor.size");
+        const char *value = environment != NULL ? environment : resource;
+        char *end = NULL;
+        long size = value != NULL ? strtol(value, &end, 10) : 0;
+
+        Boolean valid = size > 0 && size <= INT_MAX && end != value && *end == '\0';
+
+        free(resource);
+        return valid ? (int)size : XcursorGetDefaultSize(display);
+}
+
+void
+VtResetPointerCursors(Vt100Rec *vt)
+{
+        size_t slot;
+
+        for (slot = 0; slot < XTP_POINTER_SHAPE_COUNT; ++slot) {
+                if (vt->vt.pointer_cursors[slot] != None)
+                        XFreeCursor(XtDisplay((Widget)vt), vt->vt.pointer_cursors[slot]);
+                vt->vt.pointer_cursors[slot] = None;
+        }
+        if (vt->vt.configured_pointer_cursor != None)
+                XFreeCursor(XtDisplay((Widget)vt), vt->vt.configured_pointer_cursor);
+        vt->vt.configured_pointer_cursor = None;
+        vt->vt.pointer_shape = XTP_POINTER_SHAPE_COUNT;
+}
+
+static unsigned int
+PointerFallbackGlyph(XtpPointerShape shape)
 {
         static const unsigned int fallbacks[XTP_POINTER_SHAPE_COUNT] = {
             [XTP_POINTER_SHAPE_DEFAULT] = XC_left_ptr,
@@ -632,9 +777,127 @@ LoadPointerCursor(Display *display, XtpPointerShape shape)
             [XTP_POINTER_SHAPE_ZOOM_IN] = XC_plus,
             [XTP_POINTER_SHAPE_ZOOM_OUT] = XC_plus,
         };
-        Cursor cursor = XcursorLibraryLoadCursor(display, XtpPointerShapeName(shape));
+        return fallbacks[shape];
+}
 
-        return cursor != None ? cursor : XCreateFontCursor(display, fallbacks[shape]);
+/* Xlib's font-cursor constructors call libXcursor hooks even when core theming
+ * is disabled. Send the standard core request on the shared XCB connection so
+ * neither desktop artwork nor libXcursor's cached search path can replace it. */
+static Cursor
+CreateCoreGlyphCursor(Display *display, const XFontStruct *font, unsigned int glyph,
+                      const XColor colors[2])
+{
+        xcb_connection_t *connection = XGetXCBConnection(display);
+        xcb_cursor_t cursor;
+        xcb_void_cookie_t request;
+        xcb_generic_error_t *error;
+
+        if (connection == NULL || glyph < font->min_char_or_byte2 ||
+            glyph + 1U > font->max_char_or_byte2)
+                return None;
+        cursor = xcb_generate_id(connection);
+        request = xcb_create_glyph_cursor_checked(
+            connection, cursor, (xcb_font_t)font->fid, (xcb_font_t)font->fid, (uint16_t)glyph,
+            (uint16_t)(glyph + 1U), colors[0].red, colors[0].green, colors[0].blue, colors[1].red,
+            colors[1].green, colors[1].blue);
+        error = xcb_request_check(connection, request);
+        if (error != NULL) {
+                XtpLog(XTP_LOG_DEBUG, "pointer", "core glyph cursor failed error=%u glyph=%u",
+                       error->error_code, glyph);
+                free(error);
+                return None;
+        }
+        return (Cursor)cursor;
+}
+
+/* xterm's color defaults mean the configured terminal colors, not Xt's
+ * stock black/white pixels. Keep the names until the widget colors are ready. */
+static Pixel
+PointerColorPixel(Vt100Rec *vt, const char *name, Boolean foreground)
+{
+        Pixel pixel = foreground ? vt->vt.foreground : vt->vt.opaque_background_pixel;
+        XrmValue source;
+        XrmValue target = {.size = sizeof(pixel), .addr = (XPointer)&pixel};
+
+        if (name == NULL || *name == '\0')
+                return pixel;
+        if (strcasecmp(name, XtDefaultForeground) == 0)
+                return vt->vt.foreground;
+        if (strcasecmp(name, XtDefaultBackground) == 0)
+                return vt->vt.opaque_background_pixel;
+        source.size = (unsigned int)strlen(name) + 1U;
+        source.addr = (XPointer)name;
+        if (!XtConvertAndStore((Widget)vt, XtRString, &source, XtRPixel, &target))
+                XtpLog(XTP_LOG_WARNING, "pointer",
+                       "invalid pointer color=%s; using terminal default", name);
+        return pixel;
+}
+
+/* Resolve theme mode explicitly, including an empty libXcursor environment override. */
+static Cursor
+LoadPointerCursor(Vt100Rec *vt, XtpPointerShape shape, Boolean native_default)
+{
+        Display *display = XtDisplay((Widget)vt);
+        const char *environment = getenv("XCURSOR_THEME");
+        char *resource = PointerResource(display, "Xcursor.theme");
+        const char *policy_theme =
+            environment != NULL && *environment != '\0' ? environment : resource;
+        const char *theme = environment != NULL ? environment : resource;
+        Cursor cursor = None;
+        XColor colors[2] = {{0}, {0}};
+        XFontStruct *font = NULL;
+        unsigned int glyph = native_default
+                                 ? (unsigned int)CorePointerGlyph(vt->vt.pointer_shape_name)
+                                 : PointerFallbackGlyph(shape);
+        const char *name = native_default ? vt->vt.pointer_shape_name : XtpPointerShapeName(shape);
+
+        if (policy_theme != NULL && *policy_theme != '\0') {
+                int size = PointerSize(display);
+                XcursorImages *images = XcursorLibraryLoadImages(name, theme, size);
+
+                if (images == NULL)
+                        images = XcursorShapeLoadImages(glyph, theme, size);
+                if (images != NULL) {
+                        cursor = XcursorImagesLoadCursor(display, images);
+                        XcursorImagesDestroy(images);
+                }
+        }
+        free(resource);
+        colors[0].pixel = PointerColorPixel(vt, vt->vt.pointer_foreground_name, True);
+        colors[1].pixel = PointerColorPixel(vt, vt->vt.pointer_background_name, False);
+        XQueryColors(display, vt->core.colormap, colors, 2);
+        XtpLog(XTP_LOG_DEBUG, "pointer",
+               "mode=%s shape=%s depth=%u foreground-pixel=0x%lx rgb=%04x/%04x/%04x "
+               "background-pixel=0x%lx rgb=%04x/%04x/%04x",
+               cursor != None ? "themed" : "core", name, (unsigned int)vt->core.depth,
+               colors[0].pixel, colors[0].red, colors[0].green, colors[0].blue, colors[1].pixel,
+               colors[1].red, colors[1].green, colors[1].blue);
+        if (cursor != None) {
+                /* Match xterm: the server recolors monochrome artwork, while
+                 * multicolor ARGB cursors retain their theme's colors. */
+                XRecolorCursor(display, cursor, &colors[0], &colors[1]);
+                return cursor;
+        }
+
+        if (vt->vt.pointer_font_name != NULL && *vt->vt.pointer_font_name != '\0') {
+                font = XLoadQueryFont(display, vt->vt.pointer_font_name);
+                if (font == NULL)
+                        XtpLog(XTP_LOG_WARNING, "pointer",
+                               "cannot load pointerFont=%s; using cursor",
+                               vt->vt.pointer_font_name);
+        }
+        if (font != NULL) {
+                cursor = CreateCoreGlyphCursor(display, font, glyph, colors);
+                XFreeFont(display, font);
+        }
+        if (cursor == None) {
+                font = XLoadQueryFont(display, "cursor");
+                if (font != NULL) {
+                        cursor = CreateCoreGlyphCursor(display, font, glyph, colors);
+                        XFreeFont(display, font);
+                }
+        }
+        return cursor;
 }
 
 XtpPointerShape
@@ -683,6 +946,8 @@ VtConfiguredPointerShape(Vt100Rec *vt)
         for (index = 0; index < XTP_POINTER_SHAPE_COUNT; ++index)
                 if (strcasecmp(name, XtpPointerShapeName((XtpPointerShape)index)) == 0)
                         return (XtpPointerShape)index;
+        if (CorePointerGlyph(name) >= 0)
+                return XTP_POINTER_SHAPE_TEXT;
         XtpLog(XTP_LOG_WARNING, "pointer", "unsupported pointerShape=%s; using xterm/text", name);
         return XTP_POINTER_SHAPE_TEXT;
 }
@@ -695,12 +960,21 @@ VtUpdatePointerCursor(Vt100Rec *vt)
                                 : vt->vt.terminal != NULL ? XtpTerminalPointerShape(vt->vt.terminal)
                                                           : VtConfiguredPointerShape(vt);
 
-        if (!XtIsRealized(widget) || vt->vt.pointer_shape == shape)
+        int glyph = CorePointerGlyph(vt->vt.pointer_shape_name);
+        Boolean native_default = !vt->vt.hyperlink_cursor_active &&
+                                 XtpTerminalPointerUsesDefault(vt->vt.terminal) && glyph >= 0 &&
+                                 (unsigned int)glyph != PointerFallbackGlyph(shape);
+        Cursor *cursor =
+            native_default ? &vt->vt.configured_pointer_cursor : &vt->vt.pointer_cursors[shape];
+
+        if (!XtIsRealized(widget) ||
+            (vt->vt.pointer_shape == shape && vt->vt.pointer_native_default == native_default))
                 return;
-        if (vt->vt.pointer_cursors[shape] == None)
-                vt->vt.pointer_cursors[shape] = LoadPointerCursor(XtDisplay(widget), shape);
-        XDefineCursor(XtDisplay(widget), XtWindow(widget), vt->vt.pointer_cursors[shape]);
+        if (*cursor == None)
+                *cursor = LoadPointerCursor(vt, shape, native_default);
+        XDefineCursor(XtDisplay(widget), XtWindow(widget), *cursor);
         vt->vt.pointer_shape = shape;
+        vt->vt.pointer_native_default = native_default;
         XtpLog(XTP_LOG_DEBUG, "pointer", "shape=%s source=%s", XtpPointerShapeName(shape),
                vt->vt.hyperlink_cursor_active ? "hover" : "application");
 }

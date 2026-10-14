@@ -5,8 +5,11 @@
 #include <X11/Shell.h>
 #include <X11/StringDefs.h>
 #include <X11/extensions/Xfixes.h>
+#include <X11/Xcursor/Xcursor.h>
 
 #include <stdint.h>
+#include <stdlib.h>
+#include <sys/stat.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -71,11 +74,97 @@ Hover(Harness *h, unsigned int state)
         XSync(XtDisplay(h->widget), False);
 }
 
+/* A deliberately distinctive theme, independent of installed desktop artwork. */
+static void
+CreateCursorFixture(void)
+{
+        const char *root = getenv("XTP_CURSOR_FIXTURE");
+        char path[4096];
+        XcursorImages *images;
+        int index;
+
+        if (root == NULL)
+                return;
+        snprintf(path, sizeof(path), "%s/test-theme", root);
+        mkdir(path, 0700);
+        snprintf(path, sizeof(path), "%s/test-theme/cursors", root);
+        mkdir(path, 0700);
+        images = XcursorImagesCreate(2);
+        if (images == NULL)
+                exit(1);
+        images->nimage = 2;
+        for (index = 0; index < 2; ++index) {
+                int size = index == 0 ? 24 : 44;
+                int pixel;
+                static const XcursorPixel colors[] = {0xffff00ffU, 0xff00ffffU, 0xff00ff00U,
+                                                      0x80800080U};
+
+                images->images[index] = XcursorImageCreate(size, size);
+                if (images->images[index] == NULL)
+                        exit(1);
+                images->images[index]->size = (XcursorDim)size;
+                images->images[index]->xhot = 0;
+                images->images[index]->yhot = 0;
+                images->images[index]->delay = 0;
+                for (pixel = 0; pixel < size * size; ++pixel)
+                        images->images[index]->pixels[pixel] = colors[pixel % 4];
+        }
+        snprintf(path, sizeof(path), "%s/test-theme/cursors/text", root);
+        if (!XcursorFilenameSaveImages(path, images)) {
+                perror(path);
+                exit(1);
+        }
+        XcursorImagesDestroy(images);
+}
+
+static void
+CheckCursorPolicy(Harness *h, const char *expected, unsigned long foreground,
+                  unsigned long background)
+{
+        XFixesCursorImage *image = XFixesGetCursorImage(XtDisplay(h->widget));
+        size_t pixel;
+        int opaque = 0;
+        int saw_foreground = 0;
+        int saw_background = 0;
+
+        if (image == NULL) {
+                Expect(h, 0, "cannot inspect cursor policy");
+                return;
+        }
+        if (strcmp(expected, "core") != 0)
+                Expect(h, image->width == atoi(expected) && image->height == atoi(expected),
+                       "themed cursor size does not match resource/environment precedence");
+        for (pixel = 0; pixel < (size_t)image->width * image->height; ++pixel) {
+                unsigned long color = image->pixels[pixel] & 0xffffffUL;
+
+                if ((image->pixels[pixel] & 0xff000000UL) == 0)
+                        continue;
+                ++opaque;
+                if (strcmp(expected, "core") == 0) {
+                        Expect(h, color == foreground || color == background,
+                               "core cursor ignored pointer colors or used themed artwork");
+                        saw_foreground |= color == foreground;
+                        saw_background |= color == background;
+                } else {
+                        Expect(h,
+                               color == 0xff00ffUL || color == 0x00ffffUL || color == 0x00ff00UL ||
+                                   color == 0x800080UL,
+                               "multicolor themed artwork was recolored");
+                }
+        }
+        Expect(h, opaque != 0, "cursor is completely transparent");
+        if (strcmp(expected, "core") == 0)
+                Expect(h, saw_foreground && saw_background, "core cursor lost shape or mask color");
+        XFree(image);
+}
+
 int
 main(int argc, char **argv)
 {
         XtAppContext context;
-        Widget shell = XtVaAppInitialize(&context, "XTerm", NULL, 0, &argc, argv, NULL, NULL);
+        Widget shell;
+        const char *policy = getenv("XTP_EXPECT_CURSOR");
+
         Harness h = {0};
         unsigned long serial = 0;
         unsigned long previous_serial;
@@ -88,6 +177,8 @@ main(int argc, char **argv)
         int event_base;
         int error_base;
 
+        CreateCursorFixture();
+        shell = XtVaAppInitialize(&context, "XTerm", NULL, 0, &argc, argv, NULL, NULL);
         h.widget =
             XtVaCreateManagedWidget("vt100", vt100WidgetClass, shell, "renderFont", "false", NULL);
         XtRealizeWidget(shell);
@@ -102,6 +193,8 @@ main(int argc, char **argv)
         XSync(XtDisplay(shell), False);
         text_image = CursorImage(&h, &serial);
         text_serial = serial;
+        if (policy != NULL)
+                CheckCursorPolicy(&h, policy, 0x0000ffUL, 0xffff00UL);
         Expect(&h, text_image != 0, "initial text cursor missing");
 
         Feed(&h, "\033]22;crosshair\007");
@@ -197,6 +290,44 @@ main(int argc, char **argv)
                 XtpVtSetTerminal(h.widget, NULL);
                 Expect(&h, CursorImage(&h, &serial) == arrow_image,
                        "detaching did not restore configured arrow");
+        }
+        {
+                unsigned long native_image;
+
+                XtpVtSetTerminal(h.widget, h.terminal);
+                XtVaSetValues(h.widget, "pointerShape", "boat", NULL);
+                XSync(XtDisplay(shell), False);
+                native_image = CursorImage(&h, &serial);
+                Expect(&h, XtpTerminalPointerUsesDefault(h.terminal), "native default not tracked");
+                Expect(&h, native_image != text_image, "native boat glyph not loaded");
+                /* boat's backend fallback and explicit text share the same enum:
+                 * acceptance metadata must still switch away from the native glyph. */
+                Feed(&h, "\033]22;te");
+                Feed(&h, "xt\007");
+                Expect(&h, !XtpTerminalPointerUsesDefault(h.terminal),
+                       "explicit text retained native default");
+                Expect(&h, CursorImage(&h, &serial) == text_image,
+                       "text did not override native boat");
+                Feed(&h, "\033]22;");
+                Feed(&h, "\007");
+                Expect(&h, CursorImage(&h, &serial) == native_image,
+                       "empty reset lost native boat");
+                Feed(&h, "\033]22;invalid-name\007\033]22;text\030");
+                Expect(&h, XtpTerminalPointerUsesDefault(h.terminal),
+                       "invalid or aborted request lost default");
+                Expect(&h, CursorImage(&h, &serial) == native_image,
+                       "invalid request changed native glyph");
+                XtVaSetValues(h.widget, "pointerShape", "arrow", NULL);
+                XtpVtSetTerminal(h.widget, NULL);
+        }
+        if (policy != NULL) {
+                XtpVtSetTerminal(h.widget, h.terminal);
+                Feed(&h, "\033]22;text\007");
+                XtVaSetValues(h.widget, "pointerColor", "red", "pointerFont", "cursor", NULL);
+                XSync(XtDisplay(shell), False);
+                CheckCursorPolicy(&h, policy, 0xff0000UL, 0xffff00UL);
+                Feed(&h, "\033]22;\007");
+                XtpVtSetTerminal(h.widget, NULL);
         }
         XtpVtSetTerminal(h.widget, NULL);
         Expect(&h, XtpTerminalPointerShape(h.terminal) == XTP_POINTER_SHAPE_DEFAULT,

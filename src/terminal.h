@@ -482,6 +482,8 @@ void XtpTerminalFree(XtpTerminal *terminal);
 void XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length);
 /* Accepted OSC 22 shape; callers refresh the widget after feeding output. */
 XtpPointerShape XtpTerminalPointerShape(const XtpTerminal *terminal);
+/* Whether startup or an empty OSC 22 selected the configured pointer. */
+bool XtpTerminalPointerUsesDefault(const XtpTerminal *terminal);
 /* Configure startup and empty-OSC-22 reset shape between input commands. */
 int XtpTerminalSetDefaultPointerShape(XtpTerminal *terminal, XtpPointerShape shape);
 int XtpTerminalFeedOutput(XtpTerminal *terminal, const uint8_t *bytes, size_t length,

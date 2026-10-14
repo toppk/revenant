@@ -111,6 +111,8 @@ if get_option('profiling')
 endif
 
 x11_dep = dependency('x11')
+x11_xcb_dep = dependency('x11-xcb')
+xcb_dep = dependency('xcb')
 xt_dep = dependency('xt')
 xaw_dep = dependency('xaw7')
 xmu_dep = dependency('xmu')
@@ -127,6 +129,8 @@ m_dep = cc.find_library('m')
 
 widget_dependencies = [
     x11_dep,
+    x11_xcb_dep,
+    xcb_dep,
     xt_dep,
     xaw_dep,
     xmu_dep,

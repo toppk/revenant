@@ -1247,6 +1247,59 @@ ColorOscEnd(size_t offset, void *closure)
         terminal->color_list_active = false;
 }
 
+/* Only track whether the configured font glyph is active. libghostty remains
+ * authoritative for application shapes; this list mirrors its accepted aliases. */
+static bool
+PointerRequestAccepted(const char *name)
+{
+        static const char *const aliases[] = {
+            "left_ptr",
+            "question_arrow",
+            "hand",
+            "left_ptr_watch",
+            "watch",
+            "cross",
+            "xterm",
+            "dnd-link",
+            "dnd-copy",
+            "dnd-move",
+            "dnd-no-drop",
+            "crossed_circle",
+            "hand1",
+            "right_side",
+            "top_side",
+            "top_right_corner",
+            "top_left_corner",
+            "bottom_side",
+            "bottom_right_corner",
+            "bottom_left_corner",
+            "left_side",
+            "fleur",
+        };
+        size_t index;
+
+        for (index = 0; index < XTP_POINTER_SHAPE_COUNT; ++index)
+                if (strcmp(name, XtpPointerShapeName((XtpPointerShape)index)) == 0)
+                        return true;
+        for (index = 0; index < sizeof(aliases) / sizeof(aliases[0]); ++index)
+                if (strcmp(name, aliases[index]) == 0)
+                        return true;
+        return false;
+}
+
+static void
+CapturePointerName(XtpTerminal *terminal, const uint8_t *bytes, size_t end)
+{
+        size_t index;
+
+        for (index = terminal->pointer_osc_start; index < end; ++index) {
+                if (bytes[index] >= 0x20U &&
+                    terminal->pointer_osc_length < sizeof(terminal->pointer_osc_name))
+                        terminal->pointer_osc_name[terminal->pointer_osc_length++] =
+                            (char)bytes[index];
+        }
+}
+
 static void
 FeedOscHeader(unsigned int selector, size_t offset, void *closure)
 {
@@ -1256,6 +1309,8 @@ FeedOscHeader(unsigned int selector, size_t offset, void *closure)
         ColorOscHeader(selector, offset, closure);
         terminal->pointer_osc_active = selector == 22U;
         terminal->pointer_osc_nonempty = false;
+        terminal->pointer_osc_start = offset + 1U;
+        terminal->pointer_osc_length = 0;
         if (selector == 133U) {
                 terminal->prompt_mark_first_item = true;
                 terminal->prompt_mark_pending = false;
@@ -1362,6 +1417,17 @@ FeedOscEnd(size_t offset, void *closure)
         if (terminal->pointer_osc_active) {
                 uint8_t terminator = feed->bytes[offset];
 
+                CapturePointerName(terminal, feed->bytes, offset);
+                if (terminator == 0x07U || terminator == 0x1bU || terminator == 0x9cU) {
+                        if (!terminal->pointer_osc_nonempty)
+                                terminal->pointer_uses_default = true;
+                        else if (terminal->pointer_osc_length <
+                                 sizeof(terminal->pointer_osc_name)) {
+                                terminal->pointer_osc_name[terminal->pointer_osc_length] = '\0';
+                                if (PointerRequestAccepted(terminal->pointer_osc_name))
+                                        terminal->pointer_uses_default = false;
+                        }
+                }
                 terminal->pointer_osc_active = false;
                 if (!terminal->pointer_osc_nonempty &&
                     (terminator == 0x07U || terminator == 0x1bU || terminator == 0x9cU)) {
@@ -1636,6 +1702,7 @@ XtpTerminalNewWithGraphemeWidth(uint16_t columns, uint16_t rows, uint32_t cell_w
         terminal->bold_colors = true;
         terminal->allow_color_ops = true;
         terminal->default_pointer_shape = XTP_POINTER_SHAPE_TEXT;
+        terminal->pointer_uses_default = true;
         terminal->allow_mouse_ops = true;
         terminal->allow_tcap_ops = true;
         XtpTcapOpsParse(XTP_TCAP_OPS_DEFAULT_DISALLOWED, &terminal->tcap_ops);
@@ -1724,6 +1791,12 @@ XtpTerminalFree(XtpTerminal *terminal)
         }
 }
 
+bool
+XtpTerminalPointerUsesDefault(const XtpTerminal *terminal)
+{
+        return terminal == NULL || terminal->pointer_uses_default;
+}
+
 XtpPointerShape
 XtpTerminalPointerShape(const XtpTerminal *terminal)
 {
@@ -1782,6 +1855,7 @@ XtpTerminalSetDefaultPointerShape(XtpTerminal *terminal, XtpPointerShape shape)
         if (terminal == NULL || (unsigned int)shape >= XTP_POINTER_SHAPE_COUNT)
                 return -1;
         terminal->default_pointer_shape = shape;
+        terminal->pointer_uses_default = true;
         length = snprintf(command, sizeof(command), "\033]22;%s\007", XtpPointerShapeName(shape));
         ghostty_terminal_vt_write(terminal->handle, (const uint8_t *)command, (size_t)length);
         return 0;
@@ -1809,6 +1883,10 @@ XtpTerminalFeed(XtpTerminal *terminal, const uint8_t *bytes, size_t length)
                 XtpLog(XTP_LOG_DEBUG, "terminal", "feed bytes=%zu", length);
                 XtpTerminalControlObserverFeed(&terminal->control_observer, bytes, length,
                                                &effects);
+                if (terminal->pointer_osc_active) {
+                        CapturePointerName(terminal, bytes, length);
+                        terminal->pointer_osc_start = 0;
+                }
                 if (terminal->command_end_active) {
                         terminal->command_end_bytes +=
                             OscPayloadBytes(bytes, terminal->command_end_start, length);

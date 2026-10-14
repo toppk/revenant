@@ -219,7 +219,7 @@ foreground, background, and cursor colors with OSC 10, 11, and 12; the window
 repaints at once, OSC 110, 111, and 112 restore the resources above, and
 `allowColorOps` with `disallowedColorOps` decide what is permitted. `colorBD`,
 `colorUL` and related text-color resources remain accepted but not yet applied.
-Mouse pointer colors intentionally follow the desktop cursor theme; see below.
+Mouse pointer colors apply to core cursors and monochrome artwork; see below.
 
 ### Mouse pointer shape
 
@@ -228,22 +228,85 @@ XTerm*pointerShape: arrow
 ```
 
 `pointerShape` (class `Cursor`, default `xterm`) selects the startup pointer and
-the shape restored by an empty OSC 22. `arrow`/`left_ptr` selects the desktop
-arrow; `xterm`/`text` selects the I-beam. All CSS shape names used by OSC 22 are
+the shape restored by an empty OSC 22. `arrow` and `left_ptr` select their
+respective X cursor-font shapes in core mode; `xterm`/`text` selects the I-beam. All CSS shape names used by OSC 22 are
 accepted, along with common xterm aliases including `hand`, `hand2`, `hand1`,
 `watch`, `cross`, `question_arrow`, `left_ptr_watch`, `fleur`, `crossed_circle`,
 `sb_h_double_arrow`, `sb_v_double_arrow`, side/corner resize names and `dnd-*`
 aliases. Unsupported names log a warning and fall back to `xterm`/`text`.
-Arbitrary X cursor-font glyph names are not supported.
+All standard X11 cursor-font shape names are supported at startup and reset,
+including `boat`, `plus`, `X_cursor`, and `top_left_arrow`.
 
-Cursors use the desktop theme's artwork, colors and size through libXcursor,
-with a core X cursor fallback when that themed shape is absent. `pointerColor`
-and `pointerColorBackground` are intentionally ignored: mouse colors belong to
-the desktop cursor theme. This is documented [xterm drift](../compatibility/drift.md),
-not planned recoloring support. OSC 13/14 and `-ms` likewise do not override pointer
-colors, including on the core X fallback path. The global
-`Xcursor.size` and `Xcursor.theme` server resources affect newly loaded themed
-cursors; `cursorColor` colors the terminal's text cursor, not the mouse pointer.
+Mouse cursors follow xterm's theme-selection policy:
+
+- A **nonempty `XCURSOR_THEME` environment variable** overrides `Xcursor.theme`,
+  even when `-xrm 'Xcursor.theme:'` explicitly clears that resource.
+- Avoid using an empty `XCURSOR_THEME` to disable theming: if a resource theme
+  remains selected, libXcursor can still fall back to the desktop's `default`
+  artwork. Unset the variable and clear `Xcursor.theme` to force core cursors.
+- When the variable is unset, `Xcursor.theme` is read from the merged Xt database,
+  including `-xrm`. An empty or absent resource selects traditional X cursor-font shapes.
+- With a theme selected, `XCURSOR_SIZE` overrides `Xcursor.size` (pixels).
+  Without an explicit size, libXcursor supplies its default, normally from
+  `Xft.dpi` or display dimensions. Size alone does not enable themed cursors.
+- `XCURSOR_PATH` controls libXcursor's theme search directories.
+
+Multicolor themed artwork keeps its own colors. As in xterm, the X server can
+recolor monochrome theme artwork. Core cursors, including fallback when themed
+artwork is unavailable, use `pointerColor` (class `PointerColor`, default
+`XtDefaultForeground`) and `pointerColorBackground` (class `Background`, default
+`XtDefaultBackground`). These defaults inherit the terminal foreground and
+background, as in xterm; they are not fixed black/white stock pixels.
+`-ms color` sets `pointerColor`. `pointerFont` (class
+`PointerFont`, unset by default) or `-pf font` selects an alternate core cursor
+font with shape/mask glyph pairs; otherwise X11's standard `cursor` font is used.
+These settings affect the mouse pointer; `cursorColor` colors the terminal's
+text cursor. OSC 13/14 pointer-color operations remain unsupported.
+
+For example, force a yellow traditional pointer without a shell-level theme
+override:
+
+```sh
+env -u XCURSOR_THEME ./build/revenant \
+  -xrm 'Xcursor.theme:' -xrm 'xterm*pointerShape: left_ptr' \
+  -xrm 'xterm*pointerColor: yellow'
+```
+
+Or request themed cursors at 44 pixels:
+
+```sh
+env -u XCURSOR_THEME -u XCURSOR_SIZE ./build/revenant \
+  -xrm 'Xcursor.theme: default' -xrm 'Xcursor.size: 44'
+```
+
+`-report-config` lists the cursor resources and `XCURSOR_THEME`, `XCURSOR_SIZE`,
+and `XCURSOR_PATH` environment overrides. Cursor settings apply at startup;
+changing XRDB does not reload cached mouse cursors in running windows.
+
+For guided visual checks on your current desktop:
+
+```sh
+tools/cursor-matrix ./build/revenant
+tools/cursor-matrix xterm
+```
+
+The script opens one window at a time, displaying the settings and expected
+appearance. Enter advances, `b` goes back, and `q` quits. It uses lowercase
+`xterm*` instance resources with `-name xterm`, preserves your XRDB, and exercises
+core shapes, default and explicit colors, themed sizes, environment precedence,
+font/artwork fallback and opacity. More-specific XRDB entries can still win.
+
+```sh
+tools/cursor-matrix ./build/revenant --list
+tools/cursor-matrix ./build/revenant --case env-theme --theme Adwaita
+tools/cursor-matrix xterm --dry-run
+```
+
+Run `meson test -C build xvfb-cursor-modes --print-errorlogs` for the isolated
+XRDB/`-xrm`/environment matrix. It measures real window cursor pixels, sizes and
+hotspots, compares installed xterm when available, and writes its detailed
+results to `build/meson-logs/cursor-modes.json`. The separate
+`xvfb-pointer-shape` test covers application overrides, empty resets and hover.
 
 An application's explicit OSC 22 request overrides the configured shape,
 including an explicit `text` request when the resource is `arrow`. Empty OSC 22

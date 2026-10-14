@@ -118,6 +118,12 @@ static char translations[] = "Shift~Ctrl <KeyPress> KP_Add: larger-vt-font()\n"
 #define OFFSET(field) XtOffsetOf(Vt100Rec, vt.field)
 
 static XtResource resources[] = {
+    {"pointerColor", "PointerColor", XtRString, sizeof(String), OFFSET(pointer_foreground_name),
+     XtRString, XtDefaultForeground},
+    {"pointerColorBackground", "Background", XtRString, sizeof(String),
+     OFFSET(pointer_background_name), XtRString, XtDefaultBackground},
+    {"pointerFont", "PointerFont", XtRString, sizeof(String), OFFSET(pointer_font_name),
+     XtRImmediate, NULL},
     {"pointerShape", "Cursor", XtRString, sizeof(String), OFFSET(pointer_shape_name), XtRString,
      "xterm"},
     {XtNforeground, XtCForeground, XtRPixel, sizeof(Pixel), OFFSET(foreground), XtRString,
@@ -1182,10 +1188,7 @@ Destroy(Widget widget)
                 XDestroyWindow(XtDisplay(widget), vt->vt.clipboard_window);
         free(vt->vt.hovered_hyperlink.uri);
         free(vt->vt.pressed_hyperlink.uri);
-        for (slot = 0; slot < XTP_POINTER_SHAPE_COUNT; ++slot) {
-                if (vt->vt.pointer_cursors[slot] != None)
-                        XFreeCursor(XtDisplay(widget), vt->vt.pointer_cursors[slot]);
-        }
+        VtResetPointerCursors(vt);
         for (color = 0; color < vt->vt.color_count; ++color) {
                 if (vt->vt.colors[color].used && vt->vt.colors[color].owned) {
                         Pixel pixel = vt->vt.colors[color].allocation_pixel;
@@ -1335,6 +1338,7 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
                         changed = True;
         }
         if (StringChanged(old_vt->vt.pointer_shape_name, new_vt->vt.pointer_shape_name)) {
+                VtResetPointerCursors(new_vt);
                 if (new_vt->vt.terminal != NULL)
                         (void)XtpTerminalSetDefaultPointerShape(new_vt->vt.terminal,
                                                                 VtConfiguredPointerShape(new_vt));
@@ -1348,6 +1352,14 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
         if (old_vt->vt.reverse_video != new_vt->vt.reverse_video)
                 SwapDefaultColors(new_vt);
         NormalizeConfiguredColors(new_vt);
+        if (StringChanged(old_vt->vt.pointer_foreground_name, new_vt->vt.pointer_foreground_name) ||
+            StringChanged(old_vt->vt.pointer_background_name, new_vt->vt.pointer_background_name) ||
+            StringChanged(old_vt->vt.pointer_font_name, new_vt->vt.pointer_font_name) ||
+            old_vt->vt.foreground != new_vt->vt.foreground ||
+            old_vt->core.background_pixel != new_vt->core.background_pixel) {
+                VtResetPointerCursors(new_vt);
+                VtUpdatePointerCursor(new_vt);
+        }
         VtResetEffectiveColors(new_vt);
         /* The next frame may match these colors and skip ApplyFrameColors' own hook. */
         VtProgressColorsChanged(new_vt);

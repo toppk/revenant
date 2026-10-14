@@ -118,9 +118,9 @@ conflicting ownership even within the same batch.
 
 - [ ] **Pointer visibility.** `pointerMode` remains unapplied. `pointerShape`
       now configures the startup and empty-OSC-22 reset shape; accepted application
-      requests override it. Pointer colors (`pointerColor`, `pointerColorBackground`,
-      `-ms`, OSC 13/14) intentionally follow the desktop theme and are recorded as
-      drift, including on the core fallback path. For hide-while-typing, track
+      requests override it. Core cursors honor pointer colors and fonts; themed
+      artwork retains its colors. OSC 13/14 pointer colors remain unsupported.
+      For hide-while-typing, track
       visibility separately from the cached shape so output updates cannot reveal
       a hidden pointer. Refresh paths that feed the core must call `XtpVtUpdate`.
       Consider an upstream alias-map contribution for common cursor-font names

@@ -16,8 +16,14 @@ commit. Published tags and assets are never replaced.
   core-font fallbacks. Shift-hover hyperlinks temporarily select a hand; leaving
   restores the latest application shape.
 - Honor `pointerShape` for startup and empty OSC 22 resets, including `arrow`
-  and `xterm`; explicit application shapes still override it. Pointer colors
-  intentionally follow the desktop cursor theme.
+  and `xterm`; explicit application shapes still override it.
+- Follow xterm's Xcursor/core cursor selection: nonempty `XCURSOR_THEME` overrides
+  `Xcursor.theme`; with the variable unset, empty or absent resource themes use
+  core cursors. Create core glyph cursors directly so desktop artwork cannot
+  silently replace them. Honor themed cursor
+  size overrides and core `pointerColor`, `pointerColorBackground`, and
+  `pointerFont`, with `-ms` and `-pf` aliases. Support all standard cursor-font
+  shapes at startup/reset, preserving the distinction between `arrow` and `left_ptr`.
 - Update the libghostty development pin to
   `b115e456749e2820a14d3942a63159ff8d46d925`, which includes the public mouse-shape
   getter, OSC 7501 program-status C callback, and subsequent terminal fixes through

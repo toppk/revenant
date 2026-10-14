@@ -673,9 +673,11 @@ terminal text. Incomplete OSC input waits for its terminator.
 At the October 9 dependency pin, CAN and SUB discard an in-progress OSC 22
 without applying its shape (`src/terminal/osc.zig:Parser.end`). This replaces the
 previous pin's dispatch-on-cancel behavior and agrees with xterm 411's
-`charproc.c:CASE_CAN`/`CASE_SUB` cancellation paths. An empty OSC 22 now restores
-libghostty-vt's initial `text` shape (`stream.zig:mouse_shape` dispatch and
-`stream_terminal.zig:mouse_shape_reset`); unknown nonempty names remain ignored.
+`charproc.c:CASE_CAN`/`CASE_SUB` cancellation paths. An empty OSC 22 restores the
+configured `pointerShape` (default `xterm`/`text`).
+The frontend adapts libghostty-vt's initial-text reset to that configured value;
+unknown nonempty names remain ignored. xterm 411's empty OSC 22 instead falls
+back to `XC_xterm` (I-beam), even when its startup pointerShape was different.
 
 xterm 411 accepts X cursor-font names through `misc.c:LookupCursorShape` and
 `xtermSetupPointer` (line 991). Revenant accepts W3C names and the subset of
@@ -690,23 +692,38 @@ RIS and DECSTR preserve the requested shape in both terminals. In xterm 411,
 `xtermSetupPointer` is called only from `charproc.c:VTRealize` (line 12768) and
 `misc.c:do_osc` (line 4296), not from either reset path. Resize also preserves
 Revenant's requested shape. The `pointerShape` resource now selects the startup
-and empty-OSC-22 reset shape (CSS names plus common aliases, including `arrow`).
+and empty-OSC-22 reset shape (CSS names and all standard X cursor-font names).
 Nonempty OSC 22 requests still use libghostty's parsing and alias set; resource
-aliases such as `hand2` do not extend the protocol's accepted names. The
-**Intentional drift: pointer colors follow the desktop theme.** Revenant loads
-named cursor artwork through libXcursor and preserves its colors and size.
-`pointerColor`, `pointerColorBackground`, `-ms`, and OSC 13/14 pointer colors do
-not recolor these images. This is a design choice, not pending two-color cursor
-support. xterm can recolor its core cursor's foreground/background; Revenant
-keeps themed artwork instead of switching to core cursors for custom colors.
-Core X cursor fallback is used only when a requested themed shape is unavailable;
-the pointer-color resources remain ignored on that fallback path too.
+aliases such as `hand2` do not extend the protocol's accepted names.
+
+Cursor theme selection follows xterm: a nonempty `XCURSOR_THEME` overrides
+`Xcursor.theme`. An empty environment variable is ignored for xterm's mode
+selection but can affect libXcursor's artwork lookup, including falling back to
+`default`. To force core cursors, unset the variable and clear the resource.
+When the variable is unset, an empty or absent resource selects core cursors.
+The merged Xt database includes command-line `-xrm` overrides. Multicolor themed
+artwork retains its colors; the server can recolor monochrome artwork as in
+xterm. `XCURSOR_SIZE` overrides `Xcursor.size`. Core cursors,
+including missing-artwork fallback, honor `pointerColor`,
+`pointerColorBackground`, and `pointerFont`; `-ms` and `-pf` are supported.
+No bundled cursor bitmaps are required: X11's cursor font provides shape/mask
+pairs. Core glyph cursors are created through XCB on the shared Xlib connection,
+bypassing libXcursor's font-cursor substitution without changing the process or
+child environment. Xlib's constructors can substitute desktop artwork even
+with core theming disabled; isolated tests without default artwork mask this.
+Core color defaults inherit the configured terminal foreground/background,
+including when the window uses an ARGB visual. OSC 13/14 pointer-color operations
+remain unsupported. The startup
+resource accepts all standard cursor-font names; nonempty OSC 22 requests still
+use libghostty's narrower alias set.
 
 `pointerMode` visibility behavior remains unimplemented independently of the
 shape/color policy.
 
 Evidence: `pointer shape` self-test (canonical shapes, aliases, invalid input and
-resets), `xvfb-pointer-shape` native cursor-image and serial checks, and
+resets), `xvfb-pointer-shape` native cursor-image and serial checks,
+`xvfb-cursor-modes` real-window XRDB/command-line/environment comparisons against
+installed xterm when available, and
 `xvfb-hyperlink-hover` for existing hover behavior. The no-theme run exercises
 our fallback for W3C names such as `text` and `default`; Xcursor can resolve core
 names such as `crosshair` through the cursor font itself.

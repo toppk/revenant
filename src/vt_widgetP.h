@@ -172,6 +172,9 @@ typedef struct
         Pixel foreground;
         Pixel cursor_color;
         String pointer_shape_name;
+        String pointer_font_name;
+        String pointer_foreground_name;
+        String pointer_background_name;
         String ansi_palette[XTP_ANSI_PALETTE_SIZE];
         Boolean bold_colors;
         XFontStruct *initial_font;
@@ -304,6 +307,8 @@ typedef struct
         VtHyperlinkTarget hovered_hyperlink;
         VtHyperlinkTarget pressed_hyperlink;
         Cursor pointer_cursors[XTP_POINTER_SHAPE_COUNT];
+        Cursor configured_pointer_cursor;
+        Boolean pointer_native_default;
         XtpPointerShape pointer_shape;
         Boolean hyperlink_cursor_active;
         unsigned int reported_mouse_buttons;
@@ -449,6 +454,7 @@ Boolean VtHyperlinkTargetContainsCell(const VtHyperlinkTarget *target, size_t in
 XtpUnderline VtHyperlinkHoverUnderline(XtpUnderline underline);
 void VtDoubleUnderlineRows(int center, int area_top, int area_bottom, int *top, int *bottom);
 void VtUpdatePointerCursor(Vt100Rec *vt);
+void VtResetPointerCursors(Vt100Rec *vt);
 XtpPointerShape VtConfiguredPointerShape(Vt100Rec *vt);
 void VtHyperlinkEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch);
 void VtScrollBackAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);

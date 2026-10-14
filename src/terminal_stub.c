@@ -47,6 +47,13 @@ XtpTerminalFree(XtpTerminal *terminal)
         free(terminal);
 }
 
+bool
+XtpTerminalPointerUsesDefault(const XtpTerminal *terminal)
+{
+        (void)terminal;
+        return true;
+}
+
 XtpPointerShape
 XtpTerminalPointerShape(const XtpTerminal *terminal)
 {

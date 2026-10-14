@@ -203,8 +203,8 @@ XtpLogResourceDatabases(Display *display, const char *application_name,
                "app-defaults/fallbacks > compiled resource defaults");
         XtpLog(XTP_LOG_INFO, "compat",
                "renderer is resolved by the VT100 widget; cursorColor and color0..color15 are "
-               "applied; pointerShape selects themed cursors; pointer colors intentionally follow "
-               "the desktop theme");
+               "applied; pointerShape selects themed/core cursors; pointer colors apply to core "
+               "and monochrome artwork, while multicolor artwork retains theme colors");
         XtpLog(XTP_LOG_INFO, "scrollback",
                "saveLines, scrollbar visibility/side, wheel navigation, thumb dragging, and "
                "scroll-back/scroll-forw actions are active");
@@ -832,28 +832,33 @@ ReportPaletteAndPointer(const ReportContext *context)
         }
         {
                 static const ResourceSpec pointer_specs[] = {
-                    {"xterm.vt100.pointerColor", "XTerm.VT100.PointerColor", NULL},
-                    {"xterm.vt100.pointerColorBackground", "XTerm.VT100.Background", NULL},
+                    {"xterm.vt100.pointerColor", "XTerm.VT100.PointerColor", "XtDefaultForeground"},
+                    {"xterm.vt100.pointerColorBackground", "XTerm.VT100.Background",
+                     "XtDefaultBackground"},
                     {"xterm.vt100.pointerShape", "XTerm.VT100.Cursor", "xterm"},
+                    {"xterm.vt100.pointerFont", "XTerm.VT100.PointerFont", NULL},
+                    {"Xcursor.theme", "Xcursor.theme", NULL},
+                    {"Xcursor.size", "Xcursor.size", NULL},
                 };
                 static const char *const pointer_names[] = {
-                    "XTerm*pointerColor",
-                    "XTerm*pointerColorBackground",
-                    "XTerm*pointerShape",
+                    "XTerm*pointerColor", "XTerm*pointerColorBackground",
+                    "XTerm*pointerShape", "XTerm*pointerFont",
+                    "Xcursor.theme",      "Xcursor.size",
                 };
                 static const char *const pointer_support[] = {
-                    "accepted but ignored",
-                    "accepted but ignored",
-                    "partially supported",
+                    "supported", "supported", "supported", "supported", "supported", "supported",
                 };
                 static const char *const pointer_help[] = {
-                    "Intentional drift: pointer foreground follows desktop cursor artwork; no "
-                    "recoloring, including on core fallback.",
-                    "Intentional drift: pointer background follows desktop cursor artwork; no "
-                    "recoloring, including on core fallback.",
-                    "Startup/empty-OSC-22 reset shape; CSS names and common xterm aliases (arrow, "
-                    "xterm, hand2, watch). Desktop theme colors/size; arbitrary cursor-font names "
-                    "are not supported.",
+                    "Foreground for core cursors; multicolor artwork retains its own colors. -ms "
+                    "alias.",
+                    "Background for core cursors; multicolor artwork retains its own colors.",
+                    "Startup/empty-OSC-22 reset shape; CSS names and all standard cursor-font "
+                    "names.",
+                    "Alternate core cursor font (shape/mask glyph pairs); default is cursor.",
+                    "Nonempty XCURSOR_THEME overrides this resource. Unset the variable and clear "
+                    "the resource to force core cursors.",
+                    "Themed cursor size in pixels; XCURSOR_SIZE overrides. Otherwise libXcursor "
+                    "default.",
                 };
 
                 ReportResourceGroup(context, "Pointer details", pointer_specs, pointer_names,
@@ -1069,18 +1074,19 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "graphemeWidth") == 0 || strcmp(name, "colorGlyphs") == 0 ||
             strcmp(name, "limitFontsets") == 0 || strcmp(name, "limitFontHeight") == 0 ||
             strcmp(name, "limitFontWidth") == 0 || strncmp(name, "faceSize", 8) == 0 ||
-            strcmp(name, "loginShell") == 0 || ansi_palette)
+            strcmp(name, "loginShell") == 0 || strcmp(name, "pointerColor") == 0 ||
+            strcmp(name, "pointerColorBackground") == 0 || strcmp(name, "pointerFont") == 0 ||
+            strcmp(name, "pointerShape") == 0 || ansi_palette)
                 return "supported";
         if (strcmp(name, "allowColorOps") == 0 || strcmp(name, "disallowedColorOps") == 0 ||
             strcmp(name, "allowTitleOps") == 0 || strcmp(name, "allowWindowOps") == 0 ||
             strcmp(name, "utf8Title") == 0 || strcmp(name, "allowMouseOps") == 0 ||
             strcmp(name, "allowTcapOps") == 0 || strcmp(name, "disallowedTcapOps") == 0 ||
             strcmp(name, "disallowedWindowOps") == 0 || strcmp(name, "maxStringParse") == 0 ||
-            strcmp(name, "allowSendEvents") == 0 || strcmp(name, "pointerShape") == 0)
+            strcmp(name, "allowSendEvents") == 0)
                 return "partially supported";
         if (strcmp(name, "allowFontOps") == 0 || strcmp(name, "disallowedFontOps") == 0 ||
-            strncmp(name, "color", 5) == 0 || strcmp(name, "pointerColor") == 0 ||
-            strcmp(name, "pointerColorBackground") == 0)
+            strncmp(name, "color", 5) == 0)
                 return "accepted but ignored";
         return "unsupported";
 }
@@ -1397,10 +1403,8 @@ static void
 ReportResourceSources(Display *display, const char *manager, const char *application_class)
 {
         static const char *const environment_names[] = {
-            "XENVIRONMENT",
-            "XFILESEARCHPATH",
-            "XUSERFILESEARCHPATH",
-            "XAPPLRESDIR",
+            "XENVIRONMENT",  "XFILESEARCHPATH", "XUSERFILESEARCHPATH", "XAPPLRESDIR",
+            "XCURSOR_THEME", "XCURSOR_SIZE",    "XCURSOR_PATH",
         };
         char *app_defaults;
         size_t item;
