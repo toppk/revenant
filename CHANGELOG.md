@@ -18,6 +18,12 @@ commit. Published tags and assets are never replaced.
 
 ### Features
 
+- Reload foreground, background, cursor and sixteen ANSI colors from XRDB on
+  `SIGHUP`, preserving the child and terminal contents. Skip unchanged colors
+  and repaint changed themes without clearing the visible frame first. Reserve
+  `SIGUSR1` and `SIGUSR2` as no-ops and advertise running version/reload support
+  through X11 window properties.
+
 - Honor application OSC 22 pointer-shape requests with themed Xcursor shapes and
   core-font fallbacks. Shift-hover hyperlinks temporarily select a hand; leaving
   restores the latest application shape.

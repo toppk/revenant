@@ -315,7 +315,52 @@ shape unchanged. Hyperlink hover temporarily takes precedence, and leaving the
 link restores the latest application/configured shape. RIS and DECSTR preserve
 an active application shape at the pinned backend version.
 
-Restart the terminal after changing this resource.
+The HUP reload currently covers colors, not `pointerShape`;
+restart the terminal after changing this resource.
+
+### Reload configuration in a running terminal
+
+`SIGHUP` requests a configuration reload. Its initial supported scope is
+`foreground`, `background`, `cursorColor`, and `color0` through `color15`, read
+from the X server's current resource database and applied to the existing window.
+The child keeps running. After editing
+`~/.Xdefaults` (or `~/.Xresources`), use:
+
+```sh
+xrdb -merge ~/.Xdefaults
+kill -HUP REVENANT_PID
+```
+
+Find a terminal's PID with `xprop _NET_WM_PID`, then click its window. Send the
+signal only to a process started with a build that supports reload. Older
+released binaries normally terminate on HUP, USR1 and USR2; a process-name broadcast cannot
+distinguish them from updated terminals.
+
+New builds advertise their running version and reload capability on each window:
+
+```sh
+xprop -id "$WINDOWID" _REVENANT_VERSION _REVENANT_CAPABILITIES
+```
+
+`_REVENANT_RELOAD_SIGHUP_V1` in the capabilities list means HUP reload is ready.
+Older windows lack the marker. Unchanged colors do not trigger
+widget color resets or repaint work.
+
+Reload reads `RESOURCE_MANAGER` from the server; it does not reread startup
+files itself. Normal X resource name/class specificity and command-line
+overrides still apply. Omitted colors retain their previous values, so switching
+themes should supply a complete palette. An invalid color rejects the entire
+update. Fonts, translations, opacity and other resources still use their existing
+configuration paths; this signal reloads theme colors.
+`-debug` logs reload results under `config` and color validation failures under
+`theme`. Reverse-video policy remains in effect.
+
+The intended scope is every resource that can be safely reapplied at runtime.
+That includes restoring configured values after changes made through menus or
+application escape sequences, once restoration semantics are established for
+each resource. This is the direction for future expansion, not a guarantee that
+the current color reload resets every runtime override. See the
+[configuration reload roadmap](../maintainers/roadmap.md#configuration-reload).
 
 Reverse video is available through the `reverseVideo` resource, the `-rv` and
 `+rv` command-line forms, and the runtime toggle in the VT Options menu. It

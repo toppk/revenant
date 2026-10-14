@@ -1,3 +1,4 @@
+test('internal-branding-policy', python3, args: files('internal-branding.py'))
 uv = find_program('uv', required: false)
 widget_test_dependencies = widget_dependencies + [m_dep]
 test_root_include_directories = include_directories('..')
@@ -552,6 +553,27 @@ if build_with_ghostty and xvfb.found()
             hold_colors_test_tool,
         ],
     )
+    test(
+        'xvfb-user-signals', find_program('sh'),
+        args: [files('xvfb-user-signals.sh'), xvfb.full_path(), xterm_plus.full_path(), python3.full_path()],
+        depends: [xterm_plus], timeout: 30, is_parallel: false,
+    )
+    if xprop.found()
+        test(
+            'xvfb-theme-reload',
+            find_program('sh'),
+            args: [
+                files('xvfb-theme-reload.sh'),
+                xvfb.full_path(),
+                xterm_plus.full_path(),
+                xrdb.full_path(),
+                python3.full_path(),
+            ],
+            timeout: 30,
+            is_parallel: false,
+            depends: [xterm_plus],
+        )
+    endif
     test(
         'xvfb-opacity',
         find_program('sh'),

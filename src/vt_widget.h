@@ -144,4 +144,10 @@ void XtpVtResetCursorBlinkPolicy(Widget widget);
 void XtpVtUpdate(Widget widget);
 void XtpVtRedraw(Widget widget);
 
+/* Apply changed theme resources (bits 0..2: foreground/background/cursor;
+ * bits 3..18: ANSI palette) and publish one buffered repaint without Xt's
+ * clear-before-expose path. Palette strings remain owned by the caller. */
+void XtpVtSetThemeColors(Widget widget, const Pixel defaults[3], String const palette[16],
+                         uint32_t changed);
+
 #endif

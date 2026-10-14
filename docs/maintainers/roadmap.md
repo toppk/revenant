@@ -336,6 +336,25 @@ semantics and describes the implemented named-selection path.
   upstream `XTerm` file.
 - Advance beyond patch 411 only as an explicit compatibility migration.
 
+## Configuration reload
+
+Treat `SIGHUP` as a safe configuration reload entry point. The initial
+implementation reloads theme colors
+from the server's resource database; expand
+it to other resources after reviewing their runtime update paths. It should
+eventually reapply all safely reloadable configured values, including restoring
+settings changed through menus or application protocols. Reapplying an unchanged
+resource must have deliberate semantics when its effective runtime value differs
+from the configured value.
+
+For each resource, establish validation, ownership, dependent-state updates,
+redraw/geometry consequences, failure handling, and command-line precedence.
+Define how missing resources and runtime overrides are treated, then test both
+changed configuration and restoration of the same configured value. Preserve the
+child, terminal contents and history, and unrelated protocol state. Keep resources
+that require restarting outside the supported reload set until there is a safe
+update path. Document the current supported set as it grows.
+
 ## Architecture guardrails
 
 - `src/terminal.h` owns backend-neutral terminal capability. Xt and X11 code

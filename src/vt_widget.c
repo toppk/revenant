@@ -1502,6 +1502,37 @@ SetValues(Widget current, Widget request, Widget new_widget, ArgList args, Cardi
         return changed;
 }
 
+void
+XtpVtSetThemeColors(Widget widget, const Pixel defaults[3], String const palette[16],
+                    uint32_t changed)
+{
+        Vt100Rec *vt = VtAsRecord(widget);
+        Vt100Rec previous = *vt;
+        Cardinal no_args = 0;
+        unsigned int index;
+
+        if (changed == 0)
+                return;
+        if ((changed & UINT32_C(1)) != 0)
+                vt->vt.foreground = defaults[0];
+        if ((changed & UINT32_C(2)) != 0)
+                vt->core.background_pixel = defaults[1];
+        if ((changed & UINT32_C(4)) != 0)
+                vt->vt.cursor_color = defaults[2];
+        for (index = 0; index < XTP_ANSI_PALETTE_SIZE; ++index) {
+                if ((changed & (UINT32_C(1) << (index + 3))) != 0)
+                        vt->vt.ansi_palette[index] = palette[index];
+        }
+        /* Reuse the widget's color/resource bookkeeping, but bypass Intrinsics'
+         * XtSetValues clear-before-expose. Keep the old visible frame until the
+         * completed replacement pixmap is copied onto the window. */
+        if (SetValues((Widget)&previous, widget, widget, NULL, &no_args) && XtIsRealized(widget) &&
+            vt->vt.terminal != NULL && !VtDeferSynchronizedRedraw(vt)) {
+                if (VtRenderTerminal(vt, True) != 0)
+                        XtpLog(XTP_LOG_ERROR, "theme", "theme repaint failed");
+        }
+}
+
 Boolean
 XtpVtSelectFont(Widget widget, int slot)
 {

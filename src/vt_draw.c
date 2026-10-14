@@ -163,8 +163,6 @@ ApplyFrameColors(Vt100Rec *vt, const XtpRenderFrame *frame)
         vt->vt.effective_cursor_color = cursor;
         if (XtIsRealized((Widget)vt)) {
                 XSetWindowBackground(XtDisplay((Widget)vt), XtWindow((Widget)vt), translucent);
-                /* The border is never repainted by cells, so clear it now. */
-                XClearArea(XtDisplay((Widget)vt), XtWindow((Widget)vt), 0, 0, 0, 0, False);
         }
         if (vt->vt.scrollbar != NULL)
                 XtVaSetValues(vt->vt.scrollbar, XtNbackground, translucent, XtNforeground,

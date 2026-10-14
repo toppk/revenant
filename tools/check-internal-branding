@@ -2,6 +2,7 @@
 """Reject product branding from internal implementation and test trees."""
 
 from pathlib import Path
+import re
 import sys
 
 
@@ -11,6 +12,12 @@ BRANDED_TOOL_DEMOS = {"tools/demo.sh"}
 # Generated external specification identifiers are reference data, not internal
 # product names. TDN tests require this snapshot to match its source registry.
 BRANDED_REFERENCE_DATA = {"tools/probe/data/features.json"}
+# Public X11 protocol identifiers must match the published discovery contract.
+# This permits those exact tokens, not product branding in implementation names.
+PUBLIC_X11_NAMES = re.compile(
+    r"(?<![A-Za-z0-9_])_REVE"
+    r"NANT_(?:VERSION|CAPABILITIES|RELOAD_SIGHUP_V1)(?![A-Za-z0-9_])"
+)
 
 
 def main() -> int:
@@ -31,14 +38,14 @@ def main() -> int:
             for line_number, line in enumerate(
                 path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
             ):
-                if FORBIDDEN in line.casefold():
-                    findings.append(
-                        f"{relative_path}:{line_number}:{line}"
-                    )
+                # Literal newline escapes also delimit tokens in Python/C fixtures.
+                candidate = line.replace(r"\n", "\n")
+                if FORBIDDEN in PUBLIC_X11_NAMES.sub("", candidate).casefold():
+                    findings.append(f"{relative_path}:{line_number}:{line}")
 
     if findings:
         print(
-            "product branding is limited to documentation, Meson, and packaging:",
+            "product branding is limited to documentation, Meson, packaging, and exact public X11 identifiers:",
             file=sys.stderr,
         )
         print(*findings, sep="\n", file=sys.stderr)

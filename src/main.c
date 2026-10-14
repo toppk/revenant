@@ -81,10 +81,238 @@ typedef struct
         /* pipeCommandOutput and the helper processes it has started. */
         const char *pipe_command;
         XtpPipeCommand *pipe_jobs;
+        XrmDatabase command_database;
+        const char *application_name;
+        const char *application_class;
+        /* Xt String resources retain their values until the next update or teardown. */
+        char *theme_palette[16];
 } App;
 
+static XtSignalId config_reload_signal;
 static XtSignalId child_exit_signal;
 static struct sigaction previous_child_action;
+
+/* Reserve USR1/USR2 and defer HUP reloads until the event loop is ready.
+ * Caught handlers reset to SIG_DFL on exec, unlike inherited SIG_IGN. */
+static void
+NoopApplicationSignal(int signal_number)
+{
+        (void)signal_number;
+}
+
+static int
+ReserveApplicationSignals(void)
+{
+        struct sigaction action = {0};
+
+        action.sa_handler = NoopApplicationSignal;
+        sigemptyset(&action.sa_mask);
+        action.sa_flags = SA_RESTART;
+        if (sigaction(SIGUSR1, &action, NULL) != 0 || sigaction(SIGUSR2, &action, NULL) != 0 ||
+            sigaction(SIGHUP, &action, NULL) != 0)
+                return -1;
+        return 0;
+}
+
+static void
+NoticeConfigReload(int signal_number)
+{
+        int saved_errno = errno;
+
+        (void)signal_number;
+        /* XtNoticeSignal is the only Intrinsics call permitted in a signal handler. */
+        XtNoticeSignal(config_reload_signal);
+        errno = saved_errno;
+}
+
+static Bool
+CopyCommandResource(XrmDatabase *database, XrmBindingList bindings, XrmQuarkList quarks,
+                    XrmRepresentation *type, XrmValue *value, XPointer closure)
+{
+        XrmDatabase *copy = (XrmDatabase *)closure;
+
+        (void)database;
+        XrmQPutResource(copy, bindings, quarks, *type, value);
+        return False;
+}
+
+/* Configuration reload supports theme colors explicitly present
+ * in the current server database. Expand this set after reviewing each resource
+ * for safe runtime application and restoration of configured values.
+ * Omitted resources retain their current values; startup files are not reread. */
+static void
+ReloadConfiguration(XtPointer closure, XtSignalId *id)
+{
+        static const char *const names[] = {"foreground", "background", "cursorColor"};
+        static const char *const classes[] = {"Foreground", "Background", "CursorColor"};
+        App *app = closure;
+        Atom property = XInternAtom(app->display, "RESOURCE_MANAGER", False);
+        Atom actual_type;
+        int format;
+        unsigned long length;
+        unsigned long remaining;
+        unsigned char *bytes = NULL;
+        XrmDatabase database = NULL;
+        XrmDatabase command_copy = NULL;
+        XrmName prefix[] = {NULLQUARK};
+        char *values[19] = {0};
+        XColor desired_colors[19];
+        Boolean color_changed[19] = {False};
+        Pixel theme_pixels[3] = {0};
+        uint32_t theme_changed = 0;
+        Cardinal count = 0;
+        Colormap colormap;
+        Boolean reverse_video;
+        size_t index;
+
+        (void)id;
+        if (XGetWindowProperty(app->display, RootWindow(app->display, 0), property, 0, 1024 * 1024,
+                               False, XA_STRING, &actual_type, &format, &length, &remaining,
+                               &bytes) != Success ||
+            actual_type != XA_STRING || format != 8 || remaining != 0 || bytes == NULL) {
+                XtpLog(
+                    XTP_LOG_WARNING, "theme",
+                    "SIGHUP reload skipped: no valid RESOURCE_MANAGER; load resources with xrdb");
+                goto done;
+        }
+        database = XrmGetStringDatabase((const char *)bytes);
+        if (database == NULL) {
+                XtpLog(XTP_LOG_WARNING, "theme", "SIGHUP reload skipped: empty resource database");
+                goto done;
+        }
+        if (app->command_database != NULL) {
+                XrmEnumerateDatabase(app->command_database, prefix, prefix, XrmEnumAllLevels,
+                                     CopyCommandResource, (XPointer)&command_copy);
+                XrmCombineDatabase(command_copy, &database, True);
+        }
+        XtVaGetValues(app->vt, XtNcolormap, &colormap, "reverseVideo", &reverse_video, NULL);
+        for (index = 0; index < XtNumber(values); ++index) {
+                char name[512];
+                char class_name[512];
+                char palette_name[16];
+                char palette_class[16];
+                const char *resource;
+                const char *resource_class;
+                char *type;
+                XrmValue value;
+
+                if (index < XtNumber(names)) {
+                        resource = names[index];
+                        resource_class = classes[index];
+                } else {
+                        snprintf(palette_name, sizeof(palette_name), "color%zu", index - 3);
+                        snprintf(palette_class, sizeof(palette_class), "Color%zu", index - 3);
+                        resource = palette_name;
+                        resource_class = palette_class;
+                }
+                snprintf(name, sizeof(name), "%s.vt100.%s", app->application_name, resource);
+                snprintf(class_name, sizeof(class_name), "%s.VT100.%s", app->application_class,
+                         resource_class);
+                if (!XrmGetResource(database, name, class_name, &type, &value))
+                        continue;
+                values[index] = strdup(value.addr);
+                if (values[index] == NULL) {
+                        XtpLog(XTP_LOG_ERROR, "theme", "SIGHUP reload rejected: out of memory");
+                        goto done;
+                }
+                if (!XParseColor(app->display, colormap, values[index], &desired_colors[index])) {
+                        XtpLog(XTP_LOG_WARNING, "theme",
+                               "SIGHUP reload rejected: invalid %s=%s; colors unchanged", resource,
+                               values[index]);
+                        goto done;
+                }
+        }
+        /* Validate every color before applying any of them. */
+        for (index = 0; index < XtNumber(values); ++index) {
+                if (values[index] == NULL)
+                        continue;
+                if (index < XtNumber(names)) {
+                        Pixel pixel, current_pixel;
+                        XColor current_color;
+                        const char *target = names[reverse_video && index < 2 ? 1 - index : index];
+                        XrmValue from = {(unsigned int)strlen(values[index]) + 1, values[index]};
+                        XrmValue to = {sizeof(pixel), (XPointer)&pixel};
+
+                        XtVaGetValues(app->vt, target, &current_pixel, NULL);
+                        current_color.pixel = current_pixel;
+                        XQueryColor(app->display, colormap, &current_color);
+                        if ((current_color.red >> 8) == (desired_colors[index].red >> 8) &&
+                            (current_color.green >> 8) == (desired_colors[index].green >> 8) &&
+                            (current_color.blue >> 8) == (desired_colors[index].blue >> 8))
+                                continue;
+                        if (!XtConvertAndStore(app->vt, XtRString, &from, XtRPixel, &to)) {
+                                XtpLog(
+                                    XTP_LOG_WARNING, "theme",
+                                    "SIGHUP reload rejected: cannot allocate %s; colors unchanged",
+                                    names[index]);
+                                goto done;
+                        }
+                        /* The widget stores already-swapped defaults in reverse video. */
+                        theme_pixels[reverse_video && index < 2 ? 1 - index : index] = pixel;
+                        theme_changed |= UINT32_C(1)
+                                         << (reverse_video && index < 2 ? 1 - index : index);
+                } else {
+                        /* The name and value stay owned until XtSetValues returns. */
+                        static const char *const palette_names[] = {
+                            "color0",  "color1",  "color2",  "color3",  "color4",  "color5",
+                            "color6",  "color7",  "color8",  "color9",  "color10", "color11",
+                            "color12", "color13", "color14", "color15",
+                        };
+
+                        String current_value = NULL;
+                        XColor current_color;
+                        XtVaGetValues(app->vt, palette_names[index - 3], &current_value, NULL);
+                        if (current_value != NULL &&
+                            XParseColor(app->display, colormap, current_value, &current_color) &&
+                            (current_color.red >> 8) == (desired_colors[index].red >> 8) &&
+                            (current_color.green >> 8) == (desired_colors[index].green >> 8) &&
+                            (current_color.blue >> 8) == (desired_colors[index].blue >> 8))
+                                continue;
+                        theme_changed |= UINT32_C(1) << index;
+                }
+                color_changed[index] = True;
+                ++count;
+        }
+        if (count != 0)
+                XtpVtSetThemeColors(app->vt, theme_pixels, values + 3, theme_changed);
+        for (index = 3; index < XtNumber(values); ++index) {
+                if (!color_changed[index])
+                        continue;
+                free(app->theme_palette[index - 3]);
+                app->theme_palette[index - 3] = values[index];
+                values[index] = NULL;
+        }
+        XtpLog(XTP_LOG_INFO, "config", "SIGHUP reloaded configuration colors=%u", count);
+done:
+        for (index = 0; index < XtNumber(values); ++index)
+                free(values[index]);
+        if (database != NULL)
+                XrmDestroyDatabase(database);
+        if (bytes != NULL)
+                XFree(bytes);
+}
+
+static void
+WatchConfigReload(App *app)
+{
+        struct sigaction action = {0};
+
+        config_reload_signal = XtAppAddSignal(app->context, ReloadConfiguration, app);
+        action.sa_handler = NoticeConfigReload;
+        sigemptyset(&action.sa_mask);
+        action.sa_flags = SA_RESTART;
+        if (sigaction(SIGHUP, &action, NULL) != 0) {
+                XtpLog(XTP_LOG_WARNING, "theme", "cannot install SIGHUP reload: %s",
+                       strerror(errno));
+                XtRemoveSignal(config_reload_signal);
+                config_reload_signal = (XtSignalId)0;
+        } else {
+                Atom capability = XInternAtom(app->display, "_REVENANT_RELOAD_SIGHUP_V1", False);
+                XChangeProperty(app->display, XtWindow(app->shell),
+                                XInternAtom(app->display, "_REVENANT_CAPABILITIES", False), XA_ATOM,
+                                32, PropModeReplace, (unsigned char *)&capability, 1);
+        }
+}
 
 typedef struct
 {
@@ -1913,6 +2141,11 @@ RealizeApplication(App *app)
                 char hostname[256];
 
                 XChangeProperty(app->display, XtWindow(app->shell),
+                                XInternAtom(app->display, "_REVENANT_VERSION", False),
+                                XInternAtom(app->display, "UTF8_STRING", False), 8, PropModeReplace,
+                                (const unsigned char *)XTP_VERSION, (int)strlen(XTP_VERSION));
+
+                XChangeProperty(app->display, XtWindow(app->shell),
                                 XInternAtom(app->display, "_NET_WM_PID", False), XA_CARDINAL, 32,
                                 PropModeReplace, (const unsigned char *)&pid, 1);
                 if (gethostname(hostname, sizeof(hostname)) == 0) {
@@ -1980,6 +2213,13 @@ StartChild(App *app, char **command)
 static void
 DestroyApplication(App *app)
 {
+        if (config_reload_signal != (XtSignalId)0) {
+                XDeleteProperty(app->display, XtWindow(app->shell),
+                                XInternAtom(app->display, "_REVENANT_CAPABILITIES", False));
+                (void)signal(SIGHUP, NoopApplicationSignal);
+                XtRemoveSignal(config_reload_signal);
+                config_reload_signal = (XtSignalId)0;
+        }
         if (child_exit_signal != (XtSignalId)0) {
                 (void)sigaction(SIGCHLD, &previous_child_action, NULL);
                 XtRemoveSignal(child_exit_signal);
@@ -2013,6 +2253,8 @@ DestroyApplication(App *app)
                 app->shell = NULL;
                 app->vt = NULL;
         }
+        for (size_t index = 0; index < XtNumber(app->theme_palette); ++index)
+                free(app->theme_palette[index]);
         XtpMenusDestroy(&app->menus, app->display);
         if (app->display != NULL) {
                 /* XtCloseDisplay flushes cached color converters that use this colormap. */
@@ -2075,6 +2317,11 @@ main(int argc, char **argv)
                        strerror(errno));
                 return EXIT_FAILURE;
         }
+        if (ReserveApplicationSignals() != 0) {
+                XtpLog(XTP_LOG_ERROR, "startup", "cannot install startup signal handlers: %s",
+                       strerror(errno));
+                return EXIT_FAILURE;
+        }
         /* Helper pipes may close early; the write path reports EPIPE instead of dying. Every
          * exec child restores the default. */
         (void)signal(SIGPIPE, SIG_IGN);
@@ -2117,6 +2364,9 @@ main(int argc, char **argv)
                command != NULL ? command[0] : "(shell)");
 
         memset(&app, 0, sizeof(app));
+        app.command_database = command_database;
+        app.application_name = command_line.application_name;
+        app.application_class = command_line.application_class;
         (void)setlocale(LC_ALL, "");
         {
                 const char *locale = setlocale(LC_ALL, NULL);
@@ -2156,6 +2406,7 @@ main(int argc, char **argv)
                 goto done;
         if (WatchChildExit(&app) != 0)
                 goto done;
+        WatchConfigReload(&app);
 
         app.running = True;
         XtpLog(XTP_LOG_INFO, "startup", "event loop starting");

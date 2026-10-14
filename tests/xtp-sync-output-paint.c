@@ -355,6 +355,31 @@ HeldCursorStyle(Harness *h)
         ExpectCursorShape(h, "released", 0, 0, true, "release shows the block again");
 }
 
+/* A resource reload must publish the complete new frame immediately, rather
+ * than clearing the window and waiting for Xt to dispatch an expose event. */
+static void
+ThemeReloadPaint(Harness *h)
+{
+        Pixel defaults[3] = {RED, BLUE, CURSOR};
+        String palette[16] = {NULL};
+
+        h->scenario = "theme-reload-buffered";
+        Feed(h, "\033[?2026l\033[?5l\033]110\007\033]111\007\033[2J\033[1;1HA");
+        Paint(h);
+        XtpVtSetThemeColors(h->vt, defaults, palette, UINT32_C(3));
+        /* Deliberately do not call Paint or process Xt events here. */
+        XSync(XtDisplay(h->vt), False);
+        if (Background(h) != BLUE || InkColor(h, 0, 0, BLUE) != RED) {
+                fprintf(stderr, "theme reload: new text/background not visible before expose\n");
+                ++h->failures;
+        }
+        Paint(h);
+        if (Background(h) != BLUE || InkColor(h, 0, 0, BLUE) != RED) {
+                fprintf(stderr, "theme reload: subsequent event processing damaged the frame\n");
+                ++h->failures;
+        }
+}
+
 int
 main(int argc, char **argv)
 {
@@ -399,6 +424,7 @@ main(int argc, char **argv)
         HeldCursorStyle(&h);
         Feed(&h, "\033[0 q\033]112\007\033[?25l");
 
+        ThemeReloadPaint(&h);
         Feed(&h, "\033[?2026l");
         XtpVtSetTerminal(h.vt, NULL);
         XtpTerminalFree(h.terminal);
