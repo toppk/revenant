@@ -8,13 +8,14 @@ artifacts take their version from the tag, not from the development version in
 advancing the development version; their notes link to the exact candidate
 commit. Published tags and assets are never replaced.
 
-## 0.9.0 — Unreleased
+## 0.10.0 — Unreleased
 
-### Fixes
+## 0.9.0 — 2026-10-14
 
-- Close the terminal when its shell exits even if a background process retains
-  a slave PTY descriptor. Drain pending output first; `-hold` retains the final
-  screen and disables further input without waiting for background processes.
+Live theme reload, a theme selection utility, and xterm-compatible core and
+themed mouse cursors. This release also fixes terminal lifetime when background
+applications retain the PTY. Experimental program-status presentation remains
+outside this release.
 
 ### Features
 
@@ -23,27 +24,53 @@ commit. Published tags and assets are never replaced.
   and repaint changed themes without clearing the visible frame first. Reserve
   `SIGUSR1` and `SIGUSR2` as no-ops and advertise running version/reload support
   through X11 window properties.
+  ([3e47a9c](https://github.com/toppk/revenant/commit/3e47a9c3e03f7868876e32d42b59a265f8bc2d78))
 - Add the optional theme setter CLI/PySide utility and Ghostty theme converter.
   Preview and apply palettes, save personal themes and favorites, choose a
   default, and restore the original XRDB database. GUI reload targets must
   advertise support; CLI operations only update XRDB.
-
+  ([8cdafa4](https://github.com/toppk/revenant/commit/8cdafa417634827cf8c9ff32ba4e38103ae95398))
 - Honor application OSC 22 pointer-shape requests with themed Xcursor shapes and
   core-font fallbacks. Shift-hover hyperlinks temporarily select a hand; leaving
   restores the latest application shape.
+  ([8c7063b](https://github.com/toppk/revenant/commit/8c7063b61405b6cfee657e2f21fb194cbaa8b9a6))
 - Honor `pointerShape` for startup and empty OSC 22 resets, including `arrow`
   and `xterm`; explicit application shapes still override it.
-- Follow xterm's Xcursor/core cursor selection: nonempty `XCURSOR_THEME` overrides
-  `Xcursor.theme`; with the variable unset, empty or absent resource themes use
-  core cursors. Create core glyph cursors directly so desktop artwork cannot
-  silently replace them. Honor themed cursor
-  size overrides and core `pointerColor`, `pointerColorBackground`, and
-  `pointerFont`, with `-ms` and `-pf` aliases. Support all standard cursor-font
-  shapes at startup/reset, preserving the distinction between `arrow` and `left_ptr`.
+  ([e21d594](https://github.com/toppk/revenant/commit/e21d594a5abe7506375784c772632736916b42e1))
+- Follow xterm's Xcursor/core cursor selection, including `XCURSOR_THEME`,
+  `XCURSOR_SIZE`, and command-line Xresources. Honor core `pointerColor`,
+  `pointerColorBackground`, and `pointerFont`, with `-ms` and `-pf` aliases.
+  Support all standard cursor-font shapes at startup/reset, preserving the
+  distinction between `arrow` and `left_ptr`.
+  ([a1d6113](https://github.com/toppk/revenant/commit/a1d6113e8591fdd50d1f99fa1bf2ac488fbc930f))
 - Update the libghostty development pin to
-  `b115e456749e2820a14d3942a63159ff8d46d925`, which includes the public mouse-shape
-  getter, OSC 7501 program-status C callback, and subsequent terminal fixes through
-  DECSTR support.
+  `b115e456749e2820a14d3942a63159ff8d46d925`, including the public mouse-shape
+  getter and terminal fixes through DECSTR support. The upstream OSC 7501 C
+  callback is available; downstream program-status presentation is deferred.
+  ([c5469f9](https://github.com/toppk/revenant/commit/c5469f992a40139858d4213536611dcf0f917579))
+- Document explicit Ctrl+Shift+V and Ctrl+Shift+middle-click CLIPBOARD paste
+  bindings alongside traditional PRIMARY selection behavior.
+  ([15866b8](https://github.com/toppk/revenant/commit/15866b8a898fe8e6e77e25566bc790499ee81538))
+
+### Bug fixes
+
+- Close the terminal when its shell exits even if a background process retains
+  a slave PTY descriptor. Drain pending output first; `-hold` retains the final
+  screen and disables further input without waiting for background processes.
+  ([5e53194](https://github.com/toppk/revenant/commit/5e53194d5094f823a9e75a364768216d2073c4e8))
+- Paint full-frame redraws through a backing pixmap before copying them to the
+  visible window, avoiding intermediate blank frames.
+  ([ed8bd69](https://github.com/toppk/revenant/commit/ed8bd69d348772ca585cb3ecd91dc4d9cddedbab))
+- Correct action reports and instance-specific opacity resource lookup.
+  ([079b21d](https://github.com/toppk/revenant/commit/079b21d25f00ba5a217a3706b92f662aca753e7a))
+
+### Maintainer tools
+
+- Automate release validation, draft verification, publication and provenance
+  checks through `packaging/release`, with explicit source and run identities.
+  ([323a9af](https://github.com/toppk/revenant/commit/323a9af498734846ca0de0fe76753a16c0e9b163))
+- Route libghostty diagnostics through the terminal's logging controls.
+  ([10ae4ab](https://github.com/toppk/revenant/commit/10ae4abb9602d647a47eaa7925accad4fa084de8))
 
 ## 0.8.1 — 2026-10-13
 

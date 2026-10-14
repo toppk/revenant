@@ -164,6 +164,14 @@ attaching those same bytes. Keep the original build run/attempt in the manifest.
 Test expired/missing artifacts, wrong identities and modified bytes before
 adopting promotion. Never weaken verification merely to save a rebuild.
 
+## 0.9.0 scope
+
+0.9.0 ships theme reload, safe signal handling and window capability discovery,
+the optional theme setter, xterm core/themed cursor parity, and the shell-exit
+fix. The libghostty pin includes the OSC 7501 C callback; experimental downstream
+program-status presentation is excluded. The release proceeds from master
+through the helper commands above, preserving uncommitted experimental work.
+
 ## 0.8.1 retrospective
 
 0.8.1 shipped the PID/`WINDOWID` fix from `v0.8.0`, retaining its backend pin.
