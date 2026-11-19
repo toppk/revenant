@@ -100,7 +100,9 @@ just release 0.10.0-rc.1 --ref release/0.10
 ```
 
 The default source is pushed `master`. Local uncommitted changes are excluded;
-the command neither commits nor pushes them. It checks publishable notes and
+the command neither commits nor pushes them. It may be started immediately after
+the push: when no CI run is listed yet it waits up to a minute for one before
+dispatching, because a duplicate Test dispatch cancels the push-triggered run. It checks publishable notes and
 release immutability first, watches exact-source CI, runs package validation,
 creates and verifies the draft, and displays the verified notes and draft URL.
 It then asks `Publish VERSION? [y/N]`. Only `y` or `yes` publishes; an empty answer,
@@ -263,6 +265,45 @@ workflow, version, exact assets, hashes and attestations before tagging and
 attaching those same bytes. Keep the original build run/attempt in the manifest.
 Test expired/missing artifacts, wrong identities and modified bytes before
 adopting promotion. Never weaken verification merely to save a rebuild.
+
+## 0.10.0 retrospective
+
+0.10.0 moved the terminal core to libghostty-vt 1.0.1 and Zig 0.17, and shipped
+idle scrollback compression, CSI 8 t resizes, DECRQCRA and the backend version
+report. Experimental program-status presentation stayed uncommitted in the
+working tree; the release commits were cut around it.
+
+The exact release source was `77ee27f32a1776a916fe36c9476a74d5fd03724d`.
+[Package validation](https://github.com/toppk/revenant/actions/runs/44540766008)
+(about 17 minutes) and the
+[draft build](https://github.com/toppk/revenant/actions/runs/44543817212)
+(about 28 minutes) passed. The helper verified the six draft assets and their
+provenance, published after owner approval, and confirmed the public downloads
+matched. This was the first release through `just release`.
+
+It took three source candidates. Each failure was found by hosted CI after the
+push, and each added commits that then needed changelog links:
+
+- The gate ran seconds after the push, before GitHub listed the push-triggered
+  Test run. It dispatched a duplicate, which cancelled the real run through the
+  workflow's `cancel-in-progress` group, and then stopped on a 404 for the
+  pending run's job list. The gate now waits up to a minute for a run to be
+  listed before dispatching, and treats a missing job list as no progress yet.
+- Documentation failed: new `todo.md` checklist items had no feature mapping.
+  `python -m unittest discover -s tdn/tests` catches this in seconds and belongs
+  in the local checks before any push that touches `todo.md`, `HANDOFF.md` or
+  the dispatch list.
+- `ubuntu-latest` had moved from 24.04 to 26.04 since 0.9.0, and three tests fail
+  there on every run: `xvfb-pty-closed-stdio` under GCC, and
+  `xvfb-command-line` and `xvfb-dynamic-colors` under AddressSanitizer. Test
+  and package jobs are pinned to `ubuntu-24.04`, which also keeps the tarball
+  and `.deb` baseline. The 26.04 port is `todo.md` R8.
+
+Lessons: name runner images explicitly rather than tracking `latest` for jobs
+that build or test; let ordinary CI pass on the pushed source before finishing
+the changelog, so a correction does not need a chain of link-only commits; and
+the release-preparation bullet can link several commits when it does.
+Duplicate validation/draft builds remain the largest source of release latency.
 
 ## 0.9.0 retrospective
 
