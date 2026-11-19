@@ -10,6 +10,12 @@ commit. Published tags and assets are never replaced.
 
 ## 0.11.0 — Unreleased
 
+### Maintainer tools
+
+- Make `just release` safe to start right after a push: it waits for the
+  push-triggered CI run to be listed instead of dispatching a duplicate that
+  cancels it, and tolerates a pending run with no job list.
+
 ## 0.10.0 — 2026-11-19
 
 The terminal core moves to libghostty-vt 1.0.1, the first stable release of the

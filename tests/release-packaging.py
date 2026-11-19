@@ -796,6 +796,7 @@ class ChangelogCoverage(unittest.TestCase):
 class ReleaseCiGate(unittest.TestCase):
     def setUp(self):
         self.client = operations.Release("example/project", Path("unused"))
+        self.client.listing_grace = 0
         self.success = dict(
             databaseId=123,
             headSha=SHA,
@@ -849,6 +850,33 @@ class ReleaseCiGate(unittest.TestCase):
         self.client.wait_ordinary_ci(SHA, "master")
         self.client.dispatch.assert_not_called()
         self.client.api.assert_any_call("actions/runs/123")
+
+    def test_late_listed_push_run_is_watched_without_dispatch(self):
+        self.run["path"] = ".github/workflows/test.yml"
+        self.client.listing_grace = 60
+        self.client.gh.side_effect = [
+            "[]",
+            json.dumps([self.active]),
+            json.dumps([self.success]),
+        ]
+        with patch.object(operations.time, "sleep") as sleep:
+            self.client.wait_ordinary_ci(SHA, "master")
+        sleep.assert_called_once_with(10)
+        self.client.dispatch.assert_not_called()
+
+    def test_pending_run_without_a_job_list_is_still_watched(self):
+        def api(path):
+            if path.endswith("/jobs?per_page=100"):
+                raise ValueError("gh api: gh: Not Found (HTTP 404)")
+            return self.run
+
+        self.run["path"] = ".github/workflows/test.yml"
+        self.client.api = Mock(side_effect=api)
+        self.client.gh.side_effect = [
+            json.dumps([self.active]),
+            json.dumps([self.success]),
+        ]
+        self.client.wait_ordinary_ci(SHA, "master")
 
     def test_failed_ci_stops_without_redispatch(self):
         self.client.gh.return_value = json.dumps(

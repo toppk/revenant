@@ -120,6 +120,8 @@ class Session:
 
 
 class Release:
+    listing_grace = 60
+
     def __init__(self, repo, state_dir):
         require(
             re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo), "Invalid repository"
@@ -294,12 +296,21 @@ class Release:
             )
         return run
 
+    def jobs(self, run_id):
+        """Jobs are progress display only; a run not yet started has no job list."""
+        try:
+            return self.api(f"actions/runs/{run_id}/jobs?per_page=100")["jobs"]
+        except ValueError as error:
+            if "HTTP 404" not in str(error):
+                raise
+            return []
+
     def wait(self, run_id):
         deadline = time.monotonic() + 90 * 60
         previous = None
         while True:
             run = self.run(run_id, complete=False)
-            jobs = self.api(f"actions/runs/{run_id}/jobs?per_page=100")["jobs"]
+            jobs = self.jobs(run_id)
             status = ", ".join(
                 f"{job['name']}: {job['conclusion'] or job['status']}" for job in jobs
             )
@@ -366,6 +377,11 @@ class Release:
         """Watch exact-source CI, including manually dispatched path-filtered docs."""
         for workflow in ("test.yml", "docs.yml"):
             runs = self.ci_runs(source, workflow)
+            # A run for a fresh push is listed late; a duplicate dispatch cancels it.
+            listed = time.monotonic() + self.listing_grace
+            while not runs and time.monotonic() < listed:
+                time.sleep(10)
+                runs = self.ci_runs(source, workflow)
             if any(
                 r["status"] == "completed" and r["conclusion"] == "success"
                 for r in runs
@@ -402,7 +418,7 @@ class Release:
                     == self.repo,
                     "CI run identity differs from selected source/workflow/repository",
                 )
-                jobs = self.api(f"actions/runs/{run_id}/jobs?per_page=100")["jobs"]
+                jobs = self.jobs(run_id)
                 status = ", ".join(
                     f"{j['name']}: {j['conclusion'] or j['status']}" for j in jobs
                 )
