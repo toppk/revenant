@@ -488,13 +488,15 @@ added (T2):
   `DECCOLM` (`ColumnMode`; libghostty implements mode 3 behind mode 40 without a
   hook), `DECRQCRA` (`GetChecksum`/`SetChecksum`), OSC 3 (`SetXprop`) and the
   status line.
-- **CSI 8;rows;columns t** is one concrete window-manipulation gap: xterm
-  resizes the text area to the requested cell grid, while Revenant currently
-  ignores the request. [Ghostty PR #14375](https://github.com/ghostty-org/ghostty/pull/14375)
-  adds this behavior to Ghostty's application runtimes and a C application
-  action, but says `libghostty-vt` parses and ignores the sequence. That PR
-  alone therefore does not give Revenant a C effect for the resize request;
-  W2 still needs a request path to the X11 shell and a Window Ops policy check.
+- **CSI 8;rows;columns t** resizes the text area through libghostty-vt 1.0's
+  `GHOSTTY_TERMINAL_OPT_RESIZE_WINDOW` effect
+  ([PR #14610](https://github.com/ghostty-org/ghostty/pull/14610)), gated by
+  `SetWinSizeChars` (8), which xterm's default list allows. The request is
+  bounded by the root window, as xterm's default `limitResize` does. One
+  difference remains: libghostty reports an omitted parameter and an explicit
+  zero identically, so both keep the current dimension, where xterm
+  (`RequestResize` in `charproc.c`) treats an explicit zero as the root window's
+  size.
 
 **Measured against XTerm(411)** with the same requests, each followed by a status
 request:

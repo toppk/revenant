@@ -522,6 +522,32 @@ DesktopNotificationEffectPointer(void)
 }
 
 static void
+ResizeWindowEffect(GhosttyTerminal handle, void *userdata,
+                   const GhosttyTerminalResizeWindow *request)
+{
+        XtpTerminal *terminal = userdata;
+
+        (void)handle;
+        if (terminal == NULL || request == NULL || terminal->effects.resize_window == NULL ||
+            request->tag != GHOSTTY_TERMINAL_RESIZE_WINDOW_GRID)
+                return;
+        terminal->effects.resize_window(request->value.grid.rows, request->value.grid.columns,
+                                        terminal->effects.closure);
+}
+
+static const void *
+ResizeWindowEffectPointer(void)
+{
+        GhosttyTerminalResizeWindowFn function = ResizeWindowEffect;
+        const void *pointer = NULL;
+
+        _Static_assert(sizeof(function) == sizeof(pointer),
+                       "Ghostty callback pointer ABI is unsupported");
+        memcpy(&pointer, &function, sizeof(pointer));
+        return pointer;
+}
+
+static void
 ProgressReportEffect(GhosttyTerminal handle, void *userdata,
                      const GhosttyTerminalProgressReport *report)
 {
@@ -3301,6 +3327,11 @@ XtpTerminalSetEffects(XtpTerminal *terminal, const XtpTerminalEffects *effects)
                 memset(&terminal->effects, 0, sizeof(terminal->effects));
         else
                 terminal->effects = *effects;
+        if (ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_RESIZE_WINDOW,
+                                 terminal->effects.resize_window != NULL
+                                     ? ResizeWindowEffectPointer()
+                                     : NULL) != GHOSTTY_SUCCESS)
+                XtpLog(XTP_LOG_ERROR, "terminal", "cannot configure window resize effect");
         /* xterm answers a denied OSC 52 query with silence, so the read
          * callback is only installed when a reply is permitted. */
         if (ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_CLIPBOARD_READ,

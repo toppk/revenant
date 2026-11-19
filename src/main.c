@@ -1327,6 +1327,50 @@ TerminalTitleOp(XtpTitleOp op, unsigned int target, unsigned int slot, void *clo
         }
 }
 
+/* CSI 8 ; rows ; columns t. Zero keeps a dimension; like xterm's limitResize default,
+ * the result never exceeds the root window. */
+static void
+TerminalResizeWindow(unsigned int rows, unsigned int columns, void *closure)
+{
+        App *app = closure;
+        unsigned int current_columns = XtpVtColumns(app->vt);
+        unsigned int current_rows = XtpVtRows(app->vt);
+        unsigned int cell_width = XtpVtCellWidth(app->vt);
+        unsigned int cell_height = XtpVtCellHeight(app->vt);
+        unsigned int base_width = XtpVtNaturalWidth(app->vt) - current_columns * cell_width;
+        unsigned int base_height = XtpVtNaturalHeight(app->vt) - current_rows * cell_height;
+        unsigned int root_width = (unsigned int)WidthOfScreen(XtScreen(app->shell));
+        unsigned int root_height = (unsigned int)HeightOfScreen(XtScreen(app->shell));
+        unsigned int max_columns;
+        unsigned int max_rows;
+
+        if (!WindowOpAllowed(app, XTP_WINDOW_OP_SET_WIN_SIZE_CHARS, 8))
+                return;
+        if (!XtIsRealized(app->shell) || cell_width == 0 || cell_height == 0)
+                return;
+        max_columns = root_width > base_width ? (root_width - base_width) / cell_width : 1U;
+        max_rows = root_height > base_height ? (root_height - base_height) / cell_height : 1U;
+        if (columns == 0)
+                columns = current_columns;
+        if (rows == 0)
+                rows = current_rows;
+        if (columns > max_columns)
+                columns = max_columns;
+        if (rows > max_rows)
+                rows = max_rows;
+        if (columns < 1U)
+                columns = 1U;
+        if (rows < 1U)
+                rows = 1U;
+        XtpLog(XTP_LOG_INFO, "shell", "XTWINOPS 8 resize grid=%ux%u from=%ux%u", columns, rows,
+               current_columns, current_rows);
+        if (columns == current_columns && rows == current_rows)
+                return;
+        XResizeWindow(app->display, XtWindow(app->shell), base_width + columns * cell_width,
+                      base_height + rows * cell_height);
+        XFlush(app->display);
+}
+
 static Boolean
 CompressWork(XtPointer closure)
 {
@@ -1406,6 +1450,7 @@ ApplyTerminalEffects(App *app)
             .unknown_apc = TerminalUnknownApc,
             .notification = TerminalNotification,
             .progress = TerminalProgress,
+            .resize_window = TerminalResizeWindow,
             .closure = app,
         };
 

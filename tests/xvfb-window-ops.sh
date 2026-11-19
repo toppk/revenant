@@ -205,6 +205,24 @@ test "$(grep -c 'selection: allowWindowOps=' "$log" || true)" = "$before" ||
 expect 'still blocked' "ask:$(hex '\033[14t')" ''
 stop_serving
 echo "report allowSendEvents: the Allow Window Ops entry is insensitive; reports stay blocked"
+# CSI 8 ; rows ; columns t resizes the text area; zero keeps a dimension. xterm's
+# default list allows it (SetWinSizeChars, 8).
+case='text-area resize'
+serve_terminal
+expect 'CSI 8;30;100 t is silent' "ask:$(hex '\033[8;30;100t')" ''
+xtp_wait_for_log "$log" 'terminal: resize grid=100x30' 'resize to 100x30'
+expect 'CSI 18 t after the resize' "ask:$(hex '\033[18t')" '\033[8;30;100t'
+expect 'CSI 8;0;90 t keeps the rows' "ask:$(hex '\033[8;0;90t')" ''
+xtp_wait_for_log "$log" 'terminal: resize grid=90x30' 'resize to 90x30'
+expect 'CSI 18 t after the width change' "ask:$(hex '\033[18t')" '\033[8;30;90t'
+stop_serving
+serve_terminal -xrm 'XTerm*disallowedWindowOps: SetWinSizeChars'
+expect 'denied CSI 8 t' "ask:$(hex '\033[8;30;100t')" ''
+xtp_wait_for_log "$log" 'XTWINOPS 8 denied by window-ops policy (SetWinSizeChars)' 'resize denial'
+expect 'CSI 18 t after the denial' "ask:$(hex '\033[18t')" "$reply18"
+stop_serving
+echo "report resize: CSI 8 t resizes the grid, zero keeps a dimension, SetWinSizeChars denies it"
+
 # OSC 52 shares the predicate: with allowSendEvents true the blanket is blocked even
 # though allowWindowOps is true, and disallowedWindowOps alone decides each direction.
 # An external owner serves "seed" first, so a refused write leaves it in place.

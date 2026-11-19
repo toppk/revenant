@@ -4785,6 +4785,24 @@ SelfTestWindowOps(void)
              true, 2},
         };
 
+        /* CSI 8 t is allowed by xterm's default list. */
+        {
+                XtpWindowOps ops;
+
+                XtpWindowOpsParse(
+                    "GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop",
+                    &ops);
+                if (!XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_SET_WIN_SIZE_CHARS)) {
+                        XtpLog(XTP_LOG_ERROR, "self-test", "window-ops default resize");
+                        return -1;
+                }
+                XtpWindowOpsParse("8", &ops);
+                if (XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_SET_WIN_SIZE_CHARS)) {
+                        XtpLog(XTP_LOG_ERROR, "self-test", "window-ops numeric resize alias");
+                        return -1;
+                }
+        }
+
         for (index = 0; index < XtNumber(size_cases); ++index) {
                 XtpWindowOps ops;
 

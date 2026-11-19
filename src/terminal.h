@@ -411,6 +411,8 @@ typedef struct
                              size_t body_length, void *closure);
         /* OSC 9;4 progress; libghostty also reports removal on RIS. Percent is 0-100 or -1. */
         void (*progress)(XtpProgressState state, int percent, void *closure);
+        /* CSI 8 ; rows ; columns t; zero keeps that dimension. The grid is not resized here. */
+        void (*resize_window)(unsigned int rows, unsigned int columns, void *closure);
         void *closure;
 } XtpTerminalEffects;
 

@@ -19,6 +19,8 @@ commit. Published tags and assets are never replaced.
 - Compress idle scrollback. After a quarter second without output, history is
   compressed in small steps and restored transparently when viewed; 600,000
   lines of `seq` output drop from 437 MB to 41 MB resident.
+- Honor `CSI 8 ; rows ; columns t` text-area resize requests under the
+  `SetWinSizeChars` window operation, bounded by the root window.
 - Report the linked libghostty-vt release as `backend version` in
   `-report-config` and the welcome support block.
 
