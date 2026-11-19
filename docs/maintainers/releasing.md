@@ -243,8 +243,10 @@ attaches all six files before creating the unpublished release. Both modes keep
 package artifacts, manifests and diagnostic logs for 30 days; logs are not assets.
 
 The workflow shares pinned font fixtures and architecture-specific Zig caches.
-`tools/fetch-libghostty` selects an exact commit. `packaging/install-zig` checks
-the pinned compiler against Zig's published checksum. The synthetic sbix fixture
+`tools/fetch-libghostty` selects an exact commit, currently the libghostty-vt
+1.0.1 tag. `packaging/install-zig` checks the pinned compiler (`ZIG_VERSION` in
+both workflows; libghostty-vt 1.0.x requires Zig 0.17) against Zig's published
+checksum. The synthetic sbix fixture
 is tied to `FONTTOOLS_VERSION`; update its manifest and the version together.
 The x86_64 CPU floor is `x86_64-v3` (AVX2); aarch64 targets baseline ARMv8.
 

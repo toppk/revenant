@@ -38,7 +38,7 @@ typedef struct
         bool cursor_visible;
         uint16_t cursor_column;
         uint16_t cursor_row;
-        GhosttyRenderStateCursorVisualStyle cursor_style;
+        GhosttyCursorStyle cursor_style;
 } XtpGhosttyFrameMeta;
 
 struct XtpTerminal
@@ -148,5 +148,7 @@ struct XtpTerminal
 
 /* Primary-screen rows including scrollback; 0 on the alternate screen. */
 uint64_t XtpGhosttyScreenRows(XtpTerminal *terminal);
+int XtpGhosttyFormatPlain(XtpTerminal *terminal, const GhosttySelection *selection, uint8_t **bytes,
+                          size_t *length);
 
 #endif

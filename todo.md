@@ -109,7 +109,7 @@ conflicting ownership even within the same batch.
 ## V: Text and cursor presentation
 
 - [x] **V3 — OSC 22 pointer shape.** Ghostty PR #14371 is merged and the
-      development pin includes its public getter. Map accepted state to Xcursor
+      libghostty-vt 1.0.1 pin includes its public getter. Map accepted state to Xcursor
       names with core-font fallbacks; Shift-hover links temporarily override it.
       All 34 names, split/invalid input, native hover restoration, holds, resize,
       reset and cleanup have automated coverage. Theme appearance can be reviewed

@@ -241,9 +241,9 @@ ConvertMode(XtpTerminalMode mode)
         case XTP_TERMINAL_MODE_BACKARROW_KEY:
                 return GHOSTTY_MODE_BACKARROW_KEY_MODE;
         case XTP_TERMINAL_MODE_NUMLOCK_KEYPAD:
-                return GHOSTTY_MODE_NUMLOCK_KEYPAD;
+                return GHOSTTY_MODE_IGNORE_KEYPAD_WITH_NUMLOCK;
         case XTP_TERMINAL_MODE_ALT_SENDS_ESCAPE:
-                return GHOSTTY_MODE_ALT_SENDS_ESC;
+                return GHOSTTY_MODE_ALT_SENDS_ESCAPE;
         case XTP_TERMINAL_MODE_META_SENDS_ESCAPE:
                 return GHOSTTY_MODE_ALT_ESC_PREFIX;
         case XTP_TERMINAL_MODE_AUTOWRAP:
@@ -253,13 +253,13 @@ ConvertMode(XtpTerminalMode mode)
         case XTP_TERMINAL_MODE_AUTOLINEFEED:
                 return GHOSTTY_MODE_LINEFEED;
         case XTP_TERMINAL_MODE_APPLICATION_CURSOR:
-                return GHOSTTY_MODE_DECCKM;
+                return GHOSTTY_MODE_CURSOR_KEYS;
         case XTP_TERMINAL_MODE_APPLICATION_KEYPAD:
                 return GHOSTTY_MODE_KEYPAD_KEYS;
         case XTP_TERMINAL_MODE_ALLOW_132:
                 return GHOSTTY_MODE_ENABLE_MODE_3;
         case XTP_TERMINAL_MODE_SYNCHRONIZED_OUTPUT:
-                return GHOSTTY_MODE_SYNC_OUTPUT;
+                return GHOSTTY_MODE_SYNCHRONIZED_OUTPUT;
         case XTP_TERMINAL_MODE_CURSOR_BLINKING:
                 return GHOSTTY_MODE_CURSOR_BLINKING;
         case XTP_TERMINAL_MODE_COUNT:
@@ -502,8 +502,7 @@ DesktopNotificationEffect(GhosttyTerminal handle, void *userdata,
         XtpTerminal *terminal = userdata;
 
         (void)handle;
-        if (terminal == NULL || notification == NULL || terminal->effects.notification == NULL ||
-            notification->size < sizeof(*notification))
+        if (terminal == NULL || notification == NULL || terminal->effects.notification == NULL)
                 return;
         terminal->effects.notification(notification->title.ptr, notification->title.len,
                                        notification->body.ptr, notification->body.len,
@@ -531,8 +530,7 @@ ProgressReportEffect(GhosttyTerminal handle, void *userdata,
         int percent;
 
         (void)handle;
-        if (terminal == NULL || report == NULL || terminal->effects.progress == NULL ||
-            report->size < sizeof(*report))
+        if (terminal == NULL || report == NULL || terminal->effects.progress == NULL)
                 return;
         switch (report->state) {
         case GHOSTTY_TERMINAL_PROGRESS_STATE_REMOVE:
@@ -1653,9 +1651,9 @@ ColorSchemeEffectPointer(void)
 static void
 ReportColorSchemeChange(XtpTerminal *terminal)
 {
-        GhosttyTerminalModeConfig mode = {GHOSTTY_MODE_COLOR_SCHEME_REPORT, false};
+        GhosttyTerminalModeConfig mode = {GHOSTTY_MODE_REPORT_COLOR_SCHEME, false};
         bool light = XtpTerminalBackgroundIsLight(terminal);
-        char report[16];
+        uint8_t report[16];
         size_t written = 0;
 
         if (terminal->scheme_initialized && light == terminal->scheme_light)
@@ -1670,7 +1668,7 @@ ReportColorSchemeChange(XtpTerminal *terminal)
                                                      : GHOSTTY_COLOR_SCHEME_DARK,
                                                report, sizeof(report), &written) != GHOSTTY_SUCCESS)
                 return;
-        terminal->effects.write_pty((const uint8_t *)report, written, terminal->effects.closure);
+        terminal->effects.write_pty(report, written, terminal->effects.closure);
         XtpLog(XTP_LOG_INFO, "terminal", "color scheme report sent scheme=%s",
                light ? "light" : "dark");
 }
@@ -1977,8 +1975,11 @@ XtpTerminalSetScrollbackLines(XtpTerminal *terminal, size_t lines)
                 result = ghostty_terminal_set(terminal->handle,
                                               GHOSTTY_TERMINAL_OPT_SCROLLBACK_MAX_BYTES, &bytes);
         } else {
+                /* NULL restores the 10 kB default; only SIZE_MAX lifts the byte limit. */
+                size_t bytes = SIZE_MAX;
+
                 result = ghostty_terminal_set(terminal->handle,
-                                              GHOSTTY_TERMINAL_OPT_SCROLLBACK_MAX_BYTES, NULL);
+                                              GHOSTTY_TERMINAL_OPT_SCROLLBACK_MAX_BYTES, &bytes);
         }
         if (result != GHOSTTY_SUCCESS)
                 return -1;
@@ -1991,21 +1992,21 @@ XtpTerminalSetScrollbackLines(XtpTerminal *terminal, size_t lines)
 int
 XtpTerminalSetDefaultCursorShape(XtpTerminal *terminal, XtpCursorShape shape)
 {
-        GhosttyTerminalCursorStyle style;
+        GhosttyCursorStyle style;
 
         if (terminal == NULL)
                 return -1;
         switch (shape) {
         case XTP_CURSOR_SHAPE_UNDERLINE:
-                style = GHOSTTY_TERMINAL_CURSOR_STYLE_UNDERLINE;
+                style = GHOSTTY_CURSOR_STYLE_UNDERLINE;
                 break;
         case XTP_CURSOR_SHAPE_BAR:
-                style = GHOSTTY_TERMINAL_CURSOR_STYLE_BAR;
+                style = GHOSTTY_CURSOR_STYLE_BAR;
                 break;
         case XTP_CURSOR_SHAPE_BLOCK:
         case XTP_CURSOR_SHAPE_BLOCK_HOLLOW:
         default:
-                style = GHOSTTY_TERMINAL_CURSOR_STYLE_BLOCK;
+                style = GHOSTTY_CURSOR_STYLE_BLOCK;
                 break;
         }
         XtpLog(XTP_LOG_INFO, "terminal", "default cursor shape=%s",
@@ -2159,7 +2160,7 @@ int
 XtpTerminalScrollBy(XtpTerminal *terminal, intptr_t rows)
 {
         GhosttyTerminalScrollViewport viewport = {
-            GHOSTTY_SCROLL_VIEWPORT_DELTA,
+            GHOSTTY_TERMINAL_SCROLL_VIEWPORT_DELTA,
             {.delta = rows},
         };
 
@@ -2173,7 +2174,7 @@ int
 XtpTerminalScrollTo(XtpTerminal *terminal, uint64_t row)
 {
         GhosttyTerminalScrollViewport viewport = {
-            GHOSTTY_SCROLL_VIEWPORT_ROW,
+            GHOSTTY_TERMINAL_SCROLL_VIEWPORT_ROW,
             {.row = row > SIZE_MAX ? SIZE_MAX : (size_t)row},
         };
 
@@ -2187,7 +2188,7 @@ int
 XtpTerminalScrollToBottom(XtpTerminal *terminal)
 {
         GhosttyTerminalScrollViewport viewport = {
-            GHOSTTY_SCROLL_VIEWPORT_BOTTOM,
+            GHOSTTY_TERMINAL_SCROLL_VIEWPORT_BOTTOM,
             {0},
         };
 
@@ -2580,7 +2581,7 @@ XtpTerminalCommandOutput(XtpTerminal *terminal, uint64_t prompt_start, XtpSemant
                         GhosttyGridRef ref;
                         GhosttyCell cell;
                         GhosttyCellSemanticContent content;
-                        GhosttySelection selection = {.size = sizeof(selection)};
+                        GhosttySelection selection = {0};
                         GhosttyPointCoordinate first;
                         GhosttyPointCoordinate last;
 
@@ -2591,7 +2592,7 @@ XtpTerminalCommandOutput(XtpTerminal *terminal, uint64_t prompt_start, XtpSemant
                                 return -1;
                         if (content != GHOSTTY_CELL_SEMANTIC_OUTPUT)
                                 continue;
-                        if (ghostty_terminal_select_output(terminal->handle, ref, &selection) !=
+                        if (ghostty_terminal_select_output(terminal->handle, &ref, &selection) !=
                                 GHOSTTY_SUCCESS ||
                             ghostty_terminal_point_from_grid_ref(terminal->handle, &selection.start,
                                                                  GHOSTTY_POINT_TAG_SCREEN,
@@ -2618,16 +2619,40 @@ XtpTerminalCommandOutput(XtpTerminal *terminal, uint64_t prompt_start, XtpSemant
         return -1;
 }
 
+/* Clipboard-style text: unwrapped and trimmed; NULL formats the active selection. */
+int
+XtpGhosttyFormatPlain(XtpTerminal *terminal, const GhosttySelection *selection, uint8_t **bytes,
+                      size_t *length)
+{
+        GhosttyFormatter formatter = NULL;
+        GhosttySelection active = {0};
+        GhosttyResult result;
+        bool enabled = true;
+
+        if (selection == NULL) {
+                if (ghostty_terminal_get(terminal->handle, GHOSTTY_TERMINAL_DATA_SELECTION,
+                                         &active) != GHOSTTY_SUCCESS)
+                        return -1;
+                selection = &active;
+        }
+        if (ghostty_formatter_terminal_new(NULL, &formatter, terminal->handle) != GHOSTTY_SUCCESS)
+                return -1;
+        result = ghostty_formatter_set(formatter, GHOSTTY_FORMATTER_OPT_UNWRAP, &enabled);
+        if (result == GHOSTTY_SUCCESS)
+                result = ghostty_formatter_set(formatter, GHOSTTY_FORMATTER_OPT_TRIM, &enabled);
+        if (result == GHOSTTY_SUCCESS)
+                result =
+                    ghostty_formatter_set(formatter, GHOSTTY_FORMATTER_OPT_SELECTION, selection);
+        if (result == GHOSTTY_SUCCESS)
+                result = ghostty_formatter_format_alloc(formatter, NULL, bytes, length);
+        ghostty_formatter_free(formatter);
+        return result == GHOSTTY_SUCCESS ? 0 : -1;
+}
+
 int
 XtpTerminalSpanText(XtpTerminal *terminal, const XtpSemanticSpan *span, char **text, size_t *length)
 {
-        GhosttySelection selection = {.size = sizeof(selection)};
-        GhosttyTerminalSelectionFormatOptions options = {
-            .size = sizeof(options),
-            .emit = GHOSTTY_FORMATTER_FORMAT_PLAIN,
-            .unwrap = true,
-            .trim = true,
-        };
+        GhosttySelection selection = {0};
         uint8_t *formatted = NULL;
         size_t formatted_length = 0;
         char *copy;
@@ -2641,9 +2666,7 @@ XtpTerminalSpanText(XtpTerminal *terminal, const XtpSemanticSpan *span, char **t
             !ScreenCellRef(terminal, span->end_row, span->end_column, &selection.end))
                 return -1;
         selection.rectangle = false;
-        options.selection = &selection;
-        if (ghostty_terminal_selection_format_alloc(terminal->handle, NULL, options, &formatted,
-                                                    &formatted_length) != GHOSTTY_SUCCESS)
+        if (XtpGhosttyFormatPlain(terminal, &selection, &formatted, &formatted_length) != 0)
                 return -1;
         copy = malloc(formatted_length + 1U);
         if (copy != NULL) {
@@ -2744,7 +2767,8 @@ XtpTerminalEncodePaste(XtpTerminal *terminal, const uint8_t *bytes, size_t lengt
                 free(input);
                 return -1;
         }
-        result = ghostty_paste_encode(input, length, config.value, output, required, &required);
+        result = ghostty_paste_encode(input, length, config.value, (uint8_t *)output, required,
+                                      &required);
         free(input);
         if (result != GHOSTTY_SUCCESS) {
                 free(output);
@@ -2956,11 +2980,11 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
         if (reverse_colors_changed)
                 XtpLog(XTP_LOG_INFO, "render", "screen reverse changed enabled=%s",
                        frame.reverse_colors ? "true" : "false");
-        if (meta.cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_UNDERLINE)
+        if (meta.cursor_style == GHOSTTY_CURSOR_STYLE_UNDERLINE)
                 frame.cursor_shape = XTP_CURSOR_SHAPE_UNDERLINE;
-        else if (meta.cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_BAR)
+        else if (meta.cursor_style == GHOSTTY_CURSOR_STYLE_BAR)
                 frame.cursor_shape = XTP_CURSOR_SHAPE_BAR;
-        else if (meta.cursor_style == GHOSTTY_RENDER_STATE_CURSOR_VISUAL_STYLE_BLOCK_HOLLOW)
+        else if (meta.cursor_style == GHOSTTY_CURSOR_STYLE_BLOCK_HOLLOW)
                 frame.cursor_shape = XTP_CURSOR_SHAPE_BLOCK_HOLLOW;
         else
                 frame.cursor_shape = XTP_CURSOR_SHAPE_BLOCK;
@@ -3011,7 +3035,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                 while (ghostty_render_state_row_cells_next(terminal->cells)) {
                         uint8_t local[64];
                         GhosttyBuffer text = {local, sizeof(local), 0};
-                        GhosttyStyle style = GHOSTTY_INIT_SIZED(GhosttyStyle);
+                        GhosttyStyle style = {0};
                         GhosttyCell raw = 0;
                         GhosttyColorRgb background_rgb;
                         GhosttyCellWide wide = GHOSTTY_CELL_WIDE_NARROW;
@@ -3055,26 +3079,27 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                         cell.width = wide == GHOSTTY_CELL_WIDE_WIDE          ? 2U
                                      : wide == GHOSTTY_CELL_WIDE_SPACER_TAIL ? 0U
                                                                              : 1U;
-                        cell.foreground = ConvertColor(style.fg_color, &colors,
-                                                       style.bold && terminal->bold_colors);
+                        cell.foreground = ConvertColor(
+                            style.fg_color, &colors,
+                            (style.flags & GHOSTTY_STYLE_FLAG_BOLD) != 0 && terminal->bold_colors);
                         cell.background = ConvertColor(style.bg_color, &colors, false);
                         if (cell.background.kind == XTP_COLOR_DEFAULT &&
                             ghostty_render_state_row_cells_get(
                                 terminal->cells, GHOSTTY_RENDER_STATE_ROW_CELLS_DATA_BG_COLOR,
                                 &background_rgb) == GHOSTTY_SUCCESS)
                                 cell.background = ConvertRgbColor(background_rgb);
-                        cell.bold = style.bold;
-                        cell.italic = style.italic;
-                        cell.faint = style.faint;
-                        cell.inverse = style.inverse;
-                        cell.invisible = style.invisible;
+                        cell.bold = (style.flags & GHOSTTY_STYLE_FLAG_BOLD) != 0;
+                        cell.italic = (style.flags & GHOSTTY_STYLE_FLAG_ITALIC) != 0;
+                        cell.faint = (style.flags & GHOSTTY_STYLE_FLAG_FAINT) != 0;
+                        cell.inverse = (style.flags & GHOSTTY_STYLE_FLAG_INVERSE) != 0;
+                        cell.invisible = (style.flags & GHOSTTY_STYLE_FLAG_INVISIBLE) != 0;
                         cell.hyperlink = hyperlink;
                         cell.row_wrapped = row_wrapped;
                         cell.selected = row_selected && column >= selection.start_x &&
                                         column <= selection.end_x;
-                        cell.strikethrough = style.strikethrough;
-                        cell.overline = style.overline;
-                        cell.underline = (XtpUnderline)style.underline;
+                        cell.strikethrough = (style.flags & GHOSTTY_STYLE_FLAG_STRIKETHROUGH) != 0;
+                        cell.overline = (style.flags & GHOSTTY_STYLE_FLAG_OVERLINE) != 0;
+                        cell.underline = (XtpUnderline)GHOSTTY_STYLE_UNDERLINE(style);
                         cell.underline_color = ConvertColor(style.underline_color, &colors, false);
                         if (renderer->cell != NULL)
                                 renderer->cell(&cell, closure);
@@ -3085,7 +3110,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
                         ++column;
                 }
                 (void)ghostty_render_state_row_set(terminal->rows,
-                                                   GHOSTTY_RENDER_STATE_ROW_OPTION_DIRTY, &clean);
+                                                   GHOSTTY_RENDER_STATE_ROW_OPT_DIRTY, &clean);
                 ++row;
         }
 
@@ -3102,7 +3127,7 @@ XtpTerminalRender(XtpTerminal *terminal, const XtpRenderer *renderer, void *clos
         {
                 GhosttyRenderStateDirty clean = GHOSTTY_RENDER_STATE_DIRTY_FALSE;
                 (void)ghostty_render_state_set(terminal->render_state,
-                                               GHOSTTY_RENDER_STATE_OPTION_DIRTY, &clean);
+                                               GHOSTTY_RENDER_STATE_OPT_DIRTY, &clean);
         }
         terminal->reverse_colors_initialized = true;
         terminal->reverse_colors = frame.reverse_colors;
@@ -3124,6 +3149,7 @@ XtpTerminalEncodeKey(XtpTerminal *terminal, const XtpKeyEvent *event, char *buff
 {
         GhosttyKeyAction action = GHOSTTY_KEY_ACTION_PRESS;
         GhosttyMods mods;
+        GhosttyResult result;
 
         if (terminal == NULL || event == NULL || event->key >= XTP_KEY_COUNT)
                 return -1;
@@ -3140,16 +3166,20 @@ XtpTerminalEncodeKey(XtpTerminal *terminal, const XtpKeyEvent *event, char *buff
                 break;
         }
 
-        ghostty_key_encoder_setopt_from_terminal(terminal->key_encoder, terminal->handle);
+        (void)ghostty_key_encoder_set_from_terminal(terminal->key_encoder, terminal->handle);
         ghostty_key_event_set_action(terminal->key_event, action);
         ghostty_key_event_set_key(terminal->key_event, key_map[event->key]);
         ghostty_key_event_set_mods(terminal->key_event, mods);
         ghostty_key_event_set_consumed_mods(terminal->key_event, 0);
         ghostty_key_event_set_composing(terminal->key_event, false);
-        ghostty_key_event_set_utf8(terminal->key_event, event->utf8, event->utf8_length);
+        ghostty_key_event_set_utf8(
+            terminal->key_event, (GhosttyString){(const uint8_t *)event->utf8, event->utf8_length});
         ghostty_key_event_set_unshifted_codepoint(terminal->key_event, event->unshifted_codepoint);
-        if (ghostty_key_encoder_encode(terminal->key_encoder, terminal->key_event, buffer, capacity,
-                                       written) != GHOSTTY_SUCCESS)
+        result = ghostty_key_encoder_encode(terminal->key_encoder, terminal->key_event,
+                                            (uint8_t *)buffer, capacity, written);
+        /* The event borrows the caller's text, so drop it before returning. */
+        ghostty_key_event_set_utf8(terminal->key_event, (GhosttyString){0});
+        if (result != GHOSTTY_SUCCESS)
                 return -1;
         XtpLog(XTP_LOG_DEBUG, "input",
                "encoded key=%d action=%d modifiers=0x%x text-bytes=%zu output-bytes=%zu",
@@ -3182,7 +3212,7 @@ XtpTerminalEncodeFocus(XtpTerminal *terminal, bool focused, char *buffer, size_t
                 return 0;
         }
         event = focused ? GHOSTTY_FOCUS_GAINED : GHOSTTY_FOCUS_LOST;
-        if (ghostty_focus_encode(event, buffer, capacity, written) != GHOSTTY_SUCCESS)
+        if (ghostty_focus_encode(event, (uint8_t *)buffer, capacity, written) != GHOSTTY_SUCCESS)
                 return -1;
         XtpLog(XTP_LOG_DEBUG, "input", "encoded focus=%s enabled=true output-bytes=%zu",
                focused ? "in" : "out", *written);
@@ -3220,14 +3250,13 @@ XtpTerminalEncodeMouse(XtpTerminal *terminal, const XtpMouseEvent *event, char *
             .padding_right = event->padding_right,
             .padding_left = event->padding_left,
         };
-        ghostty_mouse_encoder_setopt_from_terminal(terminal->mouse_encoder, terminal->handle);
-        ghostty_mouse_encoder_setopt(terminal->mouse_encoder, GHOSTTY_MOUSE_ENCODER_OPT_SIZE,
-                                     &size);
-        ghostty_mouse_encoder_setopt(terminal->mouse_encoder,
-                                     GHOSTTY_MOUSE_ENCODER_OPT_ANY_BUTTON_PRESSED,
-                                     &event->any_button_pressed);
-        ghostty_mouse_encoder_setopt(terminal->mouse_encoder,
-                                     GHOSTTY_MOUSE_ENCODER_OPT_TRACK_LAST_CELL, &track_last_cell);
+        (void)ghostty_mouse_encoder_set_from_terminal(terminal->mouse_encoder, terminal->handle);
+        ghostty_mouse_encoder_set(terminal->mouse_encoder, GHOSTTY_MOUSE_ENCODER_OPT_SIZE, &size);
+        ghostty_mouse_encoder_set(terminal->mouse_encoder,
+                                  GHOSTTY_MOUSE_ENCODER_OPT_ANY_BUTTON_PRESSED,
+                                  &event->any_button_pressed);
+        ghostty_mouse_encoder_set(terminal->mouse_encoder,
+                                  GHOSTTY_MOUSE_ENCODER_OPT_TRACK_LAST_CELL, &track_last_cell);
         ghostty_mouse_event_set_action(terminal->mouse_event, action_map[event->action]);
         if (event->button == XTP_MOUSE_BUTTON_NONE)
                 ghostty_mouse_event_clear_button(terminal->mouse_event);
@@ -3238,7 +3267,7 @@ XtpTerminalEncodeMouse(XtpTerminal *terminal, const XtpMouseEvent *event, char *
         ghostty_mouse_event_set_position(terminal->mouse_event,
                                          (GhosttyMousePosition){event->x, event->y});
         result = ghostty_mouse_encoder_encode(terminal->mouse_encoder, terminal->mouse_event,
-                                              buffer, capacity, written);
+                                              (uint8_t *)buffer, capacity, written);
         if (result != GHOSTTY_SUCCESS)
                 return -1;
         XtpLog(XTP_LOG_DEBUG, "input",

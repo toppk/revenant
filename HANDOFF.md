@@ -11,8 +11,9 @@ Unicode 18 migration, synchronized-output captures, mode-query coverage, clipboa
 encoding, closed-stdio startup and mouse/selection fixes are recorded in the
 [compatibility ledger](docs/compatibility/drift.md) and
 [Unicode migration record](docs/maintainers/unicode-18-migration.md).
-The [roadmap](docs/maintainers/roadmap.md#upstream-integration-follow-ups) owns the
-Ghostty 1.4.0 release checkpoint and deferred feature/study decisions. The
+The backend is the tagged libghostty-vt 1.0.1 release (2026-11-18); the
+[roadmap](docs/maintainers/roadmap.md#upstream-integration-follow-ups) owns later
+release tracking and deferred feature/study decisions. The
 [linear-light study](docs/maintainers/linear-light-study.md) recommends no default
 rendering change; its initial emoji-overflow finding was withdrawn after correcting
 the capture coordinates. Do not implement the withdrawn fix.
@@ -86,7 +87,7 @@ TDN: `policy-mouse-ops-exceptions`, `dcs-xtsettcap`.
 
 The [libghostty C API review](docs/maintainers/libghostty-c-api-review.md)
 records the 2026-09-23 source audit and proposed upstream scopes. The pointer-shape getter merged as Ghostty PR #14371 and is included in the
-current development pin; Revenant applies accepted shapes through Xcursor with
+current libghostty-vt 1.0.1 pin; Revenant applies accepted shapes through Xcursor with
 core-font fallbacks and temporary Shift-hover overrides. Agree the scope of other accessors
 before coding.
 Size-policy and semantic-prompt effects could remove existing observers. Full
@@ -252,8 +253,7 @@ for validation, draft verification and explicit publication. Owner-maintained
 releases do not require PRs. Preserve pending development work during release
 isolation and reconciliation. The current workflow still builds packages during
 both validation and draft preparation; publication rebuilds nothing. Build-once
-promotion remains separate future work. The Ghostty 1.4.0 adoption checkpoint
-is independent of this patch release.
+promotion remains separate future work.
 
 The active implementation queue is `todo.md`. Kitty graphics remains honestly
 Missing and is parked during the current drain. The immediately useful work is
@@ -399,7 +399,8 @@ over continuing to add width, padding, and screen dimensions to individual
 selection and mouse calls.
 
 The ignored Ghostty checkout is not an ordinary Meson source tree.
-`tools/fetch-libghostty` resolves and detaches it at the exact pinned commit;
+`tools/fetch-libghostty` resolves and detaches it at the exact pinned commit
+(the `vt-1.0.1` tag commit; the build needs Zig 0.17);
 Meson tracks the checkout's `.git/HEAD` plus the fetch and build scripts as
 custom-target dependencies, while Zig's cache decides whether rebuilding the
 archive has real work to do. Keep those dependencies synchronized. Dropping

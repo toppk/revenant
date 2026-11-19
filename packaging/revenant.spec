@@ -31,7 +31,7 @@ BuildRequires:  pkgconfig(cairo-ft) >= 1.18
 BuildRequires:  pkgconfig(cairo-xlib) >= 1.18
 BuildRequires:  pkgconfig(harfbuzz)
 BuildRequires:  pkgconfig(libnotify)
-# zig >= 0.16 must be on PATH; Fedora's packaged zig is not used.
+# zig 0.17.x must be on PATH; Fedora's packaged zig is not used.
 
 %description
 Revenant is an X11 terminal emulator that keeps xterm's Xt/Athena user

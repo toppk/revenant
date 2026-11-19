@@ -14,6 +14,12 @@ Revenant 0.8.0 pins `27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c`.
 The development pin advanced to `b1d2b7ef1f1cf5cc0118298bad849870bc678298` on 2026-09-28.
 It advanced again to `b115e456749e2820a14d3942a63159ff8d46d925` on 2026-10-09,
 including the OSC 7501 C effect reviewed below.
+On 2026-11-18 Revenant moved to the tagged libghostty-vt 1.0.1 release
+(`108cacb17ed8990840cd14abfce43d8ed8503ca1`). The 1.0 API pass renamed several
+functions and constants named in this review (for example
+`ghostty_key_encoder_setopt_from_terminal` became
+`ghostty_key_encoder_set_from_terminal`); the findings below keep the names of the
+reviewed baseline and have not been re-audited against 1.0.1.
 Ghostty PR #14371 is merged: its public mouse-shape getter now drives
 Revenant's Xcursor pointer handling. Other API gaps in this review remain
 independent of that getter; source links below retain the reviewed 0.8.0 baseline.

@@ -10,6 +10,13 @@ commit. Published tags and assets are never replaced.
 
 ## 0.10.0 — Unreleased
 
+### Features
+
+- Move the terminal core from a Ghostty development commit to the tagged
+  libghostty-vt 1.0.1 release (`108cacb17ed8990840cd14abfce43d8ed8503ca1`), the
+  first stable C API. It includes the terminal fixes shipped in Ghostty 1.4.0.
+  Building from source now needs Zig 0.17.
+
 ## 0.9.0 — 2026-10-14
 
 Live theme reload, a theme selection utility, and xterm-compatible core and

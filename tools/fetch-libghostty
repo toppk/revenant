@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly reference=b115e456749e2820a14d3942a63159ff8d46d925
+# libghostty-vt 1.0.1: the commit the signed vt-1.0.1 tag names.
+readonly reference=108cacb17ed8990840cd14abfce43d8ed8503ca1
 readonly repository=https://github.com/ghostty-org/ghostty.git
 # A branch or tag would move under the CI cache key and between release jobs.
 if [[ ! $reference =~ ^[0-9a-f]{40}$ ]]; then

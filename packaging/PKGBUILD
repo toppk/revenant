@@ -10,7 +10,7 @@ depends=(libx11 libxt libxaw libxmu libxcb fontconfig libxft libxrender libxcurs
 makedepends=(meson ninja pkgconf python python-fonttools harfbuzz-utils pandoc libxtst)
 checkdepends=(xorg-server-xvfb xorg-fonts-misc xorg-xprop xorg-xwininfo xorg-xrdb dbus)
 options=(!debug)
-# zig >= 0.16 must be on PATH; the source tree is $REVENANT_SOURCE.
+# zig 0.17.x must be on PATH; the source tree is $REVENANT_SOURCE.
 _source=${REVENANT_SOURCE:?set by packaging/build-arch}
 
 build() {

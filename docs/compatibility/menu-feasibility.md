@@ -26,7 +26,7 @@ aggregate count.
 About a third of the VT and main menus are DEC private modes. libghostty
 exposes all of them through `ghostty_terminal_set(GHOSTTY_TERMINAL_OPT_MODE)`
 and `ghostty_terminal_get(GHOSTTY_TERMINAL_DATA_MODE)`, and the key encoder
-re-reads them via `ghostty_key_encoder_setopt_from_terminal`. The generic
+re-reads them via `ghostty_key_encoder_set_from_terminal`. The generic
 `XtpTerminalSetMode`/`XtpTerminalGetMode` pair in `src/terminal.h` now backs
 autowrap, reversewrap, autolinefeed, appcursor, appkeypad, backarrow key,
 num-lock and alt-esc, with checkmark state read back from `DATA_MODE`.
@@ -48,7 +48,7 @@ configured and forced policy.
 | allowsends | Accept `send_event` X events | None | Check `xany.send_event` in handlers | READY |
 | redraw | Full repaint | — | — | DONE |
 | logging | Tee PTY output to `logFile`, honour `logInhibit` | None (before `vt_write`) | One coherent PTY tee with `-/+l` and `-lf`; tracked as TODO P1 | ROADMAP |
-| print-immediate | Dump screen text (+SGR) to `printerCommand` | Screen read: `ghostty_row_get`/`cell_get` or `select_all`+`selection_format_alloc` | Needs a "walk screen as styled text" helper | ROADMAP |
+| print-immediate | Dump screen text (+SGR) to `printerCommand` | Screen read: `ghostty_row_get`/`cell_get` or `select_all`+a `GhosttyFormatter` with `GHOSTTY_FORMATTER_OPT_SELECTION` | Needs a "walk screen as styled text" helper | ROADMAP |
 | print-on-error | Same, from the X I/O error handler | Same | Same walker | ROADMAP |
 | print | Buffered screen dump | Same | Same walker | ROADMAP |
 | print-redir | Printer controller mode (`CSI 5 i`/`4 i`) | Ghostty has no media copy; `OPT_UNKNOWN_SEQUENCE` is APC-only | Needs MC callback or CSI passthrough | BLOCKED |

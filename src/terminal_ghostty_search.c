@@ -56,7 +56,7 @@ SearchCellRef(XtpTerminal *terminal, uint64_t row, uint16_t column, GhosttyGridR
 static bool
 SearchRowWrapped(XtpTerminal *terminal, uint64_t row)
 {
-        GhosttyGridRef ref = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttyGridRef ref = {0};
         GhosttyRow data;
         bool wrapped = false;
 
@@ -147,7 +147,7 @@ BuildUnits(XtpTerminalSearch *search, uint64_t top, uint64_t bottom, bool trim)
                 uint16_t column;
 
                 for (column = 0; column < columns; ++column) {
-                        GhosttyGridRef ref = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+                        GhosttyGridRef ref = {0};
                         GhosttyCell cell;
                         GhosttyCellWide wide = GHOSTTY_CELL_WIDE_NARROW;
                         GhosttyResult result;

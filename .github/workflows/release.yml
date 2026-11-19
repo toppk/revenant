@@ -27,7 +27,7 @@ permissions:
   contents: read
 
 env:
-  ZIG_VERSION: 0.16.0
+  ZIG_VERSION: 0.17.0
   FONTTOOLS_VERSION: 4.62.0
   DEBIAN_FRONTEND: noninteractive
   LIBGHOSTTY_ZIG_CACHE_DIR: ${{ github.workspace }}/libghostty-zig

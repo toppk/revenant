@@ -77,7 +77,7 @@ GridRefDrawn(const GhosttyGridRef *ref)
 static int
 LastDrawnColumn(XtpTerminal *terminal, uint32_t screen_row, uint16_t columns)
 {
-        GhosttyGridRef ref = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttyGridRef ref = {0};
         GhosttyPointCoordinate point;
         int column;
 
@@ -137,7 +137,7 @@ static bool
 AdvanceWordPoint(XtpTerminal *terminal, GhosttyPointCoordinate *point, uint16_t columns,
                  int direction)
 {
-        GhosttyGridRef edge = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttyGridRef edge = {0};
 
         if (direction < 0) {
                 if (point->x != 0) {
@@ -177,7 +177,7 @@ CharacterClassSelection(XtpTerminal *terminal, GhosttyGridRef target, GhosttySel
         GhosttyPointCoordinate first;
         GhosttyPointCoordinate last;
         GhosttyPointCoordinate probe_point;
-        GhosttyGridRef probe = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttyGridRef probe = {0};
         uint16_t columns = 0;
         int wanted_class;
         int probe_class;
@@ -222,8 +222,8 @@ static GhosttyResult
 CharacterClassDragSelection(XtpTerminal *terminal, GhosttyGridRef anchor, GhosttyGridRef target,
                             GhosttySelection *selection)
 {
-        GhosttySelection anchor_word = GHOSTTY_INIT_SIZED(GhosttySelection);
-        GhosttySelection target_word = GHOSTTY_INIT_SIZED(GhosttySelection);
+        GhosttySelection anchor_word = {0};
+        GhosttySelection target_word = {0};
         GhosttyPointCoordinate anchor_point;
         GhosttyPointCoordinate target_point;
         GhosttyResult anchor_result;
@@ -258,8 +258,8 @@ static GhosttyResult
 ExpandCellSelectionForUndrawn(XtpTerminal *terminal, GhosttyGridRef anchor, GhosttyGridRef target,
                               GhosttySelection *selection)
 {
-        GhosttySelection undrawn = GHOSTTY_INIT_SIZED(GhosttySelection);
-        GhosttySelection ordered = GHOSTTY_INIT_SIZED(GhosttySelection);
+        GhosttySelection undrawn = {0};
+        GhosttySelection ordered = {0};
         GhosttyPointCoordinate anchor_point;
         GhosttyPointCoordinate target_point;
         GhosttyResult result = UndrawnSuffixSelection(terminal, target, &undrawn);
@@ -291,7 +291,7 @@ LineSelection(XtpTerminal *terminal, GhosttyGridRef target, GhosttySelection *se
         GhosttyTerminalSelectLineOptions options =
             GHOSTTY_INIT_SIZED(GhosttyTerminalSelectLineOptions);
         GhosttyPointCoordinate point;
-        GhosttyGridRef drawn = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttyGridRef drawn = {0};
         uint16_t columns = 0;
         int last_drawn;
         GhosttyResult result;
@@ -330,8 +330,8 @@ static GhosttyResult
 LineDragSelection(XtpTerminal *terminal, GhosttyGridRef anchor, GhosttyGridRef target,
                   GhosttySelection *selection)
 {
-        GhosttySelection anchor_line = GHOSTTY_INIT_SIZED(GhosttySelection);
-        GhosttySelection target_line = GHOSTTY_INIT_SIZED(GhosttySelection);
+        GhosttySelection anchor_line = {0};
+        GhosttySelection target_line = {0};
         GhosttyPointCoordinate anchor_point;
         GhosttyPointCoordinate target_point;
 
@@ -359,7 +359,7 @@ static XtpSelectionResult
 InstallDragSelection(XtpTerminal *terminal, GhosttyResult result, GhosttyGridRef target,
                      bool rectangle, GhosttySelection *selection)
 {
-        GhosttyGridRef anchor = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttyGridRef anchor = {0};
         GhosttySelectionGestureBehavior behavior = GHOSTTY_SELECTION_GESTURE_BEHAVIOR_CELL;
 
         if (ghostty_selection_gesture_get(terminal->selection_gesture, terminal->handle,
@@ -382,8 +382,8 @@ XtpSelectionResult
 XtpTerminalSelectionStart(XtpTerminal *terminal, uint16_t column, uint16_t row, double surface_x,
                           double surface_y, uint64_t time_ns, XtpSelectionUnit unit, bool repeat)
 {
-        GhosttyGridRef ref = GHOSTTY_INIT_SIZED(GhosttyGridRef);
-        GhosttySelection selection = GHOSTTY_INIT_SIZED(GhosttySelection);
+        GhosttyGridRef ref = {0};
+        GhosttySelection selection = {0};
         GhosttySelectionGestureBehavior behavior;
         GhosttySelectionGestureBehaviors behaviors;
         GhosttySurfacePosition position = {surface_x, surface_y};
@@ -426,7 +426,7 @@ XtpTerminalSelectionStart(XtpTerminal *terminal, uint16_t column, uint16_t row, 
         result = ghostty_selection_gesture_event(terminal->selection_gesture, terminal->handle,
                                                  terminal->selection_press, &selection);
         if (behavior == GHOSTTY_SELECTION_GESTURE_BEHAVIOR_WORD) {
-                GhosttyGridRef anchor = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+                GhosttyGridRef anchor = {0};
 
                 if (ghostty_selection_gesture_get(terminal->selection_gesture, terminal->handle,
                                                   GHOSTTY_SELECTION_GESTURE_DATA_ANCHOR,
@@ -448,8 +448,8 @@ XtpTerminalSelectionExtend(XtpTerminal *terminal, uint16_t column, uint16_t row,
                            double surface_y, uint32_t columns, uint32_t cell_width,
                            uint32_t padding_left, uint32_t screen_height, bool rectangle)
 {
-        GhosttyGridRef ref = GHOSTTY_INIT_SIZED(GhosttyGridRef);
-        GhosttySelection selection = GHOSTTY_INIT_SIZED(GhosttySelection);
+        GhosttyGridRef ref = {0};
+        GhosttySelection selection = {0};
         GhosttySurfacePosition position = {surface_x, surface_y};
         GhosttySelectionGestureGeometry geometry = {
             columns,
@@ -503,8 +503,8 @@ XtpTerminalSelectionAutoscrollTick(XtpTerminal *terminal, uint16_t column, uint1
                                    uint32_t cell_width, uint32_t padding_left,
                                    uint32_t screen_height, bool rectangle)
 {
-        GhosttySelection selection = GHOSTTY_INIT_SIZED(GhosttySelection);
-        GhosttyGridRef target = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttySelection selection = {0};
+        GhosttyGridRef target = {0};
         GhosttyPointCoordinate viewport = {column, row};
         GhosttySurfacePosition position = {surface_x, surface_y};
         GhosttySelectionGestureGeometry geometry = {
@@ -542,7 +542,7 @@ XtpTerminalSelectionAutoscrollTick(XtpTerminal *terminal, uint16_t column, uint1
 void
 XtpTerminalSelectionEnd(XtpTerminal *terminal, uint16_t column, uint16_t row, bool valid)
 {
-        GhosttyGridRef ref = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttyGridRef ref = {0};
 
         if (terminal == NULL)
                 return;
@@ -602,9 +602,9 @@ XtpSelectionResult
 XtpTerminalSelectionExtendStart(XtpTerminal *terminal, uint16_t column, uint16_t row,
                                 XtpSelectionUnit unit)
 {
-        GhosttySelection current = GHOSTTY_INIT_SIZED(GhosttySelection);
-        GhosttySelection ordered = GHOSTTY_INIT_SIZED(GhosttySelection);
-        GhosttyGridRef target = GHOSTTY_INIT_SIZED(GhosttyGridRef);
+        GhosttySelection current = {0};
+        GhosttySelection ordered = {0};
+        GhosttyGridRef target = {0};
         GhosttyPointCoordinate start_point;
         GhosttyPointCoordinate end_point;
         GhosttyPointCoordinate target_point;
@@ -671,11 +671,11 @@ XtpSelectionResult
 XtpTerminalSelectionExtendActive(XtpTerminal *terminal, uint16_t column, uint16_t row,
                                  bool rectangle)
 {
-        GhosttyGridRef original_start = GHOSTTY_INIT_SIZED(GhosttyGridRef);
-        GhosttyGridRef original_end = GHOSTTY_INIT_SIZED(GhosttyGridRef);
-        GhosttyGridRef target = GHOSTTY_INIT_SIZED(GhosttyGridRef);
-        GhosttySelection target_selection = GHOSTTY_INIT_SIZED(GhosttySelection);
-        GhosttySelection selection = GHOSTTY_INIT_SIZED(GhosttySelection);
+        GhosttyGridRef original_start = {0};
+        GhosttyGridRef original_end = {0};
+        GhosttyGridRef target = {0};
+        GhosttySelection target_selection = {0};
+        GhosttySelection selection = {0};
         GhosttyPointCoordinate start_point;
         GhosttyPointCoordinate end_point;
         GhosttyPointCoordinate target_point;
@@ -755,8 +755,6 @@ XtpTerminalSelectionClear(XtpTerminal *terminal)
 int
 XtpTerminalSelectionText(XtpTerminal *terminal, uint8_t **bytes, size_t *length)
 {
-        GhosttyTerminalSelectionFormatOptions options =
-            GHOSTTY_INIT_SIZED(GhosttyTerminalSelectionFormatOptions);
         uint8_t *ghostty_bytes = NULL;
         uint8_t *copy;
         size_t ghostty_length = 0;
@@ -765,11 +763,7 @@ XtpTerminalSelectionText(XtpTerminal *terminal, uint8_t **bytes, size_t *length)
                 return -1;
         *bytes = NULL;
         *length = 0;
-        options.emit = GHOSTTY_FORMATTER_FORMAT_PLAIN;
-        options.unwrap = true;
-        options.trim = true;
-        if (ghostty_terminal_selection_format_alloc(terminal->handle, NULL, options, &ghostty_bytes,
-                                                    &ghostty_length) != GHOSTTY_SUCCESS)
+        if (XtpGhosttyFormatPlain(terminal, NULL, &ghostty_bytes, &ghostty_length) != 0)
                 return -1;
         copy = malloc(ghostty_length != 0 ? ghostty_length : 1U);
         if (copy == NULL) {

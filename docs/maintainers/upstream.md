@@ -11,33 +11,78 @@ The ignored `upstream/` directory holds local checkouts used for building,
 research, and behavioral comparison. These repositories are not vendored into
 Revenant, and their presence is not required for a stub build.
 
-`tools/fetch-libghostty` pins an exact Ghostty development commit and leaves the
-checkout detached at that revision. Use `tools/fetch-libghostty --print-reference`
-to read the configured pin. A local checkout may have been advanced independently;
-inspect the actual build inputs and binary provenance rather than assuming the
-checkout and configured pin agree.
+## libghostty-vt releases
 
-The current development pin is `b115e456749e2820a14d3942a63159ff8d46d925`, adopted on
-2026-10-09. It includes the OSC 22 mouse-shape getter (Ghostty PR #14371), the
-OSC 7501 program-status C callback (PR #14560), and subsequent terminal fixes
-through DECSTR support (PR #14538).
+Ghostty the application and `libghostty-vt` the library live in one repository
+but are released separately. The application uses `vX.Y.Z` tags (1.4.0 is
+`v1.4.0`); the library has its own semantic version and `vt-X.Y.Z` tags, and a
+Ghostty release does not contain a library release. `PACKAGING-LIBGHOSTTY.md` in
+the checkout is upstream's packaging contract for the library. The 1.x C API
+and ABI are stable: minor and patch releases only add to them.
 
-The October 9 checkpoint rebuilt the normal binary and passed the full GCC,
-Clang and AddressSanitizer suites (76 tests per build, all passing, no skips),
-plus the stub suite (19 passing). A standalone C probe verified the OSC 7501
-report fields, decoded text, support-query gating, and RIS/DECSTR behavior.
-The Unicode data dependency is unchanged from the previous pin. Pointer tests
-now cover CAN/SUB cancellation and empty OSC 22 restoring the text shape;
-the old dispatch-on-cancel expectation was replaced after checking upstream
-and the xterm-411 oracle.
+`tools/fetch-libghostty` pins an exact commit and leaves the checkout detached at
+that revision. Use `tools/fetch-libghostty --print-reference` to read the
+configured pin. A local checkout may have been advanced independently; inspect
+the actual build inputs and binary provenance rather than assuming the checkout
+and configured pin agree.
 
-The maintainer selects dependency revisions. The coordinated Unicode 18 migration adopted
-`27e8b3fa85d9cf8c7cd5ae2ced348bcb0a4fba9c`; see the
-[provenance and behavior record](unicode-18-migration.md). When Ghostty 1.4.0 is released,
-review the intervening changes and pin its exact release commit. Do not replace
-the fetcher's full-hash contract with a moving branch or repeat the Unicode
-migration unless the release introduces a relevant data delta. The other checkouts are also working references:
-record compatibility decisions in the
+The current pin is `108cacb17ed8990840cd14abfce43d8ed8503ca1`, the commit the
+signed `vt-1.0.1` tag names (libghostty-vt 1.0.1), adopted on 2026-11-18. It
+follows Ghostty 1.4.0 (`v1.4.0`, `83fb95624b0439ee660c2679b43b38c8b63769cd`) and
+replaces the development pin `b115e456749e2820a14d3942a63159ff8d46d925`. Keep the
+full-hash contract: record the tag beside the hash, but never substitute a tag or
+branch name for it.
+
+Revenant builds the tagged commit from the git checkout with `-Demit-lib-vt`,
+which upstream permits, rather than from the signed release tarballs at
+`release.files.ghostty.org/libghostty-vt/`. The provenance tooling
+(`tools/uucode_pin.py`, the release manifest, the CI cache key) reads the pinned
+commit; moving to the tarball and its `--system` dependency bundle is a separate
+decision.
+
+Three build facts changed with this pin, all handled in `tools/build-libghostty`:
+
+- libghostty-vt 1.0.x requires Zig 0.17 (any 0.17.x; 0.16 and 0.18 are refused).
+  `ZIG_VERSION` in both workflows is 0.17.0.
+- Zig 0.17 takes its cache directories from `ZIG_LOCAL_CACHE_DIR` and
+  `ZIG_GLOBAL_CACHE_DIR` instead of flags. The caches are named per Zig version
+  so a directory populated by an older Zig is never reused.
+- Ghostty's build asks git for version tags in the *working directory*, which
+  is Revenant's build directory, and aborts on a Revenant release tag such as
+  `v0.9.0`. The builder passes `-Dversion-string` and `-Dlib-version-string`
+  (read from `build.zig.zon` and `include/ghostty/vt/version.h`) so git is never
+  consulted.
+
+The 1.0 API pass was source-incompatible with the development pin. The adapter
+port was mechanical except for two behavior changes worth remembering:
+
+- `GHOSTTY_TERMINAL_OPT_SCROLLBACK_MAX_BYTES` with a NULL value now restores the
+  10 kB default instead of removing the limit; pass `SIZE_MAX` for unlimited.
+- The OSC 7501 support reply follows protocol revision 0.4 and lists the accepted
+  states and kinds instead of echoing a bare `?`.
+
+Otherwise: fixed-layout structs (`GhosttyGridRef`, `GhosttySelection`,
+`GhosttyStyle`, effect reports) lost their `size` field, style attributes became
+`GhosttyStyleFlags` bits, one-shot selection formatting moved to `GhosttyFormatter`
+with `GHOSTTY_FORMATTER_OPT_SELECTION`, encoders write `uint8_t` buffers and
+`setopt` became `set`, key events borrow their UTF-8 text rather than copying it,
+and several mode and cursor-style constants were renamed.
+
+The November 19 checkpoint rebuilt the normal binary with Zig 0.17 and passed
+the full GCC and AddressSanitizer suites (82 tests per build, all passing, no
+skips), plus the stub suite (21 passing). The first run against the new pin
+failed three tests, all from the scrollback change above.
+
+The Unicode data is unchanged: the pin names a newer `uucode` package
+(`uucode-0.2.0-ZZjBPm6FVgBcY-79AHV8ckQj86z0JwOyVyj89VeZrEiv`), but its `ucd/`
+directory is byte-identical to the previous one, so the Unicode 18
+[provenance and behavior record](unicode-18-migration.md) still holds and no
+table regeneration was needed.
+
+The maintainer selects dependency revisions. Adopt later 1.x releases by the
+exact commit of their `vt-X.Y.Z` tag, and repeat the Unicode migration only when
+a release introduces a relevant data delta. The other checkouts are also working
+references: record compatibility decisions in the
 [xterm differences ledger](../compatibility/drift.md) or [roadmap](roadmap.md).
 
 ## C API contribution review
@@ -55,7 +100,7 @@ storage and presentation are tracked separately.
 
 | Directory | Repository | Role in Revenant |
 | --- | --- | --- |
-| `upstream/ghostty` | <https://github.com/ghostty-org/ghostty> | Source of the selected `libghostty-vt` build. It owns VT parsing, terminal state, reflow, key and mouse encoding, history, selection primitives, and other terminal-core facilities. `tools/fetch-libghostty` selects an exact development commit. Adopt the exact Ghostty 1.4.0 release commit after a maintainer review when it is available. |
+| `upstream/ghostty` | <https://github.com/ghostty-org/ghostty> | Source of the selected `libghostty-vt` build. It owns VT parsing, terminal state, reflow, key and mouse encoding, history, selection primitives, and other terminal-core facilities. `tools/fetch-libghostty` selects the exact commit of a `vt-X.Y.Z` release tag, currently libghostty-vt 1.0.1. |
 | `upstream/ghostling` | <https://github.com/ghostty-org/ghostling> | Minimal C consumer of `libghostty-vt` and the functional-baseline reference for Revenant. Its integrations show which terminal capabilities can already be exposed by a thin host application. It is a reference, not a linked dependency. |
 | `upstream/xterm-snapshots` | <https://github.com/ThomasDickey/xterm-snapshots> | The xterm source-code behavioral oracle is the exact `xterm-411` tag. The working checkout may be ahead; inspect the pinned tag for baseline comparisons. Advance the oracle only as part of an intentional compatibility-baseline migration. |
 | `upstream/xterm.dev` | <https://github.com/xterm-x11/xterm.dev> | Source for the xterm project website and published documentation. It is useful for release notes and public documentation, but is not the source-code behavioral oracle. |
@@ -83,6 +128,8 @@ a finding.
 - Do not commit generated Ghostty build output or an upstream checkout.
 - Update the Ghostty reference in `tools/fetch-libghostty` deliberately, then compile
   and test both the stub and libghostty configurations.
+- Check `minimum_zig_version` in the new revision's `build.zig.zon` and move
+  `ZIG_VERSION` in both workflows with the pin when it changes.
 - When Ghostty changes its C API, keep `src/terminal.h` backend-neutral rather
   than leaking Ghostty handles into the Xt widget or application layer.
 - When Ghostling adds a user-visible terminal capability, review the parity

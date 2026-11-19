@@ -100,9 +100,10 @@ additionally needs Zig, because `libghostty-vt` is built from Ghostty's source.
     ```
 
 !!! note
-    Package names are the usual ones; if your distribution's Zig is older
-    than the version Ghostty requires, install Zig from
-    [ziglang.org](https://ziglang.org/download/) instead.
+    Package names are the usual ones. The pinned libghostty-vt 1.0.1 needs
+    Zig 0.17 exactly (any 0.17.x; 0.16 and 0.18 are refused). If your
+    distribution packages a different Zig, install 0.17 from
+    [ziglang.org](https://ziglang.org/download/) and put it first on `PATH`.
 
 Add `pandoc` to build and install the `revenant(1)` manual page. Without it
 the page is skipped; `-Dman=enabled` makes its absence a configure error,
@@ -111,7 +112,8 @@ which is what the package recipes use.
 ## Full build with libghostty-vt
 
 The helper checks out the exact Ghostty revision this project is tested
-against, under the git-ignored `upstream/` directory:
+against, the commit tagged `vt-1.0.1` (libghostty-vt 1.0.1), under the
+git-ignored `upstream/` directory:
 
 ```sh
 tools/fetch-libghostty

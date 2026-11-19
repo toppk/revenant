@@ -26,8 +26,11 @@ readonly output_dir=$(dirname -- "$output")
 readonly prefix="$output_dir/libghostty-prefix"
 # LIBGHOSTTY_ZIG_CACHE_DIR lets CI keep the Zig caches outside the build tree.
 readonly cache_root="${LIBGHOSTTY_ZIG_CACHE_DIR:-$output_dir}"
-readonly cache_dir="$cache_root/libghostty-zig-cache"
-readonly global_cache_dir="$cache_root/libghostty-zig-global-cache"
+# Zig 0.17 aborts on caches an older Zig populated, so each Zig keeps its own.
+zig_version=$("$zig" version)
+readonly zig_version
+readonly cache_dir="$cache_root/libghostty-zig-cache-$zig_version"
+readonly global_cache_dir="$cache_root/libghostty-zig-global-cache-$zig_version"
 
 case "$buildtype" in
     debug)
@@ -48,15 +51,24 @@ report_cache() {
     printf 'libghostty zig cache %s: %s (%s)\n' "$1" "$cache_root" \
         "$(du -sh "$cache_dir" "$global_cache_dir" 2>/dev/null | awk '{printf "%s%s ", $1, (NR==1?" local,":" global")}')" >&2
 }
-printf 'libghostty target=%s cpu=%s optimize=%s\n' "$target" "$cpu" "$optimize" >&2
+# Ghostty otherwise runs git in the working directory and aborts on the host project's release tags.
+lib_version=$(sed -n 's/^#define GHOSTTY_VT_VERSION "\(.*\)"$/\1/p' "$source/include/ghostty/vt/version.h")
+app_version=$(sed -n 's/^ *\.version = "\(.*\)",$/\1/p' "$source/build.zig.zon")
+readonly lib_version app_version
+if [[ -z $lib_version || -z $app_version ]]; then
+    echo "build-libghostty: cannot read the libghostty-vt version from $source" >&2
+    exit 1
+fi
+printf 'libghostty version=%s target=%s cpu=%s optimize=%s\n' "$lib_version" "$target" "$cpu" "$optimize" >&2
 report_cache before
 # DESTDIR belongs to the outer install; zig would otherwise install its prefix into the package tree.
-env -u DESTDIR "$zig" build \
+# Zig 0.17 takes its cache locations from the environment, not flags.
+env -u DESTDIR ZIG_LOCAL_CACHE_DIR="$cache_dir" ZIG_GLOBAL_CACHE_DIR="$global_cache_dir" "$zig" build \
     --build-file "$source/build.zig" \
-    --cache-dir "$cache_dir" \
-    --global-cache-dir "$global_cache_dir" \
     --prefix "$prefix" \
     -Demit-lib-vt \
+    -Dversion-string="$app_version" \
+    -Dlib-version-string="$lib_version" \
     -Dtarget="$target" \
     -Dcpu="$cpu" \
     -Doptimize="$optimize"

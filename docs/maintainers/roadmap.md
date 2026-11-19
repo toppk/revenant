@@ -46,7 +46,8 @@ invocation (P2b) shipped in 0.8.0. Version 0.8.1 adds the window PID and child
 `WINDOWID` link for session tools, retaining 0.8.0's backend pin. Use the
 [release guide](releasing.md) and `packaging/release` for future releases;
 build-once artifact promotion remains a separate workflow improvement.
-Adopting Ghostty 1.4.0 remains an independent checkpoint.
+The backend moved to the tagged libghostty-vt 1.0.1 release on 2026-11-18; see
+[upstream](upstream.md).
 
 ## Upstream integration follow-ups
 
@@ -55,14 +56,13 @@ regression evidence live in the [compatibility ledger](../compatibility/drift.md
 Unicode provenance lives in the [migration record](unicode-18-migration.md).
 The temporary implementation queue has been retired. Remaining decisions are:
 
-- **Ghostty 1.4.0 release checkpoint (maintainer-owned):** when the release is
-  available, compare its exact commit against the adopted development pin
-  `b115e456749e2820a14d3942a63159ff8d46d925`. Review intervening API and data changes,
-  adopt an exact release commit, and repeat Unicode work only for an actual delta.
-  Run the required supported-build/package matrix once at the final dependency
-  checkpoint, including the no-skips release gate. Verify backend/data provenance,
-  isolated and installed-font behavior, and representative shell/editor/multiplexer
-  use. Keep xterm-411 as the compatibility oracle until a separate migration.
+- **libghostty-vt release tracking (maintainer-owned):** the Ghostty 1.4.0
+  checkpoint closed on 2026-11-18 with the move to libghostty-vt 1.0.1, which is
+  versioned and tagged (`vt-X.Y.Z`) separately from the Ghostty application.
+  The 1.x C API is stable, so later 1.x releases should be additive; adopt them
+  by exact tag commit and repeat Unicode work only for an actual data delta.
+  A review of post-1.3 Ghostty features Revenant might expose is still open.
+  Keep xterm-411 as the compatibility oracle until a separate migration.
 - **Alternate scroll (mode 1007):** a separate feature proposal, not part of the
   wheel-release or drag fixes. Decide the resource/default policy before adding
   cursor-key synthesis; respect application cursor mode, tracking precedence,
