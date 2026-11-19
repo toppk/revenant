@@ -8,7 +8,14 @@ artifacts take their version from the tag, not from the development version in
 advancing the development version; their notes link to the exact candidate
 commit. Published tags and assets are never replaced.
 
-## 0.10.0 — Unreleased
+## 0.11.0 — Unreleased
+
+## 0.10.0 — 2026-11-19
+
+The terminal core moves to libghostty-vt 1.0.1, the first stable release of the
+library. Idle scrollback is compressed, and CSI 8 t resize requests and DECRQCRA
+checksums are honored under xterm's window-operation policy. Experimental
+program-status presentation remains outside this release.
 
 ### Features
 
@@ -16,15 +23,31 @@ commit. Published tags and assets are never replaced.
   libghostty-vt 1.0.1 release (`108cacb17ed8990840cd14abfce43d8ed8503ca1`), the
   first stable C API. It includes the terminal fixes shipped in Ghostty 1.4.0.
   Building from source now needs Zig 0.17.
+  ([db20e40](https://github.com/toppk/revenant/commit/db20e40ed0463a08a3c14b50ddfd4738e2e0f76c))
 - Compress idle scrollback. After a quarter second without output, history is
   compressed in small steps and restored transparently when viewed; 600,000
   lines of `seq` output drop from 437 MB to 41 MB resident.
+  ([c73408c](https://github.com/toppk/revenant/commit/c73408c3a5b8001e7711c8cc2d790e38483cc5de))
 - Honor `CSI 8 ; rows ; columns t` text-area resize requests under the
   `SetWinSizeChars` window operation, bounded by the root window.
+  ([e1844e6](https://github.com/toppk/revenant/commit/e1844e69591f7d7a4527d8d49d12c5da94840f4f))
 - Answer DECRQCRA rectangle checksums while `GetChecksum` is allowed, with the
   new `checksumExtension` resource. xterm's default policy keeps them off.
+  ([381c572](https://github.com/toppk/revenant/commit/381c57249423efaf74ceeb4687f505cbf748b34a))
 - Report the linked libghostty-vt release as `backend version` in
   `-report-config` and the welcome support block.
+  ([a6900ad](https://github.com/toppk/revenant/commit/a6900ad1ab88a2f7f3d87a4cebadf754d4efadca))
+
+### Maintainer tools
+
+- Add `just release` as a single final gate: it checks the notes, watches CI,
+  validates and drafts the packages, and asks before publishing. Every commit in
+  a release range must now be linked from the changelog.
+  ([171eb9a](https://github.com/toppk/revenant/commit/171eb9a9fd03a5212208f73af8c9c8f021b92966))
+- Record the remaining libghostty-vt 1.0 proposals in the dispatch list.
+  ([1c3d843](https://github.com/toppk/revenant/commit/1c3d8433b66b877aedcdb0b61a8628584de11b55))
+- Prepare release notes and version bookkeeping.
+  ([release](https://github.com/toppk/revenant/commit/RELEASE_SOURCE_SHA))
 
 ## 0.9.0 — 2026-10-14
 
