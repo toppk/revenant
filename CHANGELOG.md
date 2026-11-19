@@ -46,8 +46,12 @@ program-status presentation remains outside this release.
   ([171eb9a](https://github.com/toppk/revenant/commit/171eb9a9fd03a5212208f73af8c9c8f021b92966))
 - Record the remaining libghostty-vt 1.0 proposals in the dispatch list.
   ([1c3d843](https://github.com/toppk/revenant/commit/1c3d8433b66b877aedcdb0b61a8628584de11b55))
+- Pin test and package builds to Ubuntu 24.04. `ubuntu-latest` moved to 26.04,
+  where three tests fail; the tarballs and `.deb` keep their 24.04 baseline.
+  ([5e7c97b](https://github.com/toppk/revenant/commit/5e7c97b381ed7e61cf656758ebd624fce8bf1006))
 - Prepare release notes and version bookkeeping.
   ([0d37eae](https://github.com/toppk/revenant/commit/0d37eaecf3aee86c068ebfd3b60f9234b7bded6c),
+  [08cb89e](https://github.com/toppk/revenant/commit/08cb89e6800327fa9c4487a20287f3d025f9f56a),
   [release](https://github.com/toppk/revenant/commit/RELEASE_SOURCE_SHA))
 
 ## 0.9.0 — 2026-10-14
