@@ -19,6 +19,7 @@ log=$test_dir/log
 HOME="$test_dir/empty-home" XENVIRONMENT=/dev/null XFILESEARCHPATH=/dev/null \
     "$fixture_root/run" base "$terminal" -report-config >"$report" 2>"$log"
 
+grep -E -q '^! backend version: [0-9]+\.[0-9]+\.[0-9]+' "$report"
 grep -E -q '^! backend revision: [0-9a-f]{40}(-dirty)?$' "$report"
 grep -F -q '[compiled default] [supported] VT widget event bindings' "$report"
 for action in hyperlink-start pipe-command-output start-search popup-menu select-start

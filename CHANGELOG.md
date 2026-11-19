@@ -16,6 +16,8 @@ commit. Published tags and assets are never replaced.
   libghostty-vt 1.0.1 release (`108cacb17ed8990840cd14abfce43d8ed8503ca1`), the
   first stable C API. It includes the terminal fixes shipped in Ghostty 1.4.0.
   Building from source now needs Zig 0.17.
+- Report the linked libghostty-vt release as `backend version` in
+  `-report-config` and the welcome support block.
 
 ## 0.9.0 — 2026-10-14
 

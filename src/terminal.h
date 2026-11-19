@@ -657,5 +657,7 @@ void XtpTerminalSetRenderHold(XtpTerminal *terminal, XtpTerminalRenderHoldFn hol
 bool XtpTerminalRenderHeld(const XtpTerminal *terminal);
 const char *XtpTerminalBackend(void);
 bool XtpTerminalBackendIsStub(void);
+/* The linked library's own release version; "none" for the stub. */
+const char *XtpTerminalBackendVersion(void);
 
 #endif

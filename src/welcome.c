@@ -822,8 +822,10 @@ XtpWelcomeReport(FILE *stream, Display *display, Widget vt, const char *applicat
                 system_name.machine[0] != '\0' ? system_name.machine : "unknown");
         fprintf(stream, "  %s: %s\n", XTP_PROGRAM_NAME, XTP_VERSION);
         fprintf(stream, "  backend: %s\n", XtpTerminalBackend());
-        if (!XtpTerminalBackendIsStub())
+        if (!XtpTerminalBackendIsStub()) {
+                fprintf(stream, "  backend-version: %s\n", XtpTerminalBackendVersion());
                 fprintf(stream, "  backend-revision: %s\n", XTP_GHOSTTY_REVISION);
+        }
         fprintf(stream, "  renderer: %s\n", XtpVtRendererName(vt));
         fprintf(stream, "  identity: %s / %s\n", clean_application_name, clean_application_class);
         fprintf(stream, "  primary-font: %s\n",

@@ -684,6 +684,12 @@ XtpTerminalBackendIsStub(void)
         return true;
 }
 
+const char *
+XtpTerminalBackendVersion(void)
+{
+        return "none";
+}
+
 void
 XtpTerminalSetAllowMouseOps(XtpTerminal *terminal, bool enabled)
 {

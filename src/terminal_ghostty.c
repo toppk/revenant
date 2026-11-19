@@ -3328,3 +3328,9 @@ XtpTerminalBackendIsStub(void)
 {
         return false;
 }
+
+const char *
+XtpTerminalBackendVersion(void)
+{
+        return ghostty_version();
+}
