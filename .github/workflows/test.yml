@@ -23,7 +23,7 @@ env:
 jobs:
   probe:
     name: Go terminal probe
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -41,7 +41,7 @@ jobs:
 
   compilers:
     name: GCC, Clang, and stub backend
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Install build and test dependencies
@@ -109,7 +109,7 @@ jobs:
 
   asan:
     name: AddressSanitizer
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Install build and test dependencies
