@@ -47,7 +47,8 @@ program-status presentation remains outside this release.
 - Record the remaining libghostty-vt 1.0 proposals in the dispatch list.
   ([1c3d843](https://github.com/toppk/revenant/commit/1c3d8433b66b877aedcdb0b61a8628584de11b55))
 - Prepare release notes and version bookkeeping.
-  ([release](https://github.com/toppk/revenant/commit/RELEASE_SOURCE_SHA))
+  ([0d37eae](https://github.com/toppk/revenant/commit/0d37eaecf3aee86c068ebfd3b60f9234b7bded6c),
+  [release](https://github.com/toppk/revenant/commit/RELEASE_SOURCE_SHA))
 
 ## 0.9.0 — 2026-10-14
 
