@@ -3317,6 +3317,28 @@ XtpTerminalSetEffects(XtpTerminal *terminal, const XtpTerminalEffects *effects)
                terminal->effects.clipboard_read != NULL ? "on" : "off");
 }
 
+bool
+XtpTerminalCompressStep(XtpTerminal *terminal)
+{
+        GhosttyTerminalCompressionResult result = GHOSTTY_TERMINAL_COMPRESSION_RESULT_COMPLETE;
+
+        if (terminal == NULL || ghostty_terminal_compress(
+                                    terminal->handle, GHOSTTY_TERMINAL_COMPRESSION_MODE_INCREMENTAL,
+                                    &result) != GHOSTTY_SUCCESS)
+                return false;
+        return result == GHOSTTY_TERMINAL_COMPRESSION_RESULT_PENDING;
+}
+
+uint64_t
+XtpTerminalCompressionActivity(XtpTerminal *terminal)
+{
+        uint64_t activity = 0;
+
+        if (terminal != NULL)
+                (void)ghostty_terminal_compression_activity(terminal->handle, &activity);
+        return activity;
+}
+
 const char *
 XtpTerminalBackend(void)
 {

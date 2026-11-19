@@ -86,6 +86,11 @@ typedef struct
         const char *application_class;
         /* Xt String resources retain their values until the next update or teardown. */
         char *theme_palette[16];
+        /* Idle scrollback compression: a quiet period, then bounded steps. */
+        XtIntervalId compress_timer;
+        XtWorkProcId compress_work;
+        uint64_t compress_activity;
+        Boolean compress_scheduled;
 } App;
 
 static XtSignalId config_reload_signal;
@@ -1322,6 +1327,69 @@ TerminalTitleOp(XtpTitleOp op, unsigned int target, unsigned int slot, void *clo
         }
 }
 
+static Boolean
+CompressWork(XtPointer closure)
+{
+        App *app = closure;
+
+        if (app->terminal != NULL && XtpTerminalCompressStep(app->terminal))
+                return False;
+        app->compress_work = (XtWorkProcId)0;
+        return True;
+}
+
+static void ScheduleCompression(App *app);
+
+static void
+CompressIdle(XtPointer closure, XtIntervalId *id)
+{
+        App *app = closure;
+
+        (void)id;
+        app->compress_timer = (XtIntervalId)0;
+        if (app->terminal == NULL)
+                return;
+        /* Output since the timer was armed restarts the quiet period. */
+        if (XtpTerminalCompressionActivity(app->terminal) != app->compress_activity) {
+                ScheduleCompression(app);
+                return;
+        }
+        if (app->compress_work == (XtWorkProcId)0 && XtpTerminalCompressStep(app->terminal))
+                app->compress_work = XtAppAddWorkProc(app->context, CompressWork, app);
+}
+
+static void
+ScheduleCompression(App *app)
+{
+        uint64_t activity;
+
+        if (app->terminal == NULL)
+                return;
+        activity = XtpTerminalCompressionActivity(app->terminal);
+        if (app->compress_scheduled && activity == app->compress_activity)
+                return;
+        app->compress_scheduled = True;
+        app->compress_activity = activity;
+        if (app->compress_work != (XtWorkProcId)0) {
+                XtRemoveWorkProc(app->compress_work);
+                app->compress_work = (XtWorkProcId)0;
+        }
+        if (app->compress_timer != (XtIntervalId)0)
+                XtRemoveTimeOut(app->compress_timer);
+        app->compress_timer = XtAppAddTimeOut(app->context, 250UL, CompressIdle, app);
+}
+
+static void
+StopCompression(App *app)
+{
+        if (app->compress_work != (XtWorkProcId)0)
+                XtRemoveWorkProc(app->compress_work);
+        if (app->compress_timer != (XtIntervalId)0)
+                XtRemoveTimeOut(app->compress_timer);
+        app->compress_work = (XtWorkProcId)0;
+        app->compress_timer = (XtIntervalId)0;
+}
+
 static void
 ApplyTerminalEffects(App *app)
 {
@@ -1715,6 +1783,7 @@ PtyReady(XtPointer closure, int *source, XtInputId *input_id)
                 XtpLog(XTP_LOG_DEBUG, "pty", "drained reads=%u bytes=%zu", reads, total);
                 XtpVtUpdate(app->vt);
                 XFlush(app->display);
+                ScheduleCompression(app);
         }
         if (closed) {
                 if (amount == 0)
@@ -2244,6 +2313,7 @@ DestroyApplication(App *app)
         app->notifier = NULL;
         XtpTitleStackClear(&app->title_stack);
         ForgetWorkingDirectory(app);
+        StopCompression(app);
         if (app->terminal != NULL) {
                 XtpTerminalFree(app->terminal);
                 app->terminal = NULL;

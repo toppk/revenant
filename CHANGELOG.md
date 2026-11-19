@@ -16,6 +16,9 @@ commit. Published tags and assets are never replaced.
   libghostty-vt 1.0.1 release (`108cacb17ed8990840cd14abfce43d8ed8503ca1`), the
   first stable C API. It includes the terminal fixes shipped in Ghostty 1.4.0.
   Building from source now needs Zig 0.17.
+- Compress idle scrollback. After a quarter second without output, history is
+  compressed in small steps and restored transparently when viewed; 600,000
+  lines of `seq` output drop from 437 MB to 41 MB resident.
 - Report the linked libghostty-vt release as `backend version` in
   `-report-config` and the welcome support block.
 

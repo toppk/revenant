@@ -473,6 +473,11 @@ the requested row count. A zero value disables history. libghostty removes
 history in whole internal pages, so a positive limit is approximate within one
 page rather than an exact xterm-style row allocation.
 
+Idle history is compressed in memory. After a quarter second without output,
+Revenant compresses scrollback in small steps between events and libghostty
+restores a page transparently when it is scrolled into view, searched or
+selected. Compression changes only memory use, never the contents or the limit.
+
 With `scrollTtyOutput: false`, new output preserves the viewport's distance
 from the live bottom rather than freezing an absolute history row. For
 example, a view of rows 700–724 becomes 701–725 when one new row arrives. A

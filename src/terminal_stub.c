@@ -672,6 +672,20 @@ XtpTerminalSetEffects(XtpTerminal *terminal, const XtpTerminalEffects *effects)
         XtpLog(XTP_LOG_INFO, "terminal", "stub effects configured");
 }
 
+bool
+XtpTerminalCompressStep(XtpTerminal *terminal)
+{
+        (void)terminal;
+        return false;
+}
+
+uint64_t
+XtpTerminalCompressionActivity(XtpTerminal *terminal)
+{
+        (void)terminal;
+        return 0;
+}
+
 const char *
 XtpTerminalBackend(void)
 {

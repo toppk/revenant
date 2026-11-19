@@ -655,6 +655,10 @@ void XtpTerminalSetEffects(XtpTerminal *terminal, const XtpTerminalEffects *effe
 typedef void (*XtpTerminalRenderHoldFn)(void *closure, bool held, bool changed);
 void XtpTerminalSetRenderHold(XtpTerminal *terminal, XtpTerminalRenderHoldFn hold, void *closure);
 bool XtpTerminalRenderHeld(const XtpTerminal *terminal);
+/* One bounded scrollback compression step; true while more idle work remains. */
+bool XtpTerminalCompressStep(XtpTerminal *terminal);
+/* Changes whenever the terminal did something that makes compression worth rescheduling. */
+uint64_t XtpTerminalCompressionActivity(XtpTerminal *terminal);
 const char *XtpTerminalBackend(void);
 bool XtpTerminalBackendIsStub(void);
 /* The linked library's own release version; "none" for the stub. */
