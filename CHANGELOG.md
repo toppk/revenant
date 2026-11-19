@@ -52,6 +52,7 @@ program-status presentation remains outside this release.
 - Prepare release notes and version bookkeeping.
   ([0d37eae](https://github.com/toppk/revenant/commit/0d37eaecf3aee86c068ebfd3b60f9234b7bded6c),
   [08cb89e](https://github.com/toppk/revenant/commit/08cb89e6800327fa9c4487a20287f3d025f9f56a),
+  [1d8dc49](https://github.com/toppk/revenant/commit/1d8dc49221e7c93918f471ab24372b3144b2df8a),
   [release](https://github.com/toppk/revenant/commit/RELEASE_SOURCE_SHA))
 
 ## 0.9.0 — 2026-10-14

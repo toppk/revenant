@@ -253,3 +253,11 @@ Internal maintenance needs no invented terminal capability or probe.
       no-skip checks. Review its dependency and coverage boundary before moving
       code; the approved contract is in the review record. No bulk extraction
       or unmeasured binary-size claim.
+- [ ] **R8 — Run CI and package builds on Ubuntu 26.04.**
+      Kind: maintenance
+      `ubuntu-latest` became 26.04 in November 2026 and three tests failed
+      there: `xvfb-pty-closed-stdio` (the `/dev/null` fault is not reached with
+      stdin closed), `xvfb-command-line` under ASan (abort, no output) and
+      `xvfb-dynamic-colors` under ASan (unsymbolized fontconfig leak the
+      suppression misses). Test and package jobs are pinned to 24.04 until
+      these are diagnosed.
