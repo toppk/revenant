@@ -6,7 +6,7 @@ static const XtpOpsEntry entries[XTP_WINDOW_OP_COUNT] = {
     {"GetSelection", 0},      {"SetSelection", 0},     {"GetIconTitle", 20},
     {"GetWinTitle", 21},      {"PushTitle", 22},       {"PopTitle", 23},
     {"GetWinSizePixels", 14}, {"GetWinSizeChars", 18}, {"GetScreenSizeChars", 19},
-    {"SetWinSizeChars", 8},
+    {"SetWinSizeChars", 8},   {"GetChecksum", 0},      {"SetChecksum", 0},
 };
 
 const char *

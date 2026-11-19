@@ -482,12 +482,18 @@ added (T2):
   reports) are not Window Ops and stay ungated.
 - **Titles and the stack** (20-23 t) go through the same observer.
 - **OSC 52 selection access** goes through the clipboard callbacks.
-- **No public hook**, and left for W2: every window manipulation (1-10: restore,
-  minimize, move, resize, raise, lower, refresh, maximize, fullscreen), the other
-  reports (11 state, 13 position, 15 and 19 screen size), 24+ (`SetWinLines`),
-  `DECCOLM` (`ColumnMode`; libghostty implements mode 3 behind mode 40 without a
-  hook), `DECRQCRA` (`GetChecksum`/`SetChecksum`), OSC 3 (`SetXprop`) and the
-  status line.
+- **No public hook**, and left for W2: the other window manipulations (1-7,
+  9, 10: restore, minimize, move, pixel resize, raise, lower, refresh, maximize,
+  fullscreen), the other reports (11 state, 13 position, 15 screen size),
+  24+ (`SetWinLines`), `DECCOLM` (`ColumnMode`; libghostty implements mode 3
+  behind mode 40 without a hook), OSC 3 (`SetXprop`) and the status line.
+- **DECRQCRA** uses libghostty-vt 1.0's checksum option. Reports are sent only
+  while `GetChecksum` is allowed, which xterm's default list refuses, and
+  `checksumExtension` supplies bits 0-4. XTerm(411) and Revenant both answer
+  `DCS 7 ! ~ FFBF ST` for a lone `A` once `GetChecksum` is allowed and stay
+  silent by default. Two differences remain: `SetChecksum` is not enforced
+  separately, because libghostty ties XTCHECKSUM to the report switch, and
+  xterm's 7-bit mask (bit 5) is ignored.
 - **CSI 8;rows;columns t** resizes the text area through libghostty-vt 1.0's
   `GHOSTTY_TERMINAL_OPT_RESIZE_WINDOW` effect
   ([PR #14610](https://github.com/ghostty-org/ghostty/pull/14610)), gated by

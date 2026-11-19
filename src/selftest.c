@@ -4732,9 +4732,9 @@ SelfTestWindowOps(void)
                 unsigned int ignored;
         } cases[] = {
             {"GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop", false,
-             false, false, 2},
+             false, false, 1},
             {"GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop", true, true,
-             true, 2},
+             true, 1},
             {"GetIconTitle,GetWinTitle,GetSelection", false, false, true, 0},
             {"getselection setselection, ~GetSelection", false, true, false, 0},
             {"*", false, false, false, 0},
@@ -4782,22 +4782,25 @@ SelfTestWindowOps(void)
             {"GetWinSize*", false, true, false, 0},
             {"*,~GetWinSizeChars", false, false, true, 0},
             {"GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop", true, true,
-             true, 2},
+             true, 1},
         };
 
-        /* CSI 8 t is allowed by xterm's default list. */
+        /* CSI 8 t is allowed and DECRQCRA refused by xterm's default list. */
         {
                 XtpWindowOps ops;
 
                 XtpWindowOpsParse(
                     "GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop",
                     &ops);
-                if (!XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_SET_WIN_SIZE_CHARS)) {
-                        XtpLog(XTP_LOG_ERROR, "self-test", "window-ops default resize");
+                if (!XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_SET_WIN_SIZE_CHARS) ||
+                    XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_GET_CHECKSUM) ||
+                    !XtpWindowOpAllowed(true, &ops, XTP_WINDOW_OP_GET_CHECKSUM)) {
+                        XtpLog(XTP_LOG_ERROR, "self-test", "window-ops default resize/checksum");
                         return -1;
                 }
-                XtpWindowOpsParse("8", &ops);
-                if (XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_SET_WIN_SIZE_CHARS)) {
+                XtpWindowOpsParse("8,~GetChecksum", &ops);
+                if (XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_SET_WIN_SIZE_CHARS) ||
+                    !XtpWindowOpAllowed(false, &ops, XTP_WINDOW_OP_GET_CHECKSUM)) {
                         XtpLog(XTP_LOG_ERROR, "self-test", "window-ops numeric resize alias");
                         return -1;
                 }

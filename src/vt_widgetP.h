@@ -293,6 +293,7 @@ typedef struct
         Pixel effective_cursor_color;
         String disallowed_window_ops;
         int max_string_parse;
+        int checksum_extension;
         XtpWindowOps window_ops;
         Window clipboard_window;
         unsigned int clipboard_request_serial;

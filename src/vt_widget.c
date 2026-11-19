@@ -331,6 +331,8 @@ static XtResource resources[] = {
      (XtPointer) "GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop"},
     {"maxStringParse", "MaxStringParse", XtRInt, sizeof(int), OFFSET(max_string_parse),
      XtRImmediate, (XtPointer)600000},
+    {"checksumExtension", "ChecksumExtension", XtRInt, sizeof(int), OFFSET(checksum_extension),
+     XtRImmediate, (XtPointer)0},
     {XtNreverseVideo, XtCReverseVideo, XtRBoolean, sizeof(Boolean), OFFSET(reverse_video),
      XtRImmediate, (XtPointer)False},
     {"scrollBarBorder", "ScrollBarBorder", XtRDimension, sizeof(Dimension),
@@ -2219,6 +2221,12 @@ XtpVtSetAllowWindowOps(Widget widget, Boolean enabled)
                XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_SET_SELECTION) ? "allowed" : "denied",
                XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_GET_WIN_TITLE) ? "allowed" : "denied",
                XtpVtWindowOpAllowed(widget, XTP_WINDOW_OP_PUSH_TITLE) ? "allowed" : "denied");
+}
+
+int
+XtpVtChecksumExtension(Widget widget)
+{
+        return VtAsRecord(widget)->vt.checksum_extension;
 }
 
 int

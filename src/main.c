@@ -1460,6 +1460,11 @@ ApplyTerminalEffects(App *app)
                 XtpLog(XTP_LOG_INFO, "selection",
                        "OSC 52 GetSelection denied; queries stay unanswered");
         XtpTerminalSetEffects(app->terminal, &effects);
+        /* xterm gates DECRQCRA with GetChecksum, which its default list refuses. */
+        if (XtpTerminalSetChecksumReport(app->terminal,
+                                         XtpVtWindowOpAllowed(app->vt, XTP_WINDOW_OP_GET_CHECKSUM),
+                                         (unsigned int)XtpVtChecksumExtension(app->vt)) != 0)
+                XtpLog(XTP_LOG_ERROR, "terminal", "cannot configure checksum reports");
         XtpTerminalSetAllowMouseOps(app->terminal, XtpVtAllowMouseOps(app->vt));
         XtpTerminalSetTcapOpsPolicy(app->terminal, XtpVtAllowTcapOps(app->vt),
                                     XtpVtTcapOps(app->vt));

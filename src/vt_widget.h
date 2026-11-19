@@ -136,6 +136,7 @@ void XtpVtSetAllowMouseOps(Widget widget, Boolean enabled);
 const XtpColorOps *XtpVtColorOps(Widget widget);
 void XtpVtSetAllowColorOps(Widget widget, Boolean enabled);
 int XtpVtMaxStringParse(Widget widget);
+int XtpVtChecksumExtension(Widget widget);
 XtpClipboardResult XtpVtClipboardWrite(Widget widget, XtpClipboardTarget target,
                                        const uint8_t *bytes, size_t length, Boolean clear);
 XtpClipboardResult XtpVtClipboardRead(Widget widget, XtpClipboardTarget target, uint8_t **bytes,

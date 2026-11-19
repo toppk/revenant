@@ -3348,6 +3348,23 @@ XtpTerminalSetEffects(XtpTerminal *terminal, const XtpTerminalEffects *effects)
                terminal->effects.clipboard_read != NULL ? "on" : "off");
 }
 
+int
+XtpTerminalSetChecksumReport(XtpTerminal *terminal, bool enabled, unsigned int extension)
+{
+        uint8_t bits = (uint8_t)(extension & 31U);
+
+        if (terminal == NULL)
+                return -1;
+        XtpLog(XTP_LOG_INFO, "terminal", "checksum reports=%s extension=%u", enabled ? "on" : "off",
+               (unsigned int)bits);
+        if (ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_XT_CHECKSUM_EXTENSION,
+                                 &bits) != GHOSTTY_SUCCESS ||
+            ghostty_terminal_set(terminal->handle, GHOSTTY_TERMINAL_OPT_XT_CHECKSUM_REPORT,
+                                 &enabled) != GHOSTTY_SUCCESS)
+                return -1;
+        return 0;
+}
+
 bool
 XtpTerminalCompressStep(XtpTerminal *terminal)
 {

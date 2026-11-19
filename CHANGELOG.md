@@ -21,6 +21,8 @@ commit. Published tags and assets are never replaced.
   lines of `seq` output drop from 437 MB to 41 MB resident.
 - Honor `CSI 8 ; rows ; columns t` text-area resize requests under the
   `SetWinSizeChars` window operation, bounded by the root window.
+- Answer DECRQCRA rectangle checksums while `GetChecksum` is allowed, with the
+  new `checksumExtension` resource. xterm's default policy keeps them off.
 - Report the linked libghostty-vt release as `backend version` in
   `-report-config` and the welcome support block.
 

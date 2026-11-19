@@ -672,6 +672,14 @@ XtpTerminalSetEffects(XtpTerminal *terminal, const XtpTerminalEffects *effects)
         XtpLog(XTP_LOG_INFO, "terminal", "stub effects configured");
 }
 
+int
+XtpTerminalSetChecksumReport(XtpTerminal *terminal, bool enabled, unsigned int extension)
+{
+        (void)enabled;
+        (void)extension;
+        return terminal != NULL ? 0 : -1;
+}
+
 bool
 XtpTerminalCompressStep(XtpTerminal *terminal)
 {

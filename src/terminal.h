@@ -657,6 +657,8 @@ void XtpTerminalSetEffects(XtpTerminal *terminal, const XtpTerminalEffects *effe
 typedef void (*XtpTerminalRenderHoldFn)(void *closure, bool held, bool changed);
 void XtpTerminalSetRenderHold(XtpTerminal *terminal, XtpTerminalRenderHoldFn hold, void *closure);
 bool XtpTerminalRenderHeld(const XtpTerminal *terminal);
+/* DECRQCRA replies; extension holds xterm's checksumExtension bits 0-4. */
+int XtpTerminalSetChecksumReport(XtpTerminal *terminal, bool enabled, unsigned int extension);
 /* One bounded scrollback compression step; true while more idle work remains. */
 bool XtpTerminalCompressStep(XtpTerminal *terminal);
 /* Changes whenever the terminal did something that makes compression worth rescheduling. */

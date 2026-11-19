@@ -17,6 +17,8 @@ typedef enum
         /* xterm gates CSI 16 t (cell size) with this entry; 16 names nothing. */
         XTP_WINDOW_OP_GET_SCREEN_SIZE_CHARS,
         XTP_WINDOW_OP_SET_WIN_SIZE_CHARS,
+        XTP_WINDOW_OP_GET_CHECKSUM,
+        XTP_WINDOW_OP_SET_CHECKSUM,
         XTP_WINDOW_OP_COUNT,
 } XtpWindowOp;
 

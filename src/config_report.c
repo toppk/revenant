@@ -1083,7 +1083,7 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
             strcmp(name, "utf8Title") == 0 || strcmp(name, "allowMouseOps") == 0 ||
             strcmp(name, "allowTcapOps") == 0 || strcmp(name, "disallowedTcapOps") == 0 ||
             strcmp(name, "disallowedWindowOps") == 0 || strcmp(name, "maxStringParse") == 0 ||
-            strcmp(name, "allowSendEvents") == 0)
+            strcmp(name, "checksumExtension") == 0 || strcmp(name, "allowSendEvents") == 0)
                 return "partially supported";
         if (strcmp(name, "allowFontOps") == 0 || strcmp(name, "disallowedFontOps") == 0 ||
             strncmp(name, "color", 5) == 0)
@@ -1503,6 +1503,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             {"xterm.vt100.disallowedWindowOps", "XTerm.VT100.DisallowedWindowOps",
              "GetIconTitle,GetWinTitle,GetChecksum,SetSelection,GetSelection,SetXprop"},
             {"xterm.vt100.maxStringParse", "XTerm.VT100.MaxStringParse", "600000"},
+            {"xterm.vt100.checksumExtension", "XTerm.VT100.ChecksumExtension", "0"},
             {"xterm.logLevel", "XTerm.LogLevel", "warning"},
             {"xterm.debug", "XTerm.Debug", "false"},
             {"xterm.vt100.allowTitleOps", "XTerm.VT100.AllowTitleOps", "true"},
@@ -1519,29 +1520,18 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             {"xterm.vt100.disallowedFontOps", "XTerm.VT100.DisallowedFontOps", "SetFont,GetFont"},
         };
         static const char *const behavior_names[] = {
-            "XTerm*saveLines",
-            "XTerm*scrollBar",
-            "XTerm*rightScrollBar",
-            "XTerm*scrollKey",
-            "XTerm*scrollTtyOutput",
-            "XTerm*selectToClipboard",
-            "XTerm*multiClickTime",
-            "XTerm*charClass",
-            "XTerm*allowWindowOps",
-            "XTerm*disallowedWindowOps",
-            "XTerm*maxStringParse",
-            "XTerm*logLevel",
-            "XTerm*debug",
-            "XTerm*allowTitleOps",
-            "XTerm*sameName",
-            "XTerm*utf8Title",
-            "XTerm*allowColorOps",
-            "XTerm*allowSendEvents",
-            "XTerm*disallowedColorOps",
-            "XTerm*allowMouseOps",
-            "XTerm*allowTcapOps",
-            "XTerm*disallowedTcapOps",
-            "XTerm*allowFontOps",
+            "XTerm*saveLines",         "XTerm*scrollBar",
+            "XTerm*rightScrollBar",    "XTerm*scrollKey",
+            "XTerm*scrollTtyOutput",   "XTerm*selectToClipboard",
+            "XTerm*multiClickTime",    "XTerm*charClass",
+            "XTerm*allowWindowOps",    "XTerm*disallowedWindowOps",
+            "XTerm*maxStringParse",    "XTerm*checksumExtension",
+            "XTerm*logLevel",          "XTerm*debug",
+            "XTerm*allowTitleOps",     "XTerm*sameName",
+            "XTerm*utf8Title",         "XTerm*allowColorOps",
+            "XTerm*allowSendEvents",   "XTerm*disallowedColorOps",
+            "XTerm*allowMouseOps",     "XTerm*allowTcapOps",
+            "XTerm*disallowedTcapOps", "XTerm*allowFontOps",
             "XTerm*disallowedFontOps",
         };
         static const char *const behavior_help[] = {
@@ -1556,6 +1546,7 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "Blanket Window Ops permission unless allowSendEvents; OSC 52, titles, 14/16/18 t.",
             "Refused unless allowWindowOps is effective; selection, titles and 14/16/18 t.",
             "Largest control string accepted; only enforced for OSC 52 selection writes.",
+            "DECRQCRA checksum bits 0-4; reports need GetChecksum allowed. Bit 5 is ignored.",
             "Minimum diagnostic severity: debug, info, warning, or error.",
             "Legacy Boolean alias used only when logLevel is unset.",
             "Permit title changes and saved-label pops unless allowSendEvents; menu, "
@@ -1599,6 +1590,10 @@ XtpReportConfig(Display *display, Widget vt, XrmDatabase command_database,
             "accepted but ignored",
             "accepted but ignored",
         };
+        _Static_assert(XtNumber(behavior_names) == XtNumber(behavior) &&
+                           XtNumber(behavior_support) == XtNumber(behavior) &&
+                           XtNumber(behavior_help) == XtNumber(behavior),
+                       "behavior report tables must stay parallel");
         XrmDatabase merged = XtDatabase(display);
         XrmDatabase server = NULL;
         const char *manager = XResourceManagerString(display);

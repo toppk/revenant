@@ -223,6 +223,19 @@ expect 'CSI 18 t after the denial' "ask:$(hex '\033[18t')" "$reply18"
 stop_serving
 echo "report resize: CSI 8 t resizes the grid, zero keeps a dimension, SetWinSizeChars denies it"
 
+# DECRQCRA is gated by GetChecksum, which xterm's default list refuses.
+case='checksum reports'
+serve_terminal
+expect 'default DECRQCRA' "ask:$(hex 'A\033[7;1;1;1;1;1*y')" ''
+stop_serving
+serve_terminal -xrm 'XTerm*disallowedWindowOps: SetSelection'
+expect 'allowed DECRQCRA' "ask:$(hex 'A\033[7;1;1;1;1;1*y')" '\033P7!~FFBF\033\\'
+stop_serving
+serve_terminal -xrm 'XTerm*disallowedWindowOps: SetSelection' -xrm 'XTerm*checksumExtension: 1'
+expect 'checksumExtension=1' "ask:$(hex 'A\033[7;1;1;1;1;1*y')" '\033P7!~0041\033\\'
+stop_serving
+echo "report checksum: DECRQCRA is silent by default, answered once GetChecksum is allowed"
+
 # OSC 52 shares the predicate: with allowSendEvents true the blanket is blocked even
 # though allowWindowOps is true, and disallowedWindowOps alone decides each direction.
 # An external owner serves "seed" first, so a refused write leaves it in place.
