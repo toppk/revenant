@@ -52,6 +52,21 @@ Shared-file collision rule: serialize edits to `main.c`, `vt_widget*`,
 concurrently. Independent feature boundaries do not make concurrent edits safe; serialize
 conflicting ownership even within the same batch.
 
+## L: libghostty-vt 1.0 follow-ups
+
+From the 2026-11-19 review of Ghostty 1.4.0 and libghostty-vt 1.0.1. L1-L5
+(CSI 8 t resize, idle scrollback compression, the paste advisory check, the
+library version report and DECRQCRA) are done; L6-L9 are open proposals.
+
+- [ ] **L6 — Styled copy/print.** Use the formatter's VT/HTML output for
+      print-immediate and a styled copy action.
+- [ ] **L7 — Shrink the control observer.** Replace its string-boundary tracking
+      with `ghostty_terminal_vt_write_until`.
+- [ ] **L8 — Mode 2033 visibility reports and OSC 5522 clipboard.** Check the
+      host wiring each needs before committing to either.
+- [ ] **L9 — `RESIZE_PULL_SCROLLBACK`.** Measure xterm-411 and pick the matching
+      setting.
+
 ## T: Title and window compatibility
 
 - [ ] **T2 — Parser-dependent Title Ops completion.** Obtain selector/raw-input
