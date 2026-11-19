@@ -88,6 +88,13 @@ test-probe: build-probe
 test-release-packaging:
     python3 tests/release-packaging.py
 
+# Final gate for prepared, pushed notes/source: patch, minor, major, or an explicit version.
+[positional-arguments]
+release version *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    exec "{{justfile_directory()}}/packaging/release" finish "$@"
+
 # Interactively inspect legacy, raw, and Kitty keyboard encoding
 probe-keymodes *args:
     python3 tools/probe-keymodes.py {{args}}

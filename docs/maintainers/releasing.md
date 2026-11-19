@@ -7,7 +7,8 @@ description: release checklist and workflow
 
 # Releasing
 
-Use `packaging/release` for release operations. It requires Python 3.11+ and an
+Use `just release patch` for the final release gate, or `packaging/release` for
+individual stages. It requires Python 3.11+ and an
 authenticated GitHub CLI (`gh` 2.97+). Run it from the repository; it retains
 downloads, verification reports and attestations under `.cache/releases/`.
 
@@ -27,10 +28,14 @@ the commands below automate the existing procedure without weakening its checks.
    features or drain `todo.md` before a bug-fix release.
 2. Commit the selected changes and finish the version/changelog bookkeeping.
    Date a final release entry and link each change to its implementing commit.
+   Every commit in the release range must appear in a bullet's trailing links,
+   including merges, refactoring, documentation, and release preparation.
    Leave the next development entry open. The package version is passed through
    Meson's `release-version` override; an RC is useful only for actual UAT.
-3. Push the source branch. Ordinary Test and Documentation CI must pass for the
-   exact source SHA before package validation. Successful hosted compiler,
+3. Push the source branch. The final gate watches ordinary Test and Documentation
+   CI for the exact source SHA before package validation. It dispatches missing
+   workflows, including Documentation when its push path filter skipped the
+   release commit. Successful hosted compiler,
    sanitizer and stub results count; do not repeat that full matrix locally by
    default. Iterate with focused checks, and test the intended user workflow.
 
@@ -39,6 +44,99 @@ as `release/0.8` from `v0.8.0`. Preserve pending master work. The release helper
 uses the pushed source's changelog and backend pin, so unrelated local edits do
 not affect release verification. It never commits source changes or pushes
 master automatically.
+
+## Changelog coverage
+
+The final gate, validation, draft creation and publication check every linked
+commit against the complete history since the highest earlier published stable
+release that is an ancestor of the selected source. Drafts, RCs, later versions
+and releases on unrelated maintenance branches cannot become that baseline.
+For the first release in a history, every reachable commit is checked.
+
+Every bullet needs valid trailing links to this repository. Those links must
+identify commits in the release range, and every commit in that range must be
+linked by at least one bullet. A bullet can group multiple commits. Missing
+coverage reports hashes and subjects; unknown, unrelated or already-released
+commit links fail. The history query is paginated and checked for completeness.
+
+The release-preparation commit cannot contain its own hash. Give its bullet this
+exact placeholder link; the renderer replaces it with the selected source's
+actual abbreviated/full hash before verification and publication:
+
+```markdown
+- Prepare release notes and version bookkeeping.
+  ([release](https://github.com/toppk/revenant/commit/RELEASE_SOURCE_SHA))
+```
+
+This covers the source commit explicitly; no commits are automatically exempt.
+When rendering these notes directly, set `RELEASE_SOURCE_SHA` to the selected
+full commit hash. The release helper and draft workflow supply it automatically.
+
+Check prepared, pushed notes without starting CI, building, tagging or publishing:
+
+```sh
+packaging/release check-notes 0.9.1 --ref master
+```
+
+Historical `verify` operations retain their original notes/hash/provenance checks;
+the new coverage requirement does not retroactively invalidate immutable releases.
+
+## One final-gate command
+
+Once the release notes, version bookkeeping and source are committed and pushed:
+
+```sh
+just release patch
+```
+
+`patch`, `minor` and `major` choose a version relative to GitHub's latest
+published stable release. They do not edit the changelog or source version;
+the corresponding dated changelog entry must already exist in the pushed source.
+An explicit version also works, including an RC:
+
+```sh
+just release 0.9.1
+just release 0.10.0-rc.1 --ref release/0.10
+```
+
+The default source is pushed `master`. Local uncommitted changes are excluded;
+the command neither commits nor pushes them. It checks publishable notes and
+release immutability first, watches exact-source CI, runs package validation,
+creates and verifies the draft, and displays the verified notes and draft URL.
+It then asks `Publish VERSION? [y/N]`. Only `y` or `yes` publishes; an empty answer,
+`n`, EOF or Ctrl+C leaves the draft unpublished. Publication verifies the draft
+again, requires it to match what the prompt presented, and verifies the public
+assets against the approved bytes. This prompt supplies the owner's explicit
+publication approval.
+
+For unattended draft preparation, with no prompt or publication:
+
+```sh
+just release 0.9.1 --draft-only
+```
+
+The command saves progress under `.cache/releases/sessions/`, namespaced by
+repository and version, and locks the session against concurrent invocations.
+After an interruption or a declined publication, rerun the printed command with
+the **explicit version**. It reuses the recorded workflow IDs and re-verifies
+their results; it does not dispatch replacement package builds. If publication
+already happened before a connection failed, resuming verifies the public assets
+against the saved approved hashes instead of trying to publish again.
+
+If a package dispatch response was lost before its run ID could be saved, the command
+stops rather than guessing or dispatching twice. Inspect Actions and supply the
+exact run ID:
+
+```sh
+just release 0.9.1 --validation-run VALIDATION_RUN_ID
+just release 0.9.1 --draft-run DRAFT_RUN_ID
+```
+
+A changed source cannot silently replace the recorded candidate. Before any
+release tag exists, `--restart` archives the old session and starts validation
+for newly prepared source. After tagging, resume the recorded source or choose
+a new version. Failed jobs are not automatically rerun; inspect them and use the
+recovery guidance below. The individual stage commands remain available.
 
 ## Three release commands
 
@@ -164,13 +262,22 @@ attaching those same bytes. Keep the original build run/attempt in the manifest.
 Test expired/missing artifacts, wrong identities and modified bytes before
 adopting promotion. Never weaken verification merely to save a rebuild.
 
-## 0.9.0 scope
+## 0.9.0 retrospective
 
 0.9.0 ships theme reload, safe signal handling and window capability discovery,
 the optional theme setter, xterm core/themed cursor parity, and the shell-exit
 fix. The libghostty pin includes the OSC 7501 C callback; experimental downstream
 program-status presentation is excluded. The release proceeds from master
 through the helper commands above, preserving uncommitted experimental work.
+
+The exact release source was `8f8aef4a9c8c7ad1bf25ddf9620481bcc873dbdb`.
+Ordinary CI, [package validation](https://github.com/toppk/revenant/actions/runs/38609270323),
+and the [draft build](https://github.com/toppk/revenant/actions/runs/38617930246)
+passed. The helper verified all six draft assets and provenance, published them
+after owner approval, and confirmed that public downloads matched. No PR or
+temporary verification script was needed. Waiting for ordinary CI still required
+separate orchestration; the final-gate command above now includes that wait.
+Duplicate validation/draft builds remain the largest source of release latency.
 
 ## 0.8.1 retrospective
 

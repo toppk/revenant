@@ -8,6 +8,7 @@ retained under .cache/releases/ (override with --state-dir).
 
 import argparse
 import base64
+import fcntl
 import hashlib
 import importlib.machinery
 import importlib.util
@@ -16,6 +17,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -65,6 +67,58 @@ def release_identity(release):
     }
 
 
+class Session:
+    """Persist exact run IDs; an uncertain dispatch must never be retried blindly."""
+
+    def __init__(self, path, identity):
+        self.path = path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.lock = path.with_suffix(".lock").open("a")
+        try:
+            fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.data = json.loads(path.read_text()) if path.exists() else identity
+            require(isinstance(self.data, dict), f"Invalid release session: {path}")
+            require(
+                all(self.data.get(key) == value for key, value in identity.items()),
+                f"Release session source differs: {path}; use the recorded source or --restart",
+            )
+        except BlockingIOError as error:
+            self.lock.close()
+            raise ValueError(f"Release session is already running: {path}") from error
+        except BaseException:
+            self.lock.close()
+            raise
+
+    def close(self):
+        self.lock.close()
+
+    def save(self, **values):
+        self.data.update(values)
+        with tempfile.NamedTemporaryFile(
+            mode="w", dir=self.path.parent, delete=False
+        ) as out:
+            json.dump(self.data, out, indent=2)
+            out.write("\n")
+            temporary = Path(out.name)
+        temporary.replace(self.path)
+
+    def dispatch(self, stage, action):
+        require(
+            not self.data.get("dispatch_pending"),
+            f"Dispatch outcome uncertain ({self.data.get('dispatch_pending')}); inspect Actions "
+            "and supply --validation-run or --draft-run before resuming",
+        )
+
+        def recorded(run_id):
+            if run_id is None:
+                self.save(dispatch_pending=stage)
+            else:
+                self.save(**{stage: str(run_id)}, dispatch_pending=None)
+
+        # Preflight errors leave no uncertain dispatch in the journal.
+        action(recorded)
+
+
 class Release:
     def __init__(self, repo, state_dir):
         require(
@@ -99,6 +153,107 @@ class Release:
         return json.loads(
             self.command(*args, data=json.dumps(data) if data is not None else None)
         )
+
+    def pages(self, path):
+        return json.loads(
+            self.command(
+                "gh", "api", "--paginate", "--slurp", f"repos/{self.repo}/{path}"
+            )
+        )
+
+    def release_commits(self, version, source):
+        """All commits after the highest earlier stable release in this history."""
+        target = tuple(map(int, versions(version)["base"].split(".")))
+        candidates = []
+        for page in self.pages("releases?per_page=100"):
+            for release in page:
+                tag = release["tag_name"]
+                if (
+                    release["draft"]
+                    or release["prerelease"]
+                    or not release["published_at"]
+                    or not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag)
+                ):
+                    continue
+                number = tuple(map(int, tag[1:].split(".")))
+                if number < target:
+                    candidates.append((number, tag))
+        for _, tag in sorted(candidates, reverse=True):
+            # Compare supports complete history pagination; never accept its default 250-commit cap.
+            pages = self.pages(f"compare/{tag}...{source}?per_page=100")
+            require(pages, "Empty release-history comparison")
+            first = pages[0]
+            if first["status"] not in ("ahead", "identical"):
+                continue  # A newer stable release can be on another maintenance branch.
+            require(
+                first["base_commit"]["sha"] == first["merge_base_commit"]["sha"],
+                "Previous release is not an ancestor of the selected source",
+            )
+            commits = [commit for page in pages for commit in page["commits"]]
+            require(
+                len({commit["sha"] for commit in commits}) == first["ahead_by"]
+                and len(commits) == first["ahead_by"],
+                "Incomplete or duplicated release history",
+            )
+            return tag, commits
+        # First release on this history: cover every reachable commit, including merges.
+        commits = [
+            commit
+            for page in self.pages(f"commits?sha={source}&per_page=100")
+            for commit in page
+        ]
+        require(
+            commits and any(c["sha"] == source for c in commits),
+            "Incomplete initial release history",
+        )
+        require(
+            len(commits) == len({c["sha"] for c in commits}),
+            "Duplicated initial release history",
+        )
+        return "the start of history", commits
+
+    def check_changelog(self, version, source):
+        changelog = self.content("CHANGELOG.md", source)
+        notes_tool.render(
+            version, "/nonexistent", source=source, changelog=changelog, repo=self.repo
+        )
+        _, _, bullets = notes_tool.entry(
+            versions(version)["base"], changelog, source=source
+        )
+        linked = set()
+        for line in bullets.splitlines():
+            if not line.startswith("- "):
+                continue
+            trailing = notes_tool.TRAILING_COMMIT_LINKS.search(line)
+            require(trailing is not None, "Missing trailing commit links")
+            for repo, commit in notes_tool.COMMIT_TARGET.findall(trailing[0]):
+                require(
+                    repo.casefold() == self.repo.casefold(),
+                    f"Changelog links another repository: {repo}",
+                )
+                linked.add(commit)
+        base, commits = self.release_commits(version, source)
+        actual = {commit["sha"] for commit in commits}
+        require(
+            all(re.fullmatch(r"[0-9a-f]{40}", sha) for sha in actual),
+            "Invalid commit in release history",
+        )
+        invalid = linked - actual
+        require(
+            not invalid,
+            "Linked commits are absent from this release range (unknown, unrelated, or already released):\n"
+            + "\n".join("  " + sha for sha in sorted(invalid)),
+        )
+        missing = [commit for commit in commits if commit["sha"] not in linked]
+        require(
+            not missing,
+            f"Uncovered release commits since {base}:\n"
+            + "\n".join(
+                f"  {c['sha'][:12]} {c['commit']['message'].splitlines()[0]}"
+                for c in missing
+            ),
+        )
+        print(f"Changelog covers all {len(commits)} commits since {base}", flush=True)
 
     def existing_release(self, tag):
         # gh finds authenticated drafts as well as published releases.
@@ -158,8 +313,8 @@ class Release:
             )
             time.sleep(15)
 
-    def dispatch(self, ref, **inputs):
-        args = ["workflow", "run", "release.yml", "--ref", ref]
+    def dispatch(self, ref, *, workflow="release.yml", **inputs):
+        args = ["workflow", "run", workflow, "--ref", ref]
         for key, value in inputs.items():
             args += ["-f", f"{key}={value}"]
         output = self.gh(*args)
@@ -173,9 +328,10 @@ class Release:
         print(match.group(0), flush=True)
         return match.group(1)
 
-    def ordinary_ci(self, source):
-        for workflow in ("test.yml", "docs.yml"):
-            runs = json.loads(
+    def ci_runs(self, source, workflow):
+        return [
+            run
+            for run in json.loads(
                 self.gh(
                     "run",
                     "list",
@@ -183,14 +339,19 @@ class Release:
                     workflow,
                     "--commit",
                     source,
-                    "--event",
-                    "push",
                     "--limit",
                     "100",
                     "--json",
-                    "headSha,status,conclusion",
+                    "databaseId,headSha,event,status,conclusion",
                 )
             )
+            if run["headSha"] == source
+            and run.get("event") in ("push", "workflow_dispatch")
+        ]
+
+    def ordinary_ci(self, source):
+        for workflow in ("test.yml", "docs.yml"):
+            runs = self.ci_runs(source, workflow)
             require(
                 any(
                     run["headSha"] == source
@@ -200,6 +361,68 @@ class Release:
                 ),
                 f"{workflow} must pass for {source} before package validation",
             )
+
+    def wait_ordinary_ci(self, source, ref):
+        """Watch exact-source CI, including manually dispatched path-filtered docs."""
+        for workflow in ("test.yml", "docs.yml"):
+            runs = self.ci_runs(source, workflow)
+            if any(
+                r["status"] == "completed" and r["conclusion"] == "success"
+                for r in runs
+            ):
+                print(f"CI {workflow}: success", flush=True)
+                continue
+            active = [r for r in runs if r["status"] != "completed"]
+            require(
+                active or not runs,
+                f"{workflow} failed; inspect and rerun its failed jobs",
+            )
+            if active:
+                run_id = str(active[0]["databaseId"])
+            else:
+                require(
+                    self.api(f"commits/{ref}")["sha"] == source,
+                    "Source ref moved before CI dispatch",
+                )
+                run_id = self.dispatch(ref, workflow=workflow)
+            print(
+                f"Watching CI: https://github.com/{self.repo}/actions/runs/{run_id}",
+                flush=True,
+            )
+            deadline = time.monotonic() + 90 * 60
+            previous = None
+            while True:
+                run = self.api(f"actions/runs/{run_id}")
+                require(
+                    run["head_sha"] == source
+                    and run["path"] == ".github/workflows/" + workflow
+                    and run["event"] in ("push", "workflow_dispatch")
+                    and (run.get("repository") or {}).get("full_name") == self.repo
+                    and (run.get("head_repository") or {}).get("full_name")
+                    == self.repo,
+                    "CI run identity differs from selected source/workflow/repository",
+                )
+                jobs = self.api(f"actions/runs/{run_id}/jobs?per_page=100")["jobs"]
+                status = ", ".join(
+                    f"{j['name']}: {j['conclusion'] or j['status']}" for j in jobs
+                )
+                if status != previous:
+                    print(
+                        f"CI {workflow} run {run_id}: {status or run['status']}",
+                        flush=True,
+                    )
+                    previous = status
+                if run["status"] == "completed":
+                    require(
+                        run["conclusion"] == "success",
+                        f"CI failed; inspect https://github.com/{self.repo}/actions/runs/{run_id}",
+                    )
+                    break
+                require(
+                    time.monotonic() < deadline,
+                    f"CI wait timed out; resume run {run_id}",
+                )
+                time.sleep(15)
 
     def workspace(self, version, run_id):
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -348,20 +571,22 @@ class Release:
         print(f"Verified {state}: {release['url']}\nEvidence: {root}", flush=True)
         return record
 
-    def validate(self, version, ref, no_wait):
+    def validate(self, version, ref, no_wait, *, record_run=None, expected_source=None):
         versions(version)
         source = self.api(f"commits/{ref}")["sha"]
         require(re.fullmatch(r"[0-9a-f]{40}", source), "Invalid source SHA")
-        self.ordinary_ci(source)
-        notes_tool.render(
-            version,
-            "/nonexistent",
-            source=source,
-            changelog=self.content("CHANGELOG.md", source),
-            repo=self.repo,
+        require(
+            expected_source is None or source == expected_source,
+            "Source ref moved before validation dispatch",
         )
+        self.check_changelog(version, source)
+        self.ordinary_ci(source)
         # The workflow rejects branch movement through its exact source/workflow check.
+        if record_run is not None:
+            record_run(None)
         run_id = self.dispatch(ref, mode="validate", source=source, version=version)
+        if record_run is not None:
+            record_run(run_id)
         require(
             self.run(run_id, complete=False)["head_sha"] == source,
             "Dispatched the wrong source",
@@ -370,19 +595,14 @@ class Release:
             self.wait(run_id)
             self.validation(version, run_id)
         print(f"Next: packaging/release draft {version} --run {run_id}", flush=True)
+        return run_id
 
-    def draft(self, version, run_id, no_wait):
+    def draft(self, version, run_id, no_wait, *, record_run=None):
         run, _ = self.validation(version, run_id)
         source = run["head_sha"]
         self.ordinary_ci(source)
         # Require publishable notes before creating any remote tag.
-        notes_tool.render(
-            version,
-            "/nonexistent",
-            source=source,
-            changelog=self.content("CHANGELOG.md", source),
-            repo=self.repo,
-        )
+        self.check_changelog(version, source)
         tag = "v" + version
         require(
             self.existing_release(tag) is None,
@@ -401,7 +621,11 @@ class Release:
                 ),
             )
             self.api("git/refs", dict(ref="refs/tags/" + tag, sha=annotation["sha"]))
+        if record_run is not None:
+            record_run(None)
         draft_run = self.dispatch(tag, mode="draft", tag=tag)
+        if record_run is not None:
+            record_run(draft_run)
         require(
             self.run(draft_run, complete=False)["head_sha"] == source,
             "Draft source changed",
@@ -413,13 +637,23 @@ class Release:
             f"After approval: packaging/release publish {version} --run {draft_run}",
             flush=True,
         )
+        return draft_run
 
-    def publish(self, version, run_id):
+    def publish(self, version, run_id, *, approved=None):
         require(
             self.api("immutable-releases").get("enabled") is True,
             "Enable release immutability first",
         )
         before = self.verify(version, run_id, "draft")
+        self.check_changelog(version, before["source"])
+        if approved is not None:
+            require(
+                before["source"] == approved["source"]
+                and before["digests"] == approved["digests"]
+                and release_identity(before["release"])
+                == release_identity(approved["release"]),
+                "Draft changed since the publication prompt; review it again",
+            )
         # Refuse metadata or asset replacement between verification and publication.
         require(
             release_identity(self.release_info(version, "draft"))
@@ -448,6 +682,183 @@ class Release:
         print(
             "Published assets match the approved draft; no package rebuild.", flush=True
         )
+        return after
+
+    def choose_version(self, value):
+        if value in ("patch", "minor", "major"):
+            latest = self.api("releases/latest")["tag_name"]
+            require(
+                re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", latest),
+                "Latest release is not a stable version; specify a version",
+            )
+            parts = [int(p) for p in latest[1:].split(".")]
+            index = {"major": 0, "minor": 1, "patch": 2}[value]
+            parts[index] += 1
+            parts[index + 1 :] = [0] * (2 - index)
+            value = ".".join(map(str, parts))
+        versions(value)
+        return value
+
+    def finish(
+        self,
+        value,
+        ref,
+        *,
+        draft_only=False,
+        validation_run=None,
+        draft_run=None,
+        restart=False,
+    ):
+        require(
+            draft_only or sys.stdin.isatty(),
+            "Interactive publication needs a terminal; use --draft-only for unattended preparation",
+        )
+        version = self.choose_version(value)
+        source = self.api(f"commits/{ref}")["sha"]
+        require(re.fullmatch(r"[0-9a-f]{40}", source), "Invalid source SHA")
+        # Check prepared notes before spending time on CI or package builds.
+        self.check_changelog(version, source)
+        require(
+            self.api("immutable-releases").get("enabled") is True,
+            "Enable release immutability first",
+        )
+        path = (
+            self.state_dir
+            / "sessions"
+            / self.repo.replace("/", "--")
+            / (version + ".json")
+        )
+        if restart:
+            require(
+                not self.existing_release("v" + version),
+                "Cannot restart an existing release",
+            )
+            tags = self.api(f"git/matching-refs/tags/v{version}")
+            require(
+                not any(t["ref"] == "refs/tags/v" + version for t in tags),
+                "Cannot restart after tagging; resume the recorded source",
+            )
+        # Restart may select new source only before any tag exists. Preserve the old journal.
+        if restart and path.exists():
+            lock = Session(path, {})
+            try:
+                path.replace(path.with_name(path.stem + f"-{time.time_ns()}.json"))
+            finally:
+                lock.close()
+        session = Session(
+            path, dict(schema=1, repo=self.repo, version=version, source=source)
+        )
+        try:
+            print(
+                f"Release {version} from {ref} at {source}\nProgress: {path}",
+                flush=True,
+            )
+            session.save(ref=ref)
+            for stage, supplied in (
+                ("validation_run", validation_run),
+                ("draft_run", draft_run),
+            ):
+                if supplied is None:
+                    continue
+                require(
+                    not session.data.get(stage) or session.data[stage] == str(supplied),
+                    "Cannot replace a recorded run ID",
+                )
+                require(
+                    self.run(supplied, complete=False)["head_sha"] == source,
+                    "Supplied run identifies another source",
+                )
+                require(
+                    session.data.get("dispatch_pending") in (None, stage),
+                    "Supplied run does not resolve the uncertain dispatch",
+                )
+                session.save(**{stage: str(supplied)}, dispatch_pending=None)
+            require(
+                not session.data.get("dispatch_pending"),
+                "Previous dispatch outcome is uncertain; inspect Actions and resume with --validation-run or --draft-run",
+            )
+            if session.data.get("publication_started"):
+                existing = self.existing_release("v" + version)
+                if existing and not existing["isDraft"]:
+                    after = self.verify(version, session.data["draft_run"], "published")
+                    require(
+                        after["digests"] == session.data["approved_digests"],
+                        "Published bytes differ from the approved draft",
+                    )
+                    session.save(published=True)
+                    return
+            require(not session.data.get("published"), "Release is already published")
+            existing = self.existing_release("v" + version)
+            require(not existing or existing["isDraft"], "Release is already published")
+            require(
+                not existing or session.data.get("draft_run"),
+                "Draft already exists; resume using its exact --draft-run ID",
+            )
+            self.wait_ordinary_ci(source, ref)
+            if not session.data.get("draft_run"):
+                if not session.data.get("validation_run"):
+                    require(
+                        self.api(f"commits/{ref}")["sha"] == source,
+                        "Source ref moved; resume the recorded source",
+                    )
+                    session.dispatch(
+                        "validation_run",
+                        lambda record: self.validate(
+                            version,
+                            ref,
+                            True,
+                            record_run=record,
+                            expected_source=source,
+                        ),
+                    )
+                require(
+                    self.run(session.data["validation_run"], complete=False)["head_sha"]
+                    == source,
+                    "Validation source differs from session",
+                )
+                self.wait(session.data["validation_run"])
+                session.dispatch(
+                    "draft_run",
+                    lambda record: self.draft(
+                        version, session.data["validation_run"], True, record_run=record
+                    ),
+                )
+            require(
+                self.run(session.data["draft_run"], complete=False)["head_sha"]
+                == source,
+                "Draft source differs from session",
+            )
+            self.wait(session.data["draft_run"])
+            approved = self.verify(version, session.data["draft_run"], "draft")
+            print(
+                approved["release"]["body"].split("## Artifacts", 1)[0].strip(),
+                flush=True,
+            )
+            print(
+                f"\nVerified draft: {approved['release']['url']}\nSource: {source}",
+                flush=True,
+            )
+            if draft_only:
+                print(
+                    f"Publish after review: packaging/release publish {version} --run {session.data['draft_run']}",
+                    flush=True,
+                )
+                return
+            try:
+                answer = input(f"Publish {version}? [y/N] ").strip().lower()
+            except EOFError:
+                answer = ""
+            if answer not in ("y", "yes"):
+                print(
+                    f"Draft retained. Resume: just release {version} --ref {ref}",
+                    flush=True,
+                )
+                return
+            session.save(publication_started=True, approved_digests=approved["digests"])
+            self.publish(version, session.data["draft_run"], approved=approved)
+            session.save(published=True)
+        finally:
+            session.close()
 
 
 def main(argv=None):
@@ -455,6 +866,43 @@ def main(argv=None):
     parser.add_argument("--repo", default="toppk/revenant")
     parser.add_argument("--state-dir", type=Path, default=ROOT / ".cache" / "releases")
     commands = parser.add_subparsers(dest="command", required=True)
+    check_notes = commands.add_parser(
+        "check-notes",
+        help="Check prepared notes and complete commit coverage without building",
+    )
+    check_notes.add_argument("version", help="Prepared version, or patch/minor/major")
+    check_notes.add_argument(
+        "--ref", default="master", help="Pushed source branch or tag (default: master)"
+    )
+    finish = commands.add_parser(
+        "finish", help="Watch CI, validate, prepare a draft, and ask before publishing"
+    )
+    finish.add_argument(
+        "version",
+        help="Prepared version, or patch/minor/major relative to latest published stable release",
+    )
+    finish.add_argument(
+        "--ref",
+        default="master",
+        help="Prepared, pushed source branch or tag (default: master)",
+    )
+    finish.add_argument(
+        "--draft-only",
+        action="store_true",
+        help="Verify the draft without prompting or publishing",
+    )
+    finish.add_argument(
+        "--validation-run",
+        help="Recover an uncertain validation dispatch using its exact run ID",
+    )
+    finish.add_argument(
+        "--draft-run", help="Recover an uncertain draft dispatch using its exact run ID"
+    )
+    finish.add_argument(
+        "--restart",
+        action="store_true",
+        help="Start a new candidate only if no release tag or release exists",
+    )
     for name in ("validate", "draft", "verify", "publish"):
         command = commands.add_parser(name)
         command.add_argument("version")
@@ -481,7 +929,20 @@ def main(argv=None):
     args = parser.parse_args(argv)
     release = Release(args.repo, args.state_dir)
     try:
-        if args.command == "validate":
+        if args.command == "check-notes":
+            version = release.choose_version(args.version)
+            source = release.api(f"commits/{args.ref}")["sha"]
+            release.check_changelog(version, source)
+        elif args.command == "finish":
+            release.finish(
+                args.version,
+                args.ref,
+                draft_only=args.draft_only,
+                validation_run=args.validation_run,
+                draft_run=args.draft_run,
+                restart=args.restart,
+            )
+        elif args.command == "validate":
             release.validate(args.version, args.ref, args.no_wait)
         elif args.command == "draft":
             release.draft(args.version, args.run, args.no_wait)
@@ -491,6 +952,11 @@ def main(argv=None):
             release.publish(args.version, args.run)
     except (ValueError, KeyError, OSError, subprocess.SubprocessError) as error:
         parser.exit(1, f"Release stopped: {error}\n")
+    except KeyboardInterrupt:
+        parser.exit(
+            130,
+            "Release interrupted; resume the same command/version. Recorded runs are retained.\n",
+        )
 
 
 if __name__ == "__main__":

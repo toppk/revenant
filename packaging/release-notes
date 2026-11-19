@@ -25,12 +25,18 @@ COMMIT_LINK_PATTERN = (
     r"\(https://github\.com/[^/\s]+/[^/\s]+/commit/([0-9a-f]{40})\)"
 )
 COMMIT_LINK = re.compile(COMMIT_LINK_PATTERN)
+COMMIT_TARGET = re.compile(
+    r"https://github\.com/([^/\s]+/[^/\s]+)/commit/([0-9a-f]{40})"
+)
+SOURCE_LINK = re.compile(
+    r"\[release\]\(https://github\.com/([^/\s]+/[^/\s]+)/commit/RELEASE_SOURCE_SHA\)"
+)
 TRAILING_COMMIT_LINKS = re.compile(
     rf"\({COMMIT_LINK_PATTERN}(?:, {COMMIT_LINK_PATTERN})*\)$"
 )
 
 
-def entry(version, text=None):
+def entry(version, text=None, *, source=None):
     if text is None:
         text = (Path(ROOT) / "CHANGELOG.md").read_text(encoding="utf-8")
     lines = text.splitlines()
@@ -48,6 +54,15 @@ def entry(version, text=None):
     if not inside:
         sys.exit(f"CHANGELOG.md has no entry for {version}")
     text = "\n".join(body).strip("\n")
+    if SOURCE_LINK.search(text):
+        if source is None or not re.fullmatch(r"[0-9a-f]{40}", source):
+            sys.exit("release-source links require a full RELEASE_SOURCE_SHA")
+        text = SOURCE_LINK.sub(
+            lambda match: (
+                f"[{source[:7]}](https://github.com/{match[1]}/commit/{source})"
+            ),
+            text,
+        )
     first_bullet = re.search(r"^(- |### )", text, re.M)
     summary = unwrap(text[: first_bullet.start()].strip() if first_bullet else text)
     bullets = unwrap(text[first_bullet.start() :].strip() if first_bullet else "")
@@ -118,13 +133,13 @@ def render(version, dist, *, source=None, changelog=None, repo=REPO):
         parsed = versions(version)
     except ValueError as error:
         sys.exit(str(error))
-    date, summary, bullets = entry(parsed["base"], changelog)
-    candidate = parsed["prerelease"] == "true"
-    if not candidate and not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", date):
-        sys.exit("final release requires a dated changelog entry")
     source = source or os.environ.get("RELEASE_SOURCE_SHA")
     if source is not None and not re.fullmatch(r"[0-9a-f]{40}", source):
         sys.exit("RELEASE_SOURCE_SHA must be a full commit SHA")
+    date, summary, bullets = entry(parsed["base"], changelog, source=source)
+    candidate = parsed["prerelease"] == "true"
+    if not candidate and not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", date):
+        sys.exit("final release requires a dated changelog entry")
     source = source or "v" + version
     label = (
         f"Release candidate {version}; changes planned for {parsed['base']}"
