@@ -89,6 +89,14 @@ key_test_tool = executable(
     install: false,
 )
 
+ewmh_fullscreen_tool = executable(
+    'xtp-ewmh-fullscreen',
+    'xtp-ewmh-fullscreen.c',
+    dependencies: x11_dep,
+    include_directories: test_root_include_directories,
+    install: false,
+)
+
 close_window_tool = executable(
     'xtp-close-window',
     'xtp-close-window.c',
@@ -1033,6 +1041,23 @@ if build_with_ghostty and xvfb.found()
         is_parallel: false,
         depends: [xterm_plus],
     )
+    if xprop.found()
+        test(
+            'xvfb-fullscreen',
+            find_program('sh'),
+            args: [
+                files('xvfb-fullscreen.sh'),
+                xvfb.full_path(),
+                xterm_plus.full_path(),
+                key_test_tool.full_path(),
+                ewmh_fullscreen_tool.full_path(),
+                xprop.full_path(),
+            ],
+            timeout: 60,
+            is_parallel: false,
+            depends: [xterm_plus, key_test_tool, ewmh_fullscreen_tool],
+        )
+    endif
     test(
         'xvfb-pipe-output',
         find_program('sh'),

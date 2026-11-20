@@ -32,9 +32,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+/* xterm's fullscreen resource values, in its numeric order. */
+typedef enum
+{
+        FULLSCREEN_OFF,
+        FULLSCREEN_ON,
+        FULLSCREEN_ALWAYS,
+        FULLSCREEN_NEVER,
+} FullscreenPolicy;
 
 typedef struct
 {
@@ -91,6 +101,12 @@ typedef struct
         XtWorkProcId compress_work;
         uint64_t compress_activity;
         Boolean compress_scheduled;
+        FullscreenPolicy fullscreen_policy;
+        /* The layout last requested here or reported by the window manager. */
+        Boolean fullscreen;
+        Boolean shell_mapped;
+        Atom net_wm_state;
+        Atom net_wm_state_fullscreen;
 } App;
 
 static XtSignalId config_reload_signal;
@@ -341,6 +357,7 @@ typedef struct
         String menu_locale;
         String term_name;
         String pipe_command;
+        String fullscreen;
         String log_level;
         Boolean debug;
         Boolean report_config;
@@ -421,6 +438,8 @@ static XtResource application_resources[] = {
         XtRImmediate,
         (XtPointer)False,
     },
+    {"fullscreen", "Fullscreen", XtRString, sizeof(String), XtOffsetOf(AppResources, fullscreen),
+     XtRString, (XtPointer) "off"},
 };
 
 static const char *const fallback_resources[] = {
@@ -436,6 +455,7 @@ static const char *const fallback_resources[] = {
 };
 
 static void UpdateGeometry(App *app);
+static void RequestFullscreen(App *app, XtpFullscreenRequest request);
 static void ApplyShellLabel(App *app, const char *resource, const char *value);
 
 static char *
@@ -1545,6 +1565,11 @@ PopupRequested(Widget widget, XtPointer closure, XtPointer call_data)
 
         (void)widget;
         SyncTerminalModeChecks(app);
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_FULLSCREEN, app->fullscreen);
+        /* As in xterm, always and never take the choice away from the menu. */
+        XtpMenusSetSensitive(&app->menus, XTP_MENU_ITEM_FULLSCREEN,
+                             app->fullscreen_policy == FULLSCREEN_OFF ||
+                                 app->fullscreen_policy == FULLSCREEN_ON);
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
         /* As in xterm, the entry is insensitive while allowSendEvents blocks the blanket. */
@@ -1647,6 +1672,9 @@ MenuDispatch(Widget source, XtpMenuItem menu_item, XtPointer closure)
                 return;
         case XTP_MENU_ITEM_REDRAW:
                 XtpVtRedraw(app->vt);
+                return;
+        case XTP_MENU_ITEM_FULLSCREEN:
+                RequestFullscreen(app, XTP_FULLSCREEN_TOGGLE);
                 return;
         case XTP_MENU_ITEM_BACKGROUND_OPACITY:
                 if (!XtpVtSetBackgroundOpacityPercent(app->vt,
@@ -1922,8 +1950,10 @@ ShellEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_di
                 XtpLog(XTP_LOG_INFO, "shell", "WM_DELETE_WINDOW");
                 app->running = False;
         } else if (event->type == MapNotify) {
+                app->shell_mapped = True;
                 XtpLog(XTP_LOG_INFO, "shell", "mapped");
         } else if (event->type == UnmapNotify) {
+                app->shell_mapped = False;
                 XtpLog(XTP_LOG_INFO, "shell", "unmapped");
         } else if (event->type == ConfigureNotify) {
                 XtpLog(XTP_LOG_DEBUG, "shell", "configure position=%d,%d pixels=%dx%d border=%d",
@@ -1955,6 +1985,11 @@ UpdateNormalHints(App *app, Dimension total_width, Dimension total_height, Dimen
         hints.min_height = base_height + (int)XtpVtCellHeight(app->vt);
         hints.width_inc = (int)XtpVtCellWidth(app->vt);
         hints.height_inc = (int)XtpVtCellHeight(app->vt);
+        /* As in xterm, cell increments must not keep a fullscreen window off the screen edge. */
+        if (app->fullscreen) {
+                hints.width_inc = 1;
+                hints.height_inc = 1;
+        }
         if (app->geometry_flags != NoValue) {
                 Position x = 0;
                 Position y = 0;
@@ -2093,6 +2128,135 @@ UpdateGeometry(App *app)
         XtpLog(XTP_LOG_DEBUG, "resize", "shell geometry requested=%ux%u", vt_width, vt_height);
 }
 
+/* xterm's extendedBoolean for the fullscreen resource: booleans, 0-3, always and never. */
+static Boolean
+ParseFullscreenPolicy(const char *value, FullscreenPolicy *policy)
+{
+        char *end = NULL;
+        long number;
+
+        if (strcasecmp(value, "true") == 0 || strcasecmp(value, "yes") == 0 ||
+            strcasecmp(value, "on") == 0) {
+                *policy = FULLSCREEN_ON;
+        } else if (strcasecmp(value, "false") == 0 || strcasecmp(value, "no") == 0 ||
+                   strcasecmp(value, "off") == 0) {
+                *policy = FULLSCREEN_OFF;
+        } else if (strcasecmp(value, "always") == 0) {
+                *policy = FULLSCREEN_ALWAYS;
+        } else if (strcasecmp(value, "never") == 0) {
+                *policy = FULLSCREEN_NEVER;
+        } else {
+                number = strtol(value, &end, 0);
+                if (end == value || *end != '\0' || number < 0)
+                        return False;
+                *policy = number > FULLSCREEN_NEVER ? FULLSCREEN_ON : (FullscreenPolicy)number;
+        }
+        return True;
+}
+
+static Boolean
+AtomListed(App *app, Window window, const char *property, Atom wanted)
+{
+        Atom type = None;
+        int format = 0;
+        unsigned long count = 0;
+        unsigned long remaining = 0;
+        unsigned long index;
+        unsigned char *data = NULL;
+        Boolean listed = False;
+
+        if (XGetWindowProperty(app->display, window, XInternAtom(app->display, property, False), 0,
+                               4096, False, XA_ATOM, &type, &format, &count, &remaining,
+                               &data) != Success)
+                return False;
+        if (type == XA_ATOM && format == 32) {
+                for (index = 0; index < count && !listed; ++index)
+                        listed = ((Atom *)(void *)data)[index] == wanted;
+        }
+        if (data != NULL)
+                XFree(data);
+        return listed;
+}
+
+static void
+SetFullscreenState(App *app, Boolean fullscreen)
+{
+        Dimension vt_width = XtpVtNaturalWidth(app->vt);
+        Dimension vt_height = XtpVtNaturalHeight(app->vt);
+
+        if (app->fullscreen == fullscreen)
+                return;
+        app->fullscreen = fullscreen;
+        XtpLog(XTP_LOG_INFO, "shell", "fullscreen=%s", fullscreen ? "true" : "false");
+        UpdateNormalHints(app, vt_width, vt_height,
+                          vt_width - XtpVtColumns(app->vt) * XtpVtCellWidth(app->vt),
+                          vt_height - XtpVtRows(app->vt) * XtpVtCellHeight(app->vt));
+}
+
+/* xterm's FullScreen: ask an EWMH window manager; this window never resizes itself. */
+static void
+RequestFullscreen(App *app, XtpFullscreenRequest request)
+{
+        Window root = RootWindowOfScreen(XtScreen(app->shell));
+        Boolean target =
+            request == XTP_FULLSCREEN_TOGGLE ? !app->fullscreen : request == XTP_FULLSCREEN_ON;
+        XEvent event;
+
+        if (app->fullscreen_policy == FULLSCREEN_NEVER) {
+                XtpLog(XTP_LOG_INFO, "shell", "fullscreen request ignored: fullscreen=never");
+                return;
+        }
+        if (target == app->fullscreen ||
+            (target && !AtomListed(app, root, "_NET_SUPPORTED", app->net_wm_state_fullscreen))) {
+                XtpLog(XTP_LOG_INFO, "shell", "fullscreen request refused target=%s current=%s",
+                       target ? "true" : "false", app->fullscreen ? "true" : "false");
+                XBell(app->display, 0);
+                return;
+        }
+        SetFullscreenState(app, target);
+        if (!app->shell_mapped) {
+                /* EWMH: a window manager reads the initial state from the unmapped window. */
+                if (target)
+                        XChangeProperty(app->display, XtWindow(app->shell), app->net_wm_state,
+                                        XA_ATOM, 32, PropModeReplace,
+                                        (const unsigned char *)&app->net_wm_state_fullscreen, 1);
+                else
+                        XDeleteProperty(app->display, XtWindow(app->shell), app->net_wm_state);
+                return;
+        }
+        memset(&event, 0, sizeof(event));
+        event.xclient.type = ClientMessage;
+        event.xclient.message_type = app->net_wm_state;
+        event.xclient.display = app->display;
+        event.xclient.window = XtWindow(app->shell);
+        event.xclient.format = 32;
+        event.xclient.data.l[0] = target ? 1 : 0;
+        event.xclient.data.l[1] = (long)app->net_wm_state_fullscreen;
+        event.xclient.data.l[3] = 1;
+        (void)XSendEvent(app->display, root, False,
+                         SubstructureRedirectMask | SubstructureNotifyMask, &event);
+        XFlush(app->display);
+}
+
+static void
+FullscreenRequested(Widget widget, XtPointer closure, XtPointer data)
+{
+        (void)widget;
+        RequestFullscreen(closure, *(XtpFullscreenRequest *)data);
+}
+
+/* The window manager owns the state: its own shortcut or a refusal must be followed. */
+static void
+ShellPropertyEvent(Widget widget, XtPointer closure, XEvent *event, Boolean *continue_dispatch)
+{
+        App *app = closure;
+
+        (void)continue_dispatch;
+        if (event->type == PropertyNotify && event->xproperty.atom == app->net_wm_state)
+                SetFullscreenState(app, AtomListed(app, XtWindow(widget), "_NET_WM_STATE",
+                                                   app->net_wm_state_fullscreen));
+}
+
 static int
 OpenApplication(App *app, XtpCommandLine *command_line, AppResources *resources)
 {
@@ -2186,6 +2350,7 @@ WireApplication(App *app, const AppResources *resources)
         XtAddCallback(app->vt, XtNpasteCallback, PasteReceived, app);
         XtAddCallback(app->vt, XtNinputCallback, EncodedInputReceived, app);
         XtAddCallback(app->vt, XtNpipeOutputCallback, PipeOutputRequested, app);
+        XtAddCallback(app->vt, XtNfullscreenCallback, FullscreenRequested, app);
         app->notifier = XtpDesktopNotifierNew();
         app->term_name = resources->term_name != NULL && *resources->term_name != '\0'
                              ? resources->term_name
@@ -2195,6 +2360,10 @@ WireApplication(App *app, const AppResources *resources)
         XtpLog(XTP_LOG_INFO, "config", "sameName=%s", app->same_name ? "true" : "false");
         app->hold = resources->hold;
         XtpLog(XTP_LOG_INFO, "config", "hold=%s", app->hold ? "true" : "false");
+        if (!ParseFullscreenPolicy(resources->fullscreen, &app->fullscreen_policy))
+                XtpLog(XTP_LOG_WARNING, "config", "invalid fullscreen=%s; using off",
+                       resources->fullscreen);
+        XtpLog(XTP_LOG_INFO, "config", "fullscreen=%d", (int)app->fullscreen_policy);
         app->pipe_command = resources->pipe_command;
         XtpLog(XTP_LOG_INFO, "config", "pipeCommandOutput=%s",
                app->pipe_command != NULL && *app->pipe_command != '\0' ? app->pipe_command
@@ -2203,6 +2372,11 @@ WireApplication(App *app, const AppResources *resources)
                 app->hostname[0] = '\0';
         app->hostname[sizeof(app->hostname) - 1U] = '\0';
         XtpMenusCreate(&app->menus, app->shell, resources->menu_locale, MenuDispatch, app);
+        XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_FULLSCREEN, app->fullscreen);
+        /* As in xterm, always and never take the choice away from the menu. */
+        XtpMenusSetSensitive(&app->menus, XTP_MENU_ITEM_FULLSCREEN,
+                             app->fullscreen_policy == FULLSCREEN_OFF ||
+                                 app->fullscreen_policy == FULLSCREEN_ON);
         XtpMenusSetChecked(&app->menus, XTP_MENU_ITEM_ALLOW_WINDOW_OPS,
                            XtpVtAllowWindowOps(app->vt));
         /* As in xterm, the entry is insensitive while allowSendEvents blocks the blanket. */
@@ -2291,6 +2465,11 @@ RealizeApplication(App *app)
         app->wm_delete_window = XInternAtom(app->display, "WM_DELETE_WINDOW", False);
         (void)XSetWMProtocols(app->display, XtWindow(app->shell), &app->wm_delete_window, 1);
         XtAddEventHandler(app->shell, StructureNotifyMask, True, ShellEvent, app);
+        app->net_wm_state = XInternAtom(app->display, "_NET_WM_STATE", False);
+        app->net_wm_state_fullscreen = XInternAtom(app->display, "_NET_WM_STATE_FULLSCREEN", False);
+        XtAddEventHandler(app->shell, PropertyChangeMask, False, ShellPropertyEvent, app);
+        if (app->fullscreen_policy == FULLSCREEN_ON || app->fullscreen_policy == FULLSCREEN_ALWAYS)
+                RequestFullscreen(app, XTP_FULLSCREEN_ON);
 }
 
 /* Without -e, the shell runs as xterm runs it, named by its basename, dashed for loginShell. */

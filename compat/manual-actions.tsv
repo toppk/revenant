@@ -21,6 +21,7 @@ set-utf8-title	[on|off|toggle]	Change utf8Title, which decides whether later lab
 allow-color-ops	[on|off|toggle]	Change Allow Color Ops, the configured permission the menu entry shows. Arguments behave as for allow-title-ops. While allowSendEvents is true the change is recorded but the blanket permission stays blocked, as in xterm.
 set-font-linedrawing	[on|off|toggle]	Change forceBoxChars: draw supported procedural terminal glyphs from cell geometry instead of the font.
 popup-menu	name	Post the named popup menu: mainMenu, vtMenu, or fontMenu.
+fullscreen	[on|off|toggle]	Ask the window manager to enter or leave a fullscreen layout; with no parameter, toggle. Ignored when the fullscreen resource is never. Rings the bell when the request changes nothing or the window manager does not advertise _NET_WM_STATE_FULLSCREEN. Bound to Alt+Return by default; "*VT100.translations: #override <Key>F11: fullscreen()" adds F11.
 mouse-press		Report the button press to an application that has enabled mouse reporting; otherwise do nothing.
 mouse-motion		Report pointer motion to an application that has enabled mouse reporting.
 hyperlink-start		If the cell under the pointer carries an OSC 8 hyperlink or visible HTTP(S) URL, arm it so that the release opens it with xdg-open(1); otherwise behave as select-start.

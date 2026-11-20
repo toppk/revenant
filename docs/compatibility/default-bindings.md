@@ -22,7 +22,7 @@ options in that function; it does not include user overrides from X resources.
 | --- | --- | --- | --- |
 | select | Shift+Select | Missing | Keyboard-driven selection needs `select-cursor-start` and `select-cursor-end` plus explicit cursor/selection state. |
 | select | Shift+Insert | Done | Uses `insert-selection(SELECT, CUT_BUFFER0)` and the bracketed-paste encoder; `SELECT` follows `selectToClipboard`, and named arguments are tried in order. |
-| fullscreen | Alt+Return | Missing | Needs a coherent fullscreen resource/menu/EWMH slice; the client message is small, but policy and useful window-manager testing are not. |
+| fullscreen | Alt+Return | Done | Sends the EWMH `_NET_WM_STATE_FULLSCREEN` request under the `fullscreen` resource policy and follows the state the window manager reports. |
 | scroll-lock | Scroll Lock release | Missing | Output anchoring, focus/LED policy, and widget state make this more than a binding alias. |
 | shift-fonts | Shift/Ctrl+keypad plus and Shift+keypad minus | Done | Uses xterm's historical larger/smaller direction, including Shift+Ctrl+keypad plus. |
 | paging | Shift+Page Up/Down | Done | Scrolls one half-page locally and is not also sent to the PTY. |

@@ -101,6 +101,8 @@ SendGeneric(int argc, char **argv)
                         state |= ControlMask;
                 if (argc == 5 && strstr(argv[4], "shift") != NULL)
                         state |= ShiftMask;
+                if (argc == 5 && strstr(argv[4], "alt") != NULL)
+                        state |= Mod1Mask;
                 if (keysym == NoSymbol || SendKeyCycle(display, target, keysym, state, 0) != 0)
                         status = EXIT_FAILURE;
         } else {

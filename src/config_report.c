@@ -1046,7 +1046,8 @@ CatalogSupport(const XtpResourceCatalogEntry *entry)
                 if (strcmp(name, "title") == 0 || strcmp(name, "iconName") == 0 ||
                     strcmp(name, "iconGeometry") == 0 || strcmp(name, "menuLocale") == 0 ||
                     strcmp(name, "termName") == 0 || strcmp(name, "pipeCommandOutput") == 0 ||
-                    strcmp(name, "sameName") == 0 || strcmp(name, "hold") == 0)
+                    strcmp(name, "sameName") == 0 || strcmp(name, "hold") == 0 ||
+                    strcmp(name, "fullscreen") == 0)
                         return "supported";
                 return "unsupported";
         }

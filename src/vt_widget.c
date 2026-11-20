@@ -36,6 +36,7 @@ static void AllowColorOpsAction(Widget widget, XEvent *event, String *params, Ca
 static void ReportFontRoutingAction(Widget widget, XEvent *event, String *params,
                                     Cardinal *num_params);
 static void PopupMenuAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
+static void FullscreenAction(Widget widget, XEvent *event, String *params, Cardinal *num_params);
 static void ClassInitialize(void);
 
 static XtActionsRec actions[] = {
@@ -49,6 +50,7 @@ static XtActionsRec actions[] = {
     {"set-select", SetSelectAction},
     {"report-font-routing", ReportFontRoutingAction},
     {"popup-menu", PopupMenuAction},
+    {"fullscreen", FullscreenAction},
     {"scroll-back", VtScrollBackAction},
     {"scroll-forw", VtScrollForwardAction},
     {"previous-prompt", VtPreviousPromptAction},
@@ -83,6 +85,7 @@ static char translations[] = "Shift~Ctrl <KeyPress> KP_Add: larger-vt-font()\n"
                              "Ctrl Shift <KeyPress> Down: next-prompt()\n"
                              "Ctrl Shift <KeyPress> g: pipe-command-output()\n"
                              "Ctrl Shift <KeyPress> f: start-search()\n"
+                             "Alt <KeyPress> Return: fullscreen()\n"
                              "!Ctrl <Btn1Down>: popup-menu(mainMenu)\n"
                              "!Lock Ctrl <Btn1Down>: popup-menu(mainMenu)\n"
                              "!Lock Ctrl @Num_Lock <Btn1Down>: popup-menu(mainMenu)\n"
@@ -351,6 +354,8 @@ static XtResource resources[] = {
      OFFSET(pipe_output_callback), XtRCallback, NULL},
     {XtNinputCallback, XtCInputCallback, XtRCallback, sizeof(XtCallbackList),
      OFFSET(input_callback), XtRCallback, NULL},
+    {XtNfullscreenCallback, XtCFullscreenCallback, XtRCallback, sizeof(XtCallbackList),
+     OFFSET(fullscreen_callback), XtRCallback, NULL},
 };
 
 #undef OFFSET
@@ -1699,6 +1704,24 @@ ToggleRequested(Widget widget, Boolean current, String *params, Cardinal num_par
                 return False;
         }
         return True;
+}
+
+/* The application owns the shell and the fullscreen policy; the widget only decodes. */
+static void
+FullscreenAction(Widget widget, XEvent *event, String *params, Cardinal *num_params)
+{
+        VtToggle toggle = DecodeXtermToggle(params, *num_params);
+        XtpFullscreenRequest request = XTP_FULLSCREEN_TOGGLE;
+
+        if (!VtAcceptLocalKeyAction(VtAsRecord(widget), event, XTP_LOCAL_ACTION_FULLSCREEN))
+                return;
+        if (toggle == VT_TOGGLE_INVALID) {
+                XBell(XtDisplay(widget), 0);
+                return;
+        }
+        if (toggle != VT_TOGGLE_FLIP)
+                request = toggle == VT_TOGGLE_ON ? XTP_FULLSCREEN_ON : XTP_FULLSCREEN_OFF;
+        XtCallCallbacks(widget, XtNfullscreenCallback, &request);
 }
 
 static void

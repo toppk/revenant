@@ -10,6 +10,13 @@ commit. Published tags and assets are never replaced.
 
 ## 0.11.0 — Unreleased
 
+### Features
+
+- Add fullscreen with xterm's interface: the `fullscreen()` action on
+  Alt+Return, the Main Options entry, the `fullscreen` resource and
+  `-fullscreen`. It needs a window manager that supports
+  `_NET_WM_STATE_FULLSCREEN`; F11 can be bound through `translations`.
+
 ### Maintainer tools
 
 - Make `just release` safe to start right after a push: it waits for the

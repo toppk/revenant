@@ -701,6 +701,13 @@ XTerm*vt100.translations: #override \n\
     <Btn5Down>:              scroll-forw(5,line)
 ```
 
+Fullscreen is xterm's `fullscreen()` action, bound to Alt+Return by default.
+F11 is left to applications, as in xterm; to use it for fullscreen:
+
+```xrdb
+XTerm*vt100.translations: #override <Key>F11: fullscreen()
+```
+
 Actions currently implemented include `insert-selection`, `select-end`,
 `set-select`, `scroll-back`, `scroll-forw`, `previous-prompt`, `next-prompt`,
 `pipe-command-output`, `start-search`, `insert-seven-bit`, `insert-eight-bit`,

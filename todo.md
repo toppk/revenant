@@ -87,6 +87,9 @@ library version report and DECRQCRA) are done; L6-L9 are open proposals.
       compatibility ledger, obtain callbacks for window manipulation/reports and the
       cross-family column, line, checksum, X-property and status-line controls.
       Use a window manager for stacking, minimize, maximize and fullscreen.
+      `CSI 10 t` waits only on the callback: `RequestFullscreen` exists. xterm
+      gates it with `allowWindowOps`/`FullscreenWin` and resizes the window to
+      the screen itself (`RequestMaximize`) rather than sending the EWMH state.
       Stop: preserve libghostty parser ownership and keep OSC 0/1/2 under Title
       Ops.
       TDN: `csi-1-t-de-iconify`, `csi-2-t-iconify`,

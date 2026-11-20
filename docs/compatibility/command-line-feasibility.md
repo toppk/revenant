@@ -88,7 +88,7 @@ The two original structural gaps are complete:
 | `-n string` | `iconName` | Xt shell | Table entry aliases `.iconName` | DONE |
 | `-iconic` | Start iconified | Xt | — | XT |
 | `-/+maximized` | `_NET_WM_STATE_MAXIMIZED_*` at startup | EWMH client message | Same helper as the fullscreen menu entry | READY |
-| `-/+fullscreen` | `_NET_WM_STATE_FULLSCREEN` at startup | EWMH client message | Same helper | READY |
+| `-/+fullscreen` | `_NET_WM_STATE_FULLSCREEN` at startup | EWMH initial window state | Sets the `fullscreen` resource | DONE |
 | `-/+nomap` | Do not map the window; useful with `-into` | `mappedWhenManaged` | Shell already sets it False then maps; make it conditional | READY |
 | `-b number` | `internalBorder` | — | — | DONE |
 | `-bw number` / `-bd color` | Shell border width and colour | Xt | — | XT |
@@ -213,7 +213,7 @@ The two original structural gaps are complete:
    logging (`-l`/`-lf`) is a separate TODO P1 slice shared with the menu action.
 4. **Slice D — startup application of existing menu modes**: `-rv`, `-aw`,
    `-rw`, `-132`, `-j`, `-mb`/`-nb`, `-fc`, `-sh`,
-   `-nul`, `-cm`, `-into`, `-nomap`, `-maximized`/`-fullscreen`,
+   `-nul`, `-cm`, `-into`, `-nomap`, `-maximized` (`-fullscreen` is done),
    `-samename`, `-ziconbeep`, `-fx` (`-ms` and `-pf` are done).
 5. **Ride the roadmap**: selection options with #4; bold/wide/palette/cursor
    options with #5; `-ut` and `-sm` with #6 packaging.

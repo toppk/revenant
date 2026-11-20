@@ -1027,6 +1027,26 @@ One difference remains when the command cannot be run. xterm-411 retries a faile
 without printing anything, so the held window is empty. Revenant does not retry
 through the shell.
 
+### Fullscreen
+
+The `fullscreen()` action, its Alt+Return binding, the Main Options entry, the
+`fullscreen` resource (`off`, `on`, `always`, `never` and xterm's boolean and
+numeric spellings) and `-fullscreen`/`+fullscreen` follow xterm patch 411. Like
+xterm, Revenant only asks: it sends `_NET_WM_STATE_FULLSCREEN` to a window
+manager that lists it in `_NET_SUPPORTED`, rings the bell when none does, and
+lifts the cell resize increments while fullscreen. `xvfb-fullscreen` covers the
+action, a user F11 binding, startup, `never` and a window manager that leaves
+fullscreen by itself.
+
+Two differences are deliberate. xterm keeps its own flag and never reads the
+state back, so its menu and increments go stale when the window manager's own
+shortcut leaves fullscreen; Revenant follows `_NET_WM_STATE` on its window. And
+xterm sends the startup request as a client message once it is running, where
+Revenant sets the initial state on the unmapped window as EWMH specifies, so
+the window is mapped fullscreen instead of resizing after it appears.
+
+`CSI 10 t` still does nothing: libghostty-vt reports no such request.
+
 ### Command-line diagnostics and extensions
 
 Revenant accepts only options whose effect it implements or whose behavior is
@@ -1102,7 +1122,7 @@ design decisions:
   `-/+mesg`, `-into`, `-/+sm`, `-/+ut`, `-/+l`/`-lf`, and
   `-/+lc`/`-lcc`. Window/render gaps include `-/+132`, `-/+aw`, `-/+rw`,
   `-/+j`, margin bell, startup cursor shape, pointer configuration,
-  selection colors, fullscreen/maximize/nomap, and the remaining specialized
+  selection colors, maximize/nomap, and the remaining specialized
   font/color switches. `-fb` and `-fwb` currently affect the Xft fallback
   model but do not supply xterm's complete bitmap bold/wide behavior. Terminal
   ID, C1-printable, and width-policy switches remain blocked on backend

@@ -43,7 +43,7 @@ configured and forced policy.
 | Item | What xterm does | libghostty involvement | Approachability | Status |
 | --- | --- | --- | --- | --- |
 | toolbar | Xaw toolbar (`OPT_TOOLBAR`, off in most builds) | None | Not worth reproducing | SKIP |
-| fullscreen | Toggle `_NET_WM_STATE_FULLSCREEN` | None | One EWMH client message | READY |
+| fullscreen | Toggle `_NET_WM_STATE_FULLSCREEN` | None | One EWMH client message; insensitive for `fullscreen: always` or `never` | DONE |
 | securekbd | `XGrabKeyboard`+`XGrabServer`, reverse-video flash | None | Pure Xlib, low value | READY |
 | allowsends | Accept `send_event` X events | None | Check `xany.send_event` in handlers | READY |
 | redraw | Full repaint | — | — | DONE |

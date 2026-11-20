@@ -23,6 +23,16 @@ typedef struct XtpTerminal XtpTerminal;
 #define XtCSizeChangedCallback "SizeChangedCallback"
 #define XtNpipeOutputCallback "pipeOutputCallback"
 #define XtCPipeOutputCallback "PipeOutputCallback"
+#define XtNfullscreenCallback "fullscreenCallback"
+#define XtCFullscreenCallback "FullscreenCallback"
+
+/* Call data of fullscreenCallback: what the fullscreen() action asked for. */
+typedef enum
+{
+        XTP_FULLSCREEN_TOGGLE,
+        XTP_FULLSCREEN_ON,
+        XTP_FULLSCREEN_OFF,
+} XtpFullscreenRequest;
 
 typedef struct
 {

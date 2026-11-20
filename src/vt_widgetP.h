@@ -106,6 +106,7 @@ typedef enum
         XTP_LOCAL_ACTION_ALLOW_TITLE_OPS,
         XTP_LOCAL_ACTION_ALLOW_COLOR_OPS,
         XTP_LOCAL_ACTION_UTF8_TITLE,
+        XTP_LOCAL_ACTION_FULLSCREEN,
 } LocalKeyAction;
 
 typedef struct
@@ -250,6 +251,7 @@ typedef struct
         XtCallbackList paste_callback;
         XtCallbackList input_callback;
         XtCallbackList pipe_output_callback;
+        XtCallbackList fullscreen_callback;
 
         GC gc;
         Pixmap box_stipples[3];

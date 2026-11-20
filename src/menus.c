@@ -36,7 +36,7 @@ typedef struct
 
 static const MenuSpec main_specs[] = {
     INERT("toolbar"),
-    INERT("fullscreen"),
+    ACTIVE("fullscreen", XTP_MENU_ITEM_FULLSCREEN),
     INERT("securekbd"),
     INERT("allowsends"),
     ACTIVE("redraw", XTP_MENU_ITEM_REDRAW),
